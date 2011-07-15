@@ -16,6 +16,8 @@
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
 pylibdir = $(libdir)/python/invenio
+jsdir=$(localstatedir)/www/js
+webdir=$(localstatedir)/www/img
 
 pylib_DATA = \
 	websearchadminlib.py \
@@ -44,6 +46,11 @@ pylib_DATA = \
 	websearch_external_collections_unit_tests.py \
 	websearch_external_collections_utils.py
 
-EXTRA_DIST = $(pylib_DATA)
+
+js_DATA = hepdata.js
+
+web_DATA = hepdata.css
+
+EXTRA_DIST = $(pylib_DATA) $(js_DATA) $(web_DATA)
 
 CLEANFILES = *~ *.tmp *.pyc

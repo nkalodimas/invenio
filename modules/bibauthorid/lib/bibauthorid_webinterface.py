@@ -2102,7 +2102,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             req=req,
             language=ln)
 
-
     def _ticket_open_assign_to_other_person(self, req, bibrefs, form):
         '''
         Initializes search to find a person to attach the selected records to

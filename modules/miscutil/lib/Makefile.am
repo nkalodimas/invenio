@@ -77,7 +77,10 @@ pylib_DATA = __init__.py \
              sequtils.py \
              sequtils_regression_tests.py \
              downloadutils.py \
-             downloadutils_tests.py
+             downloadutils_tests.py \
+             hepdatautils.py \
+             hepdatadisplayutils.py \
+             hepdatautils_tests.py
 
 noinst_DATA = testimport.py \
               kwalitee.py \

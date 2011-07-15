@@ -33,6 +33,7 @@ from invenio.config import \
 from invenio.dbquery import run_sql, deserialize_via_marshal
 from invenio.errorlib import register_exception
 from invenio.webpage import adderrorbox
+
 from invenio.bibindex_engine_stemmer import stem
 from invenio.bibindex_engine_stopwords import is_stopword
 from invenio.bibrank_citation_searcher import get_cited_by, get_cited_by_weight

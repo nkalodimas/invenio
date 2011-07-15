@@ -4274,7 +4274,25 @@ def print_records(req, recIDs, jrec=1, rg=CFG_WEBSEARCH_DEF_RECORDS_IN_GROUPS, f
                         req.write(webstyle_templates.detailed_record_container_bottom(recIDs[irec],
                                                                                       tabs,
                                                                                       ln))
+                    elif tab == 'hepdata':
+                        req.write(webstyle_templates.detailed_record_container_top(recIDs[irec],
+                                                                                   tabs,
+                                                                                   ln, include_jquery = True,
+                                                                                   include_mathjax = True))
+                        from invenio import hepdatautils
+                        from invenio import hepdatadisplayutils
+                        data = hepdatautils.retrieve_data_for_record(recIDs[irec])
+                        heplink = hepdatadisplayutils.get_hepdata_link(recIDs[irec])
 
+                        if data:
+                            content = websearch_templates.tmpl_record_hepdata(data, recIDs[irec], True)
+                        else:
+                            content = websearch_templates.tmpl_record_no_hepdata()
+
+                        req.write(content)
+                        req.write(webstyle_templates.detailed_record_container_bottom(recIDs[irec],
+                                                                                      tabs,
+                                                                                      ln))
                     else:
                         # Metadata tab
                         req.write(webstyle_templates.detailed_record_container_top(recIDs[irec],
@@ -5029,7 +5047,6 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
           wl - wildcard limit (ex: 100) the wildcard queries will be
                limited at 100 results
     """
-
     selected_external_collections_infos = None
 
     # wash output format:
@@ -5092,6 +5109,7 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
         recidb = idb
     # TODO deduce passed search limiting criterias (if applicable)
     pl, pl_in_url = "", "" # no limits by default
+
     if action != "browse" and req and not isinstance(req, cStringIO.OutputType) \
            and req.args: # we do not want to add options while browsing or while calling via command-line
         fieldargs = cgi.parse_qs(req.args)
@@ -5135,6 +5153,7 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
                 return [recidx for recidx in range(recid, recidb) if record_exists(recidx)]
             else:
                 print_records(req, range(recid, recidb), -1, -9999, of, ot, ln, search_pattern=p, verbose=verbose, tab=tab, sf=sf, so=so, sp=sp, rm=rm)
+
             if req and of.startswith("h"): # register detailed record page view event
                 client_ip_address = str(req.remote_ip)
                 register_page_view_event(recid, uid, client_ip_address)

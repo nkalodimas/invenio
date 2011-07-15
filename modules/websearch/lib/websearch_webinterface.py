@@ -222,7 +222,7 @@ class WebInterfaceRecordPages(WebInterfaceDirectory):
 
     _exports = ['', 'files', 'reviews', 'comments', 'usage',
                 'references', 'export', 'citations', 'holdings', 'edit',
-                'keywords', 'multiedit', 'merge', 'plots']
+                'keywords', 'multiedit', 'merge', 'plots', 'hepdata']
 
     #_exports.extend(output_formats)
 
@@ -240,6 +240,7 @@ class WebInterfaceRecordPages(WebInterfaceDirectory):
         self.holdings = WebInterfaceHoldingsPages(self.recid)
         self.citations = self
         self.plots = self
+        self.hepdata = self
         self.export = WebInterfaceRecordExport(self.recid, self.format)
         self.edit = WebInterfaceEditPages(self.recid)
         self.merge = WebInterfaceMergePages(self.recid)
@@ -252,6 +253,8 @@ class WebInterfaceRecordPages(WebInterfaceDirectory):
         argd['recid'] = self.recid
 
         argd['tab'] = self.tab
+
+        # do we really enter here ?
 
         if self.format is not None:
             argd['of'] = self.format
@@ -324,7 +327,7 @@ class WebInterfaceRecordRestrictedPages(WebInterfaceDirectory):
 
     _exports = ['', 'files', 'reviews', 'comments', 'usage',
                 'references', 'export', 'citations', 'holdings', 'edit',
-                'keywords', 'multiedit', 'merge', 'plots']
+                'keywords', 'multiedit', 'merge', 'plots', 'hepdata']
 
     #_exports.extend(output_formats)
 
@@ -345,7 +348,7 @@ class WebInterfaceRecordRestrictedPages(WebInterfaceDirectory):
         self.export = WebInterfaceRecordExport(self.recid, self.format)
         self.edit = WebInterfaceEditPages(self.recid)
         self.merge = WebInterfaceMergePages(self.recid)
-
+        self.hepdata = self
         return
 
     def __call__(self, req, form):
@@ -733,7 +736,7 @@ class WebInterfaceSearchInterfacePages(WebInterfaceDirectory):
             try:
                 if path[1] in ['', 'files', 'reviews', 'comments', 'usage',
                                'references', 'citations', 'holdings', 'edit',
-                               'keywords', 'multiedit', 'merge', 'plots']:
+                               'keywords', 'multiedit', 'merge', 'plots', 'hepdata']:
                     tab = path[1]
                 elif path[1] == 'export':
                     tab = ''
