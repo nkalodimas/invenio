@@ -15,8 +15,8 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
-
-from invenio.dbquery import run_sql
+import time
+from invenio.dbquery import run_sql, serialize_via_marshal
 
 class HistoryEntry:
     date_harvested = None
@@ -148,6 +148,131 @@ def get_entry_logs_size(oai_id):
     for entry in query_result:
         return int(entry[0])
     return 0
+
+##################################################################
+### Here the functions to retrieve, modify, delete and add sources
+##################################################################
+
+def get_oai_src(oai_src_id=''):
+    """
+    Returns a row for a given id in this order:
+    id, baseurl, metadataprefix, arguments,
+    comment, bibconvertcfgfile, name, lastrun,
+    frequency, postprocess, setspecs,
+    bibfilterprogram
+
+    bibfilterprogram and bibconvertcfgfile is deprecated.
+    These parameters are now included in arguments dict.
+    """
+    sql = """SELECT id, baseurl, metadataprefix, arguments,
+                    comment, name, lastrun,
+                    frequency, postprocess, setspecs
+             FROM oaiHARVEST"""
+    try:
+        args = []
+        if oai_src_id:
+            sql += " WHERE id=%s"
+            args.append(oai_src_id)
+        sql += " ORDER BY id asc"
+        res = run_sql(sql, tuple(args))
+        return res
+    except StandardError, e:
+        return ""
+
+def modify_oai_src(oai_src_id, oai_src_name, oai_src_baseurl, oai_src_prefix,
+                   oai_src_frequency, oai_src_post, oai_src_comment,
+                   oai_src_sets=None, oai_src_args=None):
+    """Modifies a row's parameters"""
+    if oai_src_sets is None:
+        oai_src_sets = []
+    if oai_src_post is None:
+        oai_src_post = []
+    if oai_src_args is None:
+        oai_src_args = {}
+    sql = """UPDATE oaiHARVEST
+             SET baseurl=%s, metadataprefix=%s, arguments=%s, comment=%s,
+             name=%s, frequency=%s, postprocess=%s, setspecs=%s
+             WHERE id=%s"""
+    try:
+        run_sql(sql, (oai_src_baseurl,
+                      oai_src_prefix,
+                      serialize_via_marshal(oai_src_args),
+                      oai_src_comment,
+                      oai_src_name,
+                      oai_src_frequency,
+                      '-'.join(oai_src_post),
+                      ' '.join(oai_src_sets),
+                      oai_src_id))
+        return (1, "")
+    except StandardError, e:
+        return (0, e)
+
+def add_oai_src(oai_src_name, oai_src_baseurl, oai_src_prefix, oai_src_frequency,
+                oai_src_lastrun, oai_src_post, oai_src_comment,
+                oai_src_sets=None, oai_src_args=None):
+    """Adds a new row to the database with the given parameters"""
+    if oai_src_sets is None:
+        oai_src_sets = []
+    if oai_src_args is None:
+        oai_src_args = {}
+    #return (0, str(serialize_via_marshal(oai_src_args)))
+    try:
+        if oai_src_lastrun in [0, "0"]: lastrun_mode = 'NULL'
+        else:
+            lastrun_mode = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            # lastrun_mode = "'"+lastrun_mode+"'"
+        run_sql("INSERT INTO oaiHARVEST "
+                "(baseurl, metadataprefix, arguments, comment, name, lastrun, "
+                "frequency, postprocess, setspecs) VALUES "
+                "(%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (oai_src_baseurl, oai_src_prefix, serialize_via_marshal(oai_src_args), \
+                 oai_src_comment, oai_src_name, lastrun_mode, oai_src_frequency, \
+                 "-".join(oai_src_post), " ".join(oai_src_sets)))
+        return (1, "")
+    except StandardError, e:
+        return (0, e)
+
+def delete_oai_src(oai_src_id):
+    """Deletes a row from the database according to its id"""
+    try:
+        res = run_sql("DELETE FROM oaiHARVEST WHERE id=%s" % oai_src_id)
+        return (1, "")
+    except StandardError, e:
+        return (0, e)
+
+def get_tot_oai_src():
+    """Returns number of rows in the database"""
+    try:
+        sql = "SELECT COUNT(*) FROM oaiHARVEST"
+        res = run_sql(sql)
+        return res[0][0]
+    except StandardError, e:
+        return ""
+
+def get_update_status():
+    """Returns a table showing a list of all rows and their LastUpdate status"""
+    try:
+        sql = "SELECT name,lastrun FROM oaiHARVEST ORDER BY lastrun desc"
+        res = run_sql(sql)
+        return res
+    except StandardError, e:
+        return ""
+
+def get_next_schedule():
+    """Returns the next scheduled oaiharvestrun tasks"""
+    try:
+        sql = "SELECT runtime,status FROM schTASK WHERE proc='oaiharvest' AND runtime > now() ORDER by runtime LIMIT 1"
+        res = run_sql(sql)
+        if len(res) > 0:
+            return res[0]
+        else:
+            return ("", "")
+    except StandardError, e:
+        return ("", "")
+
+##################################################################
+###### Here the functions related to Holding Pen operations ######
+##################################################################
 
 def get_holdingpen_entries(start = 0, limit = 0):
     query = "SELECT oai_id, changeset_date, update_id FROM bibHOLDINGPEN ORDER BY changeset_date"

@@ -50,7 +50,7 @@ from invenio.config import \
      CFG_OAI_FAILED_HARVESTING_STOP_QUEUE, \
      CFG_OAI_FAILED_HARVESTING_EMAILS_ADMIN
 from invenio.oai_harvest_config import InvenioOAIHarvestWarning
-from invenio.dbquery import run_sql
+from invenio.dbquery import run_sql, deserialize_via_marshal
 from invenio.bibtask import \
      task_get_task_param, \
      task_get_option, \
@@ -138,18 +138,18 @@ def task_run_core():
 
         # Extract values from database row (in exact order):
         #  | id | baseurl | metadataprefix | arguments | comment
-        #  | bibconvertcfgfile | name   | lastrun | frequency
-        #  | postprocess | setspecs | bibfilterprogram
+        #  | name   | lastrun | frequency
+        #  | postprocess | setspecs
         source_id = repos[0][0]
         baseurl = str(repos[0][1])
         metadataprefix = str(repos[0][2])
+        arguments = deserialize_via_marshal(repos[0][3])
         bibconvert_cfgfile = str(repos[0][5])
-        reponame = str(repos[0][6])
-        lastrun = repos[0][7]
-        frequency = repos[0][8]
-        postmode = repos[0][9]
-        setspecs = str(repos[0][10])
-        bibfilterprogram = str(repos[0][11])
+        reponame = str(repos[0][5])
+        lastrun = repos[0][6]
+        frequency = repos[0][7]
+        postmode = repos[0][8]
+        setspecs = str(repos[0][9])
 
         write_message("running in postmode %s" % (postmode,))
         downloaded_material_dict = {}
@@ -268,7 +268,7 @@ def task_run_core():
                                       len(active_files_list)))
                 updated_file = "%s.converted" % (active_file.split('.')[0],)
                 updated_files_list.append(updated_file)
-                (exitcode, err_msg) = call_bibconvert(config=bibconvert_cfgfile,
+                (exitcode, err_msg) = call_bibconvert(config=arguments['c_stylesheet'],
                                                       harvestpath=active_file,
                                                       convertpath=updated_file)
                 if exitcode == 0:
@@ -286,9 +286,15 @@ def task_run_core():
                                get_nb_records_in_file(updated_file)))
             active_files_list = updated_files_list
             write_message("conversion step ended")
+
         # plotextract phase
         if 'p' in postmode:
             write_message("plotextraction step started")
+            if not arguments['p_extraction-source']:
+                # No plotextractor type chosen, exit with failure
+                write_message("Error: No plotextractor source type chosen! Use PDF or LaTeX extractor.")
+                error_happened_p = True
+                continue
             # Download tarball for each harvested/converted record, then run plotextrator.
             # Update converted xml files with generated xml or add it for upload
             updated_files_list = []
@@ -304,7 +310,8 @@ def task_run_core():
                 (exitcode, err_msg) = call_plotextractor(active_file,
                                                          updated_file,
                                                          identifiers,
-                                                         downloaded_material_dict)
+                                                         downloaded_material_dict,
+                                                         arguments['p_extraction-source'])
                 if exitcode == 0:
                     if err_msg != "":
                         write_message("plots from %s was extracted, but with some errors:\n%s" % \
@@ -340,7 +347,8 @@ def task_run_core():
                 (exitcode, err_msg) = call_refextract(active_file,
                                                       updated_file,
                                                       identifiers,
-                                                      downloaded_material_dict)
+                                                      downloaded_material_dict,
+                                                      arguments)
                 if exitcode == 0:
                     if err_msg != "":
                         write_message("references from %s was extracted, but with some errors:\n%s" % \
@@ -383,7 +391,9 @@ def task_run_core():
                 (exitcode, err_msg) = call_authorlist_extract(active_file,
                                                               updated_file,
                                                               identifiers,
-                                                              downloaded_material_dict)
+                                                              downloaded_material_dict,
+                                                              bibcatalog_system,
+                                                              arguments.get('a_rt-queue', ""))
                 if exitcode == 0:
                     if err_msg != "":
                         write_message("authorlists from %s was extracted, but with some errors:\n%s" % \
@@ -420,7 +430,8 @@ def task_run_core():
                 (exitcode, err_msg) = call_fulltext(active_file,
                                                     updated_file,
                                                     identifiers,
-                                                    downloaded_material_dict)
+                                                    downloaded_material_dict,
+                                                    arguments.get('t_doctype', ""))
                 if exitcode == 0:
                     write_message("fulltext from %s was successfully attached" % \
                                   (active_file,))
@@ -449,7 +460,7 @@ def task_run_core():
                                      (reponame, \
                                       i, \
                                       len(active_files_list)))
-                (exitcode, err_msg) = call_bibfilter(bibfilterprogram, active_file)
+                (exitcode, err_msg) = call_bibfilter(arguments['f_filter-file'], active_file)
 
                 if exitcode == 0:
                     write_message("%s was successfully bibfiltered" % \
@@ -504,7 +515,9 @@ def task_run_core():
                     last_upload_task_id = call_bibupload(upload_filename, \
                                                          [mode], \
                                                          source_id, \
-                                                         sequence_id)
+                                                         sequence_id, \
+                                                         arguments.get('u_name', ""), \
+                                                         arguments.get('u_priority', 5))
                     if not last_upload_task_id:
                         error_happened_p = 2
                         write_message("an error occurred while uploading %s from %s" % \
@@ -672,7 +685,7 @@ def call_bibconvert(config, harvestpath, convertpath):
     return (exitcode, cmd_stderr)
 
 def call_plotextractor(active_file, extracted_file, harvested_identifier_list, \
-                       downloaded_files):
+                       downloaded_files, plotextractor_types):
     """
     Function that generates proper MARCXML containing harvested plots for
     each record.
@@ -681,6 +694,8 @@ def call_plotextractor(active_file, extracted_file, harvested_identifier_list, \
     @param extracted_file: path to the file where the final results will be saved
     @param harvested_identifier_list: list of OAI identifiers for this active_file
     @param downloaded_files: dict of identifier -> dict mappings for downloaded material.
+    @param plotextractor_types: list of names of which plotextractor(s) to use (latex or pdf)
+        (pdf is currently ignored).
 
     @return: exitcode and any error messages as: (exitcode, err_msg)
     """
@@ -704,26 +719,29 @@ def call_plotextractor(active_file, extracted_file, harvested_identifier_list, \
             downloaded_files[identifier] = {}
         updated_xml.append("<record>")
         updated_xml.append(record_xml)
-        if "tarball" not in downloaded_files[identifier]:
-            current_exitcode, err_msg, tarball, dummy = \
-                        plotextractor_harvest(identifier, active_file, selection=["tarball"])
-            if current_exitcode != 0:
-                exitcode = current_exitcode
-                all_err_msg.append(err_msg)
-            else:
-                downloaded_files[identifier]["tarball"] = tarball
-        if current_exitcode == 0:
-            plotextracted_xml_path = process_single(downloaded_files[identifier]["tarball"])
-            if plotextracted_xml_path != None:
-                # We store the path to the directory the tarball contents live
-                downloaded_files[identifier]["tarball-extracted"] = os.path.split(plotextracted_xml_path)[0]
-                # Read and grab MARCXML from plotextractor run
-                plotsxml_fd = open(plotextracted_xml_path, 'r')
-                plotextracted_xml = plotsxml_fd.read()
-                plotsxml_fd.close()
-                re_list = REGEXP_RECORD.findall(plotextracted_xml)
-                if re_list != []:
-                    updated_xml.append(re_list[0])
+        if 'latex' in plotextractor_types:
+            # Run LaTeX plotextractor
+            if "tarball" not in downloaded_files[identifier]:
+                current_exitcode, err_msg, tarball, dummy = \
+                            plotextractor_harvest(identifier, active_file, selection=["tarball"])
+                if current_exitcode != 0:
+                    exitcode = current_exitcode
+                    all_err_msg.append(err_msg)
+                else:
+                    downloaded_files[identifier]["tarball"] = tarball
+            if current_exitcode == 0:
+                plotextracted_xml_path = process_single(downloaded_files[identifier]["tarball"])
+                if plotextracted_xml_path != None:
+                    # We store the path to the directory the tarball contents live
+                    downloaded_files[identifier]["tarball-extracted"] = os.path.split(plotextracted_xml_path)[0]
+                    # Read and grab MARCXML from plotextractor run
+                    plotsxml_fd = open(plotextracted_xml_path, 'r')
+                    plotextracted_xml = plotsxml_fd.read()
+                    plotsxml_fd.close()
+                    re_list = REGEXP_RECORD.findall(plotextracted_xml)
+                    if re_list != []:
+                        # Add final FFT info from LaTeX plotextractor to record.
+                        updated_xml.append(re_list[0])
         updated_xml.append("</record>")
     updated_xml.append('</collection>')
     # Write to file
@@ -735,7 +753,7 @@ def call_plotextractor(active_file, extracted_file, harvested_identifier_list, \
     return exitcode, ""
 
 def call_refextract(active_file, extracted_file, harvested_identifier_list,
-                    downloaded_files):
+                    downloaded_files, arguments):
     """
     Function that calls refextractor to extract references and attach them to
     harvested records. It will download the fulltext-pdf for each identifier
@@ -745,14 +763,25 @@ def call_refextract(active_file, extracted_file, harvested_identifier_list,
     @param extracted_file: path to the file where the final results will be saved
     @param harvested_identifier_list: list of OAI identifiers for this active_file
     @param downloaded_files: dict of identifier -> dict mappings for downloaded material.
+    @param arguments: dict of post-process arguments.
+                      r_format, r_kb-journal-file, r_kb-rep-no-file
 
     @return: exitcode and any error messages as: (exitcode, all_err_msg)
     """
     all_err_msg = []
     exitcode = 0
-    flag = ""
-    if CFG_INSPIRE_SITE == 1:
-        flag = "--inspire"
+
+    flags = []
+    if arguments.get('r_format'):
+        flags.append("--%s" % (arguments['r_format'],))
+    elif CFG_INSPIRE_SITE:
+        flags.append("--inspire")
+    if arguments.get('r_kb-journal-file'):
+        flags.append("--kb-journal '%s'" % (arguments['r_kb-journal-file'],))
+    if arguments.get('r_kb-rep-no-file'):
+        flags.append("--kb-report-number '%s'" % (arguments['r_kb-rep-no-file'],))
+
+    flag = " ".join(flags)
     # Read in active file
     recs_fd = open(active_file, 'r')
     records = recs_fd.read()
@@ -801,7 +830,7 @@ def call_refextract(active_file, extracted_file, harvested_identifier_list,
     return exitcode, ""
 
 def call_authorlist_extract(active_file, extracted_file, harvested_identifier_list,
-                            downloaded_files):
+                            downloaded_files, bibcatalog_RT, queue):
     """
     Function that will look in harvested tarball for any authorlists. If found
     it will extract and convert the authors using a XSLT stylesheet.
@@ -817,6 +846,12 @@ def call_authorlist_extract(active_file, extracted_file, harvested_identifier_li
 
     @param downloaded_files: dict of identifier -> dict mappings for downloaded material.
     @type downloaded_files: dict
+
+    @param bibcatalog_RT: BibCatalogSystemRT object to create tickets if applicable
+    @type bibcatalog_RT: object
+
+    @param queue: name of the RT queue
+    @type queue: string
 
     @return: exitcode and any error messages as: (exitcode, all_err_msg)
     @rtype: tuple
@@ -857,7 +892,7 @@ def call_authorlist_extract(active_file, extracted_file, harvested_identifier_li
                 downloaded_files[identifier]["tarball"] = tarball
         if current_exitcode == 0:
             current_exitcode, err_msg, authorlist_xml_path = authorlist_extract(downloaded_files[identifier]["tarball"], \
-                                                                       identifier, downloaded_files)
+                                                                                identifier, downloaded_files)
             if current_exitcode != 0:
                 exitcode = current_exitcode
                 all_err_msg.append("Error extracting authors from id: %s\nError:%s" % \
@@ -884,7 +919,8 @@ def call_authorlist_extract(active_file, extracted_file, harvested_identifier_li
                                       + record_find_matching_fields(key, authorlist_record, tag='700')
                     if len(matching_fields) > 0 and bibcatalog_system != None:
                         # UNDEFINED found. Create ticket in author queue
-                        ticketid = create_authorlist_ticket(matching_fields, identifier)
+                        ticketid = create_authorlist_ticket(bibcatalog_RT, matching_fields,
+                                                            identifier, queue)
                         if ticketid:
                             write_message("authorlist RT ticket %d submitted for %s" % (ticketid, identifier))
                         else:
@@ -908,15 +944,16 @@ def call_authorlist_extract(active_file, extracted_file, harvested_identifier_li
     return exitcode, ""
 
 def call_fulltext(active_file, extracted_file, harvested_identifier_list,
-                  downloaded_files):
+                  downloaded_files, doctype=""):
     """
-    Function that calls attach FFT tag for full-text pdf to harvested records.
+    Function that calls attach FFT tag for a downloaded file to harvested records.
     It will download the fulltext-pdf for each identifier if necessary.
 
     @param active_file: path to the currently processed file
     @param extracted_file: path to the file where the final results will be saved
     @param harvested_identifier_list: list of OAI identifiers for this active_file
     @param downloaded_files: dict of identifier -> dict mappings for downloaded material.
+    @param doctype: doctype of downloaded file in BibDocFile
 
     @return: exitcode and any error messages as: (exitcode, err_msg)
     """
@@ -926,14 +963,6 @@ def call_fulltext(active_file, extracted_file, harvested_identifier_list,
     recs_fd = open(active_file, 'r')
     records = recs_fd.read()
     recs_fd.close()
-
-    # Set doctype FIXME: Remove when parameters are introduced to post-process steps
-    if CFG_INSPIRE_SITE == 1:
-        doctype = "arXiv"
-    elif CFG_CERN_SITE == 1:
-        doctype = ""
-    else:
-        doctype = ""
 
     # Find all records
     record_xmls = REGEXP_RECORD.findall(records)
@@ -1119,7 +1148,7 @@ def translate_fieldvalues_from_latex(record, tag, code='', encoding='utf-8'):
                                        subfield_index, field_position_global=field[4])
             subfield_index += 1
 
-def create_authorlist_ticket(matching_fields, identifier):
+def create_authorlist_ticket(bibcatalog_system, matching_fields, identifier, queue):
     """
     This function will submit a ticket generated by UNDEFINED affiliations
     in extracted authors from collaboration authorlists.
@@ -1129,6 +1158,9 @@ def create_authorlist_ticket(matching_fields, identifier):
 
     @param identifier: OAI identifier of record
     @type identifier: string
+
+    @param queue: the RT queue to send a ticket to
+    @type queue: string
 
     @return: return the ID of the created ticket, or None on failure
     @rtype: int or None
@@ -1151,7 +1183,6 @@ List of unidentified fields:
            'fields' : "\n".join([field_xml_output(field, tag) for tag, field_instances in matching_fields \
                                 for field in field_instances])
            }
-    queue = "Authors"
     ticketid = bibcatalog_system.ticket_submit(subject=subject, queue=queue)
     if bibcatalog_system.ticket_comment(None, ticketid, text) == None:
         write_message("Error: commenting on ticket %s failed." % (str(ticketid),))
@@ -1181,7 +1212,7 @@ def create_oaiharvest_log_str(task_id, oai_src_id, xml_content):
     except Exception, msg:
         print "Logging exception : %s   " % (str(msg),)
 
-def call_bibupload(marcxmlfile, mode=None, oai_src_id= -1, sequence_id=None):
+def call_bibupload(marcxmlfile, mode=None, oai_src_id= -1, sequence_id=None, name="", priority=5):
     """
     Creates a bibupload task for the task scheduler in given mode
     on given file. Returns the generated task id and logs the event
@@ -1191,6 +1222,8 @@ def call_bibupload(marcxmlfile, mode=None, oai_src_id= -1, sequence_id=None):
     @param mode: mode to upload in
     @param oai_src_id: id of current source config
     @param sequence_id: sequence-number, if relevant
+    @param name: bibtask name, if relevant
+    @param priority: bibtask priority, defaults to 5.
 
     @return: task_id if successful, otherwise None.
     """
@@ -1201,9 +1234,13 @@ def call_bibupload(marcxmlfile, mode=None, oai_src_id= -1, sequence_id=None):
             args = mode
             # Add job with priority 6 (above normal bibedit tasks) and file to upload to arguments
             #FIXME: allow per-harvest arguments
-            args.extend(["-P", "6", marcxmlfile])
             if sequence_id:
                 args.extend(['-I', str(sequence_id)])
+            if name:
+                args.extend(['-N', name])
+            if priority:
+                args.extend(['-P', str(priority)])
+            args.append(marcxmlfile)
             task_id = task_low_level_submission("bibupload", "oaiharvest", *tuple(args))
             create_oaiharvest_log(task_id, oai_src_id, marcxmlfile)
         except Exception, msg:
@@ -1262,9 +1299,8 @@ def get_row_from_reposname(reposname):
         from the source name """
     try:
         sql = """SELECT id, baseurl, metadataprefix, arguments,
-                        comment, bibconvertcfgfile, name, lastrun,
-                        frequency, postprocess, setspecs,
-                        bibfilterprogram
+                        comment, name, lastrun,
+                        frequency, postprocess, setspecs
                    FROM oaiHARVEST WHERE name=%s"""
         res = run_sql(sql, (reposname,))
         reposdata = []
@@ -1278,8 +1314,8 @@ def get_all_rows_from_db():
     """ This method retrieves the full database of repositories and returns
         a list containing (in exact order):
         | id | baseurl | metadataprefix | arguments | comment
-        | bibconvertcfgfile | name   | lastrun | frequency
-        | postprocess | setspecs | bibfilterprogram
+        | name   | lastrun | frequency
+        | postprocess | setspecs
     """
     try:
         reposlist = []
@@ -1287,9 +1323,8 @@ def get_all_rows_from_db():
         idlist = run_sql(sql)
         for index in idlist:
             sql = """SELECT id, baseurl, metadataprefix, arguments,
-                            comment, bibconvertcfgfile, name, lastrun,
+                            comment, name, lastrun,
                             frequency, postprocess, setspecs,
-                            bibfilterprogram
                      FROM oaiHARVEST WHERE id=%s""" % index
 
             reposelements = run_sql(sql)

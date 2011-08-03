@@ -43,13 +43,15 @@ from invenio.bibrankadminlib import \
      addadminbox, \
      tupletotable, \
      createhiddenform
-from invenio.dbquery import run_sql
+from invenio.dbquery import deserialize_via_marshal
 
 from invenio.oai_harvest_dblayer import get_month_logs_size, \
      get_history_entries_for_day, get_day_logs_size, get_entry_history, \
      get_entry_logs_size, get_holdingpen_entries, delete_holdingpen_entry, \
      get_holdingpen_years, get_holdingpen_month, get_holdingpen_year, \
-     get_holdingpen_day_fragment, get_holdingpen_entry_details
+     get_holdingpen_day_fragment, get_holdingpen_entry_details, \
+     get_oai_src, add_oai_src, modify_oai_src, delete_oai_src, \
+     get_tot_oai_src, get_update_status, get_next_schedule
 from invenio.search_engine import get_record
 
 import invenio.template
@@ -79,6 +81,10 @@ def getnavtrail(previous='', ln=CFG_SITE_LANG):
     """Get the navtrail"""
     return oaiharvest_templates.tmpl_getnavtrail(previous=previous,
                                                  ln=ln)
+
+def getheader():
+    """Get the standard meta header"""
+    return oaiharvest_templates.tmpl_meta_headers()
 
 def generate_sources_actions_menu(oai_src_id, ln=CFG_SITE_LANG):
     """
@@ -118,16 +124,16 @@ def perform_request_index(ln=CFG_SITE_LANG):
 
     titlebar = oaiharvest_templates.tmpl_draw_titlebar(ln=ln, title=_("Overview of sources"), guideurl=guideurl, extraname="add new OAI source" , extraurl="admin/oaiharvest/oaiharvestadmin.py/addsource?ln=" + ln)
     titlebar2 = oaiharvest_templates.tmpl_draw_titlebar(ln=ln, title=_("Harvesting status"), guideurl=guideurl)
-    header = ['name', 'baseURL', 'metadataprefix', 'frequency',
-              'bibconvertfile', 'postprocess', 'actions']
-    header2 = ['name', 'last update']
+    header = ['name', 'base URL', 'metadata prefix', 'frequency',
+              'last run', 'post-processes', 'actions', 'comments']
     oai_src = get_oai_src()
-    upd_status = get_update_status()
 
     sources = []
-    for (oai_src_id, oai_src_name, oai_src_baseurl, oai_src_prefix, \
-         oai_src_frequency, oai_src_config, oai_src_post, \
-         dummy_oai_src_bibfilter, dummy_oai_src_setspecs) in oai_src:
+
+    for (oai_src_id, oai_src_baseurl, oai_src_prefix, \
+         dummy1, oai_src_comment, oai_src_name, \
+         oai_src_lastrun, oai_src_frequency, oai_src_post, \
+         dummy2) in oai_src:
 
         default_link_argd = {'ln': ln,
                              'oai_src_id': str(oai_src_id)}
@@ -140,17 +146,17 @@ def perform_request_index(ln=CFG_SITE_LANG):
         elif oai_src_frequency == 24: freq = _("daily")
         elif oai_src_frequency == 168: freq = _("weekly")
         elif oai_src_frequency == 720: freq = _("monthly")
+        if not oai_src_lastrun:
+            oai_src_lastrun = oaiharvest_templates.tmpl_print_warning(ln, \
+                                                                      _("Never harvested"), \
+                                                                      prefix="")
+        else: 
+            #cut away leading zeros
+            oai_src_lastrun = re.sub(r'\.[0-9]+$', '', str(oai_src_lastrun))
+        if not oai_src_comment: oai_src_comment = ""
         action = generate_sources_actions_menu(oai_src_id, ln)
         sources.append([namelinked, oai_src_baseurl, oai_src_prefix,
-                        freq, oai_src_config, oai_src_post, action])
-
-    updates = []
-    for (upd_name, upd_status) in upd_status:
-        if not upd_status:
-            upd_status = webstyle_templates.tmpl_write_warning(_("Never harvested"))
-        else: #cut away leading zeros
-            upd_status = re.sub(r'\.[0-9]+$', '', str(upd_status))
-        updates.append([upd_name, upd_status])
+                        freq, oai_src_lastrun, oai_src_post, action, oai_src_comment])
 
     (schtime, schstatus) = get_next_schedule()
     if schtime:
@@ -167,120 +173,94 @@ def perform_request_index(ln=CFG_SITE_LANG):
     output += titlebar2
     output += oaiharvest_templates.tmpl_output_schedule(ln, schtime, str(schstatus))
     output += holdingpen_link
-    output += oaiharvest_templates.tmpl_print_brs(ln, 2)
-    output += tupletotable(header=header2, tuple=updates)
 
     return output
 
 def perform_request_editsource(oai_src_id=None, oai_src_name='',
                                oai_src_baseurl='', oai_src_prefix='',
-                               oai_src_frequency='',
-                               oai_src_config='',
-                               oai_src_post='', ln=CFG_SITE_LANG,
-                               confirm= -1, oai_src_sets=None,
-                               oai_src_bibfilter=''):
-    """creates html form to edit a OAI source. this method is calling other methods which again is calling this and sending back the output of the method.
+                               oai_src_frequency='', oai_src_post='',
+                               oai_src_comment='', ln=CFG_SITE_LANG,
+                               confirm=-1, oai_src_sets=None, oai_src_args=None):
+    """creates html form to edit a OAI source. this method is calling other methods
+    which again is calling this and sending back the output of the method.
     confirm - determines the validation status of the data input into the form"""
     _ = gettext_set_language(ln)
 
     if oai_src_id is None:
         return _("No OAI source ID selected.")
-
     if oai_src_sets is None:
         oai_src_sets = []
 
     output = ""
-    subtitle = oaiharvest_templates.tmpl_draw_subtitle(ln=ln, title="edit source", subtitle="Edit OAI source", guideurl=guideurl)
+    confirm = int(confirm)
+    show_form = True
 
-    if confirm in [-1, "-1"]:
+    subtitle = oaiharvest_templates.tmpl_draw_subtitle(ln=ln, \
+                                                       title="edit source", \
+                                                       subtitle="Edit OAI source", \
+                                                       guideurl=guideurl)
+
+    if confirm == -1:
         oai_src = get_oai_src(oai_src_id)
-        oai_src_name = oai_src[0][1]
-        oai_src_baseurl = oai_src[0][2]
-        oai_src_prefix = oai_src[0][3]
-        oai_src_frequency = oai_src[0][4]
-        oai_src_config = oai_src[0][5]
-        oai_src_post = oai_src[0][6]
-        oai_src_sets = oai_src[0][7].split()
-        oai_src_bibfilter = oai_src[0][8]
+        oai_src_name = oai_src[0][5]
+        oai_src_baseurl = oai_src[0][1]
+        oai_src_prefix = oai_src[0][2]
+        oai_src_args = deserialize_via_marshal(oai_src[0][3])
+        oai_src_comment = oai_src[0][4]
+        oai_src_frequency = oai_src[0][7]
+        oai_src_post = oai_src[0][8]
+        oai_src_sets = oai_src[0][9].split()
 
-    if confirm in [1, "1"] and not oai_src_name:
-        output += webstyle_templates.tmpl_write_warning(_("Please enter a name for the source."))
-    elif confirm in [1, "1"] and not oai_src_prefix:
-        output += webstyle_templates.tmpl_write_warning(_("Please enter a metadata prefix."))
-    elif confirm in [1, "1"] and not oai_src_baseurl:
-        output += webstyle_templates.tmpl_write_warning(_("Please enter a base url."))
-    elif confirm in [1, "1"] and not oai_src_frequency:
-        output += webstyle_templates.tmpl_write_warning(_("Please choose a frequency of harvesting"))
-    elif confirm in [1, "1"] and "c" in oai_src_post and (not oai_src_config or validatefile(oai_src_config) != 0):
-        output += webstyle_templates.tmpl_write_warning(_("You selected a postprocess mode which involves conversion."))
-        output += webstyle_templates.tmpl_write_warning(_("Please enter a valid name of or a full path to a BibConvert config file or change postprocess mode."))
-    elif confirm in [1, "1"] and "f" in oai_src_post and (not oai_src_bibfilter or validatefile(oai_src_bibfilter) != 0):
-        output += webstyle_templates.tmpl_write_warning(_("You selected a postprocess mode which involves filtering."))
-        output += webstyle_templates.tmpl_write_warning(_("Please enter a valid name of or a full path to a BibFilter script or change postprocess mode."))
-    elif oai_src_id > -1 and confirm in [1, "1"]:
+    elif confirm == 1:
+        warnings = []
+        if not oai_src_name:
+            warnings.append(oaiharvest_templates.tmpl_print_warning(ln, "Please enter a name for the source."))
+        if not oai_src_prefix:
+            warnings.append(oaiharvest_templates.tmpl_print_warning(ln, "Please enter a meta-data prefix."))
         if not oai_src_frequency:
-            oai_src_frequency = 0
-        if not oai_src_config:
-            oai_src_config = "NULL"
-        if not oai_src_post:
-            oai_src_post = []
-        res = modify_oai_src(oai_src_id, oai_src_name, oai_src_baseurl, oai_src_prefix, oai_src_frequency, oai_src_config, oai_src_post, oai_src_sets, oai_src_bibfilter)
-        output += write_outcome(res)
+            warnings.append(oaiharvest_templates.tmpl_print_warning(ln, "Please choose a frequency of harvesting"))
 
-    text = oaiharvest_templates.tmpl_print_brs(ln, 1)
-    text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln, title="Source name", name="oai_src_name", value=oai_src_name)
-    text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln, title="Base URL", name="oai_src_baseurl", value=oai_src_baseurl)
+        validate_arguments(ln, oai_src_post, oai_src_args, warnings)
 
-    sets = findSets(oai_src_baseurl)
-    if sets:
-        sets.sort()
-        # Show available sets to users
-        sets_specs = [aset[0] for aset in sets]
-        sets_labels = [((aset[1] and aset[0] + ' (' + aset[1] + ')') or aset[0]) \
-                       for aset in sets]
-        sets_states = [ ((aset[0] in oai_src_sets and 1) or 0) for aset in sets]
-        text += oaiharvest_templates.tmpl_admin_checkboxes(ln=ln,
-                                                           title="Sets",
-                                                           name="oai_src_sets",
-                                                           values=sets_specs,
-                                                           labels=sets_labels,
-                                                           states=sets_states,
-                                                           message="Leave all unchecked for non-selective harvesting")
-    else:
-        # Let user specify sets in free textbox
-        text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln,
-                                                          title="Sets",
-                                                          name='oai_src_sets',
-                                                          value=' '.join(oai_src_sets))
+        if len(warnings) == 0:
+            if not oai_src_frequency:
+                oai_src_frequency = 0
+            if not oai_src_post:
+                oai_src_post = []
 
-    text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln, \
-                title="Metadata prefix", name="oai_src_prefix", value=oai_src_prefix)
-    text += oaiharvest_templates.tmpl_admin_w200_select(ln=ln, \
-                title="Frequency", name="oai_src_frequency", \
-                valuenil="- select frequency -" , values=freqs, \
-                lastval=oai_src_frequency)
-    post_values = [mode[0] for mode in CFG_OAI_POSSIBLE_POSTMODES]
-    post_labels = [mode[1] for mode in CFG_OAI_POSSIBLE_POSTMODES]
-    post_states = [((mode[0] in oai_src_post and 1) or 0) for mode in CFG_OAI_POSSIBLE_POSTMODES]
-    text += oaiharvest_templates.tmpl_admin_checkboxes(ln=ln, title="Postprocess",
-                                                       name="oai_src_post",
-                                                       values=post_values, labels=post_labels, states=post_states,
-                                                       message="Leave all unchecked for no post-processing")
-    text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln, \
-                title="BibConvert configuration file (if needed by postprocess)", \
-                name="oai_src_config", value=oai_src_config, \
-                suffix="<small>Eg: </small><code>oaidc2marcxml.xsl</code>, <code>oaimarc2marcxml.xsl</code><br/>")
-    text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln, \
-                title="BibFilter program (if needed by postprocess)", \
-                name="oai_src_bibfilter", value=oai_src_bibfilter)
-    text += oaiharvest_templates.tmpl_print_brs(ln, 2)
+            res = modify_oai_src(oai_src_id, \
+                                 oai_src_name, \
+                                 oai_src_baseurl, \
+                                 oai_src_prefix, \
+                                 oai_src_frequency, \
+                                 oai_src_post, \
+                                 oai_src_comment, \
+                                 oai_src_sets, \
+                                 oai_src_args)
+            if res[0] == 1:
+                # OAI source modified!
+                show_form = False
+            output += write_outcome(res)
+        else:
+            output += "".join(warnings)
 
-    output += createhiddenform(action="editsource#1",
-                                text=text,
-                                button="Modify",
-                                oai_src_id=oai_src_id,
-                                ln=ln,
-                                confirm=1)
+    if show_form:
+        text = get_oai_source_form(ln=ln,
+                                   oai_src_baseurl=oai_src_baseurl,
+                                   oai_src_name=oai_src_name,
+                                   oai_src_prefix=oai_src_prefix,
+                                   oai_src_frequency=oai_src_frequency,
+                                   oai_src_sets=oai_src_sets,
+                                   oai_src_post=oai_src_post,
+                                   oai_src_args=oai_src_args,
+                                   oai_src_comment=oai_src_comment,
+                                   editing_mode=True)
+        output += oaiharvest_templates.tmpl_form_vertical(action="editsource#1",
+                                                          text=text,
+                                                          button="Modify",
+                                                          oai_src_id=oai_src_id,
+                                                          ln=ln,
+                                                          confirm=1)
 
     output += oaiharvest_templates.tmpl_print_brs(ln, 2)
     output += create_html_link(urlbase=oai_harvest_admin_url + \
@@ -294,150 +274,75 @@ def perform_request_editsource(oai_src_id=None, oai_src_name='',
 
 def perform_request_addsource(oai_src_name=None, oai_src_baseurl='',
                               oai_src_prefix='', oai_src_frequency='',
-                              oai_src_lastrun='', oai_src_config='',
-                              oai_src_post=[], ln=CFG_SITE_LANG,
-                              confirm= -1, oai_src_sets=None,
-                              oai_src_bibfilter=''):
+                              oai_src_lastrun='', oai_src_comment='',
+                              oai_src_post=[], oai_src_args={},
+                              ln=CFG_SITE_LANG, confirm=-1,
+                              oai_src_sets=None):
     """creates html form to add a new source"""
     _ = gettext_set_language(ln)
 
     if oai_src_name is None:
         return "No OAI source name selected."
-
     if oai_src_sets is None:
         oai_src_sets = []
+
     subtitle = oaiharvest_templates.tmpl_draw_subtitle(ln=ln,
                                                        title="add source",
                                                        subtitle="Add new OAI source",
                                                        guideurl=guideurl)
     output = ""
 
+    confirm = int(confirm)
+    show_form = True
+
+    # Step one - user enters source URL
     if confirm <= -1:
         text = oaiharvest_templates.tmpl_print_brs(ln, 1)
-        text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln,
-                                                          title="Enter the base url",
+        text += oaiharvest_templates.tmpl_admin_w200_text_placeholder(ln=ln,
+                                                          placeholder="Enter the base URL for source...",
                                                           name="oai_src_baseurl",
-                                                          value=oai_src_baseurl + 'http://')
+                                                          value=oai_src_baseurl)
         output = createhiddenform(action="addsource",
                                   text=text,
                                   ln=ln,
                                   button="Validate",
                                   confirm=0)
+        show_form = False
+    elif confirm == 1:
+        # Step two - evaluate new OAI source
+        # User is trying to add a new source
+        warnings = []
+        if not oai_src_name:
+            warnings.append(oaiharvest_templates.tmpl_print_warning(ln, "Please enter a name for the source."))
+        if not oai_src_prefix:
+            warnings.append(oaiharvest_templates.tmpl_print_warning(ln, "Please enter a metadata prefix."))
+        if not oai_src_frequency:
+            warnings.append(oaiharvest_templates.tmpl_print_warning(ln, "Please choose a frequency of harvesting"))
+        if not oai_src_lastrun:
+            warnings.append(oaiharvest_templates.tmpl_print_warning(ln, "Please choose the harvesting starting date"))
 
-    if (confirm not in ["-1", -1] and validate(oai_src_baseurl)[0] == 0) or \
-           confirm in ["1", 1]:
+        validate_arguments(ln, oai_src_post, oai_src_args, warnings)
 
-        if confirm in [1, "1"] and not oai_src_name:
-            output += webstyle_templates.tmpl_write_warning(_("Please enter a name for the source."))
-        elif confirm in [1, "1"] and not oai_src_prefix:
-            output += webstyle_templates.tmpl_write_warning(_("Please enter a metadata prefix."))
-        elif confirm in [1, "1"] and not oai_src_frequency:
-            output += webstyle_templates.tmpl_write_warning(_("Please choose a frequency of harvesting"))
-        elif confirm in [1, "1"] and not oai_src_lastrun:
-            output += webstyle_templates.tmpl_write_warning(_("Please choose the harvesting starting date"))
-        elif confirm in [1, "1"] and "c" in oai_src_post and (not oai_src_config or validatefile(oai_src_config) != 0):
-            output += webstyle_templates.tmpl_write_warning(_("You selected a postprocess mode which involves conversion."))
-            output += webstyle_templates.tmpl_write_warning(_("Please enter a valid name of or a full path to a BibConvert config file or change postprocess mode."))
-        elif confirm in [1, "1"] and "f" in oai_src_post and (not oai_src_bibfilter or validatefile(oai_src_bibfilter) != 0):
-            output += webstyle_templates.tmpl_write_warning(_("You selected a postprocess mode which involves filtering."))
-            output += webstyle_templates.tmpl_write_warning(_("Please enter a valid name of or a full path to a BibFilter script or change postprocess mode."))
-        elif oai_src_name and confirm in [1, "1"]:
+        if len(warnings) == 0:
             if not oai_src_frequency:
                 oai_src_frequency = 0
             if not oai_src_lastrun:
                 oai_src_lastrun = 1
-            if not oai_src_config:
-                oai_src_config = "NULL"
             if not oai_src_post:
                 oai_src_post = []
 
             res = add_oai_src(oai_src_name, oai_src_baseurl,
                               oai_src_prefix, oai_src_frequency,
-                              oai_src_lastrun, oai_src_config,
-                              oai_src_post, oai_src_sets,
-                              oai_src_bibfilter)
+                              oai_src_lastrun, oai_src_post, oai_src_comment,
+                              oai_src_sets, oai_src_args)
+            if res[0] == 1:
+                # OAI source added!
+                show_form = False
             output += write_outcome(res)
-
-
-        output += oaiharvest_templates.tmpl_output_validate_info(ln, 0, str(oai_src_baseurl))
-        output += oaiharvest_templates.tmpl_print_brs(ln, 2)
-        text = oaiharvest_templates.tmpl_admin_w200_text(ln=ln,
-                                                         title="Source name",
-                                                         name="oai_src_name",
-                                                         value=oai_src_name)
-
-        metadatas = findMetadataFormats(oai_src_baseurl)
-        if metadatas:
-            # Show available metadata to user
-            prefixes = []
-            for value in metadatas:
-                prefixes.append([value, str(value)])
-            text += oaiharvest_templates.tmpl_admin_w200_select(ln=ln,
-                                                                title="Metadata prefix",
-                                                                name="oai_src_prefix",
-                                                                valuenil="- select prefix -" ,
-                                                                values=prefixes,
-                                                                lastval=oai_src_prefix)
         else:
-            # Let user specify prefix in free textbox
-            text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln,
-                                                              title="Metadata prefix",
-                                                              name="oai_src_prefix",
-                                                              value=oai_src_prefix)
+            output += "".join(warnings)
 
-        sets = findSets(oai_src_baseurl)
-        if sets:
-            sets.sort()
-            # Show available sets to users
-            sets_specs = [aset[0] for aset in sets]
-            sets_labels = [((aset[1] and aset[0] + ' (' + aset[1] + ')') or aset[0]) \
-                           for aset in sets]
-            sets_states = [ ((aset[0] in oai_src_sets and 1) or 0) \
-                            for aset in sets]
-            text += oaiharvest_templates.tmpl_admin_checkboxes(ln=ln,
-                                                               title="Sets",
-                                                               name="oai_src_sets",
-                                                               values=sets_specs,
-                                                               labels=sets_labels,
-                                                               states=sets_states)
-        else:
-            # Let user specify sets in free textbox
-            text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln,
-                                                              title="Sets",
-                                                              name='oai_src_sets',
-                                                              value=' '.join(oai_src_sets))
-
-        text += oaiharvest_templates.tmpl_admin_w200_select(ln=ln, \
-                        title="Frequency", name="oai_src_frequency", \
-                        valuenil="- select frequency -" , values=freqs, \
-                        lastval=oai_src_frequency)
-        text += oaiharvest_templates.tmpl_admin_w200_select(ln=ln, \
-                        title="Starting date", name="oai_src_lastrun", \
-                        valuenil="- select a date -" , values=dates, \
-                        lastval=oai_src_lastrun)
-        post_values = [mode[0] for mode in CFG_OAI_POSSIBLE_POSTMODES]
-        post_labels = [mode[1] for mode in CFG_OAI_POSSIBLE_POSTMODES]
-        post_states = [((mode[0] in oai_src_post and 1) or 0) for mode in CFG_OAI_POSSIBLE_POSTMODES]
-        text += oaiharvest_templates.tmpl_admin_checkboxes(ln=ln, title="Postprocess",
-                                                           name="oai_src_post",
-                                                           values=post_values, labels=post_labels, states=post_states,
-                                                           message="Leave all unchecked for no post-processing")
-        text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln, \
-                        title="BibConvert configuration file (if needed by postprocess)", \
-                        name="oai_src_config", value=oai_src_config)
-        text += oaiharvest_templates.tmpl_admin_w200_text(ln=ln, \
-                        title="BibFilter program (if needed by postprocess)", \
-                        name="oai_src_bibfilter", value=oai_src_bibfilter)
-        text += oaiharvest_templates.tmpl_print_brs(ln, 2)
-
-
-        output += createhiddenform(action="addsource#1",
-                                   text=text,
-                                   button="Add OAI Source",
-                                   oai_src_baseurl=oai_src_baseurl,
-                                   ln=ln,
-                                   confirm=1)
-    elif confirm in ["0", 0] and validate(oai_src_baseurl)[0] > 0:
+    elif confirm == 0 and validate(oai_src_baseurl)[0] > 0:
         # Could not perform first url validation
         output += oaiharvest_templates.tmpl_output_validate_info(ln, 1, str(oai_src_baseurl))
         output += oaiharvest_templates.tmpl_print_brs(ln, 2)
@@ -450,44 +355,36 @@ def perform_request_addsource(oai_src_name=None, oai_src_baseurl='',
                                    "/addsource",
                                    urlargd={'ln': ln,
                                             'oai_src_baseurl': oai_src_baseurl,
-                                            'confirm': '1'},
+                                            'confirm': '2'},
                                    link_label=_("Continue anyway"))
-        output += oaiharvest_templates.tmpl_print_brs(ln, 1)
-        output += " " + _("or") + " "
-        output += oaiharvest_templates.tmpl_print_brs(ln, 1)
-        output += create_html_link(urlbase=oai_harvest_admin_url + \
-                                   "/index",
-                                   urlargd={'ln': ln},
-                                   link_label=_("Go back to the OAI sources overview"))
-    elif confirm not in ["-1", -1] and validate(oai_src_baseurl)[0] > 0:
-        output += oaiharvest_templates.tmpl_output_validate_info(ln, 1, str(oai_src_baseurl))
-        output += oaiharvest_templates.tmpl_print_brs(ln, 2)
-        output += create_html_link(urlbase=oai_harvest_admin_url + \
-                                   "/addsource",
-                                   urlargd={'ln': ln},
-                                   link_label=_("Try again"))
-        output += oaiharvest_templates.tmpl_print_brs(ln, 1)
-        output += " " + _("or") + " "
-        output += oaiharvest_templates.tmpl_print_brs(ln, 1)
-        output += create_html_link(urlbase=oai_harvest_admin_url + \
-                                   "/index",
-                                   urlargd={'ln': ln},
-                                   link_label=_("Go back to the OAI sources overview"))
-    elif confirm not in ["-1", -1]:
-        output += oaiharvest_templates.tmpl_output_error_info(ln, str(oai_src_baseurl), validate(oai_src_baseurl)[1])
-        output += oaiharvest_templates.tmpl_print_brs(ln, 2)
-        output += create_html_link(urlbase=oai_harvest_admin_url + \
-                                   "/addsource",
-                                   urlargd={'ln': ln},
-                                   link_label=_("Try again"))
-        output += oaiharvest_templates.tmpl_print_brs(ln, 1)
-        output += " " + _("or") + " "
-        output += oaiharvest_templates.tmpl_print_brs(ln, 1)
-        output += create_html_link(urlbase=oai_harvest_admin_url + \
-                                   "/index",
-                                   urlargd={'ln': ln},
-                                   link_label=_("Go back to the OAI sources overview"))
+        show_form = False
 
+    elif confirm == 0 and validate(oai_src_baseurl)[0] == 0:
+        # URL validated - user can add source
+        output += oaiharvest_templates.tmpl_output_validate_info(ln, 0, str(oai_src_baseurl))
+
+    elif confirm == 2 and validate(oai_src_baseurl)[0] > 0:
+        # URL not validated - user can still add a source
+        output += oaiharvest_templates.tmpl_output_validate_info(ln, 1, str(oai_src_baseurl))
+
+    if show_form:
+        text = get_oai_source_form(ln=ln,
+                                   oai_src_baseurl=oai_src_baseurl,
+                                   oai_src_name=oai_src_name,
+                                   oai_src_prefix=oai_src_prefix,
+                                   oai_src_frequency=oai_src_frequency,
+                                   oai_src_sets=oai_src_sets,
+                                   oai_src_post=oai_src_post,
+                                   oai_src_args=oai_src_args,
+                                   oai_src_comment=oai_src_comment,
+                                   oai_src_lastrun=oai_src_lastrun,
+                                   editing_mode=False)
+        output += oaiharvest_templates.tmpl_form_vertical(action="addsource#1",
+                                                          text=text,
+                                                          button="Add OAI Source",
+                                                          oai_src_baseurl=oai_src_baseurl,
+                                                          ln=ln,
+                                                          confirm=1)
 
     output += oaiharvest_templates.tmpl_print_brs(ln, 2)
     output += create_html_link(urlbase=oai_harvest_admin_url + \
@@ -508,7 +405,7 @@ def perform_request_delsource(oai_src_id=None, ln=CFG_SITE_LANG, confirm=0):
 
     if oai_src_id:
         oai_src = get_oai_src(oai_src_id)
-        namesrc = (oai_src[0][1])
+        namesrc = (oai_src[0][5])
         pagetitle = """Delete OAI source: %s""" % cgi.escape(namesrc)
         subtitle = oaiharvest_templates.tmpl_draw_subtitle(ln=ln, \
             title="delete source", subtitle=pagetitle, guideurl=guideurl)
@@ -579,6 +476,126 @@ def perform_request_testsource(oai_src_id=None, ln=CFG_SITE_LANG, record_id=None
             + str(oai_src_id) + "&record_id=" \
             + str(record_id))
     return result
+
+
+def get_oai_source_form(ln, oai_src_baseurl, oai_src_name, oai_src_prefix,
+                        oai_src_frequency, oai_src_sets, oai_src_post,
+                        oai_src_args, oai_src_comment, oai_src_lastrun=0, editing_mode=False):
+    """
+    Returns the main layout table for adding and editing OAI harvest sources.
+    """
+    # Build table layout in two columns
+    output = ""
+
+    ## First column
+    table_first_col = "<h3>OAI harvesting job options</h3>"
+    table_first_col += oaiharvest_templates.tmpl_admin_w200_text(ln=ln,
+                                                     title="Source name",
+                                                     name="oai_src_name",
+                                                     value=oai_src_name,
+                                                     suffix=" e.g. arxiv<br />")
+
+    if editing_mode:
+        table_first_col += oaiharvest_templates.tmpl_admin_w200_text(ln=ln,
+                                                                     title="Base URL",
+                                                                     name="oai_src_baseurl",
+                                                                     value=oai_src_baseurl)
+
+    metadatas = findMetadataFormats(oai_src_baseurl)
+    if metadatas:
+        # Show available metadata to user
+        prefixes = []
+        for value in metadatas:
+            prefixes.append([value, str(value)])
+        table_first_col += oaiharvest_templates.tmpl_admin_w200_select(ln=ln,
+                                                            title="Meta-data prefix",
+                                                            name="oai_src_prefix",
+                                                            valuenil="- select meta-data prefix -" ,
+                                                            values=prefixes,
+                                                            lastval=oai_src_prefix,
+                                                            suffix=" e.g. oai_dc<br />")
+    else:
+        # Let user specify prefix in free textbox
+        table_first_col += oaiharvest_templates.tmpl_admin_w200_text(ln=ln,
+                                                          title="Meta-data prefix",
+                                                          name="oai_src_prefix",
+                                                          value=oai_src_prefix,
+                                                          suffix=" e.g. oai_dc<br />")
+
+    table_first_col += oaiharvest_templates.tmpl_admin_w200_select(ln=ln, \
+                    title="Harvesting frequency", name="oai_src_frequency", \
+                    valuenil="- select harvest frequency -" , values=freqs, \
+                    lastval=oai_src_frequency)
+    if not editing_mode:
+        table_first_col += oaiharvest_templates.tmpl_admin_w200_select(ln=ln, \
+                        title="Harvest from", name="oai_src_lastrun", \
+                        valuenil="- select a time to harvest from -" , values=dates, \
+                        lastval=oai_src_lastrun)
+    table_first_col += oaiharvest_templates.tmpl_admin_w200_textarea(ln=ln,
+                                                                     title="Comments (optional)",
+                                                                     name="oai_src_comment",
+                                                                     value=oai_src_comment)
+
+    table_first_col += "<h3>Automatic post-harvest processes</h3>"
+
+    post_values = []
+    post_labels = []
+    post_states = []
+    post_arguments = []
+    for mode_value, mode_label, mode_arguments in CFG_OAI_POSSIBLE_POSTMODES:
+        post_values.append(mode_value)
+        post_labels.append(mode_label)
+        post_states.append(mode_value in oai_src_post)
+        updated_mode_arguments = []
+        for arg_dict in mode_arguments:
+            name = "%s_%s" % (mode_value, arg_dict['name'])
+            if arg_dict['input'] == 'text':
+                arg_dict['value'] = oai_src_args.get(name, "")
+            elif arg_dict['input'] == 'checkbox':
+                for i in range(len(arg_dict['value'])):
+                    arg_dict['states'][i] = arg_dict['value'][i] in oai_src_args.get(name,[])
+            updated_mode_arguments.append(arg_dict)
+        post_arguments.append(updated_mode_arguments)
+
+    table_first_col += oaiharvest_templates.tmpl_admin_checkbox_arguments(ln=ln, title="",
+                                                                          name="oai_src_post",
+                                                                          values=post_values,
+                                                                          labels=post_labels,
+                                                                          states=post_states,
+                                                                          message="Leave all unchecked for no post-processing. * arguments are mandatory",
+                                                                          arguments=post_arguments)
+
+    ## Second column
+    table_second_col = "<h3>Sets to harvest</h3>"
+    sets = findSets(oai_src_baseurl)
+    if sets:
+        sets.sort()
+        # Show available sets to users
+        sets_specs = [set[0] for set in sets]
+        sets_names = [set[1] for set in sets]
+        sets_labels = [((set[1] and set[0] + ' (' + set[1] + ')') or set[0]) \
+                       for set in sets]
+        sets_states = [ ((set[0] in oai_src_sets and 1) or 0) \
+                        for set in sets]
+        table_second_col += oaiharvest_templates.tmpl_admin_checkboxes(ln=ln,
+                                                           title="",
+                                                           name="oai_src_sets",
+                                                           values=sets_specs,
+                                                           labels=sets_labels,
+                                                           states=sets_states)
+    else:
+        # Let user specify sets in free textbox
+        table_second_col += oaiharvest_templates.tmpl_admin_w200_text(ln=ln,
+                                                          title="Sets",
+                                                          name='oai_src_sets',
+                                                          value=' '.join(oai_src_sets),
+                                                          suffix=" e.g. physics<br />")
+
+    output += oaiharvest_templates.tmpl_output_table(data=([table_first_col, "_SEPARATOR_", table_second_col],), \
+                                                  td_class="admin_source_td", \
+                                                  separator_class="admin_source_separator")
+    return output
+
 
 ######################################
 ###  Displaying bibsched task logs ###
@@ -971,11 +988,13 @@ def format_record(oai_src_bibfilter, record_to_convert, treat_new=False):
 def harvest_postprocress_record(oai_src_id, record_id, treat_new=False):
     """Havest ther record and postprocess it"""
     oai_src = get_oai_src(oai_src_id)
-    oai_src_baseurl = oai_src[0][2]
-    oai_src_prefix = oai_src[0][3]
-    oai_src_config = oai_src[0][5]
-    oai_src_post = oai_src[0][6]
-    oai_src_bibfilter = oai_src[0][8]
+    oai_src_baseurl = oai_src[0][1]
+    oai_src_prefix = oai_src[0][2]
+    oai_src_args = deserialize_via_marshal(oai_src[0][3])
+    oai_src_post = oai_src[0][8]
+    oai_src_sets = oai_src[0][9].split()
+    oai_src_config = oai_src_args['c_stylesheet']
+    oai_src_bibfilter = oai_src_args['f_filter-file']
     result = harvest_record(record_id, oai_src_baseurl, oai_src_prefix)
     if result == None:
         return (False, "Error during harvesting")
@@ -1016,8 +1035,13 @@ def upload_record(record=None, uploader_paremeters=None, oai_source_id=None):
 def perform_request_preview_original_xml(oai_src_id=None, record_id=None):
     """Harvest a record and return it. No side effect, useful for preview"""
     oai_src = get_oai_src(oai_src_id)
-    oai_src_baseurl = oai_src[0][2]
-    oai_src_prefix = oai_src[0][3]
+    oai_src_baseurl = oai_src[0][1]
+    oai_src_prefix = oai_src[0][2]
+    oai_src_args = deserialize_via_marshal(oai_src[0][3])
+    oai_src_post = oai_src[0][8]
+    oai_src_sets = oai_src[0][9].split()
+    oai_src_config = oai_src_args['c_stylesheet']
+    oai_src_bibfilter = oai_src_args['f_filter-file']
     record = harvest_record(record_id, oai_src_baseurl, oai_src_prefix)
     return record
 
@@ -1207,85 +1231,6 @@ def perform_request_view_holdingpen_tree(filter_key):
     return  oaiharvest_templates.tmpl_view_holdingpen_body(\
                 filter_key, perform_request_gethpall("holdingpencontainer", filter_key))
 
-
-##################################################################
-### Here the functions to retrieve, modify, delete and add sources
-##################################################################
-
-def get_oai_src(oai_src_id=''):
-    """Returns a row parameters for a given id"""
-    sql = "SELECT id,name,baseurl,metadataprefix,frequency,bibconvertcfgfile,postprocess,setspecs,bibfilterprogram FROM oaiHARVEST"
-    try:
-        if oai_src_id:
-            sql += " WHERE id=%s" % oai_src_id
-        sql += " ORDER BY id asc"
-        res = run_sql(sql)
-        return res
-    except StandardError:
-        return ""
-
-def modify_oai_src(oai_src_id, oai_src_name, oai_src_baseurl, oai_src_prefix, oai_src_frequency, oai_src_config, oai_src_post, oai_src_sets=None, oai_src_bibfilter=''):
-    """Modifies a row's parameters"""
-    if oai_src_sets is None:
-        oai_src_sets = []
-    if oai_src_post is None:
-        oai_src_post = []
-    try:
-        run_sql("UPDATE oaiHARVEST SET name=%s WHERE id=%s", (oai_src_name, oai_src_id))
-        run_sql("UPDATE oaiHARVEST SET baseurl=%s WHERE id=%s", (oai_src_baseurl, oai_src_id))
-        run_sql("UPDATE oaiHARVEST SET metadataprefix=%s WHERE id=%s", (oai_src_prefix, oai_src_id))
-        run_sql("UPDATE oaiHARVEST SET frequency=%s WHERE id=%s", (oai_src_frequency, oai_src_id))
-        run_sql("UPDATE oaiHARVEST SET bibconvertcfgfile=%s WHERE id=%s", (oai_src_config, oai_src_id))
-        run_sql("UPDATE oaiHARVEST SET postprocess=%s WHERE id=%s", ('-'.join(oai_src_post), oai_src_id))
-        run_sql("UPDATE oaiHARVEST SET setspecs=%s WHERE id=%s", (' '.join(oai_src_sets), oai_src_id))
-        run_sql("UPDATE oaiHARVEST SET bibfilterprogram=%s WHERE id=%s", (oai_src_bibfilter, oai_src_id))
-        return (1, "")
-    except StandardError, e:
-        return (0, e)
-
-def add_oai_src(oai_src_name, oai_src_baseurl, oai_src_prefix, oai_src_frequency, oai_src_lastrun, oai_src_config, oai_src_post, oai_src_sets=None, oai_src_bibfilter=''):
-    """Adds a new row to the database with the given parameters"""
-    if oai_src_sets is None:
-        oai_src_sets = []
-    try:
-        if oai_src_lastrun in [0, "0"]: lastrun_mode = 'NULL'
-        else:
-            lastrun_mode = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            # lastrun_mode = "'"+lastrun_mode+"'"
-        run_sql("INSERT INTO oaiHARVEST (id, baseurl, metadataprefix, arguments, comment,  bibconvertcfgfile,  name,  lastrun,  frequency,  postprocess,  bibfilterprogram,  setspecs) VALUES (0, %s, %s, NULL, NULL, %s, %s, %s, %s, %s, %s, %s)", \
-                (oai_src_baseurl, oai_src_prefix, oai_src_config, oai_src_name, lastrun_mode, oai_src_frequency, '-'.join(oai_src_post), oai_src_bibfilter, " ".join(oai_src_sets)))
-        return (1, "")
-    except StandardError, e:
-        return (0, e)
-
-def delete_oai_src(oai_src_id):
-    """Deletes a row from the database according to its id"""
-    try:
-        run_sql("DELETE FROM oaiHARVEST WHERE id=%s", (oai_src_id,))
-        return (1, "")
-    except StandardError, e:
-        return (0, e)
-
-def get_tot_oai_src():
-    """Returns number of rows in the database"""
-    sql = "SELECT COUNT(*) FROM oaiHARVEST"
-    res = run_sql(sql)
-    return res[0][0]
-
-def get_update_status():
-    """Returns a table showing a list of all rows and their LastUpdate status"""
-    return run_sql("SELECT name,lastrun FROM oaiHARVEST ORDER BY lastrun desc")
-
-def get_next_schedule():
-    """Returns the next scheduled oaiharvestrun tasks"""
-    sql = "SELECT runtime,status FROM schTASK WHERE proc='oaiharvest' AND runtime > now() ORDER by runtime LIMIT 1"
-    res = run_sql(sql)
-    if len(res) > 0:
-        return res[0]
-    else:
-        return ("", "")
-
-
 def validate(oai_src_baseurl):
     """This function validates a baseURL by opening its URL and 'greping' for the <OAI-PMH> and <Identify> tags:
 
@@ -1299,7 +1244,9 @@ def validate(oai_src_baseurl):
      Returns tuple (code, message)
      """
     try:
-        url = oai_src_baseurl + "?verb=Identify"
+        url = oai_src_baseurl.strip() + "?verb=Identify"
+        if not url.startswith("http"):
+            url = "http://%s" % (url,)
         urllib.urlretrieve(url, tmppath)
 
         # First check if we have xml oai-pmh output
@@ -1327,17 +1274,25 @@ def validate(oai_src_baseurl):
     except InvalidURL, e:
         return (2, "Could not connect with URL %s. Check URL or retry when server is available: %s" % (url, e))
 
-def validatefile(oai_src_config):
-    """This function checks whether the given path to text file exists or not
-     0 = okay
-     1 = file non existing
-     """
+def validate_file(path):
+    """
+    This function checks whether the given path to text file exists or not.
+    I checks first in config directory, in case the path given is relative.
+
+    If path is not found it will try the path given from /. It then
+    returns True if path is valid, otherwise False.
+
+    @param path: path to a file
+    @type path: string
+
+    @return: True if path is valid, otherwise False
+    @rtype: bool
+    """
 
     CFG_BIBCONVERT_XSL_PATH = "%s%sbibconvert%sconfig" % (CFG_ETCDIR,
                                                           os.sep,
                                                           os.sep)
-    path_to_config = (CFG_BIBCONVERT_XSL_PATH + os.sep +
-                      oai_src_config)
+    path_to_config = (CFG_BIBCONVERT_XSL_PATH + os.sep + path)
     if os.path.exists(path_to_config):
         # Try to read in config directory
         try:
@@ -1346,25 +1301,25 @@ def validatefile(oai_src_config):
             ftmp.close()
             if cfgstr != "":
                 #print "Valid!"
-                return 0
-        except StandardError:
+                return True
+        except StandardError, e:
             pass
 
     # Try to read as complete path
     try:
-        ftmp = open(oai_src_config, 'r')
+        ftmp = open(path, 'r')
         cfgstr = ftmp.read()
         ftmp.close()
         if cfgstr != "":
             #print "Valid!"
-            return 0
+            return True
         else:
             #print "Not valid!"
-            return 1
-    except StandardError:
-        return 1
+            return False
+    except StandardError, e:
+        return False
 
-    return 1
+    return False
 
 def findMetadataFormats(oai_src_baseurl):
     """This function finds the Metadata formats offered by a OAI repository by analysing the output of verb=ListMetadataFormats"""
@@ -1412,3 +1367,61 @@ def findSets(oai_src_baseurl):
             sets[set_spec] = [set_spec, set_name]
         count = count + 1
     return sets.values()
+
+def validate_int(value):
+    """
+    Checks if the given value is really an integer. Returns True if
+    valid, otherwise False.
+
+    @param value: value to check
+    @type value: anything
+
+    @return: True if valid integer, otherwise False.
+    @rtype: bool
+    """
+    try:
+        int(value)
+    except ValueError:
+        return False
+    return True
+
+def validate_arguments(ln, oai_src_post, oai_src_args, warning_list):
+    """
+    The function will check the arguments that are given for
+    each post-process to see if they are valid. The given list of
+    warnings will be changed according to invalid values found.
+
+    @param ln: current language code
+    @type ln: string
+
+    @param oai_src_post: string of post-processes chosen
+    @type oai_src_post: string
+
+    @param oai_src_args: dict of post-process argument values
+    @type oai_src_args: dict
+
+    @param warning_list: list warning messages given to the user
+    @type warning_list: list
+    """
+    if oai_src_post is None:
+        return
+    modes = [mode for mode in CFG_OAI_POSSIBLE_POSTMODES if mode[0] in oai_src_post]
+    for mode_value, mode_label, mode_arguments in modes:
+        for arg_dict in mode_arguments:
+            name = "%s_%s" % (mode_value, arg_dict['name'])
+            if arg_dict['required'] and not oai_src_args[name]:
+                warning_list.append(oaiharvest_templates.tmpl_print_warning(ln, \
+                    "The field '%s' is an required argument when choosing '%s' post-process." % \
+                    (arg_dict['name'], mode_label)))
+                continue
+            # Check if there is any validation step.
+            if arg_dict['validation']:
+                for validation_type in arg_dict['validation']:
+                    if validation_type == "file" and not validate_file(oai_src_args[name]):
+                        warning_list.append(oaiharvest_templates.tmpl_print_warning(ln, \
+                        "The file path given in argument '%s' for post-process '%s' is not valid." % \
+                        (arg_dict['name'], mode_label)))
+                    elif validation_type == "int" and not validate_int(oai_src_args[name]):
+                        warning_list.append(oaiharvest_templates.tmpl_print_warning(ln, \
+                        "The value given in argument '%s' for post-process '%s' is not a valid number." % \
+                        (arg_dict['name'], mode_label)))
