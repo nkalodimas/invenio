@@ -252,7 +252,8 @@ DEF_ACTIONS = (
                ('claimpaper_change_own_data', 'Change data associated to his own person ID', '', 'no'),
                ('claimpaper_change_others_data', 'Change data of any person ID', '', 'no'),
                ('runbibtasklet', 'run BibTaskLet', '', 'no'),
-               ('runinfomanager', 'run Info Space Manager', '', 'no')
+               ('runinfomanager', 'run Info Space Manager', '', 'no'),
+               ('cfgbibsched', 'configure BibSched', '', 'no')
               )
 
 # Default authorizations
@@ -362,7 +363,6 @@ CFG_WEBACCESS_WARNING_MSGS = {
                                19: """The site is having troubles in sending you an email for confirming your email address. The error has been logged and will be taken care of as soon as possible.""",
                                20: """No roles are authorized to perform action %s with the given parameters."""
         }
-
 #There are three status key that must be here: OK, REMOVED and REVOKED
 #the value doesn't matter at all
 CFG_WEB_API_KEY_STATUS = {

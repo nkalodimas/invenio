@@ -227,6 +227,13 @@ except:
     register_exception(alert_admin=True, subject='EMERGENCY')
     WebInterfaceDocExtract = WebInterfaceDumbPages
 
+try:
+    from invenio.bibsched_webinterface import \
+         WebInterfaceBibSchedPages
+except:
+    register_exception(alert_admin=True, subject='EMERGENCY')
+    WebInterfaceBibSchedPages = WebInterfaceDumbPages
+
 if CFG_OPENAIRE_SITE:
     try:
         from invenio.openaire_deposit_webinterface import \
@@ -247,6 +254,14 @@ if CFG_DEVEL_SITE:
     test_exports = ['httptest']
 else:
     test_exports = []
+
+
+class WebInterfaceAdminPages(WebInterfaceDirectory):
+    """This class implements /admin2 admin pages."""
+    _exports = ['index', 'bibsched']
+    def index(self, req, form):
+        return "FIXME: return /help/admin content"
+    bibsched = WebInterfaceBibSchedPages()
 
 
 class WebInterfaceInvenio(WebInterfaceSearchInterfacePages):
@@ -281,6 +296,7 @@ class WebInterfaceInvenio(WebInterfaceSearchInterfacePages):
                    'author',
                    'textmining',
                    'info',
+                   'admin2',
                ] + test_exports + openaire_exports
 
     def __init__(self):
@@ -317,6 +333,7 @@ class WebInterfaceInvenio(WebInterfaceSearchInterfacePages):
     author = WebInterfaceWebAuthorPages()
     #author = WebInterfaceAuthorPages()
     textmining = WebInterfaceDocExtract()
+    admin2 = WebInterfaceAdminPages()
 
 # This creates the 'handler' function, which will be invoked directly
 # by mod_python.
