@@ -90,9 +90,12 @@ from invenio.bibrank_tag_based_indexer import \
      download_weight_total, \
      file_similarity_by_times_downloaded, \
      index_term_count
-from invenio.bibrank_word_indexer import word_similarity
-from invenio.bibrank_citerank_indexer import citerank
+
+from invenio.bibrank_word_indexer import word_similarity #@UnusedImport
+from invenio.bibrank_citerank_indexer import citerank #@UnusedImport
+from invenio.bibrank_selfcites_task import process_updates as selfcites
 # pylint: enable=W0611
+
 
 nb_char_in_line = 50  # for verbose pretty printing
 chunksize = 1000 # default size of chunks that the records will be treated by
