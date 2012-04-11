@@ -5604,7 +5604,7 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
                     recIDs = sort_records(req, recIDs, sf, so, sp, verbose, of, ln, rg=None, jrec=None)
                 return recIDs
             elif of.startswith("h"):
-                if of not in ['hcs', 'hcv', 'htcv', 'tlcv']:
+                if of not in ['hcs', 'hcs2', 'hcv', 'htcv', 'tlcv']:
                     # added the hosted_colls_potential_results_p parameter to help print out the overview more accurately
                     req.write(print_results_overview(colls_to_search, results_final_nb_total, results_final_nb, cpu_time, ln, ec, hosted_colls_potential_results_p=hosted_colls_potential_results_p))
                     selected_external_collections_infos = print_external_results_overview(req, cc, [p, p1, p2, p3], f, ec, verbose, ln)
@@ -5612,7 +5612,7 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
             if of.startswith("x"):
                 req.write("<!-- Search-Engine-Total-Number-Of-Results: %s -->\n" % results_final_nb_total)
             # print records:
-            if of == 'hcs':       # 'xm', above, must catch this tree's 'else'
+            if of in ('hcs', 'hcs2'):       # 'xm', above, must catch this tree's 'else'
                 # feed the current search to be summarized:
                 from invenio.search_engine_summarizer import summarize_records
                 search_p = p
@@ -5632,7 +5632,7 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
                             fi = fi + ':'
                         search_p += fi + pi + op_d[oi]
                     search_f = ''
-                summarize_records(results_final_for_all_selected_colls, 'hcs', ln, search_p, search_f, req)
+                summarize_records(results_final_for_all_selected_colls, of, ln, search_p, search_f, req)
             elif of in ['hcv', 'htcv', 'tlcv'] and CFG_INSPIRE_SITE:
                 from invenio.search_engine_cvifier import cvify_records
                 cvify_records(results_final_for_all_selected_colls, of, ln, req, so)
@@ -5773,7 +5773,7 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
             try:
                 id_query = log_query(req.remote_host, req.args, uid)
                 if of.startswith("h") and id_query:
-                    if not of in ['hcs']:
+                    if of not in ['hcs', 'hcs2']:
                         # display alert/RSS teaser for non-summary formats:
                         user_info = collect_user_info(req)
                         display_email_alert_part = True
@@ -5793,7 +5793,7 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
 
     # External searches
     if of.startswith("h"):
-        if not of in ['hcs']:
+        if of not in ['hcs', 'hcs2']:
             perform_external_collection_search(req, cc, [p, p1, p2, p3], f, ec, verbose, ln, selected_external_collections_infos)
 
     return page_end(req, of, ln)
