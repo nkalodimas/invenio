@@ -18,9 +18,12 @@
 pylibdir=$(libdir)/python/invenio
 wsgiwebdir=$(localstatedir)/www-wsgi/
 
+
+
 pylib_DATA = webdoc.py \
              webdoc_unit_tests.py \
              webdoc_webinterface.py \
+             webdoc_info_webinterface.py \
              webpage.py \
              template.py \
              webstyle_templates.py \
@@ -37,6 +40,10 @@ pylib_DATA = webdoc.py \
 
 wsgiweb_DATA = invenio.wsgi
 
-EXTRA_DIST = $(pylib_DATA) $(wsgiweb_DATA)
+jsdir=$(localstatedir)/www/js
+
+js_DATA = info-space-manager.js
+
+EXTRA_DIST = $(pylib_DATA) $(wsgiweb_DATA) $(js_DATA)
 
 CLEANFILES = *~ *.tmp *.pyc
