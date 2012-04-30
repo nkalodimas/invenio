@@ -75,7 +75,9 @@ pylib_DATA = __init__.py \
              jsonutils_unit_tests.py \
              sequtils_cnum.py \
              sequtils.py \
-             sequtils_regression_tests.py
+             sequtils_regression_tests.py \
+             downloadutils.py \
+             downloadutils_tests.py
 
 noinst_DATA = testimport.py \
               kwalitee.py \
