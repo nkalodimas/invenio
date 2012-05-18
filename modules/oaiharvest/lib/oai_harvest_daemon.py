@@ -75,6 +75,7 @@ from invenio.shellutils import run_shell_command, Timeout
 from invenio.textutils import translate_latex2unicode
 from invenio.bibedit_utils import record_find_matching_fields
 from invenio.bibcatalog import bibcatalog_system
+from invenio.oai_harvest_dblayer import get_oai_src_by_name, get_all_oai_src
 
 ## precompile some often-used regexp for speed reasons:
 REGEXP_OAI_ID = re.compile("<identifier.*?>(.*?)<\/identifier>", re.DOTALL)
@@ -104,22 +105,23 @@ def task_run_core():
     reposlist = []
     datelist = []
     dateflag = 0
+    identifiers = None
     filepath_prefix = "%s/oaiharvest_%s" % (CFG_TMPDIR, str(task_get_task_param("task_id")))
     ### go ahead: build up the reposlist
     if task_get_option("repository") is not None:
         ### user requests harvesting from selected repositories
         write_message("harvesting from selected repositories")
         for reposname in task_get_option("repository"):
-            row = get_row_from_reposname(reposname)
+            row = get_oai_src_by_name(reposname)
             if row == []:
                 write_message("source name %s is not valid" % (reposname,))
                 continue
             else:
-                reposlist.append(get_row_from_reposname(reposname))
+                reposlist.append(row)
     else:
         ### user requests harvesting from all repositories
         write_message("harvesting from all repositories in the database")
-        reposlist = get_all_rows_from_db()
+        reposlist = get_all_oai_src()
 
     ### go ahead: check if user requested from-until harvesting
     if task_get_option("dates"):
@@ -129,7 +131,13 @@ def task_run_core():
         for element in task_get_option("dates"):
             datelist.append(element)
 
-    error_happened_p = 0 # 0: no error, 1: "recoverable" error (don't stop queue), 2: error (admin intervention needed)
+    if task_get_option("identifier"):
+        identifiers = task_get_option("identifier")
+
+    # 0: no error
+    # 1: "recoverable" error (don't stop queue)
+    # 2: error (admin intervention needed)
+    error_happened_p = 0
 
     j = 0
     for repos in reposlist:
@@ -156,7 +164,33 @@ def task_run_core():
         harvested_files_list = []
         # Harvest phase
         harvestpath = "%s_%d_%s_" % (filepath_prefix, j, time.strftime("%Y%m%d%H%M%S"))
-        if dateflag == 1:
+        if identifiers:
+            count = 1
+            for oai_identifier in identifiers:
+                # Harvesting should be done per identifier instead of server-updates
+                task_update_progress("Harvesting from %s (%i/%i)" % \
+                                     (oai_identifier, \
+                                      reponame, \
+                                      count, \
+                                      len(identifiers)))
+                exit_code, file_list = oai_harvest_get(prefix=metadataprefix,
+                                                       baseurl=baseurl,
+                                                       harvestpath=harvestpath,
+                                                       verb="GetRecord",
+                                                       identifier=oai_identifier)
+                count += 1
+                if exit_code == 1:
+                    write_message("identifier %s was harvested from %s" % \
+                                  (oai_identifier, reponame))
+                    for f in file_list:
+                        harvested_files_list.append(f)
+                else:
+                    write_message("an error occurred while harvesting %s from:%s\n" % \
+                                  (oai_identifier, reponame))
+                    if error_happened_p < 1:
+                        error_happened_p = 1
+                    continue
+        elif dateflag == 1:
             task_update_progress("Harvesting %s from %s to %s (%i/%i)" % \
                                  (reponame, \
                                   str(datelist[0]),
@@ -169,7 +203,7 @@ def task_run_core():
                                                    fro=str(datelist[0]),
                                                    until=str(datelist[1]),
                                                    setspecs=setspecs)
-            if exit_code == 1 :
+            if exit_code == 1:
                 write_message("source %s was harvested from %s to %s" % \
                               (reponame, str(datelist[0]), str(datelist[1])))
                 harvested_files_list = file_list
@@ -191,10 +225,10 @@ def task_run_core():
                                                    baseurl=baseurl,
                                                    harvestpath=harvestpath,
                                                    setspecs=setspecs)
-            if exit_code == 1 :
+            if exit_code == 1:
                 update_lastrun(source_id)
                 harvested_files_list = file_list
-            else :
+            else:
                 write_message("an error occurred while harvesting from source %s:\n%s\n" % \
                               (reponame, file_list))
                 if error_happened_p < 1:
@@ -223,10 +257,10 @@ def task_run_core():
                                                        harvestpath=harvestpath,
                                                        fro=fromdate,
                                                        setspecs=setspecs)
-                if exit_code == 1 :
+                if exit_code == 1:
                     update_lastrun(source_id)
                     harvested_files_list = file_list
-                else :
+                else:
                     write_message("an error occurred while harvesting from source %s:\n%s\n" % \
                                   (reponame, file_list))
                     if error_happened_p < 1:
@@ -645,7 +679,8 @@ def update_lastrun(index):
 def oai_harvest_get(prefix, baseurl, harvestpath,
                     fro=None, until=None, setspecs=None,
                     user=None, password=None, cert_file=None,
-                    key_file=None, method="POST"):
+                    key_file=None, method="POST", verb="ListRecords",
+                    identifier=""):
     """
     Retrieve OAI records from given repository, with given arguments
     """
@@ -654,8 +689,10 @@ def oai_harvest_get(prefix, baseurl, harvestpath,
          dummy2, dummy3) = urlparse.urlparse(baseurl)
         secure = (addressing_scheme == "https")
 
-        http_param_dict = {'verb': "ListRecords",
+        http_param_dict = {'verb': verb,
                            'metadataPrefix': prefix}
+        if identifier:
+            http_param_dict['identifier'] = identifier
         if fro:
             http_param_dict['from'] = fro
         if until:
@@ -1294,48 +1331,6 @@ def call_bibfilter(bibfilterprogram, marcxmlfile):
         exitcode = 1
     return exitcode, "\n".join(all_err_msg)
 
-def get_row_from_reposname(reposname):
-    """ Returns all information about a row (OAI source)
-        from the source name """
-    try:
-        sql = """SELECT id, baseurl, metadataprefix, arguments,
-                        comment, name, lastrun,
-                        frequency, postprocess, setspecs
-                   FROM oaiHARVEST WHERE name=%s"""
-        res = run_sql(sql, (reposname,))
-        reposdata = []
-        for element in res:
-            reposdata.append(element)
-        return reposdata
-    except StandardError, e:
-        return (0, e)
-
-def get_all_rows_from_db():
-    """ This method retrieves the full database of repositories and returns
-        a list containing (in exact order):
-        | id | baseurl | metadataprefix | arguments | comment
-        | name   | lastrun | frequency
-        | postprocess | setspecs
-    """
-    try:
-        reposlist = []
-        sql = """SELECT id FROM oaiHARVEST"""
-        idlist = run_sql(sql)
-        for index in idlist:
-            sql = """SELECT id, baseurl, metadataprefix, arguments,
-                            comment, name, lastrun,
-                            frequency, postprocess, setspecs,
-                     FROM oaiHARVEST WHERE id=%s""" % index
-
-            reposelements = run_sql(sql)
-            repos = []
-            for element in reposelements:
-                repos.append(element)
-            reposlist.append(repos)
-        return reposlist
-    except StandardError, e:
-        return (0, e)
-
 def compare_timestamps_with_tolerance(timestamp1,
                                       timestamp2,
                                       tolerance=0):
@@ -1400,6 +1395,11 @@ def get_dates(dates):
     else:
         twodates = None
     return twodates
+
+def get_identifier_names(identifier):
+    if identifier:
+        # Let's see if the user had a comma-separated list of OAI ids.
+        return [ident.strip() for ident in stripped_id.split(',')]
 
 def get_repository_names(repositories):
     """ A method to validate and process the repository names input by the
@@ -1539,7 +1539,8 @@ def main():
             # verb is not given. We will continue with periodic
             # harvesting. But first check if URL parameter is given:
             # if it is, then warn directly now
-            if len(args) > 1 or \
+            if len([opt for opt, opt_value in opts if opt in ['-i', '--identifier']]) == 0 \
+               and len(args) > 1 or \
                (len(args) == 1 and not args[0].isdigit()):
                 usage(1, "You must specify the --verb parameter")
     except getopt.error, e:
@@ -1552,6 +1553,7 @@ def main():
     # Note that the 'help' is common to both manual and automated
     # mode.
     task_set_option("repository", None)
+    task_set_option("identifier",None)
     task_set_option("dates", None)
     task_init(authorization_action='runoaiharvest',
               authorization_msg="oaiharvest Task Submission",
@@ -1600,9 +1602,10 @@ Automatic (periodical) harvesting mode:
               '  -w, --password       password (in case of password-protected harvesting)\n'
               'Automatic periodical harvesting mode:\n'
               '  -r, --repository="repo A"[,"repo B"] \t which repositories to harvest (default=all)\n'
-              '  -d, --dates=yyyy-mm-dd:yyyy-mm-dd \t reharvest given dates only\n',
+              '  -d, --dates=yyyy-mm-dd:yyyy-mm-dd \t reharvest given dates only\n'
+              '  -i, --identifier     OAI identifier if wished to run in as a task.\n',
             version=__revision__,
-            specific_params=("r:d:", ["repository=", "dates=", ]),
+            specific_params=("r:i:d:", ["repository=", "idenfifier", "dates=", ]),
             task_submit_elaborate_specific_parameter_fnc=
                 task_submit_elaborate_specific_parameter,
             task_run_fnc=task_run_core)
@@ -1611,6 +1614,8 @@ def task_submit_elaborate_specific_parameter(key, value, opts, args):
     """Elaborate specific cli parameters for oaiharvest."""
     if key in ("-r", "--repository"):
         task_set_option('repository', get_repository_names(value))
+    elif key in ("-i", "--identifier"):
+        task_set_option('identifier', get_identifier_names(value))
     elif key in ("-d", "--dates"):
         task_set_option('dates', get_dates(value))
         if value is not None and task_get_option("dates") is None:

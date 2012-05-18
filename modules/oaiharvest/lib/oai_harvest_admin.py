@@ -51,7 +51,8 @@ from invenio.oai_harvest_dblayer import get_month_logs_size, \
      get_holdingpen_years, get_holdingpen_month, get_holdingpen_year, \
      get_holdingpen_day_fragment, get_holdingpen_entry_details, \
      get_oai_src, add_oai_src, modify_oai_src, delete_oai_src, \
-     get_tot_oai_src, get_update_status, get_next_schedule
+     get_tot_oai_src, get_update_status, get_next_schedule, \
+     get_oai_src_by_id, get_all_oai_src
 from invenio.search_engine import get_record
 
 import invenio.template
@@ -126,7 +127,7 @@ def perform_request_index(ln=CFG_SITE_LANG):
     titlebar2 = oaiharvest_templates.tmpl_draw_titlebar(ln=ln, title=_("Harvesting status"), guideurl=guideurl)
     header = ['name', 'base URL', 'metadata prefix', 'frequency',
               'last run', 'post-processes', 'actions', 'comments']
-    oai_src = get_oai_src()
+    oai_src = get_all_oai_src()
 
     sources = []
 
@@ -201,7 +202,7 @@ def perform_request_editsource(oai_src_id=None, oai_src_name='',
                                                        guideurl=guideurl)
 
     if confirm == -1:
-        oai_src = get_oai_src(oai_src_id)
+        oai_src = get_oai_src_by_id(oai_src_id)
         oai_src_name = oai_src[0][5]
         oai_src_baseurl = oai_src[0][1]
         oai_src_prefix = oai_src[0][2]
@@ -404,7 +405,7 @@ def perform_request_delsource(oai_src_id=None, ln=CFG_SITE_LANG, confirm=0):
     subtitle = ""
 
     if oai_src_id:
-        oai_src = get_oai_src(oai_src_id)
+        oai_src = get_oai_src_by_id(oai_src_id)
         namesrc = (oai_src[0][5])
         pagetitle = """Delete OAI source: %s""" % cgi.escape(namesrc)
         subtitle = oaiharvest_templates.tmpl_draw_subtitle(ln=ln, \
@@ -986,8 +987,8 @@ def format_record(oai_src_bibfilter, record_to_convert, treat_new=False):
         return (None, out, err)
 
 def harvest_postprocress_record(oai_src_id, record_id, treat_new=False):
-    """Havest ther record and postprocess it"""
-    oai_src = get_oai_src(oai_src_id)
+    """Harvest the record and postprocess it"""
+    oai_src = get_oai_src_by_id(oai_src_id)
     oai_src_baseurl = oai_src[0][1]
     oai_src_prefix = oai_src[0][2]
     oai_src_args = deserialize_via_marshal(oai_src[0][3])
@@ -1034,7 +1035,7 @@ def upload_record(record=None, uploader_paremeters=None, oai_source_id=None):
 
 def perform_request_preview_original_xml(oai_src_id=None, record_id=None):
     """Harvest a record and return it. No side effect, useful for preview"""
-    oai_src = get_oai_src(oai_src_id)
+    oai_src = get_oai_src_by_id(oai_src_id)
     oai_src_baseurl = oai_src[0][1]
     oai_src_prefix = oai_src[0][2]
     oai_src_args = deserialize_via_marshal(oai_src[0][3])
@@ -1081,7 +1082,7 @@ def perform_request_harvest_record(oai_src_id=None, ln=CFG_SITE_LANG, record_id=
                                oai_src_id=oai_src_id,
                                ln=ln)
     if record_id != None:
-        # there was a harvest-request
+        # there was a harvest-request - lets launch a task
         transformed = harvest_postprocress_record(oai_src_id, record_id)[1]
         upload_record(transformed, ["-i"], oai_src_id)
         result += oaiharvest_templates.tmpl_print_info(ln, "Submitted for insertion into the database")

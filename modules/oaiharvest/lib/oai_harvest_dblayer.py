@@ -18,6 +18,43 @@
 import time
 from invenio.dbquery import run_sql, serialize_via_marshal
 
+def get_oai_src_by_id(oai_src_id):
+    """
+    Returns a row parameters for a given id.
+    """
+    return get_oai_src({'id': oai_src_id})
+
+def get_oai_src_by_name(oai_src_name):
+    """
+    Returns a row parameters for a source name.
+    """
+    return get_oai_src({'name': oai_src_name})
+
+def get_all_oai_src():
+    return get_oai_src()
+
+def get_oai_src(params = {}):
+    """
+    Returns a row parameters for a source name.
+    """
+    sql = """SELECT id, baseurl, metadataprefix, arguments,
+                    comment, name, lastrun,
+                    frequency, postprocess, setspecs
+               FROM oaiHARVEST"""
+    try:
+        sql_params = []
+        for key, value in params.items():
+            if "WHERE" not in sql:
+                sql += "WHERE"
+            else:
+                sql += " AND"
+            sql += " %s=%s"
+            sql_params.append(key, value)
+        res = run_sql(sql, sql_params)
+        return res
+    except StandardError, e:
+        return ""
+
 class HistoryEntry:
     date_harvested = None
     date_inserted = None
@@ -152,32 +189,6 @@ def get_entry_logs_size(oai_id):
 ##################################################################
 ### Here the functions to retrieve, modify, delete and add sources
 ##################################################################
-
-def get_oai_src(oai_src_id=''):
-    """
-    Returns a row for a given id in this order:
-    id, baseurl, metadataprefix, arguments,
-    comment, bibconvertcfgfile, name, lastrun,
-    frequency, postprocess, setspecs,
-    bibfilterprogram
-
-    bibfilterprogram and bibconvertcfgfile is deprecated.
-    These parameters are now included in arguments dict.
-    """
-    sql = """SELECT id, baseurl, metadataprefix, arguments,
-                    comment, name, lastrun,
-                    frequency, postprocess, setspecs
-             FROM oaiHARVEST"""
-    try:
-        args = []
-        if oai_src_id:
-            sql += " WHERE id=%s"
-            args.append(oai_src_id)
-        sql += " ORDER BY id asc"
-        res = run_sql(sql, tuple(args))
-        return res
-    except StandardError, e:
-        return ""
 
 def modify_oai_src(oai_src_id, oai_src_name, oai_src_baseurl, oai_src_prefix,
                    oai_src_frequency, oai_src_post, oai_src_comment,
