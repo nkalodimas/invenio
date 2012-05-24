@@ -1330,7 +1330,6 @@ class BibSched(object):
                             OR status = 'CERROR'""")
         if errors:
             error_msgs = []
-            error_recoverable = True
             for e_id, e_proc, e_status in errors:
                 if run_sql("""UPDATE schTASK
                                SET status='ERRORS REPORTED'
@@ -1339,14 +1338,9 @@ class BibSched(object):
                                OR status='DONE WITH ERRORS')""", [e_id]):
                     msg = "    #%s %s -> %s" % (e_id, e_proc, e_status)
                     error_msgs.append(msg)
-                    if e_status in ('ERROR', 'DONE WITH ERRORS'):
-                        error_recoverable = False
             if error_msgs:
                 msg = "BibTask with ERRORS:\n%s" % '\n'.join(error_msgs)
-                if error_recoverable:
-                    raise RecoverableError(msg)
-                else:
-                    raise StandardError(msg)
+                raise RecoverableError(msg)
 
     def calculate_rows(self):
         """Return all the node_relevant_active_tasks to work on."""
