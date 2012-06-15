@@ -30,7 +30,8 @@ import pprint
 import difflib
 
 from invenio.config import CFG_BIBMATCH_MATCH_VALIDATION_RULESETS, \
-                           CFG_BIBMATCH_FUZZY_MATCH_VALIDATION_LIMIT
+                           CFG_BIBMATCH_FUZZY_MATCH_VALIDATION_LIMIT, \
+                           CFG_BIBMATCH_MIN_VALIDATION_COMPARISONS
 from invenio.bibmatch_config import CFG_BIBMATCH_VALIDATION_MATCHING_MODES, \
                                     CFG_BIBMATCH_VALIDATION_RESULT_MODES, \
                                     CFG_BIBMATCH_VALIDATION_COMPARISON_MODES, \
@@ -230,10 +231,16 @@ def validate_match(org_record, matched_record, ruleset, verbose=0, ascii_mode=Fa
                                             matched_record, tag, ind1, ind2, code))
 
         if (len(original_record_values) == 0 or len(matched_record_values) == 0):
-            # Any or both records do not have values, ignore.
+            # Both records do not have values, ignore.
             if verbose > 8:
                 sys.stderr.write("\nBoth records do not have this field. Continue.\n")
             continue
+
+        if result_mode != 'joker':
+            # Since joker is a special beast (should have no impact on failure),
+            # We first check if it is the current mode before incrementing number
+            # of matching comparisons / attempts
+            total_number_of_comparisons += 1
 
         if ascii_mode:
             original_record_values = translate_to_ascii(original_record_values)
@@ -264,7 +271,6 @@ def validate_match(org_record, matched_record, ruleset, verbose=0, ascii_mode=Fa
             sys.stderr.write("Total matches needed: %d -> " % (matches_needed,))
 
         ## 2. MATCH MODE
-        total_number_of_comparisons += 1
         comparison_function = None
         if match_mode == 'title':
             # Special title mode
@@ -313,14 +319,13 @@ def validate_match(org_record, matched_record, ruleset, verbose=0, ascii_mode=Fa
                 # Final does not allow failure
                 return 0.0
             elif result_mode == 'joker':
-                # Jokers looks count as a match even if its not
-                total_number_of_matches += 1
                 if verbose > 8:
                     sys.stderr.write("Fields not matching. (Joker)\n")
             else:
                 if verbose > 8:
                     sys.stderr.write("Fields not matching. \n")
-    if total_number_of_matches < 2 or total_number_of_comparisons == 0:
+    if total_number_of_matches < CFG_BIBMATCH_MIN_VALIDATION_COMPARISONS \
+        or total_number_of_comparisons == 0:
         return 0.0
     return total_number_of_matches / float(total_number_of_comparisons)
 
