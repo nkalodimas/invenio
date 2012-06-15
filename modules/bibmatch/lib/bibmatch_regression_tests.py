@@ -23,12 +23,15 @@
 
 __revision__ = "$Id$"
 
+import unittest
+
 from invenio.config import CFG_SITE_RECORD
 from invenio.testutils import make_test_suite, run_test_suite
 from invenio.bibrecord import create_records, record_has_field
 from invenio.bibmatch_engine import match_records, transform_input_to_marcxml, \
                                     Querystring
-import unittest
+from invenio.invenio_connector import MECHANIZE_AVAILABLE
+
 
 class BibMatchTest(unittest.TestCase):
     """Test functions to check the functionality of bibmatch."""
@@ -645,36 +648,38 @@ class BibMatchTest(unittest.TestCase):
                                                               verbose=0)
         self.assertEqual(1, len(nomatchrecs))
 
-        # Jekyll should have access
-        [dummy1, matchedrecs, dummy2, dummy3] = match_records(records, \
-                                                              qrystrs=[("", "[088__a]")], \
-                                                              collections=["Theses"], \
-                                                              user="jekyll",
-                                                              password="j123ekyll", \
-                                                              verbose=0)
-        self.assertEqual(1, len(matchedrecs))
+        if MECHANIZE_AVAILABLE:
+            # Jekyll should have access
+            [dummy1, matchedrecs, dummy2, dummy3] = match_records(records, \
+                                                                  qrystrs=[("", "[088__a]")], \
+                                                                  collections=["Theses"], \
+                                                                  user="jekyll",
+                                                                  password="j123ekyll", \
+                                                                  verbose=0)
+            self.assertEqual(1, len(matchedrecs))
 
-    def test_restricted_collections_remote(self):
-        """bibmatch - check restricted collections remote search"""
-        records = create_records(self.recxml5)
-        # Jekyll should have access
-        [dummy1, matchedrecs, dummy2, dummy3] = match_records(records, \
-                                                              qrystrs=[("", "[088__a]")], \
-                                                              collections=["Theses"], \
-                                                              server_url="https://invenio-demo.cern.ch", \
-                                                              user  ="jekyll", \
-                                                              password="j123ekyll",
-                                                              verbose=0)
-        self.assertEqual(1, len(matchedrecs))
-        # Hyde should not have access
-        [nomatchrecs, dummy1, dummy2, dummy3] = match_records(records, \
-                                                              qrystrs=[("", "[088__a]")], \
-                                                              collections=["Theses"], \
-                                                              server_url="https://invenio-demo.cern.ch", \
-                                                              user="hyde", \
-                                                              password="h123yde",
-                                                              verbose=0)
-        self.assertEqual(1, len(nomatchrecs))
+    if MECHANIZE_AVAILABLE:
+        def test_restricted_collections_remote(self):
+            """bibmatch - check restricted collections remote search"""
+            records = create_records(self.recxml5)
+            # Jekyll should have access
+            [dummy1, matchedrecs, dummy2, dummy3] = match_records(records, \
+                                                                  qrystrs=[("", "[088__a]")], \
+                                                                  collections=["Theses"], \
+                                                                  server_url="https://invenio-demo.cern.ch", \
+                                                                  user="jekyll", \
+                                                                  password="j123ekyll",
+                                                                  verbose=0)
+            self.assertEqual(1, len(matchedrecs))
+            # Hyde should not have access
+            [nomatchrecs, dummy1, dummy2, dummy3] = match_records(records, \
+                                                                  qrystrs=[("", "[088__a]")], \
+                                                                  collections=["Theses"], \
+                                                                  server_url="https://invenio-demo.cern.ch", \
+                                                                  user="hyde", \
+                                                                  password="h123yde",
+                                                                  verbose=0)
+            self.assertEqual(1, len(nomatchrecs))
 
 TEST_SUITE = make_test_suite(BibMatchTest)
 
