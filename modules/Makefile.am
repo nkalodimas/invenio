@@ -40,7 +40,6 @@ SUBDIRS = bibauthorid \
           miscutil \
           oaiharvest \
           oairepository \
-          refextract \
           webaccess \
           webalert \
           webauthorprofile \
@@ -53,6 +52,7 @@ SUBDIRS = bibauthorid \
           websession \
           webstat \
           webstyle \
-          websubmit
+          websubmit \
+          docextract
 
 CLEANFILES = *~

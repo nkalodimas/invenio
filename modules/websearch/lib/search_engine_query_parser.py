@@ -629,6 +629,7 @@ class SpiresToInvenioSyntaxConverter:
     }
 
     _SECOND_ORDER_KEYWORD_MATCHINGS = {
+        'rawref' : 'rawref:',
         'refersto' : 'refersto:',
         'refs': 'refersto:',
         'citedby' : 'citedby:'
