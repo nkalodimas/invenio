@@ -478,7 +478,7 @@ def get_citation_informations(recid_list, tags, fetch_catchup_info=True):
                 task_sleep_now_if_required()
                 # in fact we can sleep any time here
 
-            if done % 1000 == 0:
+            if done % 50 == 0:
                 mesg = "get cit.inf done %s of %s" % (done, len(recid_list))
                 write_message(mesg)
                 task_update_progress(mesg)
@@ -610,7 +610,7 @@ def ref_analyzer(citation_informations, dicts,
         if done % 30 == 0:
             task_sleep_now_if_required()
 
-        if done % 1000 == 0:
+        if done % 50 == 0:
             mesg = "%s done %s of %s" % (msg_prefix, done, total)
             write_message(mesg)
             task_update_progress(mesg)
