@@ -2795,6 +2795,14 @@ CREATE TABLE IF NOT EXISTS bibHOLDINGPEN (
   KEY id_bibrec (id_bibrec)
 ) ENGINE=MyISAM;
 
+CREATE TABLE IF NOT EXISTS bibARXIVPDF (
+  id_bibrec mediumint(8) unsigned NOT NULL,
+  status ENUM('ok', 'missing') NOT NULL,
+  date_harvested datetime NOT NULL,
+  PRIMARY KEY (id_bibrec),
+  KEY status (status)
+) ENGINE=MyISAM;
+
 -- tables for portal elements:
 
 CREATE TABLE IF NOT EXISTS collection_portalbox (
