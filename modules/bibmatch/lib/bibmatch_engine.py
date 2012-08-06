@@ -53,7 +53,7 @@ from invenio.search_engine_query_parser import SearchQueryParenthesisedParser
 from invenio.dbquery import run_sql
 from invenio.textmarc2xmlmarc import transform_file
 from invenio.bibmatch_validator import validate_matches, transform_record_to_marc, \
-                                       validate_tag
+                                       validate_tag, BibMatchValidationError
 from invenio.textutils import translate_to_ascii, xml_entities_to_utf8
 
 try:
@@ -896,13 +896,19 @@ def match_record(bibmatch_recid, record, server, qrystrs=None, search_mode=None,
                                           query,
                                           len(result_recids),
                                           str(result_recids)))
-                exact_matches, fuzzy_matches = validate_matches(bibmatch_recid=bibmatch_recid, \
-                                                                record=record, \
-                                                                server=server, \
-                                                                result_recids=result_recids, \
-                                                                collections=collections, \
-                                                                verbose=verbose, \
-                                                                ascii_mode=ascii_mode)
+                exact_matches = []
+                fuzzy_matches = []
+                try:
+                    exact_matches, fuzzy_matches = validate_matches(bibmatch_recid=bibmatch_recid, \
+                                                                    record=record, \
+                                                                    server=server, \
+                                                                    result_recids=result_recids, \
+                                                                    collections=collections, \
+                                                                    verbose=verbose, \
+                                                                    ascii_mode=ascii_mode)
+                except BibMatchValidationError, e:
+                    sys.stderr.write("ERROR: %s\n" % (str(e),))
+
                 if len(exact_matches) > 0:
                     if (verbose > 8):
                         sys.stderr.write("Match validated\n")
@@ -916,6 +922,7 @@ def match_record(bibmatch_recid, record, server, qrystrs=None, search_mode=None,
                 else:
                     if (verbose > 8):
                         sys.stderr.write("Match could not be validated\n")
+
             else:
                 # No validation
                 # Ambiguous match
@@ -998,13 +1005,19 @@ def match_record(bibmatch_recid, record, server, qrystrs=None, search_mode=None,
                                                       query_out,
                                                       len(result_hitset),
                                                       str(result_hitset)))
-                            exact_matches, fuzzy_matches = validate_matches(bibmatch_recid=bibmatch_recid, \
-                                                                            record=record, \
-                                                                            server=server, \
-                                                                            result_recids=result_hitset, \
-                                                                            collections=collections, \
-                                                                            verbose=verbose, \
-                                                                            ascii_mode=ascii_mode)
+                            exact_matches = []
+                            fuzzy_matches = []
+                            try:
+                                exact_matches, fuzzy_matches = validate_matches(bibmatch_recid=bibmatch_recid, \
+                                                                                record=record, \
+                                                                                server=server, \
+                                                                                result_recids=result_hitset, \
+                                                                                collections=collections, \
+                                                                                verbose=verbose, \
+                                                                                ascii_mode=ascii_mode)
+                            except BibMatchValidationError, e:
+                                sys.stderr.write("ERROR: %s\n" % (str(e),))
+
                             if len(exact_matches) > 0:
                                 if (verbose > 8):
                                     sys.stderr.write("Match validated\n")

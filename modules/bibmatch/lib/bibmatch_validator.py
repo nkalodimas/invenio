@@ -44,6 +44,11 @@ from invenio.textutils import translate_to_ascii
 
 re_valid_tag = re.compile("^[0-9]{3}[a-zA-Z0-9_%]{0,3}$")
 
+
+class BibMatchValidationError(Exception):
+    pass
+
+
 def validate_matches(bibmatch_recid, record, server, result_recids, \
                      collections="", verbose=0, ascii_mode=False):
     """
@@ -88,9 +93,9 @@ def validate_matches(bibmatch_recid, record, server, result_recids, \
     # Generate final rule-set by analyzing the record
     final_ruleset = get_validation_ruleset(record)
     if not final_ruleset:
-        sys.stderr.write("Bad configuration rule-set. \
-Please check that CFG_BIBMATCH_MATCH_VALIDATION_RULESETS is formed correctly.\n")
-        return [], []
+        raise BibMatchValidationError("Bad configuration rule-set." \
+                                      "Please check that CFG_BIBMATCH_MATCH_VALIDATION_RULESETS" \
+                                      " is formed correctly.")
 
     if verbose > 8:
         sys.stderr.write("\nStart record validation:\n\nFinal validation ruleset used:\n")
@@ -99,28 +104,30 @@ Please check that CFG_BIBMATCH_MATCH_VALIDATION_RULESETS is formed correctly.\n"
 
     # Fetch all records in MARCXML and convert to BibRec
     found_record_list = []
-    for recid in result_recids:
-        query = "001:%d" % (recid,)
-        if collections:
-            search_params = dict(p=query, of="xm", c=collections)
-        else:
-            search_params = dict(p=query, of="xm")
-        result_marcxml = server.search_with_retry(**search_params)
-        result_record_list = create_records(result_marcxml)
-        # Check if record was found and BibRecord generation was successful
-        if result_record_list == [] or \
-           len(result_record_list) != 1 or \
-           result_record_list[0] == None:
-            # Error fetching a record. Unable to validate and returning with empty list.
-            if verbose > 8:
-                sys.stderr.write("\nError retrieving MARCXML for matched record %s\n" % (str(recid),))
-            return [], []
-        # Add a tuple of record ID (for easy look-up later) and BibRecord structure
-        found_record_list.append((recid, result_record_list[0][0]))
+    query = " OR ".join(["001:%d" % (recid,) for recid in result_recids])
+
+    if collections:
+        search_params = dict(p=query, of="xm", c=collections)
+    else:
+        search_params = dict(p=query, of="xm")
+    result_marcxml = server.search_with_retry(**search_params)
+    # Check if record was found
+    if result_marcxml:
+        found_record_list = [r[0] for r in create_records(result_marcxml)]
+        # Check if BibRecord generation was successful
+        if not found_record_list:
+            # Error fetching records. Unable to validate. Abort.
+            raise BibMatchValidationError("Error retrieving MARCXML for possible matches %s from %s. Aborting." \
+                                          % (",".join(result_recids), server.server_url))
+        if len(found_record_list) < len(result_recids):
+            # Error fetching all records. Will still continue.
+            sys.stderr.write("\nError retrieving all MARCXML for possible matched records %s from %s.\n" \
+                              % (",".join(result_recids), server.server_url))
 
     # Validate records one-by-one, adding any matches to the list of matching record IDs
     current_index = 1
-    for recid, matched_record in found_record_list:
+    for matched_record in found_record_list:
+        recid = record_get_field_values(matched_record, tag="001")[0]
         if verbose > 8:
             sys.stderr.write("\n Validating matched record #%d (%s):\n" % \
                              (current_index, recid))
