@@ -3835,15 +3835,15 @@ class Template:
         return out
 
     def tmpl_record_hepdata(self, data, recid, isLong=True):
-        """ Generate a page for HEPData records
+        """ Generate a page for HepData records
         """
         c = []
 
         c.append("<div style=\"background-color: #ecece0;\">")
         c.append("<div style=\"background-color: #ececec;\">")
-        c.append("<h2><a href=\"%s\">This data comes from the Durham HEPData project</a></h2>" % ("http://hepdata.cedar.ac.uk", ));
+        c.append("<h3>This data comes from the <a href=\"%s\">Durham HepData project</a></h3>" % ("http://hepdata.cedar.ac.uk/view/ins%s" % (str(recid), ), ));
         c.append("<h3>Summary:</h3>")
-        c.append("""<div class="comment">%s</div>""" % (data.comment, ))
+        c.append("""<div class="hepdataSummary">%s</div>""" % (data.comment, ))
 
         if data.systematics and data.systematics.strip() != "":
             c.append("<h3>Systematic data: </h3>")

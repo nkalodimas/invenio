@@ -74,3 +74,13 @@ function collectHeights(tableObject){
     return {"firstHeight" : firstHeight, "titlesHeight" : totalHeight, "masterHeight" : masterplotHeight};
 }
 
+$(window).load(function() {
+    var images_to_check = $(".hepdataimg");
+    for (var i = 0; i< images_to_check.length; i++){
+	var img = images_to_check[i];
+
+        if (typeof img.naturalWidth != "undefined" && img.naturalWidth == 0) {
+	    $(img.parentNode).html("&nbsp;Image temporarly&nbsp;<br>&nbsp; not available&nbsp;")
+        }
+    }
+});

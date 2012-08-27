@@ -63,7 +63,9 @@ symbols_dictionary = {
     "OMEGA" : "\\Omega",
     "SIGMA" : "\\Sigma",
     "PLAB" : "P_{LAB}",
-    "NUCLEUS": "nucleus"
+    "NUCLEUS": "nucleus",
+    "CHI" : "\\chi",
+    "GAMMA" : "\\Gamma"
  }
 
 # ordered list of tokens to recognise
@@ -380,7 +382,7 @@ def parse_specifier(tokens_provider, initial_specifier, is_real):
 
     specifier_sections = {} # we maintain a list of all specifiers before rendering (we have to assign position to them and to. for a specifier we remember a list of parsed values
     cur_token = (None, None)
-    
+
     next_specifier = initial_specifier
     while cur_token[0] != "close_b": # this one will be finished in only one case
         cur_specifier = next_specifier.upper()
@@ -494,7 +496,7 @@ def tokenize_string(input_s):
         yield cur_token
 
 def data_qualifier_to_LateX(qualifier, is_real = False):
-    """Transform a data qualifier from HEPData representation to LaTeX
+    """Transform a data qualifier from HepData representation to LaTeX
     @param is_real Specifies if RE should be treated as real part of a complex number. This depends on the field where we are rendering
     @type is_real boolean
     """
@@ -519,42 +521,27 @@ def get_hepdataplot_url(entry_id, table_num):
     return "%s/plot/%s/%s" % (CFG_HEPDATA_URL, entry_id, table_num)
 
 
-def get_hepdataplot_image_urls(entry_id, table_num):
-    """Returns links to all plots produced from given data"""
-    #TODO: this should be replaced with reading of the dataset record !
-    try:
-        ploturl = get_hepdataplot_url(entry_id, table_num)
-        fd = urllib2.urlopen(ploturl)
-        content = fd.read()
-        fd.close()
+def get_hepdataplot_image_urls(recid, dataset):
+    """Returns links to all plots produced from given data
+    @param recid Identifier of the parent publication record
+    @type recid Integer
+    """
 
-        rexp_res = re.findall(
-            "href=\"/plotimage/hepdata-([a-z]*[0-9]*)-(d[0-9]*)-" + \
-                "([a-z0-9]*)-([a-z]*)([0-9]*)_([0-9]*).png",
-            content)
-        results = []
-
-        for r in rexp_res:
-            results.append(("%s/plotimage/hepdata-%s-%s-%s-%slog%s_%s.png" % \
-                                (CFG_HEPDATA_URL, r[0], r[1], r[2],
-                                 r[3], r[4], CFG_HEPDATA_PLOTSIZE),
-                            "%s/plot/%s/%s/%s/%s%s" % \
-                                (CFG_HEPDATA_URL, r[0], r[1], r[2],
-                                 r[3], r[4])
-                            ))
-        return results
-    except:
-        return []
+    return [("%s/plotimage/hepdata-ins%s-d%s-x1-ylog%s_%s.png" % \
+                                (CFG_HEPDATA_URL, str(recid),
+                                 str(dataset.position),
+                                 str(y+1), CFG_HEPDATA_PLOTSIZE),
+                            "%s/plot/ins%s/d%s/x1/y%s" % \
+                                (CFG_HEPDATA_URL, str(recid), str(dataset.position),
+                                 str(y+1))
+                            ) for y in xrange(dataset.y_columns)]
 
 def get_hepdatamultiplot_image_url(recid, dataset):
     """ Create URL to the plot combining all data lines
     """
-    
     # determining columns based on the first data line
-    
     if len(dataset.data) == 0:
         return None
-    
     separator = "$0020"
     insplen = len(filter(lambda x: x["axis"] == "y", dataset.data[0]))
     insp = [ "insp%sds%sya%i" % (str(recid), str(dataset.position), i) for i in xrange(1, insplen + 1)]
@@ -605,11 +592,14 @@ def html_strip(st):
     return st
 
 
-def render_hepdata_dataset_html(dataset, recid, seq):
-    """ Rendering a single dataset"""
-            
+def render_hepdata_dataset_html(dataset, recid, seq, display_link = True):
+    """ Rendering a single dataset
+    @param display_link Indicates if a link to the data record should be displayed
+    @type display_link boolean
+    """
+
     should_expand_table = len(dataset.data) > 0
-    
+
     # calculating the table width
 
     c = [] #collecting parts of the output
@@ -639,27 +629,31 @@ def render_hepdata_dataset_html(dataset, recid, seq):
     args["plots_code"] = render_plots_page(dataset, recid, seq)
     multiplot_url = get_hepdatamultiplot_image_url(recid, dataset)
     if multiplot_url:
-        args["multiplot_url"] = multiplot_url  
+        args["multiplot_url"] = multiplot_url
 
     # rendering the HTML code
 
-    c.append("<div style=\"background-color: #ecece0;\">")
+    c.append("<div style=\"background-color: #ecece0; padding:10px;\">")
     baseurl = get_hepdata_link(recid)
     c.append("<h3><a href=\"%s/d%i\">%s</a></h3>" % (baseurl, seq, dataset.name, ))
     for fmt in dataset.additional_files:
         c.append("<a href=\"%s/%s\">%s</a>" % (CFG_HEPDATA_URL, fmt[0], fmt[1]))
 
-    c.append("<br>")
-    c.append("<b>Comments: </b> " + dataset.comments + "<br>")
-    c.append("<br>")
+    if dataset.comments.strip():
+        c.append("<br>")
+        c.append("<b>Comments: </b> " + dataset.comments + "<br>")
+        c.append("<br>")
 
-    c.append("<b>Table</b>")
+    #TODO: As soon as DOIs are assigned, this should be replaced with a DOI
+    if display_link:
+        c.append("<a href=\"%s/record/%s\">Go to the record</a>" % (CFG_SITE_URL, str(dataset.recid)))
+
     c.append("<div class=\"hepdataTablePlaceholder\">")
     c.append("<table cellpadding=\"0\" cellspacing=\"0\" class=\"hepdataTable\">")
 
 
     # rendering files links
-    plain_file_url = "%s/record/%s/files/Data.plain" % ( CFG_SITE_URL, str(dataset.recid))
+    plain_file_url = "%s/record/%s/files/Data.txt" % ( CFG_SITE_URL, str(dataset.recid))
     c.append("<tr><td colspan=\"%(colspan)s\" style=\"text-align: left;\"><a href=\"%(plain_file_url)s\"><img src=\"%(site_url)s/img/file-icon-text-15x20.gif\"></img><br>Plain</td>" % {
         "site_url" : CFG_SITE_URL,
         "plain_file_url" : plain_file_url,
@@ -669,13 +663,13 @@ def render_hepdata_dataset_html(dataset, recid, seq):
     c.append("""<td rowspan="%(rowspan)i" class="expanderTableCell masterPlotExpanderTableCell">""" \
                  % {"rowspan" :  len(dataset.data_qualifiers) + 3})
     if multiplot_url:
-        c.append("""<p class="expander masterPlotExpander" onclick="%(onclick_code_masterplot_expand)s" id="%(masterplot_expander_id)s">%(expand_message_masterplot)s</p>""" \
+        c.append("""<p class="expander masterPlotExpander" onclick="%(onclick_code_masterplot_expand)s" id="%(masterplot_expander_id)s"><a>%(expand_message_masterplot)s</a></p>""" \
         	         % args)
     c.append("</td>")
     c.append("<td class=\"masterplot_cell\" rowspan=\"%(masterplot_rowspan)s\"><div class=\"%(masterplot_layer_class)s\" style=\"display:none;\">" % args)
     if multiplot_url:
-        c.append("<img src=\"%(multiplot_url)s\"></img>" % args)
-    
+        c.append("<div><img src=\"%(multiplot_url)s\" alt=\"The plot is not available\" class=\"hepdataimg\"></img></div>" % args)
+
     c.append("</div></td>" % args)
     c.append("</tr>")
 
@@ -748,7 +742,7 @@ def render_hepdata_dataset_html(dataset, recid, seq):
                   "<p onclick=\"%(onclick_code_moredata_expand)s\" " + \
                   "id=\"%(data_expander_id)s\" "  + \
                   "class=\"expander detailedDataExpander\">" +\
-                  "%(expand_message_moredata)s</p></td></tr>") % args)
+                  "<a>%(expand_message_moredata)s</a></p></td></tr>") % args)
 
     isFirst = True
     for line in dataset.data:
@@ -780,39 +774,48 @@ def render_hepdata_dataset_html(dataset, recid, seq):
     c.append("</div>")
     c.append("</div>")
     return "\n".join(c)
-    
-    
+
+
+
 def render_plots_page(dataset, recid, seq):
     """
-    Generate a list of plots from HEPData
-    @param dataset Dataset object parsed from the HEPData page
+    Generate a list of plots from HepData
+    @param dataset Dataset object parsed from the HepData page
     @param recid The identifier of the record representing a paper
-    @param seq The number of the dataset inside of the HEPData page
+    @param seq The number of the dataset inside of the HepData page
     """
 
-    # TODO generate from the dataset object rather than from the page itself
+    def get_titles(dataset):
+        remaining_occurences = 0
+        cur_title = 0
+        while True:
+            if remaining_occurences == 0:
+                cur_title += 1
+                if cur_title in dataset.column_titles:
+                    remaining_occurences = dataset.column_titles[cur_title]["colspan"]
+                else:
+                    while True:
+                        yield ""
+
+            if cur_title in dataset.column_titles and "content" in dataset.column_titles[cur_title]:
+                yield dataset.column_titles[cur_title]["content"]
+            else:
+                yield ""
+            remaining_occurences -= 1
+
     c = []
     entry_id = "ins%s" % (str(recid), )
-    urls = get_hepdataplot_image_urls(entry_id, "d%i" % (seq ,))
-
+    urls = get_hepdataplot_image_urls(recid, dataset)
     #matching plots with headlines (skip first and the rest should be matched by colspan)
     matched_urls = []
 
-    cur_title = 1 # we skip the first empty entry
-    remaining_occurances = dataset.column_titles[1]["colspan"]
-    column_num = 0
-    for url in urls:
-        column_num += 1
+    column_num = dataset.x_columns
+    ds_getter = get_titles(dataset)
 
-        if cur_title >= len(dataset.column_titles) or not "content" in dataset.column_titles[cur_title]:
-            matched_urls.append(("", url, get_hepdata_column_class(seq, column_num)))
-        else:
-            matched_urls.append((dataset.column_titles[cur_title]["content"], url, get_hepdata_column_class(seq, column_num)))
-        remaining_occurances -= 1
-        if remaining_occurances == 0:
-            cur_title += 1
-            if cur_title < len(dataset.column_titles):
-                remaining_occurances = dataset.column_titles[cur_title]["colspan"]
+    for url in urls:
+        title = ds_getter.next()
+        matched_urls.append((title,  url, get_hepdata_column_class(seq, column_num)))
+        column_num += 1
 
     # rendering matches
     for matched_url in matched_urls:
@@ -824,7 +827,9 @@ def render_plots_page(dataset, recid, seq):
             }
 
         c.append("<div onmouseover=\"return selectDataColumn('%(data_column_class)s');\" onmouseout=\"return  unselectDataColumn('%(data_column_class)s');\">" % args)
-        c.append("<p>%(plot_title)s</p><br><a href=\"%(plot_page_url)s\"><img src=\"%(plot_image_url)s\"></a>" % args)
+        if args["plot_title"]:
+            c.append("<p>%(plot_title)s</p>" % args)
+        c.append("<br><a href=\"%(plot_page_url)s\" class=\"hepdataPlotLink\"><img src=\"%(plot_image_url)s\" alt=\"The plot is not available\" class=\"hepdataimg\"></a>" % args)
         c.append("</div>")
 
     return "\n".join(c)

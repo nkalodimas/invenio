@@ -26,13 +26,11 @@
 .hepdataQualifierLayer{
     padding: 2px;
     margin: 1px 5px;
-//    font-size: 75%;
     background-color: #E9E9E3;
 }
 .hepdataEmptyQualifierLayer{
     padding: 2px;
     margin: 1px 10px;
-//    font-size: 75%;
 }
 .hepdataTableHeaderLayer{
     padding: 2px;
@@ -50,7 +48,6 @@
 
     vertical-align: top;
     text-align: center;
-//    font-size: 80%;
     font-weight: bold;
 }
 
@@ -66,6 +63,7 @@ generic settings for all table cells hosting an expander
 .expanderTableCell{
     vertical-align: top;
 }
+
 
 /** small layer only encapsulating the data table*/
 .hepdataTablePlaceholder{
@@ -88,9 +86,10 @@ generic settings for all table cells hosting an expander
     width: 16px;
     height: 16px;
     font-size: 16px;
-    cursor: default;
     font-weight: normal;
     position:relative;
+    color: #7799ff;
+    cursor: pointer;
 };
 
 /** The cell containing an expander for master plot
@@ -98,10 +97,16 @@ generic settings for all table cells hosting an expander
 .masterPlotExpanderTableCell{
     vertical-align: text-top;
     width: 20px;
+    cursor: pointer;
 }
 
 .detailedDataExpander{
+    color: #7799ff;
+    cursor: pointer;
+}
 
+.hepdataSummary{
+    padding:10px;
 }
 
 .detailedDataExpanderTableCell{
@@ -131,4 +136,13 @@ generic settings for all table cells hosting an expander
 
 .hepdataColumnHeader{
     vertical-align: bottom;
+}
+
+
+.hepdataPlotLink{
+    background-color: white;
+}
+
+.hepdataPlotLink:hover{
+    background-color: white;
 }

@@ -27,12 +27,14 @@ import os
 import sys
 import Queue
 import threading
+import signal
 
 from invenio.config import CFG_CACHEDIR, CFG_HEPDATA_URL, \
-    CFG_HEPDATA_PLOTSIZE, CFG_LOGDIR, CFG_TMPDIR, CFG_HEPDATA_THREADS_NUM
+    CFG_HEPDATA_PLOTSIZE, CFG_LOGDIR, CFG_TMPDIR, CFG_HEPDATA_THREADS_NUM, \
+    CFG_HEPDATA_INDEX, CFG_HEPDATA_FIELD
 from invenio.jsonutils import json
 from datetime import datetime
-
+import time
 from invenio import bibrecord
 
 #raise Exception(str(dir(sys.modules['invenio'])))
@@ -49,7 +51,8 @@ import cPickle
 
 from invenio.bibtask import task_init, write_message, \
     task_set_option, task_has_option, task_get_option, \
-    task_low_level_submission, task_update_progress
+    task_low_level_submission, task_update_progress, \
+    task_read_status, task_sleep_now_if_required
 
 # helper functions
 
@@ -90,7 +93,19 @@ ACCEPTED_FORMATS = {
     "jhepwork" : "jhepwork.py"
 }
 
-
+def download_with_retry(data_url):
+    last_e = None
+    sleeptime = 2
+    for retry_num in xrange(5):
+        try:
+            f = urllib2.urlopen(data_url)
+            content = f.read()
+            return content
+        except Exception, e:
+            last_e = e
+        time.sleep(sleeptime)
+        sleeptime = sleeptime * 2
+    raise Exception("Failed to download url. Last error mesasge: %s " %( last_e.reason, ))
 
 class Paper(object):
     def __init__(self):
@@ -128,12 +143,12 @@ class Paper(object):
                                 "description" : fsf_desc[0]})
 
         # reading the comment
-        fs = bibrecord.record_get_field_instances(rec, "245", ind1 = " ", ind2= " ")
+        fs = bibrecord.record_get_field_instances(rec, "520", ind1 = " ", ind2= " ")
         if fs:
             for f in fs:
                 sfs = bibrecord.field_get_subfield_values(f, "9")
                 if sfs and sfs[0].strip() == "HEPDATA":
-                    sfs = bibrecord.field_get_subfield_values(f, "a")
+                    sfs = bibrecord.field_get_subfield_values(f, "h")
                     if sfs:
                         paper.comment = sfs[0].strip()
 
@@ -219,7 +234,7 @@ class Paper(object):
 
         # HEPDATA comment
 
-        fs = bibrecord.record_get_field_instances(rec2, "245",
+        fs = bibrecord.record_get_field_instances(rec2, "520",
                                                   ind1 = " ", ind2 = " ")
         existing_comment = ""
         correct_comment = self.comment.strip()
@@ -230,31 +245,19 @@ class Paper(object):
                 sfs = bibrecord.field_get_subfield_values(f, "9")
                 if sfs and sfs[0].strip() == "HEPDATA":
                     # we have found THE CAPTION
-                    sfs = bibrecord.field_get_subfield_values(f, "a")
+                    sfs = bibrecord.field_get_subfield_values(f, "h")
                     if sfs:
                         existing_comment = sfs[0].strip()
                 else:
                     new_fields.append(f)
 
         if existing_comment != correct_comment:
-            bibrecord.record_add_fields(outrec, "245", new_fields)
+            bibrecord.record_add_fields(outrec, "520", new_fields)
             if correct_comment:
-                bibrecord.record_add_field(outrec, "245", \
+                bibrecord.record_add_field(outrec, "520", \
                                                subfields = [("9", "HEPDATA")] \
                                                + ((correct_comment or []) and \
-                                                      [("a", correct_comment)]))
-        # the HEPDATA mark in 520 $9
-        has_mark = reduce(
-            lambda prev, f: prev or \
-                (bibrecord.field_get_subfield_values(f, "9") and \
-                     bibrecord.field_get_subfield_values(f, "9")[0].strip() == \
-                     "HEPDATA"),
-            bibrecord.record_get_field_instances(rec2, "520", ind1 = " ", ind2 = " "),
-            False)
-
-        if not has_mark:
-            bibrecord.record_add_field(outrec, "520", ind1 = " ",
-                                       ind2 = " ", subfields=[("9", "HEPDATA")])
+                                                      [("h", correct_comment)]))
 
         if outrec:
             #If the output was different than empty so far, we are copying the
@@ -262,7 +265,7 @@ class Paper(object):
             ids = bibrecord.record_get_field_values(rec2, "001")
             if ids:
                 bibrecord.record_add_field(outrec, "001", \
-                                               controlfield_value=str(ids[0]))
+                                               controlfield_value = str(ids[0]))
             return bibrecord.record_xml_output(outrec)
         else:
             return None
@@ -299,7 +302,10 @@ class Dataset(object):
         self.additional_data_links = []
         self.data_plain = ""
         self.recid = None
-        
+        self.x_columns = 0
+        self.y_columns = 0
+	self.title = ""
+
     def __repr__(self):
         return "Auxiliary information: " + repr(self.data_qualifiers) + \
             "  Headers: " + repr(self.column_headers) + " Data: " + repr(self.data)
@@ -324,7 +330,7 @@ class Dataset(object):
 
     empty_data_str = cPickle.dumps({})
 
-    def get_diff_marcxml(self, rec2, parent_recid, data_str=None, data_plain=None):
+    def get_diff_marcxml(self, rec2, parent_recid, data_str=None, data_plain=None, force_reupload=False):
         """Produces a MARC XML allowing to modify passed dataset record
            into the current dataset. Necessary files are created in the
            temporary directory.
@@ -354,25 +360,55 @@ class Dataset(object):
                     return sfs[0].strip()
             return default
 
+	# processing the title
+	existing_title = get_subfield_with_defval(tag = "245", sfcode = "a", default="")
+
+	if existing_title != self.title:
+	    addf("245", ind1 = " ", ind2 = " ", subfields = \
+		 [("9", "HEPDATA"), ("a", self.title)])
+
+        # processing number of x and y columns
+        existing_x = int(get_subfield_with_defval(tag = "911", sfcode = "x", default=0))
+        existing_y = int(get_subfield_with_defval(tag = "911", sfcode = "y", default=0))
+
+        correct_x = self.x_columns
+        correct_y = self.y_columns
+
+        if correct_x != existing_x or correct_y != existing_y:
+            addf("911", ind1 = " ", ind2=" ", subfields = \
+                     [("x", str(self.x_columns)),
+                       ("y", str(self.y_columns))])
+
+
         # processing caption
-        existing_caption = get_subfield_with_defval(tag = "245", sfcode = "a")
-        existing_mark = get_subfield_with_defval(tag = "245", sfcode = "9")
-        correct_caption = self.comments.strip()
-        correct_mark = "HEPDATA"
-        if correct_caption and (existing_caption != correct_caption or \
-                existing_mark != correct_mark):
-#            import rpdb2; rpdb2.start_embedded_debugger('password')
-            # inserting the caption code
-            addf("245", ind1 = " ", ind2=" ", subfields = \
-                     [("a", str(self.comments)),
-                      ("9", "HEPDATA")])
 
-        # the HEP Data mark
-        correct_mark = "HEPDATA"
-        existing_mark = get_subfield_with_defval(tag = "520", sfcode = "9")
+        fs = bibrecord.record_get_field_instances(rec2, "520",
+                                                  ind1 = " ", ind2 = " ")
+        existing_comment = ""
+        correct_comment = self.comments.strip()
+        new_fields = []
 
-        if correct_mark != existing_mark:
-            addf("520", ind1 = " ", ind2 = " ", subfields = [("9", "HEPDATA")])
+        if fs:
+            for f in fs:
+                sfs = bibrecord.field_get_subfield_values(f, "9")
+                if sfs and sfs[0].strip() == "HEPDATA":
+                    # we have found THE CAPTION
+                    sfs = bibrecord.field_get_subfield_values(f, "h")
+                    if sfs:
+                        existing_comment = sfs[0].strip()
+                else:
+                    new_fields.append(f)
+
+
+        if existing_comment != correct_comment:
+            bibrecord.record_add_fields(outrec, "520", new_fields)
+            if correct_comment:
+                addf("520", \
+                         subfields = [("9", "HEPDATA")] \
+                         + ((correct_comment or []) and \
+                                [("h", correct_comment)]))
+
+
 
         # collaboration
         existing_collaboration = get_subfield_with_defval(tag = "710",
@@ -386,8 +422,6 @@ class Dataset(object):
 
 
         # Link to the original record and the location
-#        from invenio import bibtask
-#        bibtask.write_message("Parent record id: %s " % (str(parent_recid),))
         if parent_recid:
             existing_id = get_subfield_with_defval(tag = "786", sfcode = "w")
             existing_arXivId = get_subfield_with_defval(tag = "786",
@@ -415,6 +449,8 @@ class Dataset(object):
                 if correct_location:
                     subfields.append(("h", correct_location))
                 addf("786", ind1 = " ", ind2 = " ", subfields = subfields)
+	else:
+	    write_message("No dataset parent recid!")
 
         # dataset type (determined based on the location)
         correct_type = self.get_type()
@@ -462,23 +498,32 @@ class Dataset(object):
                     # compare on keys
                     sfs1 = bibrecord.field_get_subfield_values(q1, "k")
                     sfs2 = bibrecord.field_get_subfield_values(q2, "k")
-                    if sfs1[0] > sfs2[0]:
+                    if sfs1 and not sfs2:
                         return True
-                    elif sfs2[0] > sfs1[0]:
+                    elif sfs2 and not sfs1:
                         return False
-            #compare on values
+                    if sfs1 and sfs2 and sfs1[0] > sfs2[0]:
+                        return True
+                    elif sfs1 and sfs2 and sfs2[0] > sfs1[0]:
+                        return False
                     else:
                         sfs1 = bibrecord.field_get_subfield_values(q1, "v")
                         sfs2 = bibrecord.field_get_subfield_values(q2, "v")
-                        return sfs1[0] > sfs2[0]
+                        if sfs1 and not sfs2:
+                            return True
+                        elif sfs2 and not sfs1:
+                            return False
+                        elif sfs1 and sfs2:
+                            return sfs1[0] > sfs2[0]
+                        else:
+                            return False
+
+
             # compare on columns
             sfs1 = " ".join(bibrecord.field_get_subfield_values(q1, "c"))
             sfs2 = " ".join(bibrecord.field_get_subfield_values(q2, "c"))
             return sfs1 > sfs2
 
-#        import rpdb2; rpdb2.start_embedded_debugger('password')
-#        write_message("existing qualifiers: %s" % (str(present_qualifiers),))
-#        write_message("correct qualifiers: %s" % (str(correct_qualifiers),))
         correct_qualifiers.sort(cmp = qualifier_comparer)
         present_qualifiers.sort(cmp = qualifier_comparer)
         fgsv = bibrecord.field_get_subfield_values
@@ -522,7 +567,8 @@ class Dataset(object):
         except:
             existing_data = []
 
-        if (not data_str) or (not self.compare_data(existing_data)):
+
+        if (not data_str) or (not self.compare_data(existing_data)) or force_reupload:
             # we retreive plain data only if table data is different
             self.retrieve_plain_data()
 
@@ -533,6 +579,7 @@ class Dataset(object):
                             ("t", "Data"), \
                             ("n", "Data"), \
                             ("f", ".data"), \
+                            ("o", "HIDDEN"), \
                             ("d", "data extracted from the table") \
                             ])
             if fname_plain:
@@ -540,7 +587,7 @@ class Dataset(object):
                         ("a", fname_plain), \
                             ("t", "Data"), \
                             ("n", "Data"), \
-                            ("f", ".plain"), \
+                            ("f", ".txt"), \
                             ("d", "data extracted from the table") \
                             ])
 
@@ -551,18 +598,19 @@ class Dataset(object):
 
             return bibrecord.record_xml_output(outrec)
         return None
+
     def retrieve_plain_data(self):
         data_url = urllib2.urlparse.urljoin(CFG_HEPDATA_URL,
                                             reduce( \
                 lambda x, y: x or (y[1] == "plain text" and y[0]) ,
                 self.additional_files, ""))
         try:
-            f = urllib2.urlopen(data_url)
-            self.data_plain = f.read()
-            f.close()
+            self.data_plain = download_with_retry(data_url)
+
         except Exception, e:
-            print "Impossible to retrieve the plan text format related to a dataset. URL: %s "% (data_url, )
+            print "Impossible to retrieve the plain text format related to a dataset. URL: %s "% (data_url, )
             self.data_plain = ""
+
         return self.data_plain
 
     def generate_columns(self):
@@ -635,7 +683,12 @@ class Dataset(object):
         """Creates an instance from a record"""
         ds = Dataset()
         ds.data_plain = data_plain
-
+	ds.title = ""
+	fs = bibrecord.record_get_field_instances(rec, "245", " ", " ")
+	if fs:
+	    sfs = bibrecord.field_get_subfield_values(fs[0], "a")
+	    if sfs:
+		ds.title = sfs[0].strip()
         # filling recid
 
         ds.recid = bibrecord.record_get_field_value(rec, "001")
@@ -644,12 +697,12 @@ class Dataset(object):
         fs = filter(lambda field: bibrecord.field_get_subfield_values(field, "9") and \
                          bibrecord.field_get_subfield_values(field, "9")[0] == \
                         "HEPDATA", \
-                        bibrecord.record_get_field_instances(rec, "245", \
+                        bibrecord.record_get_field_instances(rec, "520", \
                                                                  ind1 = " ", \
                                                                  ind2 = " "))
 
         if fs:
-            sfs = bibrecord.field_get_subfield_values(fs[0], "a")
+            sfs = bibrecord.field_get_subfield_values(fs[0], "h")
             if sfs:
                 ds.comments = sfs[0]
 
@@ -664,6 +717,19 @@ class Dataset(object):
             sfs = bibrecord.field_get_subfield_values(fs[0], "q")
             if sfs:
                 ds.position = int(sfs[0])
+
+        # reading numbers of x and y columns
+
+        fs = bibrecord.record_get_field_instances(rec, "911")
+        ds.x_columns = 0
+        ds.y_columns = 0
+
+        if fs:
+            ds.x_columns = int(bibrecord.field_get_subfield_values(fs[0], "x")[0])
+            ds.y_columns = int(bibrecord.field_get_subfield_values(fs[0], "y")[0])
+
+        ds.num_columns = ds.x_columns + ds.y_columns
+
 
         #reading columns - they are necessary for reading data qualifiers
         fs = bibrecord.record_get_field_instances(rec, "910")
@@ -685,7 +751,6 @@ class Dataset(object):
 
         columns.sort(cmp = lambda x, y: x["pos"] > y["pos"])
 
-
         ds.column_headers = []
         ds.column_titles = []
 
@@ -694,8 +759,6 @@ class Dataset(object):
 
         cur_title = None
         prev_title = None # previous title string
-
-        ds.num_columns = len(columns)
 
         for col in columns:
             if col["title"] == prev_title:
@@ -744,7 +807,10 @@ class Dataset(object):
             columns = []
             sfs = bibrecord.field_get_subfield_values(f, "c")
             for sf in sfs:
-                columns.append(int(sf))
+                if int(sf) >= ds.num_columns:
+                    hepdata_log("reconstruction", "Data qualifiers occuly more columns that exist in a dataset. Qualifier %s in column %s ...  ignoring exceed. rec: %s" % (cur_qual, str(sf), str(rec), ))
+                else:
+                    columns.append(int(sf))
             columns.sort()
             qualifiers.append((cur_qual, columns))
 
@@ -846,7 +912,7 @@ class Dataset(object):
             fname = None
 
         if self.data_plain:
-            fdesc, fname2 = tempfile.mkstemp(suffix = ".plain", prefix = "data_", \
+            fdesc, fname2 = tempfile.mkstemp(suffix = ".txt", prefix = "data_", \
                                                  dir = CFG_TMPDIR)
             os.write(fdesc, self.data_plain)
             os.close(fdesc)
@@ -906,7 +972,8 @@ class DatasetParser(object):
     def handle_entityref(self, name):
         if self.parsingOtherTag > 0:
             return
-
+        if name == "nbsp":
+            return
         refstring = "&" + name + ";"
         if self.parsingComments:
             self.dataset.comments += refstring
@@ -949,16 +1016,18 @@ class DataBoxParser(object):
 
             if ("class", "xyheaders") in attrs:
                 self.state = "headers"
-
             elif self.state == "headers":
                 self.state = "predata" # things before headers and data ...
             elif self.state == "predata":
                 self.state = "data"
 
             elif ("class", "altformats") in attrs:
-                self.state = "stopped"
+                self.state = "footer"
 
         if tag in ("th", "td"):
+            if self.state == "footer":
+                self.dataset.x_columns += 1
+
             colspan = 1
             for attr in attrs:
                 if attr[0] == "colspan":
@@ -970,12 +1039,19 @@ class DataBoxParser(object):
                 axis = "y"
             self.current_cell = {"colspan": colspan, "content": "", "axis": axis}
 
+        if tag in ("a"):
+            if self.state == "footer":
+                if ("title", "Display this table in graphical form") in attrs:
+                    self.dataset.y_columns += 1
+                    self.dataset.x_columns -= 1
 
     def handle_charref(self, name):
         if self.current_cell:
             self.current_cell["content"] += "&#" + name + ";"
 
     def handle_entityref(self, name):
+        if name == "nbsp":
+            return
         if self.current_cell:
             self.current_cell["content"] += "&" + name + ";"
 
@@ -999,6 +1075,7 @@ class DataBoxParser(object):
             elif self.state == "columntitles":
                 self.state = "auxiliary"
                 self.dataset.column_titles = self.current_line
+
             if not to_add is None:
                 to_add.append(self.current_line)
             self.current_line = []
@@ -1034,6 +1111,8 @@ class AdditionalDataParser(object):
             self.current_link["description"] += "&#" + name + ";"
 
     def handle_entityref(self, name):
+        if name == "nbsp":
+            return
         if self.current_link:
             self.current_link["description"] += "&" + name + ";"
 
@@ -1063,6 +1142,8 @@ class SystematicsParser(object):
         self.paper.systematics += "&#" + name + ";"
 
     def handle_entityref(self, name):
+        if name == "nbsp":
+            return
         self.paper.systematics += "&" + name + ";"
 
     def handle_data(self, data):
@@ -1074,19 +1155,19 @@ class HEPParser(HTMLParser):
         self.special_mode = None
         self.paper = Paper()
         self.parsing_paper_comment = False
-        
+
     def exit_special_mode(self):
         self.special_mode = None
 
     def parse_paperbox(self):
         """started parsing the paper box"""
         pass
-        
+
     def parse_datasetbox(self):
         dataset = Dataset()
         self.paper.datasets += [dataset]
-        
         self.special_mode = DatasetParser(self, dataset)
+
 
     def parse_dataset(self):
         """parse the data table"""
@@ -1118,7 +1199,10 @@ class HEPParser(HTMLParser):
 
 
     def handle_entityref(self, name):
+        if name == "nbsp":
+            return
         refstring = "&" + name + ";"
+
         if self.special_mode != None:
             self.special_mode.handle_entityref(name)
         elif self.parsing_paper_comment:
@@ -1144,8 +1228,8 @@ class HEPParser(HTMLParser):
             self.parse_dataset()
         elif tag == "p" and ("class", "papercomment") in attrs:
             self.parse_paper_comment()
-        elif tag == "br" and self.parsing_paper_comment:
-            self.paper.comment += "<br>"
+#        elif tag == "br" and self.parsing_paper_comment:
+#            self.paper.comment += "<br>"
         elif tag == "a":
             # search for those links which have href but it does not
             # end with one of marked suffixes
@@ -1183,11 +1267,9 @@ def wash_code(content):
     content = "".join(res)
     return content
 
-def download_dataset(page_url):
+def download_paper(page_url, recid):
     try:
-        f = urllib2.urlopen(page_url)
-        content = wash_code(f.read())
-        f.close()
+        content = wash_code(download_with_retry(page_url))
     except Exception, e:
         write_message("Error when retrieving dataset. URL: %s" %(page_url, ))
         raise e
@@ -1195,15 +1277,31 @@ def download_dataset(page_url):
     parser = HEPParser()
     parser.feed(content)
     paper = parser.paper
-#    import rpdb2; rpdb2.start_embedded_debugger('password', fAllowRemote=True)
-    # fixing column lengths
+
+
+    # fixing column lengths and titles
+
+
     import operator
     get_line_len = lambda line: reduce(operator.add,
                                        map(lambda hd: hd["colspan"], line), 0)
     for ds in paper.datasets:
         ds.num_columns = reduce(max, map(get_line_len, ds.data) + \
                                 [get_line_len(ds.column_headers),
-                                 get_line_len(ds.column_titles)])
+                                 get_line_len(ds.column_titles), ds.x_columns + ds.y_columns])
+
+
+	paper_title = get_record_val(recid, "245", sfcode = "a")
+	if not paper_title:
+	    paper_title = "record %s" % (str(recid), )
+
+	res = re.search("F\\s*([0-9]+)", ds.location)
+	
+	if res:
+	    ds.title = "Data from figure %s from: %s" % (res.groups()[0], paper_title)
+	else:
+	    ds.title = 	"Additional data from: %s" % (paper_title, )
+	    #	write_message("Setting the title")
 
     # download necessary datasets and fix other things
 
@@ -1211,18 +1309,21 @@ def download_dataset(page_url):
     for ds in paper.datasets:
         lo = ds.location.find("\n\n")
         ds.location = ds.location[:lo].strip()
+        if ds.location and ds.location[0] == "(":
+            ds.location = ds.location[1:]
+        if ds.location and ds.location[-1] == ")":
+            ds.location = ds.location[:-1]
+        ds.location = ds.location.strip()
         ds.position = cur_pos
         cur_pos += 1
-
-
     return paper
 
 
 
-def retrieve_hepdata(page_url):
+def retrieve_hepdata(page_url, recid):
     """retrieves a dataset either from cache or downloads and fills the cache"""
     # we directly donwload... no cache this time
-    data = download_dataset(page_url)
+    data = download_paper(page_url, recid)
     return data
 
 
@@ -1276,7 +1377,7 @@ def get_hepdata_by_recid_raw(recid):
             pass
 
         try:
-            data_file = bd.get_file(".plain")
+            data_file = bd.get_file(".txt")
             if data_file:
                 data_plain = data_file.get_content()
         except:
@@ -1299,14 +1400,24 @@ def get_hepdata_by_recid(parent_recid, recid):
 
 def get_attached_hepdata_records(recid):
     """Retrieves raw data of a HEPData for a given recid
+
+    We perform an additional in principle redundan (in the case of correct configuration)
+    step to remove possibly removed records
+    
     @param recid: The record id of a publication to which datasets refer
     @type recid: Integer
 
     @return: List of tuples (recid, record, data_string, data_plain)
     @rtype: List of tuples"""
     ids = get_attached_hepdata_dataset_ids(recid)
-    return map(lambda element: (element[0], element[1][0], element[1][1], element[1][2]), \
-                   zip(ids, map(get_hepdata_by_recid_raw, ids)))
+    def rec_not_deleted(tup):
+	rec = tup[1]
+	if not "980" in rec:
+	    return True
+	f_980 = rec["980"]
+	return reduce(lambda bool_res, subfield: bool_res and (not ('c', 'DELETED') in subfield[0]), f_980, True)
+    return filter(rec_not_deleted , map(lambda element: (element[0], element[1][0], element[1][1], element[1][2]), \
+                   zip(ids, map(get_hepdata_by_recid_raw, ids))))
 
 def get_attached_hepdata_dataset_ids(recid):
     """Returns all identifeirs of datasets attached to a given publication
@@ -1316,7 +1427,7 @@ def get_attached_hepdata_dataset_ids(recid):
     @rtype: intbitset
     @returns: intbitset of all the record identifeirs
               """
-    return search_engine.search_pattern(p="786__w:%s" % (str(recid),))
+    return search_engine.search_pattern(p="%s:%s" % (CFG_HEPDATA_FIELD, str(recid),))
 
 def get_attached_hepdata_datasets(recid):
     """For a given recid, retrieves recids of datasets that are related
@@ -1347,13 +1458,7 @@ def hepdata_log(category, msg):
 # The harvesting daemon
 
 def hepdata_get_all_identifiers():
-    # retrieving the list from HEPData
-    # TODO: Remove the file !
-
-    f = urllib2.urlopen(get_hepdata_allids_url())
-#    f = open("/home/piotr/Inspire/AllIds.htm","r")
-    page_content = f.read()
-    f.close()
+    page_content = download_with_retry(get_hepdata_allids_url())
     matches = re.search("<pre>([^<]*)</pre>", page_content)
     json_string = matches.groups()[0].replace(",,", ",0,")
     return json.loads(json_string)[:-1] # We ommit the last 0,0,0 entry
@@ -1367,22 +1472,16 @@ def hepdata_harvest_get_identifiers():
     if task_has_option('record_to_harvest'):
         yield task_get_option('record_to_harvest')
     else:
+	used_ids = set() # sometimes records are reported many times
         for res in hepdata_get_all_identifiers():
-            yield res[0]
+	    if res[0] and not res[0] in used_ids:
+		used_ids.add(res[0])
+		yield res[0]
 
-if __name__ == "__main__":
-    print str([x for x in hepdata_harvest_get_identifiers()])
 
-#def get_hepdata_dataset(id_dset):
-#    """ Return a dataset stored in the database under the record numebr id_dset
-#    """
-#    rec = search_engine.get_record(id_dset)
-
-#    #TODO: Retrieve the data instead of returning empty list
-#    return Dataset.create_from_record(rec, cPickle.dumps([]), parent_recid=None)
 
 def prepare_hepdata_for_upload(recid, hepdata, insert_stream, correct_stream,
-                               task_stats):
+                               task_stats, force_reupload=False):
 
     """Retrieve a single entry from HEPData and create MARC XML files to
        upload to Inspire
@@ -1412,21 +1511,8 @@ def prepare_hepdata_for_upload(recid, hepdata, insert_stream, correct_stream,
     # 1) check the inspire number that is related to the
     # How to detect if there is already an entry for HEPData try to upload
     # the description
-
     # Retrieve dataset records attached to the record.
     dataset_records = get_attached_hepdata_records(recid)
-
-
-    # debugging code !
-
-    #for ds in dataset_records:
-    #    try:
-    #        if int(ds[0]) == 1091471:
-    #            import rpdb2; rpdb2.start_embedded_debugger('password')
-    #        Dataset.create_from_record(ds[1], ds[2], None, None)
-    #    except Exception, e:
-    #        import rpdb2; rpdb2.start_embedded_debugger('password')
-    #        write_message("failure")
 
     get_record_pos = lambda entry: Dataset.create_from_record(entry[1], entry[2], None, None).position
     dataset_records.sort(cmp = lambda x, y: cmp(get_record_pos(x),get_record_pos(y)))
@@ -1442,9 +1528,20 @@ def prepare_hepdata_for_upload(recid, hepdata, insert_stream, correct_stream,
     else:
         dataset_records += [None] * (-len_diff)
 
+    import tempfile
+
+#    fdesc, fname = tempfile.mkstemp()
+#    os.write(fdesc, cPickle.dumps([dataset_records, hepdata_datasets]))
+#    os.close(fdesc)
+#    print "Retrieved datasets : %s" % (fname, )
+
+    num_deleted = 0
+    num_added = 0
+    num_modified = 0
     for (inv_dataset, hep_dataset) in zip(dataset_records, hepdata_datasets):
         if inv_dataset is None:
             # create completely new record
+
             insert_stream.put_nowait(hep_dataset.get_marcxml(recid))
             if task_stats["semaphore"]:
                 task_stats["semaphore"].acquire()
@@ -1452,7 +1549,7 @@ def prepare_hepdata_for_upload(recid, hepdata, insert_stream, correct_stream,
             task_stats["inserted_hepdata_datasets"] += 1
             if task_stats["semaphore"]:
                 task_stats["semaphore"].release()
-
+	    num_added += 1
         elif hep_dataset is None:
             # delete invenio record corresponding to a data set
             if task_stats["semaphore"]:
@@ -1467,10 +1564,9 @@ def prepare_hepdata_for_upload(recid, hepdata, insert_stream, correct_stream,
             bibrecord.record_add_field(rec, "001", controlfield_value = \
                                            str(inv_dataset[0]))
             correct_stream.put_nowait(bibrecord.record_xml_output(rec))
+	    num_deleted += 1
         else:
-            # apply differences on the existing record
-#            import rpdb2; rpdb2.start_embedded_debugger('password')
-            diff_xml = hep_dataset.get_diff_marcxml(inv_dataset[1], recid, inv_dataset[2], inv_dataset[3])
+            diff_xml = hep_dataset.get_diff_marcxml(inv_dataset[1], recid, inv_dataset[2], inv_dataset[3], force_reupload=force_reupload)
             if diff_xml:
                 if task_stats["semaphore"]:
                     task_stats["semaphore"].acquire()
@@ -1479,6 +1575,7 @@ def prepare_hepdata_for_upload(recid, hepdata, insert_stream, correct_stream,
                     task_stats["semaphore"].release()
 
                 correct_stream.put_nowait(diff_xml)
+		num_modified += 1
 
     # assure that the original MARC record is correct
     rec = search_engine.get_record(recid)
@@ -1486,7 +1583,8 @@ def prepare_hepdata_for_upload(recid, hepdata, insert_stream, correct_stream,
         diff_marcxml = hepdata.get_diff_marcxml(rec)
         if diff_marcxml:
             correct_stream.put_nowait(diff_marcxml)
-#        task_stats["new_hepdata_records"] += 1
+	    #        task_stats["new_hepdata_records"] += 1
+    return num_added, num_deleted, num_modified
 
 
 def get_data_line_length(data_line):
@@ -1533,6 +1631,8 @@ def hepdata_harvest_task_submit_elaborate_specific_parameter(key, value, opts, a
         task_set_option('record_to_harvest', value)
     elif key in ("--nthreads", "-n"):
         task_set_option('threads_number', value)
+    elif key in ("--force-reupload", "-f"):
+        task_set_option('force_reupload', True)
     else:
         return False
     return True
@@ -1556,10 +1656,11 @@ Examples:
   -n, --nthreads Number of concurrent harvesting threads. This number is
                 equal to the number of HTTP requests performed at the same
                 time
+  -f, --force-reupload Forces the harvester to reupload all data files
 """,
             version=__revision__,
-            specific_params=("r:n:",
-                 [ "recid=", "nthreads=" ]),
+            specific_params=("r:n:f",
+                 [ "recid=", "nthreads=", "force-reupload" ]),
             task_submit_elaborate_specific_parameter_fnc =
               hepdata_harvest_task_submit_elaborate_specific_parameter,
             task_run_fnc = hepdata_harvest_task_core)
@@ -1598,7 +1699,7 @@ def update_single_status(recid, processed_recs, total_recs):
     task_update_progress("Harvested %i records out of %i ( %s%% ) " % (processed_recs, total_recs, str(progress)))
 
 
-def process_single_thread(input_recids, insert_queue, correct_queue, failed_ids, task_stats, finished_queue = None, total_recs=0):
+def process_single_thread(input_recids, insert_queue, correct_queue, failed_ids, task_stats, suspend_wait_queue, suspend_resume_queue, main_syn_queue, num_tasks, finished_queue = None, total_recs=0, force_reupload = False):
     finished = False
     processed_recs = 0
     while not finished:
@@ -1608,30 +1709,58 @@ def process_single_thread(input_recids, insert_queue, correct_queue, failed_ids,
             finished = True
 
         if not finished:
-            write_message("Retrieving data for record %s " % (str(recid), ))
             try:
-                hepdata = retrieve_hepdata(get_hepdata_url_from_recid(recid))
+                hepdata = retrieve_hepdata(get_hepdata_url_from_recid(recid), recid)
+                try:
+		    if not recid:
+			write_message("Problem ! not recid present: %s" % (str(recid), str(input_recids.queue)))
+                    num_added, num_deleted, num_modified = prepare_hepdata_for_upload(
+			recid, hepdata, insert_queue, correct_queue,
+			task_stats, force_reupload = force_reupload)
+		    write_message("Retrieved data for record %s :   %i record added, %i records deleted, %i records modified" % (str(recid), num_added, num_deleted, num_modified ))
+
+                except Exception, e:
+                    write_message("Error: merging HepData for record %s failed: %s" \
+                                      % (str(recid), str(e)))
+                    failed_ids.put_nowait((str(recid), "Failed during the merging phase: %s" % (str(e), )))
+
             except Exception, e:
                 write_message("Error: retrieving HEPData for record %s failed: %s" \
                                   % (str(recid), str(e)))
                 failed_ids.put_nowait((str(recid), "Failed during the retrieval phase: %s" % (str(e), )))
-                
-            try:
-                prepare_hepdata_for_upload(recid, hepdata, insert_queue, correct_queue,
-                                               task_stats)
-            except Exception, e:
-                write_message("Error: merging HEPData for record %s failed: %s" \
-                                  % (str(recid), str(e)))
-                failed_ids.put_nowait((str(recid), "Failed during the merging phase: %s" % (str(e), )))
-                
+
+
             if finished_queue:
                 finished_queue.put_nowait(str(recid))
             else:
-                processed_recs +=1 
+                processed_recs +=1
                 update_single_status(str(recid), processed_recs, total_recs)
+            #Possibly trying to stop
+            task_status = task_read_status()
+            if task_status.startswith("ABOUT TO"):
+                if num_tasks == 1:
+                    task_sleep_now_if_required(True)
+                else:
+                    suspend_wait_queue.get()
+                    write_message("Thread suspended")
+                    if suspend_wait_queue.empty():
+                        main_syn_queue.put("SLEEP")
+
+                    suspend_resume_queue.get()
+                    suspend_wait_queue.put(1)
+                    write_message("Thread resumed")
+            elif task_status == "KILLED":
+                if num_tasks > 1:
+                    main_syn_queue.put("KILLED")
+                else:
+                    exit(0)
+                finished = True
+
+    if num_tasks > 1: #signalise that this is the end of execution of some thread
+        main_syn_queue.put("FINISH")
 
 class RetrievalWorker(threading.Thread):
-    def __init__(self, recids_queue, insert_queue, correct_queue, finished_queue, failed_ids, task_stats):
+    def __init__(self, recids_queue, insert_queue, correct_queue, finished_queue, failed_ids, task_stats, suspend_wait_queue, suspend_resume_queue, main_syn_queue, num_tasks, force_reupload=False):
         threading.Thread.__init__(self)
         self.input_recids = recids_queue
         self.insert_queue = insert_queue
@@ -1639,11 +1768,17 @@ class RetrievalWorker(threading.Thread):
         self.finished_queue = finished_queue
         self.failed_ids = failed_ids
         self.task_stats = task_stats
-
+        self.suspend_wait_queue = suspend_wait_queue
+        self.suspend_resume_queue = suspend_resume_queue
+        self.num_tasks = num_tasks
+        self.main_syn_queue = main_syn_queue
+        self.daemon = True
+        self.force_reupload = force_reupload
 
     def run(self):
         process_single_thread(self.input_recids, self.insert_queue, self.correct_queue,\
-                                  self.failed_ids, self.task_stats, self.finished_queue)
+                                  self.failed_ids, self.task_stats, self.suspend_wait_queue, \
+                                  self.suspend_resume_queue, self.main_syn_queue, self.num_tasks, self.finished_queue, force_reupload = self.force_reupload)
 
 class StatusUpdater(threading.Thread):
     """This thread is used only to update the BibSched status"""
@@ -1652,7 +1787,7 @@ class StatusUpdater(threading.Thread):
         self.total_records = total_records
         self.total_finished = 0
         self.finished_queue = finished_queue
-        
+
     def run(self):
         while self.total_finished != self.total_records:
             finished_rec = self.finished_queue.get()
@@ -1667,6 +1802,9 @@ class SingleThreadQueue(object):
         self.queue = []
         self.pointer = 0
 
+    def put(self, el):
+        self.queue.append(el)
+
     def put_nowait(self, el):
         self.queue.append(el)
 
@@ -1674,6 +1812,12 @@ class SingleThreadQueue(object):
         self.pointer += 1
         return self.queue[self.pointer - 1]
 
+    def get(self):
+        self.pointer += 1
+        return self.queue[self.pointer - 1]
+
+    def empty(self):
+        return self.pointer == len(self.queue)
 
 def get_number_of_harvesting_threads():
     """Read the task parameters to retrieve the number of concurrent threads\
@@ -1683,8 +1827,23 @@ def get_number_of_harvesting_threads():
         return int(task_get_option("threads_number"))
     return int(CFG_HEPDATA_THREADS_NUM)
 
+def get_forceupload_param():
+    """Read the task parameters to retrieve the information if data files should be reuploaded
+    """
+    if task_has_option("force_reupload"):
+        return bool(task_get_option("force_reupload"))
+    return False
+
 def hepdata_harvest_task_core():
+    def kill_handler(signum, frame):
+        write_message('KILLED')
+        exit(0)
+    signal.signal(signal.SIGTERM, kill_handler)
+
+
     number_threads = get_number_of_harvesting_threads()
+    force_reupload = get_forceupload_param()
+
     task_stats = {
         "new_hepdata_records" : 0,
         "inserted_hepdata_datasets" : 0,
@@ -1698,7 +1857,11 @@ def hepdata_harvest_task_core():
         failed_ids = Queue.Queue()
         recs_queue = Queue.Queue()
         finished_queue = Queue.Queue()
+        suspend_resume_queue = Queue.Queue()
+        suspend_wait_queue = Queue.Queue()
+        main_syn_queue = Queue.Queue()
         task_stats["semaphore"] = threading.Semaphore()
+
     else:
         insert_queue = SingleThreadQueue()
         correct_queue = SingleThreadQueue()
@@ -1718,25 +1881,42 @@ def hepdata_harvest_task_core():
 
 
     if number_threads > 1:
-        ts = [RetrievalWorker(recs_queue, insert_queue, correct_queue, finished_queue, failed_ids, task_stats) for i in xrange(number_threads)]
+        for i in xrange(number_threads):
+            suspend_wait_queue.put(1)
+        ts = [RetrievalWorker(recs_queue, insert_queue, correct_queue, finished_queue, failed_ids, task_stats, suspend_wait_queue, suspend_resume_queue, main_syn_queue, number_threads, force_reupload = force_reupload) for i in xrange(number_threads)]
         update_t = StatusUpdater(total_recs, finished_queue)
-    # start all the tasks
+        # start all the tasks
 
         for t in ts:
             t.start()
         update_t.start()
         write_message("Started all %i workers" % (number_threads, ))
-    else:
-        #just perform calculations
-        write_message("started single processing thread")
-        process_single_thread(recs_queue, insert_queue, correct_queue, failed_ids, task_stats, total_recs = total_recs)
 
-    # wait for all the workers
-    if number_threads > 1:
+        while True:
+            token = main_syn_queue.get()
+            if token == "SLEEP":
+                task_sleep_now_if_required(True)
+
+                for i in xrange(number_threads):
+                    suspend_resume_queue.put(1)
+            elif token == "KILLED":
+                exit(0)
+            else:
+                break
+
+
         for t in ts:
             t.join()
+
         update_t.join()
-    
+
+    else:
+        #just perform calculations
+
+        write_message("started single processing thread")
+        process_single_thread(recs_queue, insert_queue, correct_queue, failed_ids, task_stats, None, None, None, 1, total_recs = total_recs, force_reupload = force_reupload)
+
+
     # collect results and return
     f_i = list(failed_ids.queue)
 
@@ -1765,11 +1945,19 @@ def hepdata_harvest_task_core():
     if correct_fname:
         correct_tasknum = task_low_level_submission("bibupload",
                                                     "admin", "-c",
+
                                                     correct_fname)
-    #TODO: correct removing of datasets !
+
+    if correct_fname or insert_fname:
+        index_tasknum = task_low_level_submission("bibindex",
+                                                  "admin", "-w",
+                                                  CFG_HEPDATA_INDEX)
+        index_tasknum = task_low_level_submission("webcoll",
+                                                  "admin", "-c",
+                                                  "DATA")
 
     write_message(("Task summary: Inserted %(new_hepdata_records)i new" + \
-                       "HEPDATA records, %(inserted_hepdata_datasets)i " + \
+                       "HepDATA records, %(inserted_hepdata_datasets)i " + \
                        "new datasets, corrected " + \
                        "%(corrected_hepdata_datasets)i" + \
                        " datasets, removed %(deleted_hepdata_datasets)i") \
@@ -1780,5 +1968,8 @@ def hepdata_harvest_task_core():
     return True
 
 
-
+if __name__ == "__main__":
+    paper = download_paper("http://hepdata.cedar.ac.uk/view/ins1094568")
+    #    for dataset in paper.datasets:
+    print "MARCXML : " + paper.datasets[0].get_marcxml()
 

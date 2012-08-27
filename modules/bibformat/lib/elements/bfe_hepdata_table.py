@@ -26,14 +26,14 @@ def format_element(bfo):
     """
     Prints HEPData table encoded in the record
     """
-    
+
     recid = bfo.recID
     parent_recid = int(bfo.fields("786__w")[0])
     seq = int(bfo.fields("786__q")[0])
 
     dataset = hepdatautils.get_hepdata_by_recid(parent_recid, recid)
-        
-    return hepdatadisplayutils.render_hepdata_dataset_html(dataset, parent_recid, seq)
+
+    return hepdatadisplayutils.render_hepdata_dataset_html(dataset, parent_recid, seq, display_link = False)
 
 def escape_values(bfo):
     """
