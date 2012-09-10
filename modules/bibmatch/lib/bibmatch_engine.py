@@ -732,7 +732,7 @@ def match_records(records, qrystrs=None, search_mode=None, operator="and", \
                 matchedrecs.append((record[0], match_result_output(record_counter, results, server_url, \
                                                                 query, "exact-matched")))
                 if (verbose > 1):
-                    sys.stderr.write("Final result: match - %s/record/%d\n" % (server_url, results[0]))
+                    sys.stderr.write("Final result: match - %s/record/%s\n" % (server_url, str(results[0])))
                 CFG_BIBMATCH_LOGGER.info("Matching of record %d: Completed as 'match'" % (record_counter,))
             else:
                 ambiguousrecs.append((record[0], match_result_output(record_counter, results, server_url, \
@@ -863,7 +863,7 @@ def match_record(bibmatch_recid, record, server, qrystrs=None, search_mode=None,
         if (verbose > 8):
             sys.stderr.write("\nSearching with values %s\n" %
                              (search_params,))
-
+        CFG_BIBMATCH_LOGGER.info("Searching with values %s" % (search_params,))
         ## Perform the search with retries
         try:
             result_recids = server.search_with_retry(**search_params)
@@ -878,6 +878,7 @@ def match_record(bibmatch_recid, record, server, qrystrs=None, search_mode=None,
         ## Check results:
         if len(result_recids) > 0:
             # Matches detected
+            CFG_BIBMATCH_LOGGER.info("Results: %s" % (result_recids[:15],))
 
             if len(result_recids) > CFG_BIBMATCH_SEARCH_RESULT_MATCH_LIMIT:
                 # Too many matches, treat as non-match
@@ -963,6 +964,7 @@ def match_record(bibmatch_recid, record, server, qrystrs=None, search_mode=None,
                 for current_operator, qry in fuzzy_query_list:
                     current_resultset = None
                     search_params = dict(p=qry, f=field, of='id', c=collections)
+                    CFG_BIBMATCH_LOGGER.info("Fuzzy searching with values %s" % (search_params,))
                     try:
                         current_resultset = server.search_with_retry(**search_params)
                     except InvenioConnectorAuthError, error:
@@ -970,6 +972,7 @@ def match_record(bibmatch_recid, record, server, qrystrs=None, search_mode=None,
                             sys.stderr.write("Authentication error when searching: %s" \
                                              % (str(error),))
                         break
+                    CFG_BIBMATCH_LOGGER.info("Results: %s" % (current_resultset[:15],))
                     if (verbose > 8):
                         if len(current_resultset) > CFG_BIBMATCH_SEARCH_RESULT_MATCH_LIMIT:
                             sys.stderr.write("\nSearching with values %s result=%s\n" %
@@ -1000,7 +1003,7 @@ def match_record(bibmatch_recid, record, server, qrystrs=None, search_mode=None,
                         query_out = " ".join(["%s %s" % (op, qu) for op, qu in fuzzy_query_list])
                         if validate:
                             # We can run validation
-                            CFG_BIBMATCH_LOGGER.info("Matching of record %d: Query (%s) found %d records: %s" % \
+                            CFG_BIBMATCH_LOGGER.info("Matching of record %d: Fuzzy query (%s) found %d records: %s" % \
                                                      (bibmatch_recid,
                                                       query_out,
                                                       len(result_hitset),

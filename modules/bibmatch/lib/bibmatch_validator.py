@@ -101,6 +101,7 @@ def validate_matches(bibmatch_recid, record, server, result_recids, \
         sys.stderr.write("\nStart record validation:\n\nFinal validation ruleset used:\n")
         pp = pprint.PrettyPrinter(stream=sys.stderr, indent=2)
         pp.pprint(final_ruleset)
+    CFG_BIBMATCH_LOGGER.info("Final validation ruleset used: %s" % (final_ruleset,))
 
     # Fetch all records in MARCXML and convert to BibRec
     found_record_list = []
@@ -110,6 +111,7 @@ def validate_matches(bibmatch_recid, record, server, result_recids, \
         search_params = dict(p=query, of="xm", c=collections)
     else:
         search_params = dict(p=query, of="xm")
+    CFG_BIBMATCH_LOGGER.info("Fetching records to match: %s" % (str(search_params),))
     result_marcxml = server.search_with_retry(**search_params)
     # Check if record was found
     if result_marcxml:
@@ -117,12 +119,12 @@ def validate_matches(bibmatch_recid, record, server, result_recids, \
         # Check if BibRecord generation was successful
         if not found_record_list:
             # Error fetching records. Unable to validate. Abort.
-            raise BibMatchValidationError("Error retrieving MARCXML for possible matches %s from %s. Aborting." \
-                                          % (",".join(result_recids), server.server_url))
+            raise BibMatchValidationError("Error retrieving MARCXML for possible matches from %s. Aborting." \
+                                          % (server.server_url,))
         if len(found_record_list) < len(result_recids):
             # Error fetching all records. Will still continue.
-            sys.stderr.write("\nError retrieving all MARCXML for possible matched records %s from %s.\n" \
-                              % (",".join(result_recids), server.server_url))
+            sys.stderr.write("\nError retrieving all MARCXML for possible matched records from %s.\n" \
+                              % (server.server_url,))
 
     # Validate records one-by-one, adding any matches to the list of matching record IDs
     current_index = 1
