@@ -326,7 +326,7 @@ def clean_sessions():
     timelimit = convert_datestruct_to_datetext(time.gmtime())
     write_message("Deleting expired sessions since %s" % (timelimit,))
 
-    query = "DELETE FROM session WHERE session_expiry < %s"
+    query = "DELETE LOW_PRIORITY FROM session WHERE session_expiry < %s"
     write_message(query % (timelimit,), verbose=9)
     deleted_sessions += run_sql(query, (timelimit,))
 
