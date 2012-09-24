@@ -545,7 +545,7 @@ class Template:
                  'mainmenu' : cgi.escape(mainmenu),
                  'images' : CFG_SITE_URL + '/img',
                  'take_note' : '(1) ' + _("This is your submission access number. It can be used to continue with an interrupted submission in case of problems."),
-                 'explain_summary' : '(2) ' + _("Mandatory fields appear in red in the SUMMARY window."),
+                 'explain_summary' : ""
                }
         return out
 
