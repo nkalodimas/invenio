@@ -189,6 +189,7 @@ window.onload = function(){
   }
 };
 
+
 function resize_content() {
   /*
    * Resize content table to always fit in the avaiable screen and not have two
@@ -236,11 +237,13 @@ function failInReadOnly(){
   }
 }
 
+
 function initClipboard(){
   // attaching the events -> handlers are stored in bibedit_engine.js file
   $(document).bind("copy", onPerformCopy);
   $(document).bind("paste", onPerformPaste);
 }
+
 
 function initDialogs(){
   /*
@@ -256,6 +259,7 @@ function initDialogs(){
     };
    }
 }
+
 
 function initMisc(){
   /*
@@ -281,6 +285,7 @@ function initMisc(){
   //Initialising the BibCircualtion integration plugin
   $("#bibEditBibCirculationBtn").bind("click", onBibCirculationBtnClicked);
 }
+
 
 function initJeditable(){
   /*
@@ -327,7 +332,7 @@ function initAjax(){
    * Initialize Ajax.
    */
   $.ajaxSetup(
-    {cache: false,
+    { cache: false,
       dataType: 'json',
       error: onAjaxError,
       type: 'POST',
@@ -336,21 +341,25 @@ function initAjax(){
   );
 }
 
-function createReq(data, onSuccess, asynchronous){
+
+function createReq(data, onSuccess, asynchronous) {
   /*
    * Create Ajax request.
    */
-  if (asynchronous == undefined){
+  if (typeof asynchronous === "undefined") {
     asynchronous = true;
   }
+
   // Include and increment transaction ID.
   var tID = createReq.transactionID++;
   createReq.transactions[tID] = data['requestType'];
   data.ID = tID;
+
   // Include cache modification time if we have it.
-  if (gCacheMTime){
+  if (gCacheMTime) {
     data.cacheMTime = gCacheMTime;
   }
+
   // Send the request.
   $.ajax({data: {jsondata: JSON.stringify(data)},
            success: function(json){
@@ -362,6 +371,7 @@ function createReq(data, onSuccess, asynchronous){
 // Transactions data.
 createReq.transactionID = 0;
 createReq.transactions = [];
+
 
 function createBulkReq(reqsData, onSuccess, optArgs){
   /* optArgs is a disctionary containning the optional arguments
@@ -381,6 +391,7 @@ function createBulkReq(reqsData, onSuccess, optArgs){
     createReq(data, onSuccess, optArgs.asynchronous);
 }
 
+
 function onAjaxError(XHR, textStatus, errorThrown){
   /*
    * Handle Ajax request errors.
@@ -389,6 +400,7 @@ function onAjaxError(XHR, textStatus, errorThrown){
     '\nResult: ' + XHR.responseText +
     '\nError: ' + errorThrown);
 }
+
 
 function onAjaxSuccess(json, onSuccess){
   /*
@@ -465,6 +477,7 @@ function onAjaxSuccess(json, onSuccess){
     }
   }
 }
+
 
 function resetBibeditState(){
   /* A function clearing the state of the bibEdit (all the panels content)
@@ -595,6 +608,7 @@ function initStateFromHash(){
     return;
 }
 
+
 function deserializeHash(aHash){
   /*
    * Deserializes a string (given as parameter or taken from the window object)
@@ -613,6 +627,7 @@ function deserializeHash(aHash){
   }
   return hash;
 }
+
 
 function changeAndSerializeHash(updateData){
   /*
@@ -650,6 +665,7 @@ function getTagsSorted(){
   return tags.sort();
 }
 
+
 function getFieldPositionInTag(tag, field){
   /*
    * Determine the local (in tag) position of a new field.
@@ -664,6 +680,7 @@ function getFieldPositionInTag(tag, field){
   else
     return 0;
 }
+
 
 function getPreviousTag(tag){
   /*
@@ -682,6 +699,7 @@ function getPreviousTag(tag){
   return 0;
 }
 
+
 function deleteFieldFromTag(tag, fieldPosition){
   /*
    * Delete a specified field.
@@ -694,6 +712,7 @@ function deleteFieldFromTag(tag, fieldPosition){
     delete gRecord[tag];
   }
 }
+
 
 function cmpFields(field1, field2){
   /*
@@ -710,6 +729,7 @@ function cmpFields(field1, field2){
   return 0;
 }
 
+
 function insertFieldToRecord(record, fieldId, ind1, ind2, subFields){
   /**Inserting a new field on the client side and returning the position of the newly created field*/
   newField = [subFields, ind1, ind2, '', 0];
@@ -721,6 +741,7 @@ function insertFieldToRecord(record, fieldId, ind1, ind2, subFields){
     return (record[fieldId].length-1);
   }
 }
+
 
 function transformRecord(record){
   /**Transforming a bibrecord to a form that is easier to compare that is a dictionary
@@ -770,6 +791,7 @@ function transformRecord(record){
 
     return result;
 }
+
 
 function filterChanges(changeset){
   /*Filtering the changes list -> removing the changes related to the fields
@@ -839,6 +861,7 @@ function compareFields(fieldId, indicators, fieldPos, field1, field2){
   return result;
 }
 
+
 function compareIndicators(fieldId, indicators, fields1, fields2){
    /*a helper function allowing to compare inside one indicator
     * excluded from compareRecords for the code clarity reason*/
@@ -865,6 +888,7 @@ function compareIndicators(fieldId, indicators, fields1, fields2){
   }
   return result;
 }
+
 
 function compareRecords(record1, record2){
   /*Compares two bibrecords, producing a list of atom changes that can be displayed
@@ -939,6 +963,7 @@ function compareRecords(record1, record2){
   return result;
 }
 
+
 function fieldIsProtected(MARC){
   /*
    * Determine if a MARC field is protected or part of a protected group of
@@ -954,6 +979,7 @@ function fieldIsProtected(MARC){
   while (i >= 1)
   return false;
 }
+
 
 function containsProtectedField(fieldData){
   /*
@@ -986,6 +1012,7 @@ function containsProtectedField(fieldData){
   return false;
 }
 
+
 function getMARC(tag, fieldPosition, subfieldIndex){
   /*
    * Return the MARC representation of a field or a subfield.
@@ -1003,6 +1030,7 @@ function getMARC(tag, fieldPosition, subfieldIndex){
   else
     return tag + ind1 + ind2 + field[0][subfieldIndex][0];
 }
+
 
 function getFieldTag(MARC){
   /*
@@ -1043,6 +1071,7 @@ function getFieldTag(MARC){
   return MARC;
 }
 
+
 function getSubfieldTag(MARC){
   /*
    * Get the tag name of a subfield in format as specified by gTagFormat.
@@ -1054,6 +1083,7 @@ function getSubfieldTag(MARC){
   }
   return MARC.charAt(5);
 }
+
 
 function validMARC(datatype, value){
   /*
@@ -1103,11 +1133,13 @@ function onNewRecordClick(event){
   event.preventDefault();
 }
 
+
 function onTemplateRecordClick(event){
     /* Handle 'Template management' button */
     var template_window = window.open('/record/edit/templates', '', 'resizeable,scrollbars');
     template_window.document.close(); // needed for chrome and safari
 }
+
 
 function getRecord(recID, recRev, onSuccess){
   /* A function retrieving the bibliographic record, using an AJAX request.
@@ -1246,9 +1278,11 @@ function onGetRecordSuccess(json){
   updateToolbar(true);
 }
 
+
 function onGetTemplateSuccess(json) {
   onGetRecordSuccess(json);
 }
+
 
 function onSubmitPreviewSuccess(dialogPreview, html_preview){
   /*
@@ -1300,6 +1334,7 @@ function onSubmitPreviewSuccess(dialogPreview, html_preview){
   // Focus on the submit button
   $(dialogPreview.dialogDiv).parent().find('button:nth-child(1)').focus();
 }
+
 
 function saveOpenedFields() {
   /* Performs the following tasks:
@@ -1365,6 +1400,7 @@ function saveOpenedFields() {
   return savingContent;
 }
 
+
 function onSubmitClick() {
   /*
    * Handle 'Submit' button (submit record).
@@ -1384,6 +1420,7 @@ function onSubmitClick() {
 
 // Enable this flag to force the next submission even if cache is outdated.
 onSubmitClick.force = false;
+
 
 function onPreviewClick() {
   /*
@@ -1419,6 +1456,7 @@ function onPreviewClick() {
      });
 }
 
+
 function onPrintClick() {
   /*
    * Print page, makes use of special css rules @media print
@@ -1430,6 +1468,7 @@ function onPrintClick() {
   resize_content();
 }
 
+
 function onTextMarcBoxKeyUp() {
   /* Handler for keyup event inside the textmarc editing area */
   gRecordDirty = true;
@@ -1437,6 +1476,7 @@ function onTextMarcBoxKeyUp() {
   // Disable keyup event on textarea
   $(this).off("keyup");
 }
+
 
 function onTextMarcClick() {
   /*
@@ -1501,6 +1541,7 @@ function onTextMarcClick() {
        });
 }
 
+
 function onTableViewClick() {
   /*
    * 1) Send request to validate textmarc and create a cache file with its
@@ -1548,6 +1589,7 @@ function onOpenPDFClick() {
 
 }
 
+
 function record_has_pdf() {
   /*
    * Request server if the record has a pdf attached
@@ -1559,6 +1601,7 @@ function record_has_pdf() {
        }, false);
    return record_has_pdf;
 }
+
 
 function getPreview(dialog, onSuccess) {
     /*
@@ -1590,138 +1633,6 @@ function getPreview(dialog, onSuccess) {
        });
 }
 
-/************* Reference extraction in BibEdit ***************/
-
-function onRefExtractClick() {
-   /*
-    * Handle reference extraction button
-    *
-    * 1) Create dialog box while loading
-    * 2) Send request to the server to extract references
-    * 3) Update dialog box with references extracted
-    * 4) If user approves, redraw interface with new content and update
-    *    cache in server
-    * 
-    */
-
-   /* Create the modal dialog that will contain the references */
-   var dialogReferences = createDialog("Loading...", "Extracting references...", 750, 700, true);
-
-    /* Create a request to extract references */
-    var bibrecord, textmarc, xmlrecord;
-    createReq({recID: gRecID, requestType: 'refextract'},
-        function(json){
-            bibrecord = json['ref_bibrecord'];
-            textmarc = json['ref_textmarc'];
-            xmlrecord = json['ref_xmlrecord'];
-            if (!xmlrecord) {
-                dialogReferences.contentParagraph.css('margin-top', '50px');
-                dialogReferences.contentSpan.html("The record does not have a PDF file ");
-                dialogReferences.dialogDiv.dialog({
-                    title: "PDF not found",
-                    height: '200',
-                    width: '350',
-                    buttons: {
-                        "Accept" : function() {
-                                    $( this ).remove();
-                                   }
-                    }
-                });
-            }
-            /* References were extracted */
-            else {
-                addContentToDialog(dialogReferences, textmarc, "Do you want to apply the following references?");
-                dialogReferences.dialogDiv.dialog({
-                    title: "Apply references",
-                    buttons: {
-                        "Apply references": function() {
-                            /* Update global record with the updated version */
-                            gRecord = bibrecord;
-                            /* Update cache in the server to have the updated record */
-                            createReq({recID: gRecID, recXML: xmlrecord, requestType: 'updateCacheRef'});
-                            /* Redraw whole content table and enable submit button */
-                            $('#bibEditTable').remove();
-                            displayRecord();
-                            redrawFields();
-                            reColorFields();
-                            activateSubmitButton();
-                            $( this ).remove();
-                        },
-                        Cancel: function() {
-                            $( this ).remove();
-                        }
-                }});
-            }
-        });
-}
-
-function onRefExtractFreeTextClick() {
-  /*
-   * Handler for free text refextract button. Allows to paste references
-   * and process them using refextract on the server side.
-   */
-  /* Create the modal dialog that will contain the references */
-  content = "Paste your references:<br/><textarea id='reffreetext' rows=38 cols=80></textarea>"
-  var dialogReferences = createDialog("Paste references", content, 750, 700);
-  dialogReferences.dialogDiv.dialog({
-      buttons: {
-        "Extract references": function() {
-          /* Read content from textarea before replacing it
-          with the loading gif */
-          var textReferences = $('#reffreetext').val();
-          dialogReferences.contentParagraph.addClass('dialog-box-centered');
-          dialogReferences.contentSpan.html("Loading...<br /><br /> <img src='/img/ajax-loader.gif'>");
-          createReq({ recID: gRecID,
-                      requestType: 'refextract',
-                      txt: textReferences },
-                    function(json) {
-                      var bibrecord, textmarc, xmlrecord, dialogTxt;
-                      bibrecord = json['ref_bibrecord'];
-                      textmarc = json['ref_textmarc'];
-                      xmlrecord = json['ref_xmlrecord'];
-                      var button_dict = {};
-                      if ($(textmarc).html() !== "") {
-                        dialogTxt =  "Do you want to apply the following references?";
-                        button_dict["Apply references"] = function() {
-                              /* Update global record with the updated version */
-                              gRecord = bibrecord;
-                              /* Update cache in the server to have the updated record */
-                              createReq({recID: gRecID, recXML: xmlrecord, requestType: 'updateCacheRef'});
-                              /* Redraw whole content table and enable submit button */
-                              $('#bibEditTable').remove();
-                              displayRecord();
-                              redrawFields();
-                              reColorFields();
-                              activateSubmitButton();
-                              $( this ).remove();
-                        }
-                      }
-                      else {
-                        dialogTxt =  "No references extracted. The automatic " +
-                          "extraction did not recognize any reference in the " +
-                          "pasted text.<br />If you want to edit the references " +
-                          "manually, an easily recognizable format is:<br/><br/>" +
-                          "&nbsp;&nbsp;&nbsp;&nbsp;[1] Phys. Rev A71 (2005) 42<br />" +
-                          "&nbsp;&nbsp;&nbsp;&nbsp;[2] ATLAS-CMS-2007-333";
-                      }
-                      button_dict.Cancel = function() {
-                              $( this ).remove();
-                            }
-                      addContentToDialog(dialogReferences,
-                              textmarc,
-                              dialogTxt);
-                      dialogReferences.dialogDiv.dialog({
-                        title: "Apply references",
-                        buttons: button_dict
-                      });
-                  }
-        );
-      },
-        Cancel: function() {
-          $( this ).remove();
-        }
-      }});
-}
 
 function onCancelClick(){
   /*
@@ -1761,6 +1672,7 @@ function onCancelClick(){
     }
 }
 
+
 function onCloneRecordClick(){
   /*
    * Handle 'Clone' button (clone record).
@@ -1782,6 +1694,7 @@ function onCloneRecordClick(){
       getRecord(newRecID);
   }, false);
 }
+
 
 function onDeleteRecordClick(){
   /*
@@ -1807,6 +1720,7 @@ function onDeleteRecordClick(){
   }
 }
 
+
 function onMergeClick(event){
   /*
    * Handle click on 'Merge' link (to merge outdated cache with current DB
@@ -1824,6 +1738,7 @@ function onMergeClick(event){
   });
   event.preventDefault();
 }
+
 
 function bindNewRecordHandlers(){
   /*
@@ -1847,6 +1762,7 @@ function bindNewRecordHandlers(){
       event.preventDefault();
     });
 }
+
 
 function cleanUp(disableRecBrowser, searchPattern, searchType,
      focusOnSearchBox, resetHeadline){
@@ -1890,6 +1806,7 @@ function cleanUp(disableRecBrowser, searchPattern, searchType,
   gSubmitMode = "default";
 }
 
+
 function addHandler_autocompleteAffiliations(tg) {
     /*
      * Add autocomplete handler to a given cell
@@ -1926,6 +1843,7 @@ function colorFields(){
   });
 }
 
+
 function reColorFields(){
   /*
    * Update coloring by removing existing, then recolor.
@@ -1935,6 +1853,7 @@ function reColorFields(){
   });
   colorFields();
 }
+
 
 function onMARCTagsClick(event){
   /*
@@ -1948,6 +1867,7 @@ function onMARCTagsClick(event){
   event.preventDefault();
 }
 
+
 function onHumanTagsClick(event){
   /*
    * Handle 'Human' link (Human tags).
@@ -1960,6 +1880,7 @@ function onHumanTagsClick(event){
   $('#btnMARCTags').bind('click', onMARCTagsClick).removeAttr('disabled');
   event.preventDefault();
 }
+
 
 function onLnkSpecialSymbolsClick(){
     var special_char_list = ['&#192;','&#193;','&#194;','&#195;','&#196;','&#197;',
@@ -1995,6 +1916,7 @@ function onLnkSpecialSymbolsClick(){
     special_char_window.document.close(); // needed for chrome and safari
 }
 
+
 function updateTags(){
   /*
    * Check and update all tags (also subfield codes) against the currently
@@ -2019,6 +1941,7 @@ function updateTags(){
   });
 }
 
+
 function onFieldBoxClick(box){
   /*
    * Handle field select boxes.
@@ -2040,6 +1963,7 @@ function onFieldBoxClick(box){
   }
   $(rowGroup).find('input[type="checkbox"]').attr('checked', box.checked);
 }
+
 
 function onSubfieldBoxClick(box){
   /*
@@ -2073,6 +1997,7 @@ function onSubfieldBoxClick(box){
     $('#btnDeleteSelected').removeAttr('disabled');
   }
 }
+
 
 function addFieldGatherInformations(fieldTmpNo){
   /**
@@ -2128,6 +2053,7 @@ function addFieldGatherInformations(fieldTmpNo){
   return [templateNum, data];
 }
 
+
 function addFieldAddSubfieldEditor(jQRowGroupID, fieldTmpNo, defaultCode, defaultValue){
   /**
      Adding a subfield input control into the editor
@@ -2163,6 +2089,7 @@ function addFieldAddSubfieldEditor(jQRowGroupID, fieldTmpNo, defaultCode, defaul
 
 }
 
+
 function onAddFieldJumpToNextSubfield(jQRowGroupID, fieldTmpNo, subfieldTmpNo){
   /* Gets all the open text boxes for the current field and submits the changes
    * if it is the last one.
@@ -2180,6 +2107,7 @@ function onAddFieldJumpToNextSubfield(jQRowGroupID, fieldTmpNo, subfieldTmpNo){
     fieldOpenInputs[currentInputIndex+1].focus();
   }
 }
+
 
 function applyFieldTemplate(jQRowGroupID, formData, fieldTmpNo){
   /** A function that applies a template
@@ -2218,6 +2146,7 @@ function applyFieldTemplate(jQRowGroupID, formData, fieldTmpNo){
     $("#txtAddFieldInd2_" + fieldTmpNo).attr("value", formData.ind2);
   }
 }
+
 
 function createAddFieldInterface(initialContent, initialTemplateNo){
   /* Create form to add a new field. If only one field is selected, the
@@ -2313,6 +2242,7 @@ function createAddFieldInterface(initialContent, initialTemplateNo){
 
 }
 
+
 function onAddSubfieldValueKeyPressed(e, tag, fieldPosition, subfieldPosition){
   if (e.which == 13){
     // enter key pressed.
@@ -2330,6 +2260,7 @@ function onAddSubfieldValueKeyPressed(e, tag, fieldPosition, subfieldPosition){
   }
 }
 
+
 function onAddFieldValueKeyPressed(e, jQRowGroupID, fieldTmpNo, subfieldInd){
   if (e.which == 13){
     // enter key pressed
@@ -2343,6 +2274,8 @@ function onAddFieldValueKeyPressed(e, jQRowGroupID, fieldTmpNo, subfieldInd){
     reColorFields();
   }
 }
+
+
 function onAddFieldClick(){
   /*
    * Handle 'Add field' button.
@@ -2352,9 +2285,9 @@ function onAddFieldClick(){
   activateSubmitButton();
   createAddFieldInterface();
 }
-
 // Incrementing temporary field numbers.
 onAddFieldClick.addFieldFreeTmpNo = 100000;
+
 
 function changeFieldToControlfield(fieldTmpNo){
   /**
@@ -2378,6 +2311,7 @@ function changeFieldToControlfield(fieldTmpNo){
   $('#txtAddFieldTag_' + fieldTmpNo).focus();
 }
 
+
 function changeFieldToDatafield(fieldTmpNo){
   /**
      Switching the field to be a datafield
@@ -2390,7 +2324,8 @@ function changeFieldToDatafield(fieldTmpNo){
   $('#txtAddFieldTag_' + fieldTmpNo).focus();
 }
 
-function onAddFieldChange(event){
+
+function onAddFieldChange(event) {
   /*
    * Validate MARC and add or remove error class.
    */
@@ -2469,10 +2404,12 @@ function onAddFieldChange(event){
     $(this).removeClass('bibEditInputError');
 }
 
+
 function onAddFieldSave(event){
   var fieldTmpNo = this.id.split('_')[1];
   addFieldSave(fieldTmpNo);
 }
+
 
 function addFieldSave(fieldTmpNo)
 {
@@ -2656,6 +2593,7 @@ function addFieldSave(fieldTmpNo)
          gNEW_CONTENT_COLOR_FADE_DURATION);
 }
 
+
 function onAddSubfieldsClick(img){
   /*
    * Handle 'Add subfield' buttons.
@@ -2663,6 +2601,7 @@ function onAddSubfieldsClick(img){
   var fieldID = img.id.slice(img.id.indexOf('_')+1);
   addSubfield(fieldID);
 }
+
 
 function addSubfield(fieldID, defSubCode, defValue) {
   /* add a subfield based on fieldID, where the first 3 digits are
@@ -2701,6 +2640,7 @@ function addSubfield(fieldID, defSubCode, defValue) {
   }
 }
 
+
 function onAddSubfieldsChange(event){
   /*
    * Validate subfield code and add or remove error class.
@@ -2728,6 +2668,7 @@ function onAddSubfieldsChange(event){
     $(this).removeClass('bibEditInputError');
   }
 }
+
 
 function onAddSubfieldsSave(event, tag, fieldPosition) {
   /*
@@ -2844,6 +2785,7 @@ function onAddSubfieldsSave(event, tag, fieldPosition) {
   }
 }
 
+
 function convertFieldIntoEditable(cell, shouldSelect){
   // chacking if the clicked field is still present int the DOM structure ... if not, we have just removed the element
   if ($(cell).parent().parent().parent()[0] == undefined){
@@ -2932,6 +2874,7 @@ function convertFieldIntoEditable(cell, shouldSelect){
     });
 }
 
+
 function onContentClick(cell){
   /*
    * Handle click on editable content fields.
@@ -2948,7 +2891,9 @@ function onContentClick(cell){
   }
 }
 
-function getUpdateSubfieldValueRequestData(tag, fieldPosition, subfieldIndex, subfieldCode, value, changeNo, undoDescriptor, modifySubfieldCode) {
+
+function getUpdateSubfieldValueRequestData(tag, fieldPosition, subfieldIndex, 
+        subfieldCode, value, changeNo, undoDescriptor, modifySubfieldCode){
   var requestType;
   if (modifySubfieldCode == true) {
       requestType = 'modifySubfieldTag';
@@ -2974,7 +2919,10 @@ function getUpdateSubfieldValueRequestData(tag, fieldPosition, subfieldIndex, su
   return data;
 }
 
-function updateSubfieldValue(tag, fieldPosition, subfieldIndex, subfieldCode, value, consumedChange, undoDescriptor, modifySubfieldCode) {
+
+function updateSubfieldValue(tag, fieldPosition, subfieldIndex, subfieldCode, 
+                            value, consumedChange, undoDescriptor,
+                            modifySubfieldCode){
   updateStatus('updating');
   // Create Ajax request for simple updating the subfield value
   if (consumedChange == undefined || consumedChange == null){
@@ -2994,6 +2942,7 @@ function updateSubfieldValue(tag, fieldPosition, subfieldIndex, subfieldCode, va
     updateStatus('report', gRESULT_CODES[json['resultCode']]);
   }, false);
 }
+
 
 function getBulkUpdateSubfieldContentRequestData(tag, fieldPosition,
                                                  subfieldIndex, subfieldCode,
@@ -3033,6 +2982,7 @@ function getBulkUpdateSubfieldContentRequestData(tag, fieldPosition,
 
     return changesAdd
 }
+
 
 function bulkUpdateSubfieldContent(tag, fieldPosition, subfieldIndex, subfieldCode,
                             value, consumedChange, undoDescriptor, subfieldsToAdd, subfields_offset) {
@@ -3077,6 +3027,7 @@ function bulkUpdateSubfieldContent(tag, fieldPosition, subfieldIndex, subfieldCo
     reColorFields();
 }
 
+
 function updateFieldTag(oldTag, newTag, oldInd1, oldInd2, ind1, ind2, fieldPosition,
                         consumedChange, undoDescriptor){
   updateStatus('updating');
@@ -3099,7 +3050,9 @@ function updateFieldTag(oldTag, newTag, oldInd1, oldInd2, ind1, ind2, fieldPosit
   }, false);
 }
 
-function getUpdateFieldTagRequestData(oldTag, oldInd1, oldInd2, newTag, ind1, ind2, fieldPosition, changeNo, undoDescriptor){
+
+function getUpdateFieldTagRequestData(oldTag, oldInd1, oldInd2, newTag, ind1, ind2,
+                                      fieldPosition, changeNo, undoDescriptor){
   var data = {
     recID: gRecID,
     requestType: "modifyFieldTag",
@@ -3307,6 +3260,7 @@ function valueContainsSubfields(value) {
     return regExp.test(value);
 }
 
+
 function splitContentSubfields(value, subfieldCode, subfieldsToAdd, isSubject) {
     /*
      * Purpose: split content into pairs subfield index - subfield value
@@ -3325,6 +3279,7 @@ function splitContentSubfields(value, subfieldCode, subfieldsToAdd, isSubject) {
         subfieldsToAdd.push(new Array(splitValue[i][0], subfieldValue));
     }
 }
+
 
 function is_reference_manually_curated(field) {
   /*
@@ -3540,6 +3495,7 @@ function onContentChange(value, th) {
   return newValue;
 }
 
+
 function onMoveSubfieldClick(type, tag, fieldPosition, subfieldIndex){
   /*
    * Handle subfield moving arrows.
@@ -3573,6 +3529,7 @@ function onMoveSubfieldClick(type, tag, fieldPosition, subfieldIndex){
 
 }
 
+
 function onDeleteClick(event){
   /*
    * Handle 'Delete selected' button or delete hotkeys.
@@ -3600,6 +3557,7 @@ function onDeleteClick(event){
   }, false);
 }
 
+
 function onMoveFieldUp(tag, fieldPosition) {
   if (failInReadOnly()){
     return;
@@ -3619,6 +3577,7 @@ function onMoveFieldUp(tag, fieldPosition) {
     }
   }
 }
+
 
 function onMoveFieldDown(tag, fieldPosition) {
   if (failInReadOnly()){
@@ -3641,7 +3600,6 @@ function onMoveFieldDown(tag, fieldPosition) {
 }
 
 
-
 function updateInterfaceAccordingToMode(){
   /* updates the user interface (in particular the activity of menu buttons)
      accordingly to the surrent operation mode of BibEdit.
@@ -3655,6 +3613,7 @@ function updateInterfaceAccordingToMode(){
     $('#btnSwitchReadOnly').html("Read-only");
   }
 }
+
 
 function switchToReadOnlyMode(){
   // Moving to the read only mode with BibEdit
@@ -3670,11 +3629,13 @@ function switchToReadOnlyMode(){
   updateInterfaceAccordingToMode();
 }
 
+
 function canSwitchToReadWriteMode(){
   /*A function determining if at current moment, it is possible to switch to the read/write mode*/
   // If the revision is not the newest -> return false
   return true;
 }
+
 
 function switchToReadWriteMode(){
   // swtching to a normal editing mode of BibEdit
@@ -3713,6 +3674,7 @@ function getCompareClickedHandler(revisionId){
   };
 }
 
+
 function onRevertClick(revisionId){
   /*
    * Handle 'Revert' button (submit record).
@@ -3737,12 +3699,14 @@ function onRevertClick(revisionId){
   holdingPenPanelRemoveEntries(); // clearing the holding pen entries list
 }
 
+
 function getRevertClickedHandler(revisionId){
   return function(e){
       onRevertClick(revisionId);
       return false;
   };
 }
+
 
 function updateRevisionsHistory(){
   if (gRecRevisionHistory == null){
@@ -3772,6 +3736,7 @@ function updateRevisionsHistory(){
     $('#' + result['revertImgId']).bind("click", getRevertClickedHandler(result["revisionID"]));
   }
 }
+
 
 function encodeXml(str){
     var resultString = "";
@@ -3874,6 +3839,7 @@ function getSelectionMarcXml(){
 
 }
 
+
 function onPerformCopy(){
   /** The handler performing the copy operation
    */
@@ -3884,6 +3850,7 @@ function onPerformCopy(){
   var valueToCopy = getSelectionMarcXml();
   clipboardCopyValue(valueToCopy);
 }
+
 
 function onPerformPaste(){
   /* Performing the paste operation -> retriexing the MARC XML from the clipboard,
@@ -3966,16 +3933,20 @@ function onPerformPaste(){
   }
   reColorFields();
 }
+
+
 function addUndoOperation(operation){
   gUndoList.push(operation);
   invalidateRedo();
   updateUrView();
 }
 
+
 function invalidateRedo(){
   /** Invalidates the redo list - after some modification*/
   gRedoList = [];
 }
+
 
 function adjustUndoRedoBtnsActivity(){
   /** Making the undo/redo buttons active/inactive according to the needs
@@ -4011,6 +3982,7 @@ function undoMany(number){
   updateUrView();
 }
 
+
 function prepareUndoHandlerEmpty(){
   /** Creating an empty undo/redo handler - might be useful in some cases
       when undo operation is required but should not be registered
@@ -4019,6 +3991,7 @@ function prepareUndoHandlerEmpty(){
     operation_type: "no_operation"
   };
 }
+
 
 function prepareUndoHandlerAddField(tag, ind1, ind2, fieldPosition, subfields,
                                     isControlField, value ){
@@ -4056,6 +4029,7 @@ function prepareUndoHandlerAddField(tag, ind1, ind2, fieldPosition, subfields,
   return result;
 }
 
+
 function prepareUndoHandlerVisualizeChangeset(changesetNumber, changesListBefore, changesListAfter){
   var result = {};
   result.operation_type = "visualize_hp_changeset";
@@ -4064,6 +4038,7 @@ function prepareUndoHandlerVisualizeChangeset(changesetNumber, changesListBefore
   result.newChangesList = changesListAfter;
   return result;
 }
+
 
 function prepareUndoHandlerApplyHPChange(changeHandler, changeNo){
   /** changeHandler - handler to the original undo/redo handler associated with the action
@@ -4075,6 +4050,7 @@ function prepareUndoHandlerApplyHPChange(changeHandler, changeNo){
   result.changeType = gHoldingPenChanges[changeNo].change_type;
   return result;
 }
+
 
 function prepareUndoHandlerApplyHPChanges(changeHandlers, changesBefore){
   /** Producing the undo/redo handler associated with application of
@@ -4092,6 +4068,7 @@ function prepareUndoHandlerApplyHPChanges(changeHandlers, changesBefore){
   return result;
 }
 
+
 function prepareUndoHandlerRemoveAllHPChanges(hpChanges){
   /** A function preparing the undo handler associated with the
       removal of all the Holding Pen changes present in teh interface */
@@ -4100,6 +4077,7 @@ function prepareUndoHandlerRemoveAllHPChanges(hpChanges){
   result.old_changes_list = hpChanges;
   return result;
 }
+
 
 function prepareUndoHandlerBulkOperation(undoHandlers, handlerTitle){
   /*
@@ -4118,6 +4096,7 @@ function prepareUndoHandlerBulkOperation(undoHandlers, handlerTitle){
   return result;
 }
 
+
 function urPerformAddSubfields(tag, fieldPosition, subfields, isUndo){
     var ajaxData = {
       recID: gRecID,
@@ -4135,6 +4114,7 @@ function urPerformAddSubfields(tag, fieldPosition, subfields, isUndo){
     return ajaxData;
 }
 
+
 function performModifyHPChanges(changesList, isUndo){
   /** Undoing or redoing the operation of modifying the changeset
    */
@@ -4147,11 +4127,13 @@ function performModifyHPChanges(changesList, isUndo){
   return result;
 }
 
+
 function hideUndoPreview(){
   $("#undoOperationVisualisationField").addClass("bibEditHiddenElement");
   // clearing the selection !
   $(".bibEditURDescEntrySelected").removeClass("bibEditURDescEntrySelected");
 }
+
 
 function getRedoOperation(){
   // getting the operation to be redoed
@@ -4161,6 +4143,7 @@ function getRedoOperation(){
   return currentElement;
 }
 
+
 function getUndoOperation(){
   // getting the operation to be undoe
   currentElement = gUndoList[gUndoList.length - 1];
@@ -4169,10 +4152,12 @@ function getUndoOperation(){
   return currentElement;
 }
 
+
 function setAllUnselected(){
   // make all the fields and subfields deselected
   setSelectionStatusAll(false);
 }
+
 
 function setSelectionStatusAll(status){
   // Changing the selection status for all the fields
@@ -4183,6 +4168,7 @@ function setSelectionStatusAll(status){
     }
   });
 }
+
 
 function prepareApplyAllHPChangesHandler(){
     // a container for many undo/redo operations in the same time
@@ -4222,10 +4208,12 @@ function renderURList(list, idPrefix, isInverted){
   return result;
 }
 
+
 function prepareApplyHPChangeHandler(){
     // A handler for HoldingPen change application/rejection
     throw 'to implement';
 }
+
 
 function processURUntil(entry){
   // Executing the bulk undo/redo
@@ -4240,6 +4228,7 @@ function processURUntil(entry){
   }
 }
 
+
 function prepareUndoHandlerChangeSubfield(tag, fieldPos, subfieldPos, oldVal, 
          newVal, oldCode, newCode, operation_type){
   var result = {};
@@ -4253,6 +4242,7 @@ function prepareUndoHandlerChangeSubfield(tag, fieldPos, subfieldPos, oldVal,
   result.subfieldPos = subfieldPos;
   return result;
 }
+
 
 function prepareUndoHandlerChangeFieldCode(oldTag, oldInd1, oldInd2, newTag, newInd1,
                                            newInd2, fieldPos, operation_type){
@@ -4276,14 +4266,17 @@ function prepareUndoHandlerChangeFieldCode(oldTag, oldInd1, oldInd2, newTag, new
   return result;
 }
 
+
 function setAllSelected(){
   // make all the fields and subfields selected
   setSelectionStatusAll(true);
 }
 
+
 function showUndoPreview(){
   $("#undoOperationVisualisationField").removeClass("bibEditHiddenElement");
 }
+
 
 function prepareUndoHandlerMoveSubfields(tag, fieldPosition, subfieldPosition, direction){
   var result = {};
@@ -4296,10 +4289,12 @@ function prepareUndoHandlerMoveSubfields(tag, fieldPosition, subfieldPosition, d
 }
 // Handlers to implement:
 
+
 function setFieldUnselected(tag, fieldPos){
   // unselect a given field
   setSelectionStatusField(tag, fieldPos, false);
 }
+
 
 function urPerformRemoveField(tag, position, isUndo){
   var toDeleteData = {};
@@ -4327,6 +4322,7 @@ function urPerformRemoveField(tag, position, isUndo){
   return ajaxData;
 }
 
+
 function prepareOtherUpdateRequest(isUndo){
   return {
     requestType : 'otherUpdateRequest',
@@ -4335,6 +4331,7 @@ function prepareOtherUpdateRequest(isUndo){
     hpChanges: {}
   };
 }
+
 
 function performUndoApplyHpChanges(subRequests, oldChanges){
   /**
@@ -4354,6 +4351,7 @@ function performUndoApplyHpChanges(subRequests, oldChanges){
     hpChanges: {toOverride: oldChanges}
   };
 }
+
 
 function performBulkOperation(subHandlers, isUndo){
   /**
@@ -4385,6 +4383,7 @@ function performBulkOperation(subHandlers, isUndo){
     hpChanges: {}
   };
 }
+
 
 function preparePerformRedoOperations(operations){
   /** Redos an operation passed as an argument */
@@ -4497,6 +4496,7 @@ function preparePerformRedoOperations(operations){
   return ajaxRequestsData;
 }
 
+
 function performRedoOperations(operations){
   ajaxRequestsData = preparePerformRedoOperations(operations);
   // now submitting the bulk request
@@ -4508,6 +4508,7 @@ function performRedoOperations(operations){
     updateStatus('report', gRESULT_CODES[json['resultCode']]);
   }, optArgs);
 }
+
 
 function prepareUndoHandlerDeleteFields(toDelete){
   /*Creating Undo/Redo handler for the operation of removal of fields and/or subfields
@@ -4523,6 +4524,7 @@ function prepareUndoHandlerDeleteFields(toDelete){
   result.toDelete = toDelete;
   return result;
 }
+
 
 function setSubfieldUnselected(tag, fieldPos, subfieldPos){
  // unseelcting a subfield
@@ -4546,10 +4548,12 @@ function prepareUndoHandlerAddSubfields(tag, fieldPosition, subfields){
   return result;
 }
 
+
 function setFieldSelected(tag, fieldPos){
   // select a given field
   setSelectionStatusField(tag, fieldPos, true);
 }
+
 
 function redoMany(number){
   // redoing an indicated number of operations
@@ -4560,6 +4564,8 @@ function redoMany(number){
   performRedoOperations(redoOperations);
   updateUrView();
 }
+
+
 function urPerformAddField(controlfield, fieldPosition, tag, ind1, ind2, subfields, value, isUndo){
   var ajaxData = {
     recID: gRecID,
@@ -4587,6 +4593,7 @@ function urPerformAddField(controlfield, fieldPosition, tag, ind1, ind2, subfiel
   return ajaxData;
 }
 
+
 function urPerformRemoveSubfields(tag, fieldPosition, subfields, isUndo){
   var toDelete = {};
   toDelete[tag] = {};
@@ -4610,6 +4617,7 @@ function urPerformRemoveSubfields(tag, fieldPosition, subfields, isUndo){
 
   return ajaxData;
 }
+
 
 function updateUrView(){
   /*Updating the information box in the bibEdit menu
@@ -4636,6 +4644,7 @@ function updateUrView(){
         });
     });
 }
+
 
 function performMoveSubfield(tag, fieldPosition, subfieldIndex, direction, undoRedo){
   var newSubfieldIndex = parseInt(subfieldIndex) + (direction == "up" ? -1 : 1);
@@ -4671,6 +4680,7 @@ function performMoveSubfield(tag, fieldPosition, subfieldIndex, direction, undoR
   return ajaxData;
 }
 
+
 function onRedo(evt){
   if (gRedoList.length <= 0){
     alert("No Redo operations to process");
@@ -4687,14 +4697,17 @@ function hideRedoPreview(){
   $(".bibEditURDescEntrySelected").removeClass("bibEditURDescEntrySelected");
 }
 
+
 function urPerformAddPositionedFieldsSubfields(toAdd, isUndo){
   return createFields(toAdd, isUndo);
 }
+
 
 function setSubfieldSelected(tag, fieldPos, subfieldPos){
   // selecting a subfield
   setSelectionStatusSubfield(tag, fieldPos, subfieldPos, true);
 }
+
 
 function getHumanReadableUREntry(handler){
   // rendering a human readable description of an undo/redo operation
@@ -4781,6 +4794,7 @@ function getHumanReadableUREntry(handler){
     + handlerDetails + '</div>';
 }
 
+
 function urMarkSelectedUntil(entry){
     // marking all the detailed entries, until a given one as selected
     //  these entries have the same prefix but a smaller number
@@ -4798,6 +4812,7 @@ function urMarkSelectedUntil(entry){
     });
 }
 
+
 function onUndo(evt){
   if (gUndoList.length <= 0){
     alert("No Undo operations to process");
@@ -4805,6 +4820,7 @@ function onUndo(evt){
   }
   undoMany(1);
 }
+
 
 function preparePerformUndoOperations(operations){
   /** Undos an operation passed as an argument */
@@ -4926,6 +4942,7 @@ function preparePerformUndoOperations(operations){
   return ajaxRequestsData;
 }
 
+
 function performUndoOperations(operations){
   var ajaxRequestsData = preparePerformUndoOperations(operations);
   // now submitting the ajax request
@@ -4938,6 +4955,7 @@ function performUndoOperations(operations){
   }, optArgs);
 }
 
+
 function prepareUndoHandlerMoveField(tag, fieldPosition, direction){
   var result = {};
   result.tag = tag;
@@ -4946,6 +4964,7 @@ function prepareUndoHandlerMoveField(tag, fieldPosition, direction){
   result.direction = direction;
   return result;
 }
+
 
 function prepareUndoHandlerChangeField(tag, fieldPos,
   oldInd1, oldInd2, oldSubfields, oldIsControlField, oldValue,
@@ -4991,6 +5010,7 @@ function prepareUndoHandlerChangeField(tag, fieldPos,
 function showRedoPreview(){
   $("#redoOperationVisualisationField").removeClass("bibEditHiddenElement");
 }
+
 
 function deleteFields(toDeleteStruct, undoRedo){
   // a function deleting the specified fields on both client and server sides
@@ -5087,6 +5107,7 @@ function deleteFields(toDeleteStruct, undoRedo){
   return ajaxData;
 }
 
+
 function getSelectedFields(){
   /** Function returning a list of selected fields
     Returns all the fields and subfields that are slected.
@@ -5144,6 +5165,7 @@ function getSelectedFields(){
   return result;
 }
 
+
 function urPerformChangeSubfieldContent(tag, fieldPos, subfieldPos, code, val, isUndo){
   // changing the server side model
   var ajaxData = {
@@ -5168,6 +5190,7 @@ function urPerformChangeSubfieldContent(tag, fieldPos, subfieldPos, code, val, i
   return ajaxData;
 }
 
+
 function urPerformChangeSubfieldCode(tag, fieldPos, subfieldPos, code, val, isUndo){
   // changing the server side model
   var ajaxData = {
@@ -5190,6 +5213,7 @@ function urPerformChangeSubfieldCode(tag, fieldPos, subfieldPos, code, val, isUn
 
   return ajaxData;
 }
+
 
 function urPerformChangeFieldCode(oldTag, oldInd1, oldInd2, newTag, ind1, ind2,
                                   fieldPos, isUndo){
@@ -5233,6 +5257,7 @@ function urPerformChangeFieldCode(oldTag, oldInd1, oldInd2, newTag, ind1, ind2,
   return ajaxData;
 }
 
+
 function performChangeField(tag, fieldPos, ind1, ind2, subFields, isControlfield,
   value, undoRedo){
   /** Function changing the field structure and generating an appropriate AJAX
@@ -5267,6 +5292,7 @@ function performChangeField(tag, fieldPos, ind1, ind2, subFields, isControlfield
   return ajaxData;
 }
 
+
 function urPerformChangeField(tag, fieldPos, ind1, ind2, subFields,
   isControlfield, value, isUndo){
   /**
@@ -5274,6 +5300,7 @@ function urPerformChangeField(tag, fieldPos, ind1, ind2, subFields,
   return performChangeField(tag, fieldPos, ind1, ind2, subFields,
     isControlfield, value, (isUndo ? "undo" : "redo"));
 }
+
 
 function performMoveField(tag, oldFieldPosition, direction, undoRedo){
   var newFieldPosition = oldFieldPosition + (direction == "up" ? -1 : 1);
@@ -5306,6 +5333,7 @@ function performMoveField(tag, oldFieldPosition, direction, undoRedo){
   return ajaxData;
 }
 
+
 function setSelectionStatusField(tag, fieldPos, status){
   var fieldCheckbox = $('#boxField_' + tag + '_' + fieldPos);
   var subfieldCheckboxes = $('#rowGroup_' + tag + '_' + fieldPos + ' .bibEditBoxSubfield');
@@ -5317,6 +5345,7 @@ function setSelectionStatusField(tag, fieldPos, status){
       }
   });
 }
+
 
 function urPerformDeletePositionedFieldsSubfields(toDelete, isUndo){
   return deleteFields(toDelete, isUndo);
@@ -5331,6 +5360,7 @@ function setSelectionStatusSubfield(tag, fieldPos, subfieldPos, status){
       subfieldCheckbox[0].click();
   }
 }
+
 
 function createFields(toCreateFields, isUndo){
   // a function adding fields.
@@ -5441,6 +5471,7 @@ function updateBibCirculationPanel(){
   copiesCountElement.attr("innerHTML", gPhysCopiesNum);
 }
 
+
 function bibCircIntGetEditCopyUrl(recId){
   /**A function returning the address under which, the edition of a
       given record is possible
@@ -5457,6 +5488,7 @@ function onBibCirculationBtnClicked(e){
   var link = bibCircIntGetEditCopyUrl(gRecID);
   window.open(link);
 }
+
 
 function isSubjectSubfield(tag_ind, subfield_code) {
   /*

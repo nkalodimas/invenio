@@ -41,7 +41,10 @@ js_DATA = bibedit_display.js \
           bibedit_holdingpen.js \
           marcxml.js \
           bibedit_clipboard.js \
-          bibedit_template_interface.js
+          bibedit_template_interface.js \
+          bibedit_engine_unit_tests.js \
+          bibedit_engine_unit_tests.conf \
+          bibedit_refextract.js
 
 install-data-hook:
 	## Let's initialize an empty jquery.min.js, so that if the admin does not
