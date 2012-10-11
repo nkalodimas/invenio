@@ -4450,12 +4450,18 @@ def print_record(recID, format='hb', ot='', ln=CFG_SITE_LANG, decompress=zlib.de
     if user_info:
         can_see_hidden = user_info.get('precached_canseehiddenmarctags', False)
 
+    can_edit_record = False
+    if check_user_can_edit_record(user_info, recID):
+        can_edit_record = True
+
+
     out = ""
 
     # sanity check:
     record_exist_p = record_exists(recID)
     if record_exist_p == 0: # doesn't exist
         return out
+
 
     # New Python BibFormat procedure for formatting
     # Old procedure follows further below
@@ -4492,7 +4498,8 @@ def print_record(recID, format='hb', ot='', ln=CFG_SITE_LANG, decompress=zlib.de
                                                                          so=so,
                                                                          sp=sp,
                                                                          rm=rm,
-                                                                         display_claim_link=display_claim_this_paper)
+                                                                         display_claim_link=display_claim_this_paper,
+                                                                         display_edit_link=can_edit_record)
         return out
 
     # Old PHP BibFormat procedure for formatting
@@ -4777,7 +4784,8 @@ def print_record(recID, format='hb', ot='', ln=CFG_SITE_LANG, decompress=zlib.de
                                                                          so=so,
                                                                          sp=sp,
                                                                          rm=rm,
-                                                                         display_claim_link=display_claim_this_paper)
+                                                                         display_claim_link=display_claim_this_paper,
+                                                                         display_edit_link=can_edit_record)
 
     # print record closing tags, if needed:
     if format == "marcxml" or format == "oai_dc":
@@ -6014,3 +6022,22 @@ def profile(p="", f="", c=CFG_SITE_NAME):
     p = pstats.Stats("perform_request_search_profile")
     p.strip_dirs().sort_stats("cumulative").print_stats()
     return 0
+
+def check_user_can_edit_record(req, recid):
+    """ Check if user has authorization to modify a collection
+    the recid belongs to
+    """
+    record_collections = get_all_collections_of_a_record(recid)
+    if not record_collections:
+        # Check if user has access to all collections
+        auth_code, auth_message = acc_authorize_action(req, 'runbibedit',
+                                                       collection='')
+        if auth_code == 0:
+            return True
+    else:
+        for collection in record_collections:
+            auth_code, auth_message = acc_authorize_action(req, 'runbibedit',
+                                                           collection=collection)
+            if auth_code == 0:
+                return True
+    return False
