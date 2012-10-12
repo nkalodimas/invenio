@@ -587,9 +587,9 @@ def build_journals_re_kb(fpath):
     @see build_journals_kb
     """
     def make_tuple(match):
-        regexp = re.compile(match.group('seek'), re.UNICODE)
-        repl = '<cds.JOURNAL>%s</cds.JOURNAL>' % match.group('repl')
-        return (regexp, repl)
+        regexp = match.group('seek')
+        repl = match.group('repl')
+        return regexp, repl
 
     kb = []
 

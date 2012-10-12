@@ -24,6 +24,7 @@ Sends references to parse through bibsched
 """
 
 import sys
+from datetime import datetime, timedelta
 
 from invenio.bibtask import task_init, task_set_option, \
                             task_get_option, write_message
@@ -31,6 +32,7 @@ from invenio.config import CFG_VERSION, \
                            CFG_SITE_SECURE_URL, \
                            CFG_BIBCATALOG_SYSTEM, \
                            CFG_REFEXTRACT_TICKET_QUEUE
+from invenio.dbquery import run_sql
 from invenio.search_engine import perform_request_search
 # Help message is the usage() print out of how to use Refextract
 from invenio.refextract_cli import HELP_MESSAGE, DESCRIPTION
@@ -131,6 +133,12 @@ def create_ticket(recid, bibcatalog_system, queue=CFG_REFEXTRACT_TICKET_QUEUE):
         # Only create tickets for HEP
         if not in_hep:
             write_message("not in hep", verbose=1)
+            return
+
+        # Do not create tickets for old records
+        creation_date = run_sql("""SELECT creation_date FROM bibrec
+                                   WHERE id = %s""", [recid])[0][0]
+        if creation_date < datetime.now() - timedelta(days=365*2):
             return
 
         for report_tag in record_get_field_instances(record, "037"):

@@ -24,7 +24,7 @@ from invenio.search_engine import search_pattern
 
 def get_recids_matching_query(pvalue, fvalue):
     """Return list of recIDs matching query for PVALUE and FVALUE."""
-    recids = search_pattern(p=pvalue, f=fvalue, m='e')
+    recids = search_pattern(p=pvalue.encode('utf-8'), f=fvalue, m='e')
     recids -= INTBITSET_OF_DELETED_RECORDS
     return list(recids)
 
@@ -35,7 +35,10 @@ def format_journal(format_string, mappings):
     def replace(char, data):
         return data.get(char, char)
 
-    return ''.join(replace(c, mappings) for c in format_string)
+    for c in mappings.keys():
+        format_string = format_string.replace(c, replace(c, mappings))
+
+    return format_string
 
 
 def find_journal(citation_element):

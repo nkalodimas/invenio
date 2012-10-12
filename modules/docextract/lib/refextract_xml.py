@@ -52,7 +52,8 @@ from invenio.refextract_config import \
     CFG_REFEXTRACT_SUBFIELD_ISBN, \
     CFG_REFEXTRACT_SUBFIELD_PUBLISHER, \
     CFG_REFEXTRACT_SUBFIELD_YEAR, \
-    CFG_REFEXTRACT_SUBFIELD_BOOK
+    CFG_REFEXTRACT_SUBFIELD_RECID, \
+    CFG_REFEXTRACT_SUBFIELD_COLLABORATION
 
 from invenio import config
 CFG_INSPIRE_SITE = getattr(config, 'CFG_INSPIRE_SITE', False)
@@ -192,10 +193,11 @@ def build_xml_citation(citation_elements, line_marker, inspire_format=None):
         ## Before going onto checking 'what' the next element is, handle misc text and semi-colons
         ## Multiple misc text subfields will be compressed later
         ## This will also be the only part of the code that deals with MISC tag_typed elements
-        if element['misc_txt'].strip(".,:;- []"):
+        misc_txt = element['misc_txt'].strip(".,:;- []")
+        if misc_txt:
             xml_line = append_subfield_element(xml_line,
-                               CFG_REFEXTRACT_SUBFIELD_MISC,
-                               element['misc_txt'].strip(".,:;- []"))
+                                               CFG_REFEXTRACT_SUBFIELD_MISC,
+                                               misc_txt)
 
         # Now handle the type dependent actions
         # TITLE
@@ -327,8 +329,6 @@ def build_xml_citation(citation_elements, line_marker, inspire_format=None):
             xml_line = append_subfield_element(xml_line,
                                                CFG_REFEXTRACT_SUBFIELD_QUOTED,
                                                element['title'])
-            xml_line += '\n      <subfield code="%s" />' % \
-                CFG_REFEXTRACT_SUBFIELD_BOOK
             line_elements.append(element)
 
         elif element['type'] == "PUBLISHER":
@@ -342,6 +342,17 @@ def build_xml_citation(citation_elements, line_marker, inspire_format=None):
                                                CFG_REFEXTRACT_SUBFIELD_YEAR,
                                                element['year'])
             line_elements.append(element)
+
+        elif element['type'] == "COLLABORATION":
+            xml_line = append_subfield_element(xml_line,
+                                               CFG_REFEXTRACT_SUBFIELD_COLLABORATION,
+                                               element['collaboration'])
+            line_elements.append(element)
+
+        elif element['type'] == "RECID":
+            xml_line = append_subfield_element(xml_line,
+                                               CFG_REFEXTRACT_SUBFIELD_RECID,
+                                               str(element['recid']))
 
     # Append the author, if needed for an ibid, for the last element
     # in the entire line. Don't bother setting the author to be used
@@ -371,10 +382,13 @@ def start_datafield_element(line_marker):
         @return: (string) The string holding the relevant datafield and
         subfield tags.
     """
-    marker_subfield = """
-      <subfield code="%(sf-code-ref-marker)s">%(marker-val)s</subfield>""" \
-            % {'sf-code-ref-marker': CFG_REFEXTRACT_SUBFIELD_MARKER,
-               'marker-val'        : encode_for_xml(format_marker(line_marker))}
+    if line_marker.isspace():
+        marker_subfield = ""
+    else:
+        marker_subfield = """
+      <subfield code="%(marker-code)s">%(marker-val)s</subfield>""" \
+            % {'marker-code': CFG_REFEXTRACT_SUBFIELD_MARKER,
+               'marker-val' : encode_for_xml(format_marker(line_marker))}
 
     new_datafield = """   <datafield tag="%(df-tag-ref)s" ind1="%(df-ind1-ref)s" ind2="%(df-ind2-ref)s">%(marker-subfield)s""" \
     % {'df-tag-ref'     : CFG_REFEXTRACT_TAG_ID_REFERENCE,

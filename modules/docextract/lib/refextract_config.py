@@ -24,8 +24,10 @@ from invenio.config import CFG_VERSION, CFG_ETCDIR
 
 # pylint: disable=C0301
 
+CFG_REFEXTRACT_VERSION_NUM = '1.5.23'
 # Version number:
-CFG_REFEXTRACT_VERSION = "Invenio/%s refextract/%s" % (CFG_VERSION, '1.4')
+CFG_REFEXTRACT_VERSION = "Invenio/%s refextract/%s" \
+                                    % (CFG_VERSION, CFG_REFEXTRACT_VERSION_NUM)
 # Module config directory
 CFG_CONF_DIR = '%s/docextract' % CFG_ETCDIR
 
@@ -47,23 +49,24 @@ CFG_REFEXTRACT_FILENAME = "refextract"
 ## MARC Fields and subfields used by refextract:
 
 # Reference fields:
-CFG_REFEXTRACT_CTRL_FIELD_RECID          = "001"    # control-field recid
-CFG_REFEXTRACT_TAG_ID_REFERENCE          = "999"    # ref field tag
-CFG_REFEXTRACT_IND1_REFERENCE            = "C"      # ref field ind1
-CFG_REFEXTRACT_IND2_REFERENCE            = "5"      # ref field ind2
-CFG_REFEXTRACT_SUBFIELD_MARKER           = "o"      # ref marker subfield
-CFG_REFEXTRACT_SUBFIELD_MISC             = "m"      # ref misc subfield
-CFG_REFEXTRACT_SUBFIELD_DOI              = "a"      # ref DOI subfield (NEW)
-CFG_REFEXTRACT_SUBFIELD_REPORT_NUM       = "r"      # ref reportnum subfield
-CFG_REFEXTRACT_SUBFIELD_TITLE            = "s"      # ref journal subfield
-CFG_REFEXTRACT_SUBFIELD_URL              = "u"      # ref url subfield
-CFG_REFEXTRACT_SUBFIELD_URL_DESCR        = "z"      # ref url-text subfield
-CFG_REFEXTRACT_SUBFIELD_AUTH             = "h"      # ref author subfield
-CFG_REFEXTRACT_SUBFIELD_QUOTED           = "t"      # ref title subfield
-CFG_REFEXTRACT_SUBFIELD_ISBN             = "i"      # ref isbn subfield
-CFG_REFEXTRACT_SUBFIELD_PUBLISHER        = "p"      # ref publisher subfield
-CFG_REFEXTRACT_SUBFIELD_YEAR             = "y"      # ref publisher subfield
-CFG_REFEXTRACT_SUBFIELD_BOOK             = "xbook"  # ref book subfield
+CFG_REFEXTRACT_CTRL_FIELD_RECID          = "001"  # control-field recid
+CFG_REFEXTRACT_TAG_ID_REFERENCE          = "999"  # ref field tag
+CFG_REFEXTRACT_IND1_REFERENCE            = "C"    # ref field ind1
+CFG_REFEXTRACT_IND2_REFERENCE            = "5"    # ref field ind2
+CFG_REFEXTRACT_SUBFIELD_MARKER           = "o"    # ref marker subfield
+CFG_REFEXTRACT_SUBFIELD_MISC             = "m"    # ref misc subfield
+CFG_REFEXTRACT_SUBFIELD_DOI              = "a"    # ref DOI subfield (NEW)
+CFG_REFEXTRACT_SUBFIELD_REPORT_NUM       = "r"    # ref reportnum subfield
+CFG_REFEXTRACT_SUBFIELD_TITLE            = "s"    # ref journal subfield
+CFG_REFEXTRACT_SUBFIELD_URL              = "u"    # ref url subfield
+CFG_REFEXTRACT_SUBFIELD_URL_DESCR        = "z"    # ref url-text subfield
+CFG_REFEXTRACT_SUBFIELD_AUTH             = "h"    # ref author subfield
+CFG_REFEXTRACT_SUBFIELD_QUOTED           = "t"    # ref title subfield
+CFG_REFEXTRACT_SUBFIELD_ISBN             = "i"    # ref isbn subfield
+CFG_REFEXTRACT_SUBFIELD_PUBLISHER        = "p"    # ref publisher subfield
+CFG_REFEXTRACT_SUBFIELD_YEAR             = "y"    # ref publisher subfield
+CFG_REFEXTRACT_SUBFIELD_COLLABORATION    = "c"    # ref collaboration subfield
+CFG_REFEXTRACT_SUBFIELD_RECID            = "0"    # ref recid subfield
 
 ## refextract statistics fields:
 CFG_REFEXTRACT_TAG_ID_EXTRACTION_STATS     = "999" # ref-stats tag
@@ -73,17 +76,31 @@ CFG_REFEXTRACT_SUBFIELD_EXTRACTION_STATS   = "a"   # ref-stats subfield
 CFG_REFEXTRACT_SUBFIELD_EXTRACTION_TIME    = "t"   # ref-stats time subfield
 CFG_REFEXTRACT_SUBFIELD_EXTRACTION_VERSION = "v"   # ref-stats version subfield
 ## Internal tags are used by refextract to mark-up recognised citation
-## information. These are the "closing tags:
-CFG_REFEXTRACT_MARKER_CLOSING_REPORT_NUM = r"</cds.REPORTNUMBER>"
-CFG_REFEXTRACT_MARKER_CLOSING_TITLE      = r"</cds.JOURNAL>"
-CFG_REFEXTRACT_MARKER_CLOSING_TITLE_IBID = r"</cds.JOURNALibid>"
-CFG_REFEXTRACT_MARKER_CLOSING_SERIES     = r"</cds.SER>"
-CFG_REFEXTRACT_MARKER_CLOSING_VOLUME     = r"</cds.VOL>"
-CFG_REFEXTRACT_MARKER_CLOSING_YEAR       = r"</cds.YR>"
-CFG_REFEXTRACT_MARKER_CLOSING_PAGE       = r"</cds.PG>"
-CFG_REFEXTRACT_MARKER_CLOSING_QUOTED     = r"</cds.QUOTED>"
-CFG_REFEXTRACT_MARKER_CLOSING_ISBN       = r"</cds.ISBN>"
-CFG_REFEXTRACT_MARKER_CLOSING_ISBN       = r"</cds.PUBLISHER>"
+## information.
+CFG_REFEXTRACT_MARKER_OPENING_REPORT_NUM    = r"<cds.REPORTNUMBER>"
+CFG_REFEXTRACT_MARKER_OPENING_TITLE         = r"<cds.JOURNAL>"
+CFG_REFEXTRACT_MARKER_OPENING_TITLE_IBID    = r"<cds.JOURNALibid>"
+CFG_REFEXTRACT_MARKER_OPENING_SERIES        = r"<cds.SER>"
+CFG_REFEXTRACT_MARKER_OPENING_VOLUME        = r"<cds.VOL>"
+CFG_REFEXTRACT_MARKER_OPENING_YEAR          = r"<cds.YR>"
+CFG_REFEXTRACT_MARKER_OPENING_PAGE          = r"<cds.PG>"
+CFG_REFEXTRACT_MARKER_OPENING_QUOTED        = r"<cds.QUOTED>"
+CFG_REFEXTRACT_MARKER_OPENING_ISBN          = r"<cds.ISBN>"
+CFG_REFEXTRACT_MARKER_OPENING_PUBLISHER     = r"<cds.PUBLISHER>"
+CFG_REFEXTRACT_MARKER_OPENING_COLLABORATION = r"<cds.COLLABORATION>"
+
+# These are the "closing tags:
+CFG_REFEXTRACT_MARKER_CLOSING_REPORT_NUM    = r"</cds.REPORTNUMBER>"
+CFG_REFEXTRACT_MARKER_CLOSING_TITLE         = r"</cds.JOURNAL>"
+CFG_REFEXTRACT_MARKER_CLOSING_TITLE_IBID    = r"</cds.JOURNALibid>"
+CFG_REFEXTRACT_MARKER_CLOSING_SERIES        = r"</cds.SER>"
+CFG_REFEXTRACT_MARKER_CLOSING_VOLUME        = r"</cds.VOL>"
+CFG_REFEXTRACT_MARKER_CLOSING_YEAR          = r"</cds.YR>"
+CFG_REFEXTRACT_MARKER_CLOSING_PAGE          = r"</cds.PG>"
+CFG_REFEXTRACT_MARKER_CLOSING_QUOTED        = r"</cds.QUOTED>"
+CFG_REFEXTRACT_MARKER_CLOSING_ISBN          = r"</cds.ISBN>"
+CFG_REFEXTRACT_MARKER_CLOSING_PUBLISHER     = r"</cds.PUBLISHER>"
+CFG_REFEXTRACT_MARKER_CLOSING_COLLABORATION = r"</cds.COLLABORATION>"
 
 ## Of the form '</cds.AUTHxxxx>' only
 CFG_REFEXTRACT_MARKER_CLOSING_AUTHOR_STND = r"</cds.AUTHstnd>"
