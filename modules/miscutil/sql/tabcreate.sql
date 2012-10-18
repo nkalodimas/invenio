@@ -4132,4 +4132,7 @@ INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_11_01_lower_user_em
 INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_11_21_aiduserinputlog_userid_check',NOW());
 INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_11_15_hstRECORD_marcxml_longblob',NOW());
 
+-- ops upgrade recipes:
+INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_11_07_xtrjob_last_recid',NOW());
+
 -- end of file
