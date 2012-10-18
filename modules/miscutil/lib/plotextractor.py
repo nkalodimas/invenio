@@ -82,10 +82,10 @@ def main():
     refno_url_param = 'refno-url'
     refno_param = 'skip-refno'
     clean_param = 'clean'
-    param_abbrs = 'h:t:d:s:i:a:l:xfuyrqck'
+    param_abbrs = 'h:t:d:s:i:a:l:xfuyr:qck'
     params = [help_param, tarball_param + '=', tardir_param + '=', \
               sdir_param + '=', infile_param + '=', arXiv_param + '=', refno_url_param + '=', \
-              extract_text_param, force_param, upload_param, yes_i_know_param, recid_param, \
+              extract_text_param, force_param, upload_param, yes_i_know_param, recid_param + '=', \
               squash_param, clean_param]
     try:
         opts, args = getopt.getopt(sys.argv[1:], param_abbrs, params)
