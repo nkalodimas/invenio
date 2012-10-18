@@ -55,6 +55,9 @@ from invenio.bibauthorid_backinterface import get_new_personid
 USE_EXT_IDS = bconfig.RABBIT_USE_EXTERNAL_IDS
 USE_INSPIREID = bconfig.RABBIT_USE_EXTERNAL_ID_INSPIREID
 
+from datetime import datetime
+from invenio.bibauthorid_general_utils import bai_any as any
+now = datetime.now
 
 def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None):
     '''
@@ -62,6 +65,11 @@ def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None)
     @type bibrecs: an iterable of ints
     @return: none
     '''
+    logfile = open('/tmp/RABBITLOG-%s' % str(now()).replace(" ", "_"), 'w')
+    logfile.write("RABBIT %s running on %s \n" % (str(now()), str(bibrecs)))
+
+    logwrite = lambda x, y: log.append((x + '\n', y))
+
     if bconfig.RABBIT_USE_CACHED_PID:
         PID_NAMES_CACHE = get_name_string_to_pid_dictionary()
 
@@ -115,9 +123,14 @@ def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None)
     deleted = frozenset(p[0] for p in get_deleted_papers())
 
     for idx, rec in enumerate(bibrecs):
+
+        log = []
+        logwrite("\nConsidering %s" % str(rec), False)
+
         task_sleep_now_if_required(True)
         update_status(float(idx) / len(bibrecs), "%d/%d current: %d" % (idx, len(bibrecs), rec))
         if rec in deleted:
+            logwrite(" - Record was deleted, removing from pid and aborting", True)
             delete_paper_from_personid(rec)
             continue
 
@@ -138,15 +151,25 @@ def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None)
         matrix = [[compare_names(new_signatures_names[new], personidrefs_names[old])
                   for old in old_signatures] for new in new_signatures]
 
+        logwrite(" - Old signatures: %s" % str(old_signatures), bool(old_signatures))
+        logwrite(" - New signatures: %s" % str(new_signatures), bool(new_signatures))
+        logwrite(" - Matrix: %s" % str(matrix), bool(matrix))
+
         # [(new_signatures, old_signatures)]
         best_match = [(new_signatures[new], old_signatures[old])
                       for new, old, score in maximized_mapping(matrix) if score > threshold]
+
+        logwrite (" - Best match: %s " % str(best_match), bool(best_match))
+
         for new, old in best_match:
+            logwrite(" - - Moving signature: %s on %s to %s as %s" % (old, rec, new, new_signatures_names[new]), True)
             modify_signature(old, rec, new, new_signatures_names[new])
 
         remove_sigs(tuple(list(old) + [rec]) for old in old_signatures)
 
         not_matched = frozenset(new_signatures) - frozenset(map(itemgetter(0), best_match))
+
+        logwrite(" - Not matched: %s" % str(not_matched), bool(not_matched))
 
         if not_matched:
             used_pids = set(r[0] for r in personid_rows)
@@ -176,6 +199,12 @@ def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None)
                 add_signature(list(sig) + [rec], name, matched_pids[0][0])
                 used_pids.add(matched_pids[0][0])
                 updated_pids.add(matched_pids[0][0])
+
+        if any(x[1] for x in log):
+            logfile.write("\n--ALERT--\n")
+            logfile.write(''.join(x[0] for x in log))
+        else:
+            logfile.write("Nothing to be done on %s\n" % str(rec))
 
     update_status_final()
 
