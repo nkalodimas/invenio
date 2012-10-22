@@ -18,7 +18,7 @@
 """
 __revision__ = "$Id$"
 
-from invenio.config import CFG_SITE_URL, CFG_SITE_ADMIN_EMAIL, CFG_SITE_LANG, \
+from invenio.config import CFG_SITE_URL, CFG_BASE_URL, CFG_SITE_ADMIN_EMAIL, CFG_SITE_LANG, \
         CFG_SITE_NAME, CFG_VERSION, CFG_SITE_NAME_INTL, CFG_SITE_SUPPORT_EMAIL, \
         CFG_SITE_RECORD
 
@@ -57,12 +57,16 @@ def format_element(bfo, var=''):
         out = CFG_SITE_URL
         if not out.endswith('/'):
             out += '/'
+    elif var in ['CFG_BASE_URL']:
+        out = CFG_BASE_URL
+        if not out.endswith('/'):
+            out += '/'
     elif var == 'searchurl':
-        out = CFG_SITE_URL + '/search'
+        out = CFG_BASE_URL + '/search'
         if not out.endswith('/'):
             out += '/'
     elif var == 'recurl':
-        out = CFG_SITE_URL
+        out = CFG_BASE_URL
         if not out.endswith('/'):
             out += '/'
         out += CFG_SITE_RECORD +'/' + str(recID)
