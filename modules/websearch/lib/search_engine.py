@@ -75,7 +75,8 @@ from invenio.config import \
      CFG_WEBSEARCH_PREV_NEXT_HIT_LIMIT, \
      CFG_WEBSEARCH_VIEWRESTRCOLL_POLICY, \
      CFG_BIBSORT_BUCKETS, \
-     CFG_BIBINDEX_CHARS_PUNCTUATION
+     CFG_BIBINDEX_CHARS_PUNCTUATION, \
+     CFG_BASE_URL
 
 from invenio.search_engine_config import \
      InvenioWebSearchUnknownCollectionError, \
@@ -914,7 +915,7 @@ def page_start(req, of, cc, aas, ln, uid, title_message=None,
             # to the way perform_request_search() works, hb
             # (lowercase) is equal to hd)
             navtrail += ' <a class="navtrail" href="%s/%s/%s">%s</a>' % \
-                            (CFG_SITE_URL, CFG_SITE_RECORD, recID, cgi.escape(title_message))
+                            (CFG_BASE_URL, CFG_SITE_RECORD, recID, cgi.escape(title_message))
             if (of != '' or of.lower() != 'hd') and of != 'hb':
                 # Export
                 format_name = of
@@ -4164,7 +4165,7 @@ def print_records(req, recIDs, jrec=1, rg=CFG_WEBSEARCH_DEF_RECORDS_IN_GROUPS, f
                             pass
 
                     tabs = [(unordered_tabs[tab_id]['label'], \
-                             '%s/%s/%s/%s%s' % (CFG_SITE_URL, CFG_SITE_RECORD, recid_to_display, tab_id, link_ln), \
+                             '%s/%s/%s/%s%s' % (CFG_BASE_URL, CFG_SITE_RECORD, recid_to_display, tab_id, link_ln), \
                              tab_id == tab,
                              unordered_tabs[tab_id]['enabled']) \
                             for (tab_id, order) in ordered_tabs_id
