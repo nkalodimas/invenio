@@ -250,6 +250,13 @@ def rebuild_reference_lines(ref_sectn, ref_line_marker_ptn):
                 if line[start:]:
                     working_ref.append(line[start:])
 
+            else:
+                # Our marker does not match the counting
+                # Either we missed one, the author missed one or
+                # it is not a line marker
+                # For now we assume it is not line marker
+                working_ref.append(line)
+
         elif line:
             # Continuation of line
             working_ref.append(line)

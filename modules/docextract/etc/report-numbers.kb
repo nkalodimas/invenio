@@ -63,8 +63,6 @@ ATL COM PHYS           ---ATL-COM-PHYS
 TL COM PHYS            ---ATL-COM-PHYS
 ATL COM TILECAL        ---ATL-COM-TILECAL
 ATL COM LARG           ---ATL-COM-LARG
-ATL CONF               ---ATL-CONF
-ATLAS CONF             ---ATL-CONF
 ATL DAQ                ---ATL-DAQ
 ATL DAQ CONF           ---ATL-DAQ-CONF
 ATL GEN                ---ATL-GEN

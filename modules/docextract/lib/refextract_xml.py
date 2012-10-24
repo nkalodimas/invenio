@@ -32,7 +32,6 @@ from invenio.refextract_config import \
     CFG_REFEXTRACT_SUBFIELD_AUTH, \
     CFG_REFEXTRACT_SUBFIELD_TITLE, \
     CFG_REFEXTRACT_SUBFIELD_MISC, \
-    CGF_REFEXTRACT_SEMI_COLON_MISC_TEXT_SENSITIVITY, \
     CFG_REFEXTRACT_SUBFIELD_REPORT_NUM, \
     CFG_REFEXTRACT_XML_RECORD_OPEN, \
     CFG_REFEXTRACT_CTRL_FIELD_RECID, \
@@ -47,7 +46,6 @@ from invenio.refextract_config import \
     CFG_REFEXTRACT_SUBFIELD_URL_DESCR, \
     CFG_REFEXTRACT_SUBFIELD_URL, \
     CFG_REFEXTRACT_SUBFIELD_DOI, \
-    CGF_REFEXTRACT_ADJACENT_AUTH_MISC_SEPARATION, \
     CFG_REFEXTRACT_SUBFIELD_QUOTED, \
     CFG_REFEXTRACT_SUBFIELD_ISBN, \
     CFG_REFEXTRACT_SUBFIELD_PUBLISHER, \
@@ -159,18 +157,44 @@ def create_xml_record(counts, recid, xml_lines, status_code=0):
     return out
 
 
-def build_xml_citations(splitted_citations, line_marker):
-    return [build_xml_citation(citation_elements, line_marker) \
+def build_xml_references(citations):
+    """Build marc xml from a references list
+
+    Transform the reference elements into marc xml
+    """
+    xml_references = []
+
+    for c in citations:
+        # Now, run the method which will take as input:
+        # 1. A list of lists of dictionaries, where each dictionary is a piece
+        # of citation information corresponding to a tag in the citation.
+        # 2. The line marker for this entire citation line (mulitple citation
+        # 'finds' inside a single citation will use the same marker value)
+        # The resulting xml line will be a properly marked up form of the
+        # citation. It will take into account authors to try and split up
+        # references which should be read as two SEPARATE ones.
+        xml_lines = build_xml_references_from_elements(c['elements'],
+                                                       c['line_marker'])
+        xml_references.extend(xml_lines)
+
+    return xml_references
+
+
+def build_xml_references_from_elements(splitted_citations, line_marker):
+    return [build_xml_reference(citation_elements, line_marker) \
                                    for citation_elements in splitted_citations]
 
 
-def build_xml_citation(citation_elements, line_marker, inspire_format=None):
-    """ Create the MARC-XML string of the found reference information which was taken
-        from a tagged reference line.
+def build_xml_reference(citation_elements, line_marker, inspire_format=None):
+    """ Create the MARC-XML string of the found reference information which
+        was taken from a tagged reference line.
         @param citation_elements: (list) an ordered list of dictionary elements,
-        with each element corresponding to a found piece of information from a reference line.
-        @param line_marker: (string) The line marker for this single reference line (e.g. [19])
-        @return xml_line: (string) The MARC-XML representation of the list of reference elements
+                                  with each element corresponding to a found
+                                  piece of information from a reference line.
+        @param line_marker: (string) The line marker for this single reference
+                            line (e.g. [19])
+        @return xml_line: (string) The MARC-XML representation of the list of
+                          reference elements
     """
     if inspire_format is None:
         inspire_format = CFG_INSPIRE_SITE
@@ -193,8 +217,9 @@ def build_xml_citation(citation_elements, line_marker, inspire_format=None):
         ## Before going onto checking 'what' the next element is, handle misc text and semi-colons
         ## Multiple misc text subfields will be compressed later
         ## This will also be the only part of the code that deals with MISC tag_typed elements
-        misc_txt = element['misc_txt'].strip(".,:;- []")
-        if misc_txt:
+        misc_txt = element['misc_txt']
+        if misc_txt.strip("., [](){}"):
+            misc_txt = misc_txt.lstrip('])} ,.').rstrip('[({ ,.')
             xml_line = append_subfield_element(xml_line,
                                                CFG_REFEXTRACT_SUBFIELD_MISC,
                                                misc_txt)
@@ -303,7 +328,8 @@ def build_xml_citation(citation_elements, line_marker, inspire_format=None):
             if element['auth_type'] == 'incl':
                 value = "(%s)" % value
 
-            if is_in_line_elements("AUTH", line_elements) and line_elements[-1]['type'] != "AUTH":
+            if is_in_line_elements("AUTH", line_elements) \
+                                       and line_elements[-1]['type'] != "AUTH":
                 xml_line = append_subfield_element(xml_line,
                                                    CFG_REFEXTRACT_SUBFIELD_MISC,
                                                    value)
@@ -399,90 +425,12 @@ def start_datafield_element(line_marker):
     return new_datafield
 
 
-def dump_or_split_author(misc_txt, line_elements):
-    """
-        Given the list of current elements, and misc text, try to decide how to use this
-        author for splitting heuristics, and see if it is useful. Returning 'dump' indicates
-        put this author into misc text, since it had been identified as bad. 'split'
-        indicates split the line and place this author into the fresh datafield. The empty string
-        indicates add this author as normal to the current xml datafield.
-
-        A line will be split using author information in two situations:
-            1. When there already exists a previous author group in the same line
-            2. If the only item in the current line is a title, with no misc text
-        In both situations, the newly found author element is placed into the newly created
-        datafield.
-
-        This method heavily assumes that the first author group found in a single citation is the
-        most reliable (In accordance with the IEEE standard, which states that authors should
-        be written at the beginning of a citation, in the overwhelming majority of cases).
-        @param misc_txt: (string) The misc text for this reference line
-        @param line_elements: (list) The list of elements found for this current line
-        @return: (string) The action to take to deal with this author.
-    """
-    ## If an author has already been found in this reference line
-    if is_in_line_elements("AUTH", line_elements):
-
-        ## If this author group is directly after another author group,
-        ## with minimal misc text between, then this author group is very likely to be wrong.
-        if line_elements[-1]['type'] == "AUTH" \
-        and len(misc_txt) < CGF_REFEXTRACT_ADJACENT_AUTH_MISC_SEPARATION:
-            return "dump"
-        ## Else, trigger a new reference line
-        return "split"
-
-    ## In cases where an author is directly after an alone title (ibid or normal, with no misc),
-    ## Trigger a new reference line
-    if is_in_line_elements("JOURNAL", line_elements) and len(line_elements) == 1 \
-     and len(misc_txt) == 0:
-        return "split"
-
-    return ""
-
-
 def is_in_line_elements(element_type, line_elements):
     """ Checks the list of current elements in the line for the given element type """
     for i, element in enumerate(line_elements):
         if element['type'] == element_type:
             return (True, line_elements[i])
     return False
-
-
-def split_on_semi_colon(misc_txt, line_elements, elements_processed, total_elements):
-    """ Given some misc text, see if there are any semi-colons which may indiciate that
-        a reference line is in fact two separate citations.
-        @param misc_txt: (string) The misc_txt to look for semi-colons within.
-        @param line_elements: (list) The list of single upper-case chars which
-            represent an element of a reference which has been processed.
-        @param elements_processed: (integer) The number of elements which have been
-            *looked at* for this entire reference line, regardless of splits
-        @param total_elements: (integer) The total number of elements which
-            have been identified in the *entire* reference line
-        @return: (string) Dipicting where the semi-colon was found in relation to the
-            rest of the misc_txt. False if a semi-colon was not found, or one was found
-            relating to an escaped piece of text.
-    """
-    ## If there has already been meaningful information found in the reference
-    ## and there are still elements to be processed beyond the element relating to
-    ## this misc_txt
-    if (is_in_line_elements("JOURNAL", line_elements) \
-            or is_in_line_elements("REPORTNUMBER", line_elements) \
-            or len(misc_txt) >= CGF_REFEXTRACT_SEMI_COLON_MISC_TEXT_SENSITIVITY) \
-        and elements_processed < total_elements:
-
-        if len(misc_txt) >= 4 and \
-            (misc_txt[-5:] == '&amp;' or misc_txt[-4:] == '&lt;'):
-            ## This is a semi-colon which does not indicate a new citation
-            return ""
-        else:
-            ## If a semi-colon is at the end, make sure to append preceeding misc_txt to
-            ## the current datafield element
-            if misc_txt.strip(" .,")[-1] == ";":
-                return "after"
-            ## Else, make sure to append the misc_txt to the *newly created datafield element*
-            elif misc_txt.strip(" .,")[0] == ";":
-                return "before"
-    return ""
 
 
 def check_author_for_ibid(line_elements, author):

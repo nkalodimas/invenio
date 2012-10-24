@@ -129,7 +129,6 @@ class RefextractInvenioTest(unittest.TestCase):
 </record>""")
 
     def test_extra_a_in_report_number(self):
-        ref_line = u"""[6] ATL-PHYS-INT-2009-110 Atlas"""
         ref_line = u'[14] CMS Collaboration, CMS-PAS-HIG-12-002. CMS Collaboration, CMS-PAS-HIG-12-008. CMS Collaboration, CMS-PAS-HIG-12-022. ATLAS Collaboration, arXiv:1205.0701. ATLAS Collaboration, ATLAS-CONF-2012-078.'
         reference_test(self, ref_line, u"""<record>
    <controlfield tag="001">1</controlfield>
@@ -144,7 +143,7 @@ class RefextractInvenioTest(unittest.TestCase):
       <subfield code="c">ATLAS Collaboration</subfield>
       <subfield code="r">arXiv:1205.0701</subfield>
       <subfield code="c">ATLAS Collaboration</subfield>
-      <subfield code="r">ATL-CONF-2012-078</subfield>
+      <subfield code="r">ATLAS-CONF-2012-078</subfield>
    </datafield>
 </record>""")
 
@@ -204,9 +203,7 @@ class RefextractTest(unittest.TestCase):
             "#####CERN#####",
             "< yy 999>",
             "< yyyy 999>",
-            "ATL CONF---ATL-CONF",
             "ATL PHYS INT---ATL-PHYS-INT",
-            "ATLAS CONF---ATL-CONF",
             "#####LANL#####",
             "<s/syymm999>",
             "<syymm999>",
@@ -1615,7 +1612,7 @@ Rev. D 80 034030 1-25"""
       <subfield code="o">32</subfield>
       <subfield code="c">The ATLAS Collaboration</subfield>
       <subfield code="u">http://cdsweb.cern.ch/record/1266235/files/ATLAS-COM-CONF-2010-031.pdf</subfield>
-      <subfield code="r">ATL-CONF-2010-031</subfield>
+      <subfield code="r">ATLAS-CONF-2010-031</subfield>
    </datafield>
 </record>""")
 
@@ -1947,8 +1944,8 @@ Rev. D 80 034030 1-25"""
    </datafield>
    <datafield tag="999" ind1="C" ind2="5">
       <subfield code="o">15</subfield>
+      <subfield code="m">hello world foo</subfield>
       <subfield code="h">T.G. Rizzo</subfield>
-      <subfield code="m">hello world  foo</subfield>
    </datafield>
 </record>""", ignore_misc=False)
 
@@ -1967,6 +1964,34 @@ Rev. D 80 034030 1-25"""
    </datafield>
 </record>""", ignore_misc=False)
 
+    def test_merging5(self):
+        ref_line = u"""[39] C. Arnaboldi et al., Nucl. Instrum. Meth. A 518 (2004) 775
+[hep-ex/0212053]; M. Sisti [CUORE Collaboration], J. Phys. Conf. Ser. 203 (2010)
+012069; F. Bellini, C. Bucci, S. Capelli, O. Cremonesi, L. Gironi, M. Martinez, M. Pavan
+and C. Tomei et al., Astropart. Phys. 33 (2010) 169 [arXiv:0912.0452 [physics.ins-det]]."""
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">39</subfield>
+      <subfield code="h">C. Arnaboldi et al.</subfield>
+      <subfield code="s">Nucl.Instrum.Meth.,A518,775</subfield>
+      <subfield code="r">hep-ex/0212053</subfield>
+      <subfield code="y">2004</subfield>
+   </datafield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">39</subfield>
+      <subfield code="h">M. Sisti</subfield>
+      <subfield code="c">CUORE Collaboration</subfield>
+      <subfield code="m">J. Phys. Conf. Ser. 203 (2010)012069</subfield>
+   </datafield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">39</subfield>
+      <subfield code="h">F. Bellini, C. Bucci, S. Capelli, O. Cremonesi, L. Gironi, M. Martinez, M. Pavanand C. Tomei et al.</subfield>
+      <subfield code="m">Astropart. Phys. 33 (2010) 169</subfield>
+      <subfield code="r">arXiv:0912.0452 [physics.ins-det]</subfield>
+   </datafield>
+</record>""", ignore_misc=False)
+
     def test_extra_blank_reference(self):
         ref_line = u"""[26] U. Gursoy and E. Kiritsis, “Exploring improved holographic theories for QCD: Part I,” JHEP 0802 (2008) 032 [ArXiv:0707.1324][hep-th]; U. Gursoy, E. Kiritsis and F. Nitti, “Exploring improved holographic theories for QCD: Part II,” JHEP 0802 (2008) 019 [ArXiv:0707.1349][hep-th];"""
         reference_test(self, ref_line, u"""<record>
@@ -1977,6 +2002,7 @@ Rev. D 80 034030 1-25"""
       <subfield code="t">Exploring improved holographic theories for QCD: Part I</subfield>
       <subfield code="s">JHEP,0802,032</subfield>
       <subfield code="r">arXiv:0707.1324</subfield>
+      <subfield code="m">[hep-th]</subfield>
       <subfield code="y">2008</subfield>
    </datafield>
    <datafield tag="999" ind1="C" ind2="5">
@@ -1986,11 +2012,8 @@ Rev. D 80 034030 1-25"""
       <subfield code="t">Exploring improved holographic theories for QCD: Part II</subfield>
       <subfield code="s">JHEP,0802,019</subfield>
       <subfield code="r">arXiv:0707.1349</subfield>
+      <subfield code="m">[hep-th]</subfield>
       <subfield code="y">2008</subfield>
-   </datafield>
-   <datafield tag="999" ind1="C" ind2="5">
-      <subfield code="o">26</subfield>
-      <subfield code="m">hep-th</subfield>
    </datafield>
 </record>""", ignore_misc=False)
 
@@ -2845,10 +2868,113 @@ Rev. D 80 034030 1-25"""
    <datafield tag="999" ind1="C" ind2="5">
       <subfield code="o">44</subfield>
       <subfield code="h">R. Baier et al.</subfield>
-      <subfield code="m">Lett. B Invalid. Hello 345 (1995)</subfield>
+      <subfield code="m">Invalid. Hello. Lett. B 345 (1995)</subfield>
    </datafield>
 </record>""", ignore_misc=False)
 
+    def test_atlas_conf_99(self):
+        ref_line = u'[14] ATLAS-CONF-99-078'
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">14</subfield>
+      <subfield code="r">ATL-CONF-99-078</subfield>
+   </datafield>
+</record>""")
+
+    def test_atlas_conf_pre_2010(self):
+        ref_line = u'[14] ATL-CONF-2003-078'
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">14</subfield>
+      <subfield code="r">ATL-CONF-2003-078</subfield>
+   </datafield>
+</record>""")
+
+    def test_atlas_conf_pre_2010_2(self):
+        ref_line = u'[14] ATLAS-CONF-2003-078'
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">14</subfield>
+      <subfield code="r">ATL-CONF-2003-078</subfield>
+   </datafield>
+</record>""")
+
+    def test_atlas_conf_post_2010(self):
+        ref_line = u'[14] ATLAS-CONF-2012-078'
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">14</subfield>
+      <subfield code="r">ATLAS-CONF-2012-078</subfield>
+   </datafield>
+</record>""")
+
+    def test_atlas_conf_post_2010_2(self):
+        ref_line = u'[14] ATL-CONF-2012-078'
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">14</subfield>
+      <subfield code="r">ATLAS-CONF-2012-078</subfield>
+   </datafield>
+</record>""")
+
+    def test_atlas_conf_post_2010_invalid(self):
+        ref_line = u'[14] ATL-CONF-2012-0784'
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">14</subfield>
+   </datafield>
+</record>""")
+
+    def test_journal_missed(self):
+        ref_line = u"[1] M. G. Mayer, Phys. Rev. 75 (1949), 1969; O. Hazel, J. H. D. Jensen, and H. E. Suess, Phys. Rev. 75 (1949), 1766."
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">1</subfield>
+      <subfield code="h">M. G. Mayer</subfield>
+      <subfield code="s">Phys.Rev.,75,1969</subfield>
+      <subfield code="y">1949</subfield>
+   </datafield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">1</subfield>
+      <subfield code="h">O. Hazel, J. H. D. Jensen, and H. E. Suess</subfield>
+      <subfield code="s">Phys.Rev.,75,1766</subfield>
+      <subfield code="y">1949</subfield>
+   </datafield>
+</record>""")
+
+    def test_invalid_publisher(self):
+        """test_invalid_publisher
+
+        This needs to not consider the lbl in Hoelbling as a publisher"""
+        ref_line = u"[35] G. I. Egri, Z. Fodor, C. Hoelbling, S. D. Katz, D. Nógrádi, et. al., Lattice QCD as a video game, Comput.Phys.Commun. 177 (2007) 631–639, [hep-lat/0611022]."
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">35</subfield>
+      <subfield code="h">G. I. Egri, Z. Fodor, C. Hoelbling, S. D. Katz, D. N\xf3gr\xe1di, et al.</subfield>
+      <subfield code="r">hep-lat/0611022</subfield>
+   </datafield>
+</record>""")
+
+    def test_valid_publisher(self):
+        """test_invalid_publisher
+
+        This needs to not consider the lbl in Hoelbling as a publisher"""
+        ref_line = u"[35] [LBL]"
+        reference_test(self, ref_line, u"""<record>
+   <controlfield tag="001">1</controlfield>
+   <datafield tag="999" ind1="C" ind2="5">
+      <subfield code="o">35</subfield>
+      <subfield code="p">LBL</subfield>
+   </datafield>
+</record>""")
 
 class TaskTest(unittest.TestCase):
     def setUp(self):

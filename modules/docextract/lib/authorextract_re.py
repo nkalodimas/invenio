@@ -404,7 +404,7 @@ def make_collaborations_regex_str():
                """to read from KB %(kb)s.\n""" \
                % {'kb' : fpath}
         write_message(emsg, sys.stderr, verbose=0)
-        raise IOError("Error: Unable to open author kb '%s'" % fpath)
+        raise IOError("Error: Unable to open collaborations kb '%s'" % fpath)
 
     for line_num, rawline in enumerate(fh):
         try:
@@ -412,7 +412,7 @@ def make_collaborations_regex_str():
         except UnicodeError:
             write_message("*** Unicode problems in %s for line %d" \
                              % (fpath, line_num), sys.stderr, verbose=0)
-            raise UnicodeError("Error: Unable to parse author kb (line: %s)" % str(line_num))
+            raise UnicodeError("Error: Unable to parse collaboration kb (line: %s)" % str(line_num))
         if rawline.strip() and rawline[0].strip() != '#':
             add_to_auth_list(rawline)
             ## Shorten collaboration to 'coll'
@@ -430,7 +430,7 @@ def make_collaborations_regex_str():
 
 ## Create the regular expression used to find user-specified 'extra' authors
 ## (letter case is not concidered when matching)
-re_collaborations = re.compile(make_collaborations_regex_str(), re.IGNORECASE)
+re_collaborations = re.compile(make_collaborations_regex_str(), re.I|re.U)
 
 
 def get_single_author_pattern():

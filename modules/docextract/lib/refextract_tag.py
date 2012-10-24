@@ -64,7 +64,9 @@ from invenio.refextract_re import \
     re_pos_year_num, \
     re_series_from_numeration_after_volume, \
     RE_OLD_ARXIV, \
-    RE_ARXIV_CATCHUP
+    RE_ARXIV_CATCHUP, \
+    RE_ATLAS_CONF_PRE_2010, \
+    RE_ATLAS_CONF_POST_2010
 
 from invenio.authorextract_re import re_auth, \
                                      re_collaborations, \
@@ -101,7 +103,12 @@ def tag_reference_line(line, kbs, record_titles_count):
     working_line1 = tag_arxiv(working_line1)
     working_line1 = tag_arxiv_more(working_line1)
     # Identify volume for POS journal
+    # needs special handling because the volume contains the year
     working_line1 = tag_pos_volume(working_line1)
+    # Identify ATL-CONF and ATLAS-CONF report numbers
+    # needs special handling because it has 2 formats depending on the year
+    # and a 2 years digit format to convert
+    working_line1 = tag_atlas_conf(working_line1)
 
     # Identify journals with regular expression
     # Some journals need to match exact regexps because they can
@@ -418,6 +425,14 @@ def tag_pos_volume(line):
     return line
 
 
+def tag_atlas_conf(line):
+    line = RE_ATLAS_CONF_PRE_2010.sub(
+        ur'<cds.REPORTNUMBER>ATL-CONF-\g<code></cds.REPORTNUMBER>', line)
+    line = RE_ATLAS_CONF_POST_2010.sub(
+        ur'<cds.REPORTNUMBER>ATLAS-CONF-\g<code></cds.REPORTNUMBER>', line)
+    return line
+
+
 def identifiy_journals_re(line, kb_journals):
     matches = {}
     for pattern, journal in kb_journals:
@@ -698,7 +713,7 @@ def add_tagged_publisher(reading_line,
     rebuilt_line = reading_line[startpos:true_replacement_index]
     # This is a normal title, not an IBID
     rebuilt_line += "<cds.PUBLISHER>%(title)s</cds.PUBLISHER>" \
-                    % {'title' : kb_publishers[matched_publisher]}
+                    % {'title' : kb_publishers[matched_publisher]['repl']}
     # Compute new start pos
     startpos = true_replacement_index + len(matched_publisher) + extras
 
@@ -1246,10 +1261,10 @@ def identify_publishers(line, kb_publishers):
     matches_repl = {}  # standardised report numbers matched
                        # at given locations in line
 
-    for abbrev in kb_publishers.keys():
-        for match in find_all(line, abbrev):
+    for abbrev, info in kb_publishers.iteritems():
+        for match in info['pattern'].finditer(line):
             # record the matched non-standard version of the publisher:
-            matches_repl[match] = abbrev
+            matches_repl[match.start(0)] = abbrev
 
     return matches_repl
 

@@ -535,7 +535,8 @@ def build_publishers_kb(fpath):
         publishers = {}
         for line in source:
             try:
-                publishers[line[0]] = line[1]
+                pattern = re.compile(ur'(\b|^)%s(\b|$)' % line[0], re.I|re.U)
+                publishers[line[0]] = {'pattern': pattern, 'repl': line[1]}
             except IndexError:
                 write_message('Invalid line in books kb %s' % line, verbose=1)
     finally:

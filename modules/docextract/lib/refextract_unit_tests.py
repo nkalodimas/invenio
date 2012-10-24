@@ -256,19 +256,19 @@ class RebuildReferencesTest(unittest.TestCase):
             u"[2] foo",
         ])
 
-    def test_pagination_removal(self):
-        marker_pattern = ur"^\s*(?P<mark>\[\s*(?P<marknum>\d+)\s*\])"
-        refs = [
-            u"[1] hello",
-            u"hello2",
-            u"[42]",
-            u"[2] foo",
-        ]
-        rebuilt_refs = rebuild_reference_lines(refs, marker_pattern)
-        self.assertEqual(rebuilt_refs, [
-            u"[1] hello hello2",
-            u"[2] foo",
-        ])
+    # def test_pagination_removal(self):
+    #     marker_pattern = ur"^\s*(?P<mark>\[\s*(?P<marknum>\d+)\s*\])"
+    #     refs = [
+    #         u"[1] hello",
+    #         u"hello2",
+    #         u"[42]",
+    #         u"[2] foo",
+    #     ]
+    #     rebuilt_refs = rebuild_reference_lines(refs, marker_pattern)
+    #     self.assertEqual(rebuilt_refs, [
+    #         u"[1] hello hello2",
+    #         u"[2] foo",
+    #     ])
 
     def test_pagination_non_removal(self):
         marker_pattern = ur"^\s*(?P<mark>\[\s*(?P<marknum>\d+)\s*\])"

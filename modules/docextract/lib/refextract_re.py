@@ -69,6 +69,13 @@ RE_ARXIV_CATCHUP = re.compile(ur"""
     [\s.-]*(?P<num>\d{3})
     \s*\[(?P<suffix>[A-Z.-]+)\]""", re.VERBOSE | re.UNICODE | re.IGNORECASE)
 
+# Patterns for ATLAS CONF report numbers
+RE_ATLAS_CONF_PRE_2010 = re.compile(
+              ur'(?<!\w:)ATL(AS)?-CONF-(?P<code>(?:200\d|99)-\d{3})(?![\w\d])')
+RE_ATLAS_CONF_POST_2010 = re.compile(
+              ur'(?<!\w:)ATL(AS)?-CONF-(?P<code>20[1-9]\d-\d{3})(?![\w\d])')
+
+
 # Pattern for old arxiv numbers
 old_arxiv_numbers = ur"[\|/:\s-]?(?P<num>(?:9[1-9]|0[0-7])(?:0[1-9]|1[0-2])\d{3})(?:v\d{1,3})?(?=[^\w\d]|$)"
 

@@ -50,7 +50,7 @@ from invenio.refextract_tag import tag_reference_line, \
                                    find_numeration, \
                                    extract_series_from_volume
 from invenio.refextract_xml import create_xml_record, \
-                                   build_xml_citations
+                                   build_xml_references
 from invenio.docextract_pdf import convert_PDF_to_plaintext
 from invenio.docextract_utils import write_message
 from invenio.refextract_kbs import get_kbs
@@ -333,11 +333,7 @@ def split_citations(citation_elements):
         splitted_citations.append(new_elements[:])
         del new_elements[:]
 
-    to_merge = None
     for el in citation_elements:
-        if to_merge:
-            el['misc_txt'] = to_merge + " " + el.get('misc_txt', '')
-            to_merge = None
 
         try:
             el_recid = el['recid']
@@ -352,24 +348,25 @@ def split_citations(citation_elements):
             # Some authors may be found in the previous citation
             balance_authors(splitted_citations, new_elements)
         elif ';' in el['misc_txt']:
-            el['misc_txt'], to_merge = el['misc_txt'].split(';', 1)
-            start_new_citation()
-            while ';' in to_merge:
-                misc_txt, to_merge = to_merge.split(';', 1)
+            misc_txt, el['misc_txt'] = el['misc_txt'].split(';', 1)
+            if misc_txt:
                 new_elements.append({'type': 'MISC',
                                      'misc_txt': misc_txt,
                                     })
-                start_new_citation()
+            start_new_citation()
+            while ';' in el['misc_txt']:
+                misc_txt, el['misc_txt'] = el['misc_txt'].split(';', 1)
+                if misc_txt:
+                    new_elements.append({'type': 'MISC',
+                                         'misc_txt': misc_txt,
+                                        })
+                    start_new_citation()
 
         if el_recid:
             current_recid = el_recid
 
         check_ibid(new_elements, el)
         new_elements.append(el)
-
-    if to_merge:
-        new_elements[-1]['misc_txt'] += " " + to_merge
-        new_elements[-1]['misc_txt'] = new_elements[-1]['misc_txt'].strip()
 
     splitted_citations.append(new_elements)
 
@@ -523,7 +520,7 @@ def remove_duplicated_authors(splitted_citations):
             if el['type'] == 'AUTH':
                 if found_author:
                     el['type'] = 'MISC'
-                    el['misc_txt'] = el['auth_txt'] + el['misc_txt']
+                    el['misc_txt'] = el['misc_txt'] + " " + el['auth_txt']
                 else:
                     found_author = True
 
@@ -602,7 +599,7 @@ def parse_reference_line(ref_line, kbs, bad_titles_count={}):
     # Remove references with only misc text
     # splitted_citations = remove_invalid_references(splitted_citations)
     # Merge references with only misc text
-    splitted_citations = merge_invalid_references(splitted_citations)
+    # splitted_citations = merge_invalid_references(splitted_citations)
     # Find year
     add_year_elements(splitted_citations)
     # Remove duplicate authors
@@ -1175,29 +1172,6 @@ def get_plaintext_document_body(fpath, keep_layout=False):
         # filepath not OK
         status = 1
     return (textbody, status)
-
-
-def build_xml_references(citations):
-    """Build marc xml from a references list
-
-    Transform the reference elements into marc xml
-    """
-    xml_references = []
-
-    for c in citations:
-        # Now, run the method which will take as input:
-        # 1. A list of lists of dictionaries, where each dictionary is a piece
-        # of citation information corresponding to a tag in the citation.
-        # 2. The line marker for this entire citation line (mulitple citation
-        # 'finds' inside a single citation will use the same marker value)
-        # The resulting xml line will be a properly marked up form of the
-        # citation. It will take into account authors to try and split up
-        # references which should be read as two SEPARATE ones.
-        xml_lines = build_xml_citations(c['elements'],
-                                        c['line_marker'])
-        xml_references.extend(xml_lines)
-
-    return xml_references
 
 
 def parse_references(reference_lines, recid=1, kbs_files=None):

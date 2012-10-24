@@ -258,10 +258,10 @@ def search_from_reference(text):
             if el['type'] == 'JOURNAL':
                 field = 'journal'
                 pattern = CFG_JOURNAL_PUBINFO_STANDARD_FORM \
-                    .replace('773__p', el['title']) \
-                    .replace('773__v', el['volume']) \
-                    .replace('773__c', el['page']) \
-                    .replace('773__y', el['year'])
+                    .replace(CFG_JOURNAL_TAG.replace('%', 'p'), el['title']) \
+                    .replace(CFG_JOURNAL_TAG.replace('%', 'v'), el['volume']) \
+                    .replace(CFG_JOURNAL_TAG.replace('%', 'c'), el['page']) \
+                    .replace(CFG_JOURNAL_TAG.replace('%', 'y'), el['year'])
                 break
             elif el['type'] == 'REPORTNUMBER':
                 field = 'report'
