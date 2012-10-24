@@ -65,6 +65,7 @@ from invenio.errorlib import register_exception
 from invenio.htmlutils import get_links_in_html_page
 from invenio.textutils import remove_control_characters
 from invenio.search_engine_utils import get_fieldvalues
+from invenio.bibrankadminlib import get_def_name
 
 SOLR_AVAILABLE = False
 
@@ -697,6 +698,7 @@ class WordTable:
         self.index_name = index_name
         self.index_id = index_id
         self.tablename = table_name_pattern % index_id
+        self.propername = get_def_name('%s' % (str(index_id),), "idxINDEX")[0][1]
         self.recIDs_in_mem = []
         self.fields_to_index = fields_to_index
         self.value = {}
@@ -739,7 +741,7 @@ class WordTable:
         write_message("%s %s wordtable flush started" % (self.tablename, mode))
         write_message('...updating %d words into %s started' % \
                 (len(self.value), self.tablename))
-        task_update_progress("%s flushed %d/%d words" % (self.tablename, 0, len(self.value)))
+        task_update_progress("(idx:%s) flushed %d/%d words" % (self.propername, 0, len(self.value)))
 
         self.recIDs_in_mem = beautify_range_list(self.recIDs_in_mem)
 
@@ -759,7 +761,11 @@ class WordTable:
             if nb_words_report != 0 and ((nb_words_done % nb_words_report) == 0):
                 write_message('......processed %d/%d words' % (nb_words_done, nb_words_total))
                 percentage_remaining = 100.0 * float(nb_words_done) / float(nb_words_total)
-                task_update_progress("%s flushed %d/%d words (%.1f%%)" % (self.tablename, nb_words_done, nb_words_total, percentage_remaining))
+                if percentage_remaining:
+                    percentage_display = "(%.1f%%)" % (percentage_remaining,)
+                else:
+                    percentage_display = ""
+                task_update_progress("(idx:%s) flushed %d/%d words %s" % (self.propername, nb_words_done, nb_words_total, percentage_display))
         write_message('...updating %d words into %s ended' % \
                       (nb_words_total, self.tablename))
 
@@ -793,7 +799,7 @@ class WordTable:
         self.clean()
         self.recIDs_in_mem = []
         write_message("%s %s wordtable flush ended" % (self.tablename, mode))
-        task_update_progress("%s flush ended" % (self.tablename))
+        task_update_progress("(idx:%s) flush ended" % (self.propername))
 
     def load_old_recIDs(self, word):
         """Load existing hitlist for the word from the database index files."""
@@ -914,7 +920,11 @@ class WordTable:
                 if CFG_CHECK_MYSQL_THREADS:
                     kill_sleepy_mysql_threads()
                 percentage_remaining = 100.0 * float(records_done) / float(records_to_go)
-                task_update_progress("%s adding recs %d-%d (%.1f%%)" % (self.tablename, i_low, i_high, percentage_remaining))
+                if percentage_remaining:
+                    percentage_display = "(%.1f%%)" % (percentage_remaining,)
+                else:
+                    percentage_display = ""
+                task_update_progress("(idx:%s) adding recs %d-%d %s" % (self.propername, i_low, i_high, percentage_display))
                 self.del_recID_range(i_low, i_high)
                 just_processed = self.add_recID_range(i_low, i_high)
                 flush_count = flush_count + i_high - i_low + 1
