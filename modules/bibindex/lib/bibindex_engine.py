@@ -758,7 +758,8 @@ class WordTable:
             nb_words_done += 1
             if nb_words_report != 0 and ((nb_words_done % nb_words_report) == 0):
                 write_message('......processed %d/%d words' % (nb_words_done, nb_words_total))
-                task_update_progress("%s flushed %d/%d words" % (self.tablename, nb_words_done, nb_words_total))
+                percentage_remaining = 100.0 * float(nb_words_done) / float(nb_words_total)
+                task_update_progress("%s flushed %d/%d words (%.1f%%)" % (self.tablename, nb_words_done, nb_words_total, percentage_remaining))
         write_message('...updating %d words into %s ended' % \
                       (nb_words_total, self.tablename))
 
@@ -912,7 +913,8 @@ class WordTable:
                         (self.tablename, i_low, i_high))
                 if CFG_CHECK_MYSQL_THREADS:
                     kill_sleepy_mysql_threads()
-                task_update_progress("%s adding recs %d-%d" % (self.tablename, i_low, i_high))
+                percentage_remaining = 100.0 * float(records_done) / float(records_to_go)
+                task_update_progress("%s adding recs %d-%d (%.1f%%)" % (self.tablename, i_low, i_high, percentage_remaining))
                 self.del_recID_range(i_low, i_high)
                 just_processed = self.add_recID_range(i_low, i_high)
                 flush_count = flush_count + i_high - i_low + 1
