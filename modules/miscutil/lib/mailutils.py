@@ -65,18 +65,21 @@ from invenio.textutils import guess_minimum_encoding
 from invenio.errorlib import register_exception
 from invenio.miscutil_config import InvenioMiscUtilError
 
+
 def scheduled_send_email(fromaddr,
-               toaddr,
-               subject="",
-               content="",
-               header=None,
-               footer=None,
-               copy_to_admin=0,
-               attempt_times=1,
-               attempt_sleeptime=10,
-               user=None,
-               other_bibtasklet_arguments=None,
-               replytoaddr=""):
+                         toaddr,
+                         subject="",
+                         content="",
+                         header=None,
+                         footer=None,
+                         copy_to_admin=0,
+                         attempt_times=1,
+                         attempt_sleeptime=10,
+                         user=None,
+                         other_bibtasklet_arguments=None,
+                         replytoaddr="",
+                         bccaddr="",
+                        ):
     """
     Like send_email, but send an email via the bibsched
     infrastructure.
@@ -98,6 +101,8 @@ def scheduled_send_email(fromaddr,
     @param replytoaddr: [string or list-of-strings] to be used for the
                         reply-to header of the email (if string, then
                         receivers are separated by ',')
+    @param bccaddr: [string or list-of-strings] to be used for BCC header of the email
+                    (if string, then receivers are separated by ',')
     @return: the scheduled bibtasklet
     """
     from invenio.bibtask import task_low_level_submission
@@ -125,7 +130,9 @@ def scheduled_send_email(fromaddr,
         "-a", "copy_to_admin=%s" % copy_to_admin,
         "-a", "attempt_times=%s" % attempt_times,
         "-a", "attempt_sleeptime=%s" % attempt_sleeptime,
+        "-a", "bccaddr=%s" % bccaddr,
         *other_bibtasklet_arguments)
+
 
 def send_email(fromaddr,
                toaddr,
@@ -144,12 +151,14 @@ def send_email(fromaddr,
                ln=CFG_SITE_LANG,
                charset=None,
                replytoaddr="",
+               bccaddr="",
                ):
     """Send a forged email to TOADDR from FROMADDR with message created from subjet, content and possibly
     header and footer.
     @param fromaddr: [string] sender
     @param toaddr: [string or list-of-strings] list of receivers (if string, then
-                   receivers are separated by ',')
+                   receivers are separated by ','). BEWARE: If more than once receiptiant is given,
+                   the receivers are put in BCC and To will be "Undisclosed.Recipients:".
     @param subject: [string] subject of the email
     @param content: [string] content of the email
     @param html_content: [string] html version of the email
@@ -168,6 +177,8 @@ def send_email(fromaddr,
     @param replytoaddr: [string or list-of-strings] to be used for the
                         reply-to header of the email (if string, then
                         receivers are separated by ',')
+    @param bccaddr: [string or list-of-strings] to be used for BCC header of the email
+                    (if string, then receivers are separated by ',')
 
     If sending fails, try to send it ATTEMPT_TIMES, and wait for
     ATTEMPT_SLEEPTIME seconds in between tries.
@@ -183,11 +194,14 @@ def send_email(fromaddr,
 
     if type(toaddr) is str:
         toaddr = toaddr.strip().split(',')
+    if type(bccaddr) is str:
+        bccaddr = bccaddr.strip().split(',')
     usebcc = len(toaddr) > 1  # More than one address, let's use Bcc in place of To
+
     if copy_to_admin:
         if CFG_SITE_ADMIN_EMAIL not in toaddr:
             toaddr.append(CFG_SITE_ADMIN_EMAIL)
-    if CFG_DEVEL_SITE: #if we are on a development site, we don't want to send external e-mails
+    if CFG_DEVEL_SITE:  # if we are on a development site, we don't want to send external e-mails
         content = """
 --------------------------------------------------------------
 This message would have been sent to the following recipients:
@@ -198,7 +212,7 @@ This message would have been sent to the following recipients:
         usebcc = False
     body = forge_email(fromaddr, toaddr, subject, content, html_content,
                        html_images, usebcc, header, footer, html_header,
-                       html_footer, ln, charset, replytoaddr)
+                       html_footer, ln, charset, replytoaddr, bccaddr)
 
     _ = gettext_set_language(CFG_SITE_LANG)
 
@@ -217,13 +231,14 @@ This message would have been sent to the following recipients:
                 server.set_debuglevel(1)
             else:
                 server.set_debuglevel(0)
+
             if CFG_MISCUTIL_SMTP_TLS:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
             if CFG_MISCUTIL_SMTP_USER and CFG_MISCUTIL_SMTP_PASS:
                 server.login(CFG_MISCUTIL_SMTP_USER, CFG_MISCUTIL_SMTP_PASS)
-            server.sendmail(fromaddr, toaddr, body)
+            server.sendmail(fromaddr, toaddr + bccaddr, body)
             server.quit()
             sent = True
         except (smtplib.SMTPException, socket.error):
@@ -237,7 +252,7 @@ This message would have been sent to the following recipients:
 #                    sys.exc_info()[0], fromaddr, toaddr, body)
         if not sent:
             attempt_times -= 1
-            if attempt_times > 0: # sleep only if we shall retry again
+            if attempt_times > 0:  # sleep only if we shall retry again
                 sleep(attempt_sleeptime)
     if not sent:
         try:
@@ -246,6 +261,7 @@ This message would have been sent to the following recipients:
             register_exception()
 #        log('ERR_MISCUTIL_SENDING_EMAIL', fromaddr, toaddr, body)
     return sent
+
 
 def email_header(ln=CFG_SITE_LANG):
     """The header of the email
@@ -259,6 +275,7 @@ def email_header(ln=CFG_SITE_LANG):
             'hello':  _("Hello:")
             }
     return out
+
 
 def email_html_header(ln=CFG_SITE_LANG):
     """The header of the email
@@ -294,6 +311,7 @@ def email_footer(ln=CFG_SITE_LANG):
             }
     return out
 
+
 def email_html_footer(ln=CFG_SITE_LANG):
     """The html footer of the email
     @param ln: language
@@ -318,7 +336,7 @@ def email_html_footer(ln=CFG_SITE_LANG):
 def forge_email(fromaddr, toaddr, subject, content, html_content='',
                 html_images=None, usebcc=False, header=None, footer=None,
                 html_header=None, html_footer=None, ln=CFG_SITE_LANG,
-                charset=None, replytoaddr=""):
+                charset=None, replytoaddr="", bccaddr=""):
     """Prepare email. Add header and footer if needed.
     @param fromaddr: [string] sender
     @param toaddr: [string or list-of-strings] list of receivers (if string, then
@@ -336,6 +354,8 @@ def forge_email(fromaddr, toaddr, subject, content, html_content='',
     @param replytoaddr: [string or list-of-strings] to be used for the
                         reply-to header of the email (if string, then
                         receivers are separated by ',')
+    @param bccaddr: [string or list-of-strings] to be used for BCC header of the email
+                    (if string, then receivers are separated by ',')
     @return: forged email as a string"""
 
     if html_images is None:
@@ -355,29 +375,11 @@ def forge_email(fromaddr, toaddr, subject, content, html_content='',
     else:
         content_charset = charset
 
-    try:
-        subject = subject.encode('ascii')
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        subject = Header(subject, 'utf-8')
-
-    try:
-        fromaddr = fromaddr.encode('ascii')
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        fromaddr = Header(fromaddr, 'utf-8')
-
-    if type(toaddr) is not str:
-        toaddr = ','.join(toaddr)
-    try:
-        toaddr = toaddr.encode('ascii')
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        toaddr = Header(toaddr, 'utf-8')
-
-    if type(replytoaddr) is not str:
-        replytoaddr = ','.join(replytoaddr)
-    try:
-        replytoaddr = replytoaddr.encode('ascii')
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        replytoaddr = Header(replytoaddr, 'utf-8')
+    subject = get_mail_header(subject)
+    fromaddr = get_mail_header(fromaddr)
+    toaddr = get_mail_header(toaddr)
+    replytoaddr = get_mail_header(replytoaddr)
+    bccaddr = get_mail_header(bccaddr)
 
     if html_content:
         if html_header is None:
@@ -395,15 +397,6 @@ def forge_email(fromaddr, toaddr, subject, content, html_content='',
             html_content_charset = charset
 
         msg_root = MIMEMultipart('alternative')
-        msg_root['Subject'] = subject
-        msg_root['From'] = fromaddr
-        if replytoaddr:
-            msg_root['Reply-To'] = replytoaddr
-        if usebcc:
-            msg_root['Bcc'] = toaddr
-            msg_root['To'] = 'Undisclosed.Recipients:'
-        else:
-            msg_root['To'] = toaddr
         msg_root.preamble = 'This is a multi-part message in MIME format.'
 
         msg_text = MIMEText(content, _charset=content_charset)
@@ -426,21 +419,26 @@ def forge_email(fromaddr, toaddr, subject, content, html_content='',
             msg_root.attach(msg_related)
     else:
         msg_root = MIMEText(content, _charset=content_charset)
-        msg_root['From'] = fromaddr
-        if replytoaddr:
-            msg_root['Reply-To'] = replytoaddr
-        if usebcc:
-            msg_root['Bcc'] = toaddr
-            msg_root['To'] = 'Undisclosed.Recipients:'
-        else:
-            msg_root['To'] = toaddr
-        msg_root['Subject'] = subject
+    msg_root['From'] = fromaddr
+    if replytoaddr:
+        msg_root['Reply-To'] = replytoaddr
+    if usebcc:
+        msg_root['Bcc'] = toaddr
+        msg_root['To'] = 'Undisclosed.Recipients:'
+        if bccaddr:
+            msg_root['Bcc'] += ",%s" % (bccaddr,)
+    else:
+        msg_root['To'] = toaddr
+        if bccaddr:
+            msg_root['Bcc'] = bccaddr
+    msg_root['Subject'] = subject
     msg_root['User-Agent'] = 'Invenio %s at %s' % (CFG_VERSION, CFG_SITE_URL)
     return msg_root.as_string()
 
 RE_NEWLINES = re.compile(r'<br\s*/?>|</p>', re.I)
 RE_SPACES = re.compile(r'\s+')
 RE_HTML_TAGS = re.compile(r'<.+?>')
+
 
 def email_strip_html(html_content):
     """Strip html tags from html_content, trying to respect formatting."""
@@ -454,3 +452,17 @@ def email_strip_html(html_content):
         out_format.add_flowing_data(row)
         out_format.end_paragraph(1)
     return out.getvalue()
+
+
+def get_mail_header(value):
+    """
+    Return a MIME-compliant header-string. Will join lists of strings
+    into one string with comma (,) as separator.
+    """
+    if type(value) is not str:
+        value = ','.join(value)
+    try:
+        value = value.encode('ascii')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        value = Header(value, 'utf-8')
+    return value
