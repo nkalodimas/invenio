@@ -171,10 +171,8 @@ def get_cited_by_list(recordlist):
        records in recordlist.
     """
     cache_cited_by_dictionary = get_citation_dict("citationdict")
-    result = []
-    for recid in recordlist:
-        result.append([recid, cache_cited_by_dictionary.get(recid, [])])
-    return result
+    return [(recid, cache_cited_by_dictionary.get(recid, [])) \
+                                                       for recid in recordlist]
 
 def get_refersto_hitset(ahitset):
     """
