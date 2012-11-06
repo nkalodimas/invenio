@@ -36,7 +36,7 @@ from invenio.webpage import adderrorbox
 
 from invenio.bibindex_engine_stemmer import stem
 from invenio.bibindex_engine_stopwords import is_stopword
-from invenio.bibrank_citation_searcher import get_cited_by, get_cited_by_weight
+from invenio.bibrank_citation_searcher import get_cited_by, get_cited_by_count
 from invenio.intbitset import intbitset
 
 
@@ -360,9 +360,9 @@ def find_citations(rank_method_code, recID, hitset, verbose):
     ret = []
     if recisint:
         myrecords = get_cited_by(recidint) #this is a simple list
-        ret = get_cited_by_weight(myrecords)
+        ret = get_cited_by_count(myrecords)
     else:
-        ret = get_cited_by_weight(hitset)
+        ret = get_cited_by_count(hitset)
     ret.sort(lambda x,y:cmp(x[1],y[1]))      #ascending by the second member of the tuples
 
     if verbose > 0:
