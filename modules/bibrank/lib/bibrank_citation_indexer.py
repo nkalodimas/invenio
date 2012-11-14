@@ -63,18 +63,14 @@ def move_dict_to_table():
 
 def update_weights():
     from invenio.bibrank_tag_based_indexer import intoDB
+    intoDB(compute_weights(), None, 'citation')
+
+
+def compute_weights():
     sql = "SELECT citee, COUNT(citer) FROM rnkCITATIONDICT GROUP BY citee"
     weights = {}
     for citee, c in run_sql(sql):
         weights[citee] = c
-    intoDB(weights, datetime.now().isoformat(), 'citation')
-
-
-def compute_weights(cites):
-    weights = {}
-    for recid, rec_cites in cites.iteritems():
-        if len(rec_cites):
-            weights[recid] = len(rec_cites)
     return weights
 
 
@@ -83,7 +79,7 @@ def get_recids_matching_query(p, f, m='e'):
     return search_pattern(p=p, f=f, m=m) - INTBITSET_OF_DELETED_RECORDS
 
 
-def get_citation_weight(rank_method_code, config, chunk_size=1000):
+def get_citation_weight(rank_method_code, config, chunk_size=9000):
     """return a dictionary which is used by bibrank daemon for generating
     the index of sorted research results by citation information
     """
@@ -162,7 +158,7 @@ def process_and_store(recids, config, chunk_size):
 
     # Compute new weights dictionary
     if modified:
-        weights = compute_weights(cites)
+        weights = compute_weights()
     else:
         weights = None
 
