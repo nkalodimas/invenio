@@ -128,7 +128,7 @@ from invenio.bibrank_citation_searcher import calculate_cited_by_list, \
 from invenio.bibrank_citation_grapher import create_citation_history_graph_and_box
 
 
-from invenio.dbquery import run_sql,
+from invenio.dbquery import run_sql, \
                             run_sql_with_limit, \
                             wash_table_column_name, \
                             get_table_update_time

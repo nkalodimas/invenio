@@ -181,10 +181,12 @@ def get_cited_by_list(recids):
     """Return a tuple of ([recid,list_of_citing_records],...) for all the
        records in recordlist.
     """
+    if not recids:
+        return []
+
     in_sql = ','.join('%s' for dummy in recids)
     rows = run_sql("""SELECT citer, citee FROM rnkCITATIONDICT
                        WHERE citee IN (%s)""" % in_sql, recids)
-    return set(r[0] for r in rows)
 
     cites = {}
     for citer, citee in rows:
