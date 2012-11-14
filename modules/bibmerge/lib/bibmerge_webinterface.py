@@ -65,9 +65,11 @@ class WebInterfaceMergePages(WebInterfaceDirectory):
             ajax_request = True
             json_response = {}
             if json_data.has_key('recID1'):
-                recid1 = json_data['recID1']
+                recid1 = int(json_data['recID1'])
+                json_data['recID1'] = recid1
             if json_data.has_key('recID2'):
-                recid2 = json_data['recID2']
+                recid2 = int(json_data['recID2'])
+                json_data['recID2'] = recid2
 
         # Authorization.
         user_info = collect_user_info(req)
