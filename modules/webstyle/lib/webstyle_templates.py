@@ -33,6 +33,7 @@ from invenio.config import \
      CFG_SITE_NAME_INTL, \
      CFG_SITE_SUPPORT_EMAIL, \
      CFG_SITE_SECURE_URL, \
+     CFG_BASE_URL, \
      CFG_SITE_URL, \
      CFG_VERSION, \
      CFG_WEBSTYLE_INSPECT_TEMPLATES, \
@@ -333,13 +334,17 @@ template function generated it.
         else:
             pageheadertitle = headertitle + ' - ' + sitename
 
-
+        metabase = ""
+        stripped_url = CFG_SITE_URL.replace("://", "")
+        if not CFG_BASE_URL and '/' in stripped_url:
+            metabase = "<base href='%s'>" % (CFG_SITE_URL,)
         out = """\
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="%(ln_iso_639_a)s" xml:lang="%(ln_iso_639_a)s" xmlns:og="http://opengraphprotocol.org/schema/" >
 <head>
  <title>%(pageheadertitle)s</title>
+ %(metabase)s
  <link rev="made" href="mailto:%(sitesupportemail)s" />
  <link rel="stylesheet" href="%(cssurl)s/img/invenio%(cssskin)s.css" type="text/css" />
  <!--[if lt IE 8]>
@@ -421,8 +426,9 @@ template function generated it.
 %(pageheaderadd)s
 </div>
         """ % {
+          'metabase': metabase,
           'rtl_direction': is_language_rtl(ln) and ' dir="rtl"' or '',
-          'siteurl' : CFG_BASE_URL,
+          'siteurl': CFG_BASE_URL,
           'sitesecureurl' : CFG_SITE_SECURE_URL,
           'cssurl' : CFG_BASE_URL,
           'cssskin' : CFG_WEBSTYLE_TEMPLATE_SKIN != 'default' and '_' + CFG_WEBSTYLE_TEMPLATE_SKIN or '',

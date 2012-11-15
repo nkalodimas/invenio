@@ -65,7 +65,8 @@ from invenio.config import \
      CFG_WEBSEARCH_PREV_NEXT_HIT_LIMIT, \
      CFG_HEPDATA_URL, \
      CFG_HEPDATA_PLOTSIZE, \
-     CFG_BASE_URL
+     CFG_BASE_URL, \
+     CFG_SITE_URL
 
 from invenio.dbquery import run_sql
 from invenio.messages import gettext_set_language
@@ -3462,7 +3463,7 @@ class Template:
           <link>%(siteurl)s/search</link>
         </textInput>
         """ % {'sitename': CFG_SITE_NAME,
-               'siteurl': CFG_BASE_URL,
+               'siteurl': CFG_SITE_URL,
                'sitelang': CFG_SITE_LANG,
                'search_syntax': self.tmpl_opensearch_rss_url_syntax,
                'timestamp': time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()),
@@ -3531,7 +3532,7 @@ class Template:
         <itunes:email>%(siteadminemail)s</itunes:email>
         </itunes:owner>
         """ % {'sitename': CFG_SITE_NAME,
-               'siteurl': CFG_BASE_URL,
+               'siteurl': CFG_SITE_URL,
                'sitelang': CFG_SITE_LANG,
                'siteadminemail': CFG_SITE_ADMIN_EMAIL,
                'timestamp': time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()),
