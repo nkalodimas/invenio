@@ -1570,7 +1570,7 @@ def get_custom_summary_data(query, tag):
     recids = perform_request_search(p=query, of="id")
 
     # Then return list by tag
-    pub = list(get_most_popular_field_values(recids, tag))
+    pub = get_most_popular_field_values(recids, tag)
 
     if len(pub) == 0:
         return []

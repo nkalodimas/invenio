@@ -497,11 +497,12 @@ def _get_veryfy_my_pubs_list_link_bai(person_id):
 
 def _get_kwtuples_bai(pubs, person_id):
     '''
-    Returns the keyword tuples for given personid.
+    Returns the Returns the list of keyword tuples for given personid.
     @param person_id: int person id
     '''
-    tup = get_most_popular_field_values(pubs,
-                            (CFG_WEBAUTHORPROFILE_KEYWORD_TAG, CFG_WEBAUTHORPROFILE_FKEYWORD_TAG), count_repetitive_values=True)
+    tup = get_most_popular_field_values(pubs, (CFG_WEBAUTHORPROFILE_KEYWORD_TAG,
+                                            CFG_WEBAUTHORPROFILE_FKEYWORD_TAG), count_repetitive_values=True)
+
     return tup
 
 def _get_fieldtuples_bai(pubs, person_id):
@@ -520,7 +521,7 @@ def _get_fieldtuples_bai_tup(pubs, person_id):
 
 def _get_collabtuples_bai(pubs, person_id):
     '''
-    Returns the keyword tuples for given personid.
+    Returns the list of keyword tuples for given personid.
     @param person_id: int person id
     '''
     tup = get_most_popular_field_values(pubs,
@@ -698,7 +699,7 @@ def _get_veryfy_my_pubs_list_link_fallback(person_id):
 
 def _get_kwtuples_fallback(pubs, person_id):
     '''
-    Returns the keyword tuples for given personid.
+    Returns the list of keyword tuples for given personid.
     @param person_id: int person id
     '''
     tup = get_most_popular_field_values(pubs,
@@ -710,7 +711,7 @@ def _get_fieldtuples_fallback(pubs, person_id):
 
 def _get_collabtuples_fallback(pubs, person_id):
     '''
-    Returns the keyword tuples for given personid.
+    Returns the list of keyword tuples for given personid.
     @param person_id: int person id
     '''
     tup = get_most_popular_field_values(pubs,
