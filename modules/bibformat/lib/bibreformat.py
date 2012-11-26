@@ -251,7 +251,7 @@ def without_fmt(queries, chunk_size=2000):
     """
     sql = queries['missing']
     recids = intbitset()
-    max_id = run_sql("SELECT max(id) FROM bibrec")[0][0]
+    max_id = run_sql("SELECT max(id) FROM bibrec")[0][0] or 0
     for start in xrange(1, max_id + 1, chunk_size):
         end = start + chunk_size
         recids += intbitset(run_sql(sql, (start, end)))
