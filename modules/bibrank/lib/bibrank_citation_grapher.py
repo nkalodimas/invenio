@@ -50,10 +50,9 @@ def get_field_values(recID, tag):
 def calculate_citation_history_coordinates(recid):
     """Return a list of citation graph coordinates for RECID, sorted by year."""
     result = []
-    dbg = ""
     initial_result= get_initial_result(calculate_citation_graphe_x_coordinates(recid))
     citlist = calculate_cited_by_list(recid)
-    for rec_id, cit_weight in citlist:
+    for rec_id, _ in citlist:
         cit_year = get_field_values(rec_id,'773__y')
         if not cit_year:
             cit_year = get_field_values(rec_id, '260__c')
@@ -65,7 +64,7 @@ def calculate_citation_history_coordinates(recid):
             #be converted to an int
             numeric=1
             try:
-                tmpval = int(cit_year[0][0:4])
+                int(cit_year[0][0:4])
             except ValueError:
                 numeric=0
             if numeric and initial_result.has_key(int(cit_year[0][0:4])):
@@ -81,7 +80,6 @@ def calculate_citation_history_coordinates(recid):
 def calculate_citation_graphe_x_coordinates(recid):
     """Return a range of year from the publication year of record RECID
        until the current year."""
-    rec_years = []
     recordyear = get_field_values(recid, '773__y')
     if not recordyear:
         recordyear = get_field_values(recid, '260__c')
@@ -113,12 +111,14 @@ def get_initial_result(rec_years):
         result[year] = 0
     return result
 
-def html_command(file):
+def html_command(filename):
+    """return html code for showing citation graph image
+    """
     t = ''
     if CFG_BIBRANK_SHOW_CITATION_GRAPHS == 1:
-        t = """<img src='%s/img/%s' align="center" alt="">""" % (CFG_SITE_URL, file)
+        t = """<img src='%s/img/%s' align="center" alt="">""" % (CFG_SITE_URL, filename)
     elif CFG_BIBRANK_SHOW_CITATION_GRAPHS == 2:
-        t = open(CFG_WEBDIR + "/img/" + file).read()
+        t = open(CFG_WEBDIR + "/img/" + filename).read()
     #t += "</table></td></tr></table>"
     return t
 
