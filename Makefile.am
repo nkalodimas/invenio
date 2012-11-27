@@ -160,6 +160,11 @@ install-jquery-plugins:
 	rm jquery.tablesorter.zip && \
 	rm -rf uploadify && \
 	unzip -u uploadify.zip -d uploadify && \
+	wget http://www.csspace.net/tmp/jquery-lightbox-0.5.zip && \
+	rm -rf jquery-lightbox && \
+	unzip -u jquery-lightbox-0.5.zip -d jquery-lightbox && \
+	sed -i 's/images\//\/js\/jquery-lightbox\/images\//g' jquery-lightbox/js/jquery.lightbox-0.5.js && \
+	rm -rf jquery-lightbox-0.5.zip && \
 	wget http://flot.googlecode.com/files/flot-0.6.zip && \
 	wget -O jquery-ui-timepicker-addon.js http://invenio-software.org/download/jquery/jquery-ui-timepicker-addon-1.0.3.js && \
 	unzip -u flot-0.6.zip && \

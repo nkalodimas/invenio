@@ -611,17 +611,42 @@ def get_person_id_from_canonical_id(canonical_id):
                    "tag='canonical_name' AND data = %s", (canonical_id,))
 
 
+#def get_person_names_count(pid):
+#    '''
+#    Returns the set of name strings and count associated to a person id
+#    @param pid: ID of the person
+#    @type pid: ('2',)
+#    '''
+#    return run_sql("select name, count(name) from aidPERSONIDPAPERS where "
+#                   "personid=%s and flag > -2 group by name", (pid,))
+
+### After testing it seems that on average the above query is slower than the function below ###
+
 def get_person_names_count(pid):
     '''
     Returns the set of name strings and count associated to a person id
     @param pid: ID of the person
     @type pid: ('2',)
-    @param value: value to be written for the tag
-    @type value: string
     '''
-    return run_sql("select name, count(name) from aidPERSONIDPAPERS where "
-                   "personid=%s and flag > -2 group by name", (pid,))
-
+    res = run_sql("select name from aidPERSONIDPAPERS where "
+                  "personid=%s and flag > -2", (pid,))
+    reslist = [x[0] for x in res]
+    reslist.sort()
+    names_count = []
+    try:
+        current_name = reslist[0]
+        counter = 1
+        for name in reslist[1:]:
+            if current_name == name:
+                counter += 1
+            else:
+                names_count.append((current_name, counter))
+                current_name = name
+                counter = 1
+        names_count.append((current_name, counter))
+    except IndexError:
+            pass
+    return tuple(names_count)
 
 def get_person_db_names_set(pid):
     '''
@@ -643,12 +668,12 @@ def get_personids_from_bibrec(bibrec):
     @type bibrec: int
     '''
 
-    pids = run_sql("select distinct personid from aidPERSONIDPAPERS where bibrec=%s and flag > -2", (bibrec,))
+    pids = run_sql("select personid from aidPERSONIDPAPERS where bibrec=%s and flag > -2", (bibrec,))
 
     if pids:
-        return zip(*pids)[0]
+        return set((x[0] for x in pids))
     else:
-        return []
+        return set()
 
 def get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=None):
     '''

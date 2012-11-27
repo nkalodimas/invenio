@@ -4146,7 +4146,7 @@ CREATE TABLE IF NOT EXISTS webapikey (
 CREATE TABLE IF NOT EXISTS `wapCACHE` (
   `object_name` varchar(120) NOT NULL,
   `object_key` varchar(120) NOT NULL,
-  `object_value` longtext,
+  `object_value` blob,
   `object_status` varchar(120),
   `last_updated` datetime NOT NULL,
   PRIMARY KEY  (`object_name`,`object_key`),

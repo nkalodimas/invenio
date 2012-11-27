@@ -33,6 +33,7 @@ import os
 import inspect
 import urllib
 import urllib2
+from string import strip
 from urllib import urlencode, quote_plus, quote, FancyURLopener
 from urlparse import urlparse
 from cgi import parse_qs, escape
@@ -124,6 +125,7 @@ def redirect_to_url(req, url, redirection_type=None, norobot=False):
         not to index past this point.
     @see: http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3
     """
+    url = strip(url)
     if redirection_type is None:
         redirection_type = apache.HTTP_MOVED_TEMPORARILY
 
