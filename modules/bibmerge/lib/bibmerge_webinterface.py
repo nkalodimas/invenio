@@ -68,10 +68,12 @@ class WebInterfaceMergePages(WebInterfaceDirectory):
                 recid1 = int(json_data['recID1'])
                 json_data['recID1'] = recid1
             if json_data.has_key('recID2'):
-                recid2 = int(json_data['recID2'])
-                json_data['recID2'] = recid2
+                if json_data.get('record2Mode') == "recid":
+                    recid2 = int(json_data['recID2'])
+                    json_data['recID2'] = recid2
             if json_data.has_key("duplicate"):
-                json_data["duplicate"] = int(json_data["duplicate"])
+                if json_data.get('record2Mode') == "recid":
+                    json_data["duplicate"] = int(json_data["duplicate"])
 
         # Authorization.
         user_info = collect_user_info(req)
