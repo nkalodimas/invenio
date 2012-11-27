@@ -16,7 +16,28 @@
 ## You should have received a copy of the GNU General Public License
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+"""BibFormat element - Prints authors
+"""
 
-# pylint: disable=W0611
+from cgi import escape
+from invenio.webauthorprofile_config import serialize
 
-from invenio.webauthorprofile_dbapi import expire_all_cache_for_person as expire_all_cache_for_personid
+
+def format_element(bfo):
+    """
+    Return list of profile data.
+    """
+    data_dict = {}
+    year_fields = map(bfo.fields, ['260__c', '269__c', '773__y', '502__d', '773__y'])
+    recid = bfo.recID
+
+    data_dict['year_fields'] = year_fields
+
+    return serialize([recid, data_dict])
+
+def escape_values(bfo):
+    """
+    Called by BibFormat in order to check if output of this element
+    should be escaped.
+    """
+    return 0
