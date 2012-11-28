@@ -26,7 +26,6 @@ import sys
 import ConfigParser
 from datetime import datetime
 from itertools import islice
-from datetime import datetime
 
 from invenio.dbquery import run_sql, \
                             deserialize_via_marshal
@@ -165,22 +164,20 @@ def process_and_store(recids, config, chunk_size):
     return weights
 
 
-def process_chunk(recids, config, do_catchup=True):
+def process_chunk(recids, config):
     tags = get_tags_config(config)
 
     # call the procedure that does the hard work by reading fields of
     # citations and references in the updated_recid's (but nothing else)!
     write_message("Entering get_citation_informations", verbose=9)
-    citation_informations = get_citation_informations(recids, tags,
-                                                 fetch_catchup_info=do_catchup)
+    citation_informations = get_citation_informations(recids, tags)
 
     write_message("Entering ref_analyzer", verbose=9)
     # call the analyser that uses the citation_informations to really
     # search x-cites-y in the coll..
     return ref_analyzer(citation_informations,
                         recids,
-                        tags,
-                        do_catchup=do_catchup)
+                        tags)
 
 
 def get_bibrankmethod_lastupdate(rank_method_code):
@@ -526,7 +523,7 @@ def standardize_report_number(report_number):
     return report_number
 
 
-def ref_analyzer(citation_informations, updated_recids, tags, do_catchup=True):
+def ref_analyzer(citation_informations, updated_recids, tags):
     """Analyze the citation informations and calculate the citation weight
        and cited by list dictionary.
     """
@@ -553,15 +550,19 @@ def ref_analyzer(citation_informations, updated_recids, tags, do_catchup=True):
         # Workaround till we know why we are adding ourselves.
         if citer == citee:
             return
-        # Citations and citations weight
+
         citations[citee].add(citer)
+        if citer in updated_recids:
+            references[citer].add(citee)
 
     def add_to_refs(citer, citee):
         # Make sure we don't add ourselves
         # Workaround till we know why we are adding ourselves.
         if citer == citee:
             return
-        # References
+
+        if citee in updated_recids:
+            citations[citee].add(citer)
         references[citer].add(citee)
 
     # dict of recid -> institute_give_publ_id

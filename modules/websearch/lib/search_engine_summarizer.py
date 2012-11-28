@@ -64,7 +64,7 @@ CFG_CITESUMMARY_FAME_THRESHOLDS = [
                                    ]
 
 
-def render_citations_breakdown(req, ln, collections, coll_recids, stats,
+def render_citations_breakdown(req, ln, collections, stats,
                                                 search_patterns, searchfield):
     "Render citations break down by fame"
     header = websearch_templates.tmpl_citesummary_breakdown_header(ln)
@@ -180,12 +180,11 @@ def render_citation_summary(req, ln, recids, collections, searchpattern,
     render_citations_breakdown(req,
                                ln,
                                collections,
-                               coll_recids,
                                stats,
                                search_patterns,
                                searchfield)
 
-    render_h_index(req, ln, collections, coll_recids, stats)
+    render_h_index(req, ln, collections, stats)
 
     eplilogue = websearch_templates.tmpl_citesummary_epilogue()
     req.write(eplilogue)
@@ -266,11 +265,10 @@ def render_extended_citation_summary(req, ln, recids, initial_collections,
     render_citations_breakdown(req,
                                ln,
                                collections,
-                               collections_recids,
                                stats,
                                search_patterns,
                                searchfield)
-    render_h_index(req, ln, collections, collections_recids, stats)
+    render_h_index(req, ln, collections, stats)
 
     # 6) hcs epilogue:
     eplilogue = websearch_templates.tmpl_citesummary_epilogue()
@@ -319,7 +317,7 @@ def render_citesummary_prologue(req, ln, recids, collections, search_patterns,
     req.write(prologue)
 
 
-def render_h_index(req, ln, collections, coll_recids, stats):
+def render_h_index(req, ln, collections, stats):
     "Calculate and Render h-hep index"
     h_indexes = {}
     for coll, dummy in collections:

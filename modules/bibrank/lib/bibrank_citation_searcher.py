@@ -51,20 +51,20 @@ class CitationDictsDataCacher(DataCacher):
             from invenio.bibrank_selfcites_indexer import get_all_precomputed_selfcites
             selfcites = {}
             for recid, counts in get_all_precomputed_selfcites():
-                selfcites[recid] = counts
+                selfcites[recid] = weights.get(recid, 0) - counts
             alldicts['selfcites_weights'] = selfcites
-            alldicts['selfcites_counts'] = [(recid, cites - selfcites.get(recid, 0)) for recid, cites in alldicts['citations_counts']]
+            alldicts['selfcites_counts'] = [(recid, selfcites.get(recid, cites)) for recid, cites in alldicts['citations_counts']]
             alldicts['selfcites_counts'].sort(key=itemgetter(1), reverse=True)
 
             return alldicts
 
-        def incremental_fill(alldicts):
+        def incremental_fill():
             self.cache = None
             return initial_fill()
 
         def cache_filler():
             if self.cache:
-                cache = incremental_fill(self.cache)
+                cache = incremental_fill()
             else:
                 cache = initial_fill()
             return cache
@@ -210,6 +210,19 @@ def get_refersto_hitset(ahitset):
             # ignore attempt to iterate over infinite ahitset
             pass
     return out
+
+
+def get_cited_by_weight(recordlist):
+    """Return a tuple of ([recid,number_of_citing_records],...) for all the
+       records in recordlist.
+    """
+    weights = get_citation_dict("citations_weights")
+
+    result = []
+    for recid in recordlist:
+        result.append([recid, weights.get(recid, 0)])
+
+    return result
 
 
 def get_citedby_hitset(ahitset):
