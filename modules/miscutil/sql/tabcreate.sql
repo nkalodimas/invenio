@@ -4168,6 +4168,7 @@ INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_10_31_tablesorter_l
 INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_11_01_lower_user_email',NOW());
 INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_11_21_aiduserinputlog_userid_check',NOW());
 INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_11_15_hstRECORD_marcxml_longblob',NOW());
+INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_12_06_new_citation_dict_table',NOW());
 
 -- ops upgrade recipes:
 INSERT INTO upgrade (upgrade, applied) VALUES ('invenio_2012_11_07_xtrjob_last_recid',NOW());
