@@ -773,3 +773,22 @@ def auto_version_url(file_path):
     except IOError:
         pass
     return file_path + "?%s" % file_md5
+
+def heat_links(text):
+    """Replace link-looking plain text fragments with actual links
+       @param text: string where links should be replaced
+       @return: text with clickable links
+    """
+    # Replace http/https addresses with href="http://"
+    pattern = re.compile("((?<!href=)(?<!['\"])(https?)://[^\s]+)")
+    for hit in pattern.findall(text):
+        cleaned = hit[0].rstrip('.,')
+        text = text.replace(hit[0], '<a href="' + cleaned + '">' + cleaned + "</a>")
+
+    # Replace the www addresses with href="http://www."
+    pattern = re.compile("((?<=[:.\s])(www\.)[^\s]+)")
+    for hit in pattern.findall(text):
+        cleaned = hit[0].rstrip('.,')
+        text = text.replace(hit[0], '<a href="' + cleaned + '">' + cleaned + "</a>")
+
+    return text

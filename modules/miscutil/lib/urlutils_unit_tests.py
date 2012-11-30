@@ -36,7 +36,8 @@ from invenio.urlutils import \
      HASHLIB_IMPORTED, \
      wash_url_argument, \
      create_url, \
-     create_Indico_request_url
+     create_Indico_request_url, \
+     heat_links
 
 class TestWashUrlArgument(unittest.TestCase):
     def test_wash_url_argument(self):
@@ -297,11 +298,62 @@ class TestEmailObfuscationMode(unittest.TestCase):
                          'juliet<img src="%(CFG_SITE_URL)s/img/at.gif" alt=" [at] " style="vertical-align:baseline" />cds<img src="%(CFG_SITE_URL)s/img/dot.gif" alt=" [dot] " style="vertical-align:bottom"  />cern<img src="%(CFG_SITE_URL)s/img/dot.gif" alt=" [dot] " style="vertical-align:bottom"  />ch' % \
                          {'CFG_SITE_URL': CFG_SITE_URL})
 
+class TestHeatLinks(unittest.TestCase):
+    """Tests the heat_links function with different input strings"""
+
+    def test_http_link(self):
+        """urlutils - test correct http link"""
+        cold = 'Full version of this talk is available from http://hep.brown.edu/users/Greg/talks/Moriond01.pdf'
+        hot = 'Full version of this talk is available from <a href="http://hep.brown.edu/users/Greg/talks/Moriond01.pdf">http://hep.brown.edu/users/Greg/talks/Moriond01.pdf</a>'
+        self.assertEqual(heat_links(cold), hot)
+
+    def test_https_link(self):
+        """urlutils - test correct https link"""
+        cold = '7 lectures, 220 pages, published as CERN Yellow Report https://cdsweb.cern.ch/record/1226997'
+        hot = '7 lectures, 220 pages, published as CERN Yellow Report <a href="https://cdsweb.cern.ch/record/1226997">https://cdsweb.cern.ch/record/1226997</a>'
+        self.assertEqual(heat_links(cold), hot)
+
+    def test_www_link(self):
+        """urlutils - test correct wwww link"""
+        cold = 'Bananas. WWW home at www.looney.physics.sunysb.edu/daffy/phd.html Report-no: SUNY-NTG-X'
+        hot = 'Bananas. WWW home at <a href="www.looney.physics.sunysb.edu/daffy/phd.html">www.looney.physics.sunysb.edu/daffy/phd.html</a> Report-no: SUNY-NTG-X'
+        self.assertEqual(heat_links(cold), hot)
+
+    def test_http_and_www_link(self):
+        """urlutils - test correct link with both http and www substrings inside"""
+        cold = 'For a nontechnical overview of microdynamics, see http://www.cmmp.ucl.ac.uk/~wah/md.html'
+        hot = 'For a nontechnical overview of microdynamics, see <a href="http://www.cmmp.ucl.ac.uk/~wah/md.html">http://www.cmmp.ucl.ac.uk/~wah/md.html</a>'
+        self.assertEqual(heat_links(cold), hot)
+
+    def test_existing_link(self):
+        """urlutils - test text with existing link and link that needs to be created"""
+        cold = 'Here an existing link <a href=http://www.proton-therapy.org/pr10.htm> Proton Therapy</a> and here one to create www.eps.org/aps/praw/dissnucl/99winner.html but not this one httpss'
+        hot = 'Here an existing link <a href=http://www.proton-therapy.org/pr10.htm> Proton Therapy</a> and here one to create <a href="www.eps.org/aps/praw/dissnucl/99winner.html">www.eps.org/aps/praw/dissnucl/99winner.html</a> but not this one httpss'
+        self.assertEqual(heat_links(cold), hot)
+
+    def test_no_links(self):
+        """urlutils - test text without links
+        nothing should be changed"""
+        cold = 'we have here some https: http: and www www/ and www. Also'
+        self.assertEqual(heat_links(cold), cold)
+
+    def test_html_tags_in_text(self):
+        """urlutils - test text with links and other html tags
+        nothing should be changed"""
+        cold = '<p>This paper <img /> <a href=http://arXiv.org/abs/hep-th/9911044>arXiv</a>.Banana<div/>.'
+        self.assertEqual(heat_links(cold), cold)
+
+    def test_nested_tags(self):
+        """urlutils - test text with nested <a> tags"""
+        cold = 'This p<a>per <a> http://arXiv.org more text</a>.B</a>anana.'
+        hot = 'This p<a>per <a> <a href="http://arXiv.org">http://arXiv.org</a> more text</a>.B</a>anana.'
+        self.assertEqual(heat_links(cold), hot)
 
 TEST_SUITE = make_test_suite(TestWashUrlArgument,
                              TestUrls,
                              TestHtmlLinks,
-                             TestEmailObfuscationMode)
+                             TestEmailObfuscationMode,
+                             TestHeatLinks)
 
 if __name__ == "__main__":
     run_test_suite(TEST_SUITE)
