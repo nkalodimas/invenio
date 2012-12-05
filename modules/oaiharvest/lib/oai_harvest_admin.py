@@ -50,9 +50,8 @@ from invenio.oai_harvest_dblayer import get_month_logs_size, \
      get_entry_logs_size, get_holdingpen_entries, delete_holdingpen_entry, \
      get_holdingpen_years, get_holdingpen_month, get_holdingpen_year, \
      get_holdingpen_day_fragment, get_holdingpen_entry_details, \
-     get_oai_src, add_oai_src, modify_oai_src, delete_oai_src, \
-     get_tot_oai_src, get_update_status, get_next_schedule, \
-     get_oai_src_by_id, get_all_oai_src
+     add_oai_src, modify_oai_src, delete_oai_src, \
+     get_next_schedule, get_oai_src_by_id, get_all_oai_src
 from invenio.search_engine import get_record
 
 import invenio.template
@@ -60,6 +59,8 @@ from invenio import oai_harvest_daemon
 from invenio.xmlmarc2textmarc import create_marc_record
 from invenio.bibrecord import create_record
 from invenio.urlutils import create_html_link
+from invenio.bibtask import task_low_level_submission
+from invenio.webuser import get_user_info, get_email
 
 webstyle_templates = invenio.template.load('webstyle')
 oaiharvest_templates = invenio.template.load('oai_harvest')
@@ -73,7 +74,7 @@ oai_harvest_admin_url = CFG_SITE_URL + \
 freqs = [[0, "never"],
          [24, "daily"],
          [168, "weekly"],
-         [720, "monthly"] ]
+         [720, "monthly"]]
 
 dates = [[0, "from beginning"],
          [1, "from today"]]
@@ -127,37 +128,41 @@ def perform_request_index(ln=CFG_SITE_LANG):
     titlebar2 = oaiharvest_templates.tmpl_draw_titlebar(ln=ln, title=_("Harvesting status"), guideurl=guideurl)
     header = ['name', 'base URL', 'metadata prefix', 'frequency',
               'last run', 'post-processes', 'actions', 'comments']
-    oai_src = get_all_oai_src()
+    oai_sources = get_all_oai_src()
 
     sources = []
 
-    for (oai_src_id, oai_src_baseurl, oai_src_prefix, \
-         dummy1, oai_src_comment, oai_src_name, \
-         oai_src_lastrun, oai_src_frequency, oai_src_post, \
-         dummy2) in oai_src:
-
+    for repository in oai_sources:
         default_link_argd = {'ln': ln,
-                             'oai_src_id': str(oai_src_id)}
+                             'oai_src_id': str(repository['id'])}
         namelinked = create_html_link(urlbase=oai_harvest_admin_url + \
                                       "/editsource",
                                       urlargd=default_link_argd,
-                                      link_label=cgi.escape(oai_src_name))
+                                      link_label=cgi.escape(repository['name']))
         freq = _("Not Set")
-        if oai_src_frequency == 0: freq = _("never")
-        elif oai_src_frequency == 24: freq = _("daily")
-        elif oai_src_frequency == 168: freq = _("weekly")
-        elif oai_src_frequency == 720: freq = _("monthly")
-        if not oai_src_lastrun:
-            oai_src_lastrun = oaiharvest_templates.tmpl_print_warning(ln, \
+        if repository['frequency'] == 0: freq = _("never")
+        elif repository['frequency'] == 24: freq = _("daily")
+        elif repository['frequency'] == 168: freq = _("weekly")
+        elif repository['frequency'] == 720: freq = _("monthly")
+
+        if not repository['lastrun']:
+            repository['lastrun'] = oaiharvest_templates.tmpl_print_warning(ln, \
                                                                       _("Never harvested"), \
                                                                       prefix="")
-        else: 
+        else:
             #cut away leading zeros
-            oai_src_lastrun = re.sub(r'\.[0-9]+$', '', str(oai_src_lastrun))
-        if not oai_src_comment: oai_src_comment = ""
-        action = generate_sources_actions_menu(oai_src_id, ln)
-        sources.append([namelinked, oai_src_baseurl, oai_src_prefix,
-                        freq, oai_src_lastrun, oai_src_post, action, oai_src_comment])
+            repository['lastrun'] = re.sub(r'\.[0-9]+$', '', str(repository['lastrun']))
+        if not repository['comment']:
+            repository['comment'] = ""
+        action = generate_sources_actions_menu(repository['id'], ln)
+        sources.append([namelinked, \
+                        repository['baseurl'], \
+                        repository['metadataprefix'], \
+                        freq, \
+                        repository['lastrun'], \
+                        repository['postprocess'], \
+                        action, \
+                        repository['comment']])
 
     (schtime, schstatus) = get_next_schedule()
     if schtime:
@@ -168,7 +173,7 @@ def perform_request_index(ln=CFG_SITE_LANG):
                                        urlargd={'ln': ln},
                                        link_label=_("View Holding Pen"))
     output = titlebar
-    output += oaiharvest_templates.tmpl_output_numbersources(ln, get_tot_oai_src())
+    output += oaiharvest_templates.tmpl_output_numbersources(ln, len(oai_sources))
     output += tupletotable(header=header, tuple=sources)
     output += oaiharvest_templates.tmpl_print_brs(ln, 2)
     output += titlebar2
@@ -203,14 +208,23 @@ def perform_request_editsource(oai_src_id=None, oai_src_name='',
 
     if confirm == -1:
         oai_src = get_oai_src_by_id(oai_src_id)
-        oai_src_name = oai_src[0][5]
-        oai_src_baseurl = oai_src[0][1]
-        oai_src_prefix = oai_src[0][2]
-        oai_src_args = deserialize_via_marshal(oai_src[0][3])
-        oai_src_comment = oai_src[0][4]
-        oai_src_frequency = oai_src[0][7]
-        oai_src_post = oai_src[0][8]
-        oai_src_sets = oai_src[0][9].split()
+        if not oai_src:
+            return oaiharvest_templates.tmpl_print_info(ln, "Source specified does not exist.")
+        # A list is returned, we care only of the first item (which should be the only one..)
+        oai_src = oai_src[0]
+        if oai_src['arguments']:
+            oai_src['arguments'] = deserialize_via_marshal(oai_src['arguments'])
+
+        oai_src['setspecs'] = oai_src['setspecs'].split()
+
+        oai_src_baseurl = oai_src['baseurl']
+        oai_src_name = oai_src['name']
+        oai_src_prefix = oai_src['metadataprefix']
+        oai_src_frequency = oai_src['frequency']
+        oai_src_sets = oai_src['setspecs']
+        oai_src_post = oai_src['postprocess']
+        oai_src_args = oai_src['arguments']
+        oai_src_comment = oai_src['comment']
 
     elif confirm == 1:
         warnings = []
@@ -406,24 +420,26 @@ def perform_request_delsource(oai_src_id=None, ln=CFG_SITE_LANG, confirm=0):
 
     if oai_src_id:
         oai_src = get_oai_src_by_id(oai_src_id)
-        namesrc = (oai_src[0][5])
+        if not oai_src:
+            return oaiharvest_templates.tmpl_print_info(ln, "Source specified does not exist.")
+        # A list is returned, we care only of the first item (which should be the only one..)
+        oai_src = oai_src[0]
+
+        namesrc = (oai_src['name'])
         pagetitle = """Delete OAI source: %s""" % cgi.escape(namesrc)
         subtitle = oaiharvest_templates.tmpl_draw_subtitle(ln=ln, \
             title="delete source", subtitle=pagetitle, guideurl=guideurl)
         output = ""
 
         if confirm in ["0", 0]:
-            if oai_src:
-                question = """Do you want to delete the OAI source '%s' and all its definitions?""" % cgi.escape(namesrc)
-                text = oaiharvest_templates.tmpl_print_info(ln, question)
-                text += oaiharvest_templates.tmpl_print_brs(ln, 3)
-                output += createhiddenform(action="delsource#5",
-                                       text=text,
-                                       button="Confirm",
-                                       oai_src_id=oai_src_id,
-                                       confirm=1)
-            else:
-                return oaiharvest_templates.tmpl_print_info(ln, "Source specified does not exist.")
+            question = """Do you want to delete the OAI source '%s' and all its definitions?""" % cgi.escape(namesrc)
+            text = oaiharvest_templates.tmpl_print_info(ln, question)
+            text += oaiharvest_templates.tmpl_print_brs(ln, 3)
+            output += createhiddenform(action="delsource#5",
+                                   text=text,
+                                   button="Confirm",
+                                   oai_src_id=oai_src_id,
+                                   confirm=1)
         elif confirm in ["1", 1]:
             res = delete_oai_src(oai_src_id)
             if res[0] == 1:
@@ -572,12 +588,12 @@ def get_oai_source_form(ln, oai_src_baseurl, oai_src_name, oai_src_prefix,
     if sets:
         sets.sort()
         # Show available sets to users
-        sets_specs = [set[0] for set in sets]
-        sets_names = [set[1] for set in sets]
-        sets_labels = [((set[1] and set[0] + ' (' + set[1] + ')') or set[0]) \
-                       for set in sets]
-        sets_states = [ ((set[0] in oai_src_sets and 1) or 0) \
-                        for set in sets]
+        sets_specs = [aset[0] for aset in sets]
+        sets_names = [aset[1] for aset in sets]
+        sets_labels = [((aset[1] and aset[0] + ' (' + aset[1] + ')') or aset[0]) \
+                       for aset in sets]
+        sets_states = [((aset[0] in oai_src_sets and 1) or 0) \
+                        for aset in sets]
         table_second_col += oaiharvest_templates.tmpl_admin_checkboxes(ln=ln,
                                                            title="",
                                                            name="oai_src_sets",
@@ -622,7 +638,8 @@ def does_errfile_exist(task_id):
         return None
 
 def perform_request_viewtasklogs(ln, task_id):
-    t_id = int(task_id) # preventing malicious user input
+    # preventing malicious user input
+    t_id = int(task_id)
     guideurl = "help/admin/oaiharvest-admin-guide"
 
     log_name = does_logfile_exist(t_id)
@@ -632,9 +649,9 @@ def perform_request_viewtasklogs(ln, task_id):
     result += oaiharvest_templates.tmpl_output_menu(ln, None, guideurl)
 
     if log_name != None:
-        file_descriptor = open(log_name)
-        content = file_descriptor.read(-1)
-        file_descriptor.close();
+        file_fd = open(log_name)
+        content = file_fd.read(-1)
+        file_fd.close()
         result += oaiharvest_templates.tmpl_draw_titlebar(ln, "Log file : " + \
                                                               log_name, guideurl)
 
@@ -642,15 +659,19 @@ def perform_request_viewtasklogs(ln, task_id):
             oaiharvest_templates.tmpl_output_preformatted(content))
 
     if err_name != None:
-        file_descriptor = open(err_name)
-        content = file_descriptor.read(-1)
-        file_descriptor.close();
+        file_fd = open(err_name)
+        content = file_fd.read(-1)
+        file_fd.close()
         result += oaiharvest_templates.tmpl_print_brs(ln, 2)
         result += oaiharvest_templates.tmpl_draw_titlebar(ln, "Log file : " + \
                                                               err_name, guideurl)
         result += oaiharvest_templates.tmpl_output_scrollable_frame(\
             oaiharvest_templates.tmpl_output_preformatted(content))
 
+    if err_name is None and log_name is None:
+        result = oaiharvest_templates.tmpl_print_warning(ln, "Task log currently not available. " \
+                                                             "Probably the task has not started yet. " \
+                                                             "Try to refresh in a little while.")
     return result
 
 ### Probably should be moved to some other data-connection file
@@ -986,25 +1007,21 @@ def format_record(oai_src_bibfilter, record_to_convert, treat_new=False):
     else:
         return (None, out, err)
 
-def harvest_postprocress_record(oai_src_id, record_id, treat_new=False):
+def harvest_postprocess_record(oai_src_id, record_id, treat_new=False):
     """Harvest the record and postprocess it"""
-    oai_src = get_oai_src_by_id(oai_src_id)
-    oai_src_baseurl = oai_src[0][1]
-    oai_src_prefix = oai_src[0][2]
-    oai_src_args = deserialize_via_marshal(oai_src[0][3])
-    oai_src_post = oai_src[0][8]
-    oai_src_sets = oai_src[0][9].split()
-    oai_src_config = oai_src_args['c_stylesheet']
-    oai_src_bibfilter = oai_src_args['f_filter-file']
-    result = harvest_record(record_id, oai_src_baseurl, oai_src_prefix)
+    oai_src = get_oai_src_by_id(oai_src_id)[0]
+    if oai_src['arguments']:
+        oai_src['arguments'] = deserialize_via_marshal(oai_src['arguments'])
+
+    result = harvest_record(record_id, oai_src['baseurl'], oai_src['metadataprefix'])
     if result == None:
         return (False, "Error during harvesting")
-    if oai_src_post.find("c") != -1:
-        result = convert_record(oai_src_config, result)
+    if oai_src['postprocess'].find("c") != -1:
+        result = convert_record(oai_src['arguments']['c_stylesheet'], result)
         if result == None:
             return (False, "Error during converting")
-    if oai_src_post.find("f") != -1:
-        fres = format_record(oai_src_bibfilter, result, treat_new=treat_new)
+    if oai_src['postprocess'].find("f") != -1:
+        fres = format_record(oai_src['arguments']['f_filter-file'], result, treat_new=treat_new)
         fname = fres[0]
         if fname != None:
             f = open(fname, "r")
@@ -1014,6 +1031,24 @@ def harvest_postprocress_record(oai_src_id, record_id, treat_new=False):
         else:
             return (False, "Error during formatting: " + fres[1] + "\n\n" + fres[2])
     return (True, result)
+
+def launch_harvesting_task_for_id(oai_src_id, record_id, uid=None, send_email=False):
+    """
+    Launches a oaiharvest BibTask to download (and post-process) given id.
+    """
+    oai_src = get_oai_src_by_id(oai_src_id)[0]
+    params = ["-r", oai_src['name'], "-i", record_id]
+    if uid:
+        # get_user_info -> (uid, nickname, display_name)
+        user = get_user_info(uid)[1]
+        if send_email:
+            params.extend(["--notify-email-to", get_email(uid)])
+    else:
+        user = "oaiharvest"
+
+    # launch task
+    taskid = task_low_level_submission("oaiharvest", user, *tuple(params))
+    return taskid
 
 def upload_record(record=None, uploader_paremeters=None, oai_source_id=None):
     """Upload the given record"""
@@ -1035,57 +1070,91 @@ def upload_record(record=None, uploader_paremeters=None, oai_source_id=None):
 
 def perform_request_preview_original_xml(oai_src_id=None, record_id=None):
     """Harvest a record and return it. No side effect, useful for preview"""
-    oai_src = get_oai_src_by_id(oai_src_id)
-    oai_src_baseurl = oai_src[0][1]
-    oai_src_prefix = oai_src[0][2]
-    oai_src_args = deserialize_via_marshal(oai_src[0][3])
-    oai_src_post = oai_src[0][8]
-    oai_src_sets = oai_src[0][9].split()
-    oai_src_config = oai_src_args['c_stylesheet']
-    oai_src_bibfilter = oai_src_args['f_filter-file']
-    record = harvest_record(record_id, oai_src_baseurl, oai_src_prefix)
+    oai_src = get_oai_src_by_id(oai_src_id)[0]
+    record = harvest_record(record_id, oai_src['baseurl'], oai_src['metadataprefix'])
     return record
 
 def perform_request_preview_harvested_xml(oai_src_id=None, record_id=None):
-    return harvest_postprocress_record(oai_src_id, record_id, treat_new=True)
+    return harvest_postprocess_record(oai_src_id, record_id, treat_new=True)
 
 ############################################################
 ### Reharvesting of already existing records             ###
 ############################################################
 
-def perform_request_reharvest_records(oai_src_id=None, ln=CFG_SITE_LANG, record_ids=None):
-    for record_id in record_ids:
-        # 1) Run full harvesing process as in the preview scenarios
-        transformed = harvest_postprocress_record(oai_src_id, record_id, treat_new=True)[1]
-        upload_record(transformed, ["-i", "-r"], oai_src_id)
-    result = oaiharvest_templates.tmpl_output_menu(ln, oai_src_id, guideurl)
-    result += oaiharvest_templates.tmpl_print_info(ln, "Submitted for insertion into the database")
-    return result
-
-def perform_request_harvest_record(oai_src_id=None, ln=CFG_SITE_LANG, record_id=None):
-    """ Request for harvesting a new record """
+def perform_request_reharvest_records(oai_src_id=None, ln=CFG_SITE_LANG, record_ids=None, uid=None):
     if oai_src_id is None:
         return "No OAI source ID selected."
     result = ""
     guideurl = "help/admin/oaiharvest-admin-guide"
+    oai_ids = ",".join([oaiid.strip() for oaiid in record_ids])
+    result = oaiharvest_templates.tmpl_output_menu(ln, oai_src_id, guideurl)
+    if oai_ids:
+        # there was a harvest-request - lets launch a task
+        launched_taskid = launch_harvesting_task_for_id(oai_src_id, oai_ids, uid)
+        if launched_taskid:
+            result += oaiharvest_templates.tmpl_print_info(ln, "Harvesting task %d submitted. " \
+                                                               % (launched_taskid,))
+        else:
+            result += oaiharvest_templates.tmpl_print_warning(ln, "Error while submitting harvesting task. Contact administrators.")
+    else:
+        result += oaiharvest_templates.tmpl_print_warning(ln, "No OAI IDs defined.")
+    return result
+
+def perform_request_harvest_record(oai_src_id=None, ln=CFG_SITE_LANG, record_id=None, uid=None, confirm=0, enable_reporting=True):
+    """ Request for harvesting a new record """
+    _ = gettext_set_language(ln)
+    if oai_src_id is None:
+        return oaiharvest_templates.tmpl_print_warning(ln, _("No OAI source ID selected."))
+    result = ""
+    guideurl = "help/admin/oaiharvest-admin-guide"
     result += oaiharvest_templates.tmpl_output_menu(ln, oai_src_id, guideurl)
     result += oaiharvest_templates.tmpl_draw_titlebar(ln=ln, \
-        title="Record ID ( Recognized by the data source )", guideurl=guideurl)
+                                                      title=_("Record OAI IDs ( as recognized by the data source )"), \
+                                                      guideurl=guideurl)
     record_str = ""
     if record_id != None:
         record_str = str(record_id)
-    form_text = oaiharvest_templates.tmpl_admin_w200_text(ln=ln, \
-        title="Record identifier", name="record_id", value=record_str)
-    result += createhiddenform(action="harvest",
-                               text=form_text,
-                               button="Harvest",
-                               oai_src_id=oai_src_id,
-                               ln=ln)
-    if record_id != None:
+
+    # We enable reporting by default, unless user specifies otherwise.
+    if confirm in (1, "1") and not enable_reporting:
+        enable_reporting = False
+    else:
+        enable_reporting = True
+
+    form_text = "<p><small>Enter one OAI ID per line. Ex: oai:arXiv.org:hep-th/9901001</small></p>"
+    form_text += oaiharvest_templates.tmpl_admin_w200_textarea(ln=ln, title="", \
+                                                              name="record_id", value=record_str)
+    form_text += oaiharvest_templates.tmpl_admin_checkboxes(ln=ln, \
+                                                            title="", \
+                                                            name="enable_reporting", \
+                                                            values=["enable"], \
+                                                            labels=["Send e-mail (%s) when completed?" % (get_email(uid),)], \
+                                                            states=[enable_reporting])
+    result += oaiharvest_templates.tmpl_form_vertical(action="harvest",
+                                                      text=form_text,
+                                                      button=_("Harvest"),
+                                                      oai_src_id=oai_src_id,
+                                                      ln=ln,
+                                                      confirm=1)
+    if record_id:
         # there was a harvest-request - lets launch a task
-        transformed = harvest_postprocress_record(oai_src_id, record_id)[1]
-        upload_record(transformed, ["-i"], oai_src_id)
-        result += oaiharvest_templates.tmpl_print_info(ln, "Submitted for insertion into the database")
+        record_id = ",".join(record_id.split())
+        launched_taskid = launch_harvesting_task_for_id(oai_src_id, record_id, uid, send_email=enable_reporting)
+        user_message = "Harvesting task %d submitted." % (launched_taskid,)
+        if enable_reporting:
+            user_message += " You will receive a mail when it finishes."
+        user_message += "<br />Follow task progress %s." % \
+                        (create_html_link(urlbase=oai_harvest_admin_url + \
+                                          "/viewtasklogs",
+                                          urlargd={'ln': ln,
+                                                   'task_id': str(launched_taskid)},
+                                          link_label="here"),)
+        if launched_taskid:
+            result += oaiharvest_templates.tmpl_print_info(ln, _(user_message))
+        else:
+            result += oaiharvest_templates.tmpl_print_warning(ln, _("Error while submitting harvesting task. Contact administrators."))
+    elif confirm in (1, "1"):
+        result += oaiharvest_templates.tmpl_print_warning(ln, _("No OAI IDs defined. Provide at least one ID."))
     return result
 
 
@@ -1293,11 +1362,24 @@ def validate_file(path):
     CFG_BIBCONVERT_XSL_PATH = "%s%sbibconvert%sconfig" % (CFG_ETCDIR,
                                                           os.sep,
                                                           os.sep)
-    path_to_config = (CFG_BIBCONVERT_XSL_PATH + os.sep + path)
+    path_to_config = CFG_BIBCONVERT_XSL_PATH + os.sep + path
     if os.path.exists(path_to_config):
         # Try to read in config directory
         try:
             ftmp = open(path_to_config, 'r')
+            cfgstr = ftmp.read()
+            ftmp.close()
+            if cfgstr != "":
+                #print "Valid!"
+                return True
+        except StandardError, e:
+            pass
+
+    path_to_program = CFG_BINDIR + os.sep + path
+    if os.path.exists(path_to_program):
+        # Try to read in BIN directory
+        try:
+            ftmp = open(path_to_program, 'r')
             cfgstr = ftmp.read()
             ftmp.close()
             if cfgstr != "":
@@ -1410,6 +1492,9 @@ def validate_arguments(ln, oai_src_post, oai_src_args, warning_list):
     for mode_value, mode_label, mode_arguments in modes:
         for arg_dict in mode_arguments:
             name = "%s_%s" % (mode_value, arg_dict['name'])
+            if not arg_dict['required'] and not oai_src_args[name]:
+                # Empty is allowed if not required
+                continue
             if arg_dict['required'] and not oai_src_args[name]:
                 warning_list.append(oaiharvest_templates.tmpl_print_warning(ln, \
                     "The field '%s' is an required argument when choosing '%s' post-process." % \
