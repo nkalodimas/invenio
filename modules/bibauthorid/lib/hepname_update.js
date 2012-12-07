@@ -21,13 +21,45 @@
  * Client side code related to hepnames update form
  */
 
-
 //add a new row to the table
 var rest = '.stanford.edu';
 var goesto= 'slaclib2';
 var goesalso='hepnames';
 var place = '@slac';
 var occcnt=1;
+
+$(function() {
+	generateCaptcha();
+});
+
+function generateCaptcha() {
+	/* Retrieves random image and generates captcha */
+	var mess = new Array( 'moreberkss_s.gif','onefeynman_s.gif','onenewton_1_s.jpg','threeuhkrgo_s.gif',
+		'morechi_s.gif','onegalileo_s.jpg','oneschroed_s.gif','twoICurie_s.gif',
+		'onecswu_e_s.gif','onehawking_s.gif','threebarshobra_s.gif','twobohrsomm_s.gif',
+		'oneein7_s.gif','oneheisenb_s.gif','threelfr_s.gif','twoeinmar_s.gif',
+		'onefermi_s.gif','onemcurie_s.gif','threetingyangyang_s.gif','tworg_s.gif');
+
+	var max = mess.length;
+	var num = Math.floor((Math.random() * max));
+	var imgsrc = '<img src="http://www.slac.stanford.edu/spires/hepnames/physimages/';
+	imgsrc += mess[num];
+	imgsrc += '">';
+	testn = mess[num].substr(0,3);
+	if(testn=='one')
+		{intnum=1}
+	if(testn=='two')
+		{intnum=2}
+	if(testn=='thr')
+		{intnum=3}
+	if(testn=='mor')
+		{intnum=4}
+	imgsrc += '<input type=hidden id=imgval value="';
+	imgsrc += intnum;
+	imgsrc += '">';
+	$("#captcha").before(imgsrc);
+}
+
 function OnSubmitCheck() {
 	goestov=goesalso;
 	goestov+=place;
