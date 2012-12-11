@@ -21,6 +21,8 @@
       <xsl:when test="$doi[@type='journal_article']">
         <datafield tag="980" ind1=" " ind2=" ">
           <subfield code="a"><xsl:text>Published</xsl:text></subfield>
+        </datafield>
+        <datafield tag="980" ind1=" " ind2=" ">
           <subfield code="a"><xsl:text>citeable</xsl:text></subfield>
         </datafield>
       </xsl:when>

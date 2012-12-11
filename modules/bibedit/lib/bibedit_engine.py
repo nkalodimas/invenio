@@ -66,7 +66,7 @@ from invenio.bibedit_utils import cache_exists, cache_expired, \
     can_record_have_physical_copies, extend_record_with_template, \
     replace_references, merge_record_with_template, record_xml_output, \
     record_is_conference, add_record_cnum, get_xml_from_textmarc, \
-    record_locked_by_user_details
+    record_locked_by_user_details, crossref_process_template
 
 from invenio.bibrecord import create_record, print_rec, record_add_field, \
     record_add_subfield_into, record_delete_field, \
@@ -542,14 +542,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 except:
                     response['resultCode'] = 0
                 else:
-                    if CFG_INSPIRE_SITE:
-                        title_pattern = '<subfield code="p">(.*?)</subfield>'
-                        title_to_change = re.findall(title_pattern, marcxml_template)
-                        if title_to_change:
-                            inspire_title = get_kbr_values("JOURNALS", title_to_change[0], searchtype='s')
-                            if inspire_title:
-                                marcxml_template = re.sub(title_to_change[0], inspire_title[0], marcxml_template)
-                    record = create_record(marcxml_template)[0]
+                    record = crossref_process_template(marcxml_template, CFG_INSPIRE_SITE)
                     if not record:
                         response['resultCode'] = 109
                     else:
