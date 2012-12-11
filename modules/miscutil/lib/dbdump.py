@@ -53,12 +53,12 @@ import re
 
 from invenio.config import CFG_LOGDIR, \
                            CFG_PATH_MYSQL, \
-                           CFG_DATABASE_HOST, \
-                           CFG_DATABASE_USER, \
-                           CFG_DATABASE_PASS, \
-                           CFG_DATABASE_NAME, \
-                           CFG_DATABASE_PORT, \
                            CFG_PATH_GZIP
+from invenio.dbquery import CFG_DATABASE_HOST, \
+                            CFG_DATABASE_USER, \
+                            CFG_DATABASE_PASS, \
+                            CFG_DATABASE_NAME, \
+                            CFG_DATABASE_PORT
 from invenio.bibtask import task_init, \
                             write_message, \
                             task_set_option, \

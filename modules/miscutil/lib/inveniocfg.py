@@ -312,7 +312,7 @@ def cli_cmd_update_config_py(conf):
         options = conf.options(section)
         options.sort()
         for option in options:
-            if not option.startswith('CFG_DATABASE_'):
+            if not option.upper().startswith('CFG_DATABASE_'):
                 # put all options except for db credentials into config.py
                 line_out = convert_conf_option(option, conf.get(section, option))
                 if line_out:
@@ -339,23 +339,25 @@ def cli_cmd_update_dbquery_py(conf):
     print ">>> Going to update dbquery.py..."
     ## location where dbquery.py is:
     dbquerypyfile = conf.get("Invenio", "CFG_PYLIBDIR") + \
-                    os.sep + 'invenio' + os.sep + 'dbquery.py'
+                    os.sep + 'invenio' + os.sep + 'dbquery_config.py'
     ## backup current dbquery.py file:
-    if os.path.exists(dbquerypyfile):
-        shutil.copy(dbquerypyfile, dbquerypyfile + '.OLD')
-    ## replace db parameters:
-    out = ''
-    for line in open(dbquerypyfile, 'r').readlines():
-        match = re.search(r'^CFG_DATABASE_(HOST|PORT|NAME|USER|PASS|SLAVE)(\s*=\s*)\'.*\'$', line)
-        if match:
-            dbparam = 'CFG_DATABASE_' + match.group(1)
-            out += "%s%s'%s'\n" % (dbparam, match.group(2),
-                                   conf.get('Invenio', dbparam))
-        else:
-            out += line
+    if os.path.exists(dbquerypyfile + 'c'):
+        shutil.copy(dbquerypyfile + 'c', dbquerypyfile + 'c.OLD')
+
+    out = ["%s = '%s'\n" % (item.upper(), value) \
+                        for item, value in conf.items('Invenio') \
+                        if item.upper().startswith('CFG_DATABASE_')]
+
     fdesc = open(dbquerypyfile, 'w')
-    fdesc.write(out)
+    fdesc.write("# -*- coding: utf-8 -*-\n")
+    fdesc.writelines(out)
     fdesc.close()
+
+    # Compile file so that
+    import py_compile
+    py_compile.compile(dbquerypyfile)
+    os.unlink(dbquerypyfile)
+
     print "You may want to restart Apache now."
     print ">>> dbquery.py updated successfully."
 
