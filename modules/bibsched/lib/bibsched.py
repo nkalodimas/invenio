@@ -1373,7 +1373,8 @@ class BibSched(object):
                FROM schTASK WHERE status IN ('WAITING', 'SLEEPING')
                AND proc = 'bibupload'
                AND runtime <= NOW()
-               ORDER BY id ASC LIMIT 1""", n=1)
+               ORDER BY FIELD(status, 'SLEEPING', 'WAITING'),
+                        id ASC LIMIT 1""", n=1)
         ## The other tasks are sorted by priority
         self.node_relevant_waiting_tasks = run_sql(
             """SELECT id, proc, runtime, status, priority, host, sequenceid
