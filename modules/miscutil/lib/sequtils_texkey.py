@@ -23,6 +23,7 @@ from invenio.bibrecord import record_get_field_value, create_record
 
 import string
 import random
+from unidecode import unidecode
 
 TEXKEY_MAXTRIES = 10
 
@@ -82,6 +83,8 @@ class TexkeySeq(SequenceGenerator):
                                             ind1="",
                                             ind2="",
                                             code="a")
+        # Remove utf-8 special characters
+        main_author = unidecode(main_author.decode('utf-8'))
 
         if not main_author:
             # Try with collaboration name
@@ -120,10 +123,10 @@ class TexkeySeq(SequenceGenerator):
                                     code="y")
                 if not year:
                     year = record_get_field_value(bibrecord,
-                                    tag="520",
+                                    tag="502",
                                     ind1="",
                                     ind2="",
-                                    code="c")
+                                    code="d")
         try:
             texkey_second_part = year.split("-")[0]
         except KeyError:
