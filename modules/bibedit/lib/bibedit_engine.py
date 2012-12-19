@@ -26,6 +26,8 @@ import re
 import difflib
 import zlib
 import copy
+import urllib
+import urllib2
 
 from invenio import bibformat
 
@@ -45,7 +47,8 @@ from invenio.bibedit_config import CFG_BIBEDIT_AJAX_RESULT_CODES, \
     CFG_BIBEDIT_TAG_FORMAT, CFG_BIBEDIT_AJAX_RESULT_CODES_REV, \
     CFG_BIBEDIT_AUTOSUGGEST_TAGS, CFG_BIBEDIT_AUTOCOMPLETE_TAGS_KBS,\
     CFG_BIBEDIT_KEYWORD_TAXONOMY, CFG_BIBEDIT_KEYWORD_TAG, \
-    CFG_BIBEDIT_KEYWORD_RDFLABEL, CFG_BIBEDIT_SAVE_FREQUENCY
+    CFG_BIBEDIT_KEYWORD_RDFLABEL, CFG_BIBEDIT_SAVE_FREQUENCY, \
+    CFG_BIBEDIT_DOI_LOOKUP_FIELD
 
 from invenio.config import CFG_SITE_LANG, CFG_DEVEL_SITE
 from invenio.bibedit_dblayer import get_name_tags_all, reserve_record_id, \
@@ -229,7 +232,8 @@ def perform_request_init(uid, ln, req, lastupdated):
             'gKEYWORD_TAG' : '"' + CFG_BIBEDIT_KEYWORD_TAG  + '"',
             'gSAVE_CHANGES_FREQUENCY' : CFG_BIBEDIT_SAVE_FREQUENCY,
             'gAVAILABLE_KBS': get_available_kbs(),
-            'gTagsToAutocomplete': CFG_BIBEDIT_AUTOCOMPLETE_INSTITUTIONS_FIELDS
+            'gTagsToAutocomplete': CFG_BIBEDIT_AUTOCOMPLETE_INSTITUTIONS_FIELDS,
+            'gDOILookupField': '"' + CFG_BIBEDIT_DOI_LOOKUP_FIELD + '"'
             }
     body += '<script type="text/javascript">\n'
     for key in data:
@@ -424,6 +428,8 @@ def perform_request_ajax(req, recid, uid, data, isBulk = False):
         response.update(perform_request_get_textmarc(recid, uid))
     elif request_type == "getTableView":
         response.update(perform_request_get_tableview(recid, uid, data))
+    elif request_type == "DOISearch":
+        response.update(perform_doi_search(data))
 
     return response
 
@@ -1642,5 +1648,22 @@ def perform_request_edit_template(data):
         response['resultCode']  = 1
     else:
         response['templateMARCXML'] = template
+
+    return response
+
+def perform_doi_search(data):
+    """Search for DOI on the dx.doi.org page
+    @return: the url returned by this page"""
+    response = {}
+    url = "http://dx.doi.org/"
+    val = {'hdl' : data['doi']}
+    url_data = urllib.urlencode(val)
+    req = urllib2.Request(url, url_data)
+    try:
+        resp = urllib2.urlopen(req)
+    except urllib2.HTTPError:
+        return response
+    else:
+        response['doi_url'] = resp.url
 
     return response
