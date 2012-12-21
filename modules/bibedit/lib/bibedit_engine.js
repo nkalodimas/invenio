@@ -392,13 +392,25 @@ function createReq(data, onSuccess, asynchronous, deferred){
                         deferred.resolve(json);
                       }
                     },
-           async: asynchronous
+           async: asynchronous})
+  .done(function(){
+    createReqAjaxDone(data);
   });
 }
 // Transactions data.
 createReq.transactionID = 0;
 createReq.transactions = [];
 
+function createReqAjaxDone(data){
+/*
+ * This function is executed after the ajax request in createReq function was finished
+ * data: the data parameter that was send with ajax request
+ */
+  // If the request was from holding pen, trigger the event to apply holding pen changes
+  if (data['requestType'] == 'getHoldingPenUpdates') {
+    $.event.trigger('HoldingPenPageLoaded');
+  }
+}
 
 function createBulkReq(reqsData, onSuccess, optArgs){
   /* optArgs is a disctionary containning the optional arguments
@@ -502,8 +514,8 @@ function onAjaxSuccess(json, onSuccess){
         }
       }
       if (onSuccess) {
-          // No critical errors; call onSuccess function.
-          onSuccess(json);
+        // No critical errors; call onSuccess function.
+        onSuccess(json);
       }
     }
   }
@@ -647,52 +659,48 @@ function initStateFromHash(){
               getRecord(recID);
             }
         }
-      break;
-    case 'hpapply':
-      var hpID = parseInt(gHashParsed.hpid, 10);
-      var recID = parseInt(tmpRecID, 10);
-      if (isNaN(recID) || isNaN(hpID)){
-        // Invalid record ID or HoldingPen ID.
-        cleanUp(true, tmpRecID, 'recID', true);
-        displayMessage(102);
-        updateStatus('error', gRESULT_CODES[102]);
-      }
-      else{
-        cleanUp(true, recID, 'recID');
-        gReadOnlyMode = tmpReadOnlyMode;
-        // after the record is created, trigger the click on holdingPen button
-        var hpButton = '#bibeditHPApplyChange' + hpID;
-          if (tmpRecRev != undefined && tmpRecRev != 0){
-            $.when(getRecord(recID, tmpRecRev)).done(function(){
-              $(hpButton).click();
-              });
-          } else {
-            $.when(getRecord(recID)).done(function(){
-              $(hpButton).click();
-              });
-          }
-      }
-      break;
-    case 'newRecord':
-      cleanUp(true, '', null, null, true);
-      displayNewRecordScreen();
-      bindNewRecordHandlers();
-      updateStatus('ready');
-      break;
-    case 'submit':
-      cleanUp(true, '', null, true);
-      displayMessage(4);
-      updateStatus('ready');
-      break;
-    case 'cancel':
-      cleanUp(true, '', null, true, true);
-      updateStatus('ready');
-      break;
-    case 'deleteRecord':
-      cleanUp(true, '', null, true);
-      displayMessage(10);
-      updateStatus('ready');
         break;
+      case 'hpapply':
+        var hpID = parseInt(gHashParsed.hpid, 10);
+        var recID = parseInt(tmpRecID, 10);
+        if (isNaN(recID) || isNaN(hpID)){
+          // Invalid record ID or HoldingPen ID.
+          cleanUp(true, tmpRecID, 'recID', true);
+          displayMessage(102);
+          updateStatus('error', gRESULT_CODES[102]);
+        }
+        else {
+          cleanUp(true, recID, 'recID');
+          gReadOnlyMode = tmpReadOnlyMode;
+          var hpButton = '#bibeditHPApplyChange' + hpID;
+          // after the record is created and all the data on the page is loaded
+          // trigger the click on holdingPen button
+          $(document).one('HoldingPenPageLoaded', function () {
+            $(hpButton).click();
+          });
+          getRecord(recID);
+        }
+        break;
+      case 'newRecord':
+        cleanUp(true, '', null, null, true);
+        displayNewRecordScreen();
+        bindNewRecordHandlers();
+        updateStatus('ready');
+        break;
+      case 'submit':
+        cleanUp(true, '', null, true);
+        displayMessage(4);
+        updateStatus('ready');
+        break;
+      case 'cancel':
+        cleanUp(true, '', null, true, true);
+        updateStatus('ready');
+        break;
+      case 'deleteRecord':
+        cleanUp(true, '', null, true);
+        displayMessage(10);
+        updateStatus('ready');
+          break;
     }
   }
   else
@@ -1244,8 +1252,6 @@ function getRecord(recID, recRev, onSuccess){
    *             interface
    */
 
-  var getRecordPromise = new $.Deferred();
-
   // Temporary store the record ID by attaching it to the onGetRecordSuccess
   // function.
   if (onSuccess == undefined)
@@ -1272,13 +1278,16 @@ function getRecord(recID, recRev, onSuccess){
   }
 
   resetBibeditState();
-  createReq(reqData, onSuccess, undefined, getRecordPromise);
+  createReq(reqData, function(json) {
+      onSuccess(json);
+      // reloading the Holding Pen toolbar
+      onHoldingPenPanelRecordIdChanged(recID);
+  });
 
   getRecord.deleteRecordCache = false;
   getRecord.clonedRecord = false;
-
-  return getRecordPromise;
 }
+
 // Enable this flag to delete any existing cache before fetching next record.
 getRecord.deleteRecordCache = false;
 // Enable this flag to tell that we are fetching a record that has just been
