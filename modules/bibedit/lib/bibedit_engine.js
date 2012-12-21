@@ -544,7 +544,7 @@ function initStateFromHash(){
   // Find out which internal state the new hash leaves us with
   if (tmpState && tmpRecID){
     // We have both state and record ID.
-    if ($.inArray(tmpState, ['edit', 'submit', 'cancel', 'deleteRecord']) != -1)
+    if ($.inArray(tmpState, ['edit', 'submit', 'cancel', 'deleteRecord', 'hpapply']) != -1)
   gState = tmpState;
     else
       // Invalid state, fail...
@@ -598,6 +598,26 @@ function initStateFromHash(){
               getRecord(recID);
             }
         }
+      break;
+    case 'hpapply':
+      var hpID = parseInt(gHashParsed.hpid, 10);
+      var recID = parseInt(tmpRecID, 10);
+      if (isNaN(recID) || isNaN(hpID)){
+        // Invalid record ID or HoldingPen ID.
+        cleanUp(true, tmpRecID, 'recID', true);
+        displayMessage(102);
+        updateStatus('error', gRESULT_CODES[102]);
+      }
+      else{
+        cleanUp(true, recID, 'recID');
+        gReadOnlyMode = tmpReadOnlyMode;
+          if (tmpRecRev != undefined && tmpRecRev != 0){
+            getRecord(recID, tmpRecRev);
+          } else {
+            getRecord(recID);
+          }
+        holdingPenPanelApplyChangeSet(hpID);
+      }
       break;
     case 'newRecord':
       cleanUp(true, '', null, null, true);

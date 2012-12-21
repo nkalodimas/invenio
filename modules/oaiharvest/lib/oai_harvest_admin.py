@@ -1170,6 +1170,8 @@ def build_holdingpen_table(data, ln=CFG_SITE_LANG):
         oai_id = record[0]
         date_inserted = record[1]
         hpupdate_id = record[2]
+        # getting the modyfied record's ID
+        rec_id = get_holdingpen_entry_details(hpupdate_id)[1]
         result += oaiharvest_templates.tmpl_table_row_begin()
         result += oaiharvest_templates.tmpl_table_output_cell(str(oai_id), cssclass="oddtablecolumn")
         result += oaiharvest_templates.tmpl_table_output_cell(str(date_inserted), cssclass="pairtablecolumn")
@@ -1178,6 +1180,15 @@ def build_holdingpen_table(data, ln=CFG_SITE_LANG):
                                         urlargd={'ln': ln,
                                                  'hpupdate_id': str(hpupdate_id)},
                                         link_label=_("Compare with original"))
+        result += oaiharvest_templates.tmpl_table_output_cell(details_link, cssclass="oddtablecolumn")
+        # creating link to bibedit to apply changes
+        details_link = create_html_link(urlbase= CFG_SITE_URL + \
+                                        "/record/edit",
+                                        urlargd={'#state' : 'hpapply',
+                                                 'recid': rec_id,
+                                                 'hpid': str(hpupdate_id)},
+                                        link_label=_("Apply changes"),
+                                        escape_urlargd = False)
         result += oaiharvest_templates.tmpl_table_output_cell(details_link, cssclass="oddtablecolumn")
         delete_hp_link = create_html_link(urlbase=oai_harvest_admin_url + \
                                           "/delhprecord",
