@@ -355,8 +355,7 @@ function initAjax(){
   );
 }
 
-
-function createReq(data, onSuccess, asynchronous) {
+function createReq(data, onSuccess, asynchronous, deferred){
   /*
    * Create Ajax request.
    */
@@ -378,6 +377,9 @@ function createReq(data, onSuccess, asynchronous) {
   $.ajax({data: {jsondata: JSON.stringify(data)},
            success: function(json){
                       onAjaxSuccess(json, onSuccess);
+                      if (deferred !== undefined) {
+                        deferred.resolve(json);
+                      }
                     },
            async: asynchronous
   });
@@ -611,12 +613,17 @@ function initStateFromHash(){
       else{
         cleanUp(true, recID, 'recID');
         gReadOnlyMode = tmpReadOnlyMode;
+        // after the record is created, trigger the click on holdingPen button
+        var hpButton = '#bibeditHPApplyChange' + hpID;
           if (tmpRecRev != undefined && tmpRecRev != 0){
-            getRecord(recID, tmpRecRev);
+            $.when(getRecord(recID, tmpRecRev)).done(function(){
+              $(hpButton).click();
+              });
           } else {
-            getRecord(recID);
+            $.when(getRecord(recID)).done(function(){
+              $(hpButton).click();
+              });
           }
-        holdingPenPanelApplyChangeSet(hpID);
       }
       break;
     case 'newRecord':
@@ -1190,6 +1197,8 @@ function getRecord(recID, recRev, onSuccess){
    *             interface
    */
 
+  var getRecordPromise = new $.Deferred();
+
   // Temporary store the record ID by attaching it to the onGetRecordSuccess
   // function.
   if (onSuccess == undefined)
@@ -1216,11 +1225,12 @@ function getRecord(recID, recRev, onSuccess){
   }
 
   resetBibeditState();
-  createReq(reqData, onSuccess);
+  createReq(reqData, onSuccess, undefined, getRecordPromise);
 
-  onHoldingPenPanelRecordIdChanged(recID); // reloading the Holding Pen toolbar
   getRecord.deleteRecordCache = false;
   getRecord.clonedRecord = false;
+
+  return getRecordPromise;
 }
 // Enable this flag to delete any existing cache before fetching next record.
 getRecord.deleteRecordCache = false;
@@ -1315,6 +1325,8 @@ function onGetRecordSuccess(json){
   adjustGeneralHPControlsVisibility();
 
   createReq({recID: gRecID, requestType: 'getTickets'}, onGetTicketsSuccess);
+
+  onHoldingPenPanelRecordIdChanged(gRecID); // reloading the Holding Pen toolbar
 
   // Refresh top toolbar
   updateToolbar(false);
