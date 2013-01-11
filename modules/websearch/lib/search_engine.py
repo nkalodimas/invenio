@@ -2179,7 +2179,7 @@ def search_unit(p, f=None, m=None, wl=0, synonyms=True):
             # results from Solr. Let us alert the admin of these
             # problems and let us simply return empty results to the
             # end user.
-            register_exception(alert_admin=True)
+            register_exception(alert_admin=False)
             return hitset
     if f == 'datecreated':
         hitset = search_unit_in_bibrec(p, p, 'c')
