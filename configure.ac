@@ -683,13 +683,7 @@ AC_CONFIG_FILES([config.nice  \
      modules/pdfchecker/Makefile \
      modules/pdfchecker/bin/Makefile \
      modules/pdfchecker/bin/arxiv-pdf-checker \
-     modules/pdfchecker/doc/Makefile \
-     modules/pdfchecker/doc/admin/Makefile \
-     modules/pdfchecker/doc/hacking/Makefile \
-     modules/pdfchecker/etc/Makefile \
      modules/pdfchecker/lib/Makefile \
-     modules/pdfchecker/web/Makefile \
-     modules/pdfchecker/web/admin/Makefile \
      modules/bibindex/Makefile \
      modules/bibindex/bin/Makefile \
      modules/bibindex/bin/bibindex \

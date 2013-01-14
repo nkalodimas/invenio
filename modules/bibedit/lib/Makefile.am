@@ -42,8 +42,6 @@ js_DATA = bibedit_display.js \
           marcxml.js \
           bibedit_clipboard.js \
           bibedit_template_interface.js \
-          bibedit_engine_unit_tests.js \
-          bibedit_engine_unit_tests.conf \
           bibedit_refextract.js
 
 web_DATA = bibedit.css
