@@ -163,12 +163,13 @@ class Template:
         return styles
 
     def tmpl_display_web_metaupload_form(self, ln=CFG_SITE_LANG, filetype="marcxml", mode="--insert",
-                                        submit_date="yyyy-mm-dd", submit_time="hh:mm:ss"):
+                                        submit_date="yyyy-mm-dd", submit_time="hh:mm:ss", email_logs_to=""):
         """ Displays Metadata upload form
             @param error: defines the type of error to be displayed
             @param mode: upload mode
             @param submit_date: file upload date
             @param submit_time: file upload time
+            @param email_logs_to: comma-separated list of email addresses to which to sends logs
             @return: the form in HTML format
         """
         _ = gettext_set_language(ln)
@@ -226,7 +227,7 @@ class Template:
         <input type="text" name="submit_time" id="submit_time" value=%(submit_time)s onBlur="defText(this)" onFocus="clearText(this)" style="width:100px" >
         <span class="italics">%(txt_example)s: 2012-12-20 19:22:18</span>
     </div>
-    <div><i>%(txt_mandatory)s</i></div>
+    <div>%(txt_email_logs_to)s: <input type="text" name="email_logs_to" value=%(email_logs_to)s />
     <div> <input type="submit" value="Upload" class="adminbutton"> </div>
 </fieldset>
 """ % {'txt_file': _("Select file to upload"),
@@ -236,6 +237,7 @@ class Template:
         'txt_date': _("Date"),
         'txt_time': _("Time"),
         'txt_example': _("Example"),
+        'txt_email_logs_to': _("Email logs to"),
         'txt_mandatory': _("All fields with %(x_fmt_open)s*%(x_fmt_close)s are mandatory") % \
                   {'x_fmt_open': '<span class="mandatory_field">', 'x_fmt_close': '</span>'},
         'txt_priority': _("Upload priority"),
@@ -249,8 +251,9 @@ class Template:
         'mode_sel5': mode == '-ir insert-or-replace' and "selected" or "",
         'mode_sel6': mode == '--delete' and "selected" or "",
         'site_url': CFG_SITE_URL,
-        'submit_date': cgi.escape(submit_date),
-        'submit_time': cgi.escape(submit_time)}
+        'submit_date': cgi.escape(submit_date, True),
+        'submit_time': cgi.escape(submit_time, True),
+        'email_logs_to': cgi.escape(email_logs_to, True)}
 
         body_content += """</form></div>"""
         return body_content
@@ -383,7 +386,7 @@ class Template:
                }
         return addadminbox("<b>Menu</b>", [body_content])
 
-    def tmpl_display_web_docupload_form(self, ln=CFG_SITE_LANG, submit_date="yyyy-mm-dd", submit_time="hh:mm:ss"):
+    def tmpl_display_web_docupload_form(self, ln=CFG_SITE_LANG, submit_date="yyyy-mm-dd", submit_time="hh:mm:ss", email_logs_to=''):
         """ Display form used for batch document upload """
         _ = gettext_set_language(ln)
         body_content = """
@@ -448,6 +451,7 @@ class Template:
             &nbsp;&nbsp;<span class="italics">%(txt7)s:</span>
             <input type="text" name="submit_time" id="submit_time" value=%(submit_time)s onBlur="defText(this)" onFocus="clearText(this)" style="width:100px" >
             <span class="italics">%(txt8)s: 2009-12-20 19:22:18</span>
+            <div>%(txt_email_logs_to)s: <input type="text" name="email_logs_to" value=%(email_logs_to)s />
             <br/>
             <div><i>%(txt9)s</i></div>
         </div>
@@ -466,14 +470,17 @@ class Template:
                'txt7': _("Time"),
                'txt8': _("Example"),
                'txt9': _("All fields with %(x_fmt_open)s*%(x_fmt_close)s are mandatory") % \
-                        {'x_fmt_open': '<span class="mandatory_field">', 'x_fmt_close': '</span>'}
+                        {'x_fmt_open': '<span class="mandatory_field">', 'x_fmt_close': '</span>',},
+                'txt_email_logs_to': _("Email logs to"),
+                'email_logs_to': cgi.escape(email_logs_to, True),
                }
         return body_content
 
     def tmpl_display_confirm_page(self, ln=CFG_SITE_LANG,
                 metafile=None, filetype=None, mode=None, submit_date=None,
                 submit_time=None, file_name=None, priority=None,
-                errors_upload='', skip_simulation=False):
+                errors_upload='', skip_simulation=False,
+                email_logs_to=None):
         """ Display a confirmation page before uploading metadata
         """
         _ = gettext_set_language(ln)
@@ -512,6 +519,7 @@ class Template:
                         <input type="hidden" name="submit_time" value=%(submit_time)s>
                         <input type="hidden" name="filename" value=%(filename)s>
                         <input type="hidden" name="priority" value=%(priority_num)s>
+                        <input type="hidden" name="email_logs_to" value=%(email_logs_to)s>
                         <div> %(errors_textarea)s %(text_confirm1)s <strong>%(filetype)s</strong> %(text_confirm2)s <strong>%(filename)s</strong> %(text_confirm3)s: <br /><br />
                             %(marcxml_textarea)s
                             <br /><br />
@@ -540,6 +548,7 @@ class Template:
                                'filecontent': metafile.value,
                                'priority_num': priority,
                                'priority_txt': priority_map[priority],
+                               'email_logs_to': email_logs_to,
                                'mode': mode,
                                'num_rec': metafile.value.count('<record>'),
                                'submit_date': submit_date,
