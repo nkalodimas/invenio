@@ -137,7 +137,7 @@ RABBIT_USE_EXTERNAL_ID_INSPIREID = CFG_INSPIRE_SITE
 #Force rabbit to cache entire marc tables instead of querying db if dealing with more
 #then threshold papers
 RABBIT_USE_CACHED_GET_GROUPED_RECORDS = True
-RABBIT_USE_CACHED_GET_GROUPED_RECORDS_THRESHOLD = 1000
+RABBIT_USE_CACHED_GET_GROUPED_RECORDS_THRESHOLD = 2500
 
 
 #Cache the personid table for performing exact name searches?
@@ -151,12 +151,12 @@ LIMIT_EXTERNAL_IDS_COLLECTION_TO_CLAIMED_PAPERS = True
 # BibAuthorID debugging options
 
 # This flag triggers most of the output.
-DEBUG_OUTPUT = True
+DEBUG_OUTPUT = False
 # Print timestamps
-DEBUG_TIMESTAMPS = True
+DEBUG_TIMESTAMPS = False
 
 # Print timestamps even in update_status
-DEBUG_TIMESTAMPS_UPDATE_STATUS = True
+DEBUG_TIMESTAMPS_UPDATE_STATUS = False
 
 DEBUG_UPDATE_STATUS_THREAD_SAFE = True
 DEBUG_LOG_TO_PIDFILE = True
