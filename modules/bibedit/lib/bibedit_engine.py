@@ -274,12 +274,22 @@ def get_available_kbs():
     available_kbs = [kb for kb in kb_list if kb_exists(kb)]
     return available_kbs
 
+
+def record_has_pdf(recid):
+    """ Check if record has a pdf attached
+    """
+    rec_info = BibRecDocs(recid)
+    docs = rec_info.list_bibdocs()
+    return bool(docs)
+
+
 def get_xml_comparison(header1, header2, xml1, xml2):
     """
     Return diffs of two MARCXML records.
     """
     return "".join(difflib.unified_diff(xml1.splitlines(1),
         xml2.splitlines(1), header1, header2))
+
 
 def get_marcxml_of_revision_id(recid, revid):
     """
@@ -294,6 +304,7 @@ def get_marcxml_of_revision_id(recid, revid):
         for row in tmp_res:
             res += zlib.decompress(row[0]) + "\n"
     return res
+
 
 def perform_request_compare(ln, recid, rev1, rev2):
     """Handle a request for comparing two records"""
@@ -318,6 +329,7 @@ def perform_request_compare(ln, recid, rev1, rev2):
                                                  job_date2, comparison)
     return body, errors, warnings
 
+
 def perform_request_newticket(recid, uid):
     """create a new ticket with this record's number
     @param recid: record id
@@ -337,6 +349,7 @@ def perform_request_newticket(recid, uid):
     else:
         errmsg = "No ticket system configured"
     return (errmsg, t_url)
+
 
 def perform_request_ajax(req, recid, uid, data, isBulk = False):
     """Handle Ajax requests by redirecting to appropriate function."""
@@ -400,8 +413,6 @@ def perform_request_ajax(req, recid, uid, data, isBulk = False):
         response.update(perform_request_preview_record(request_type, recid, uid, data))
     elif request_type in ('get_pdf_url', ):
         response.update(perform_request_get_pdf_url(recid))
-    elif request_type in ('record_has_pdf', ):
-        response.update(perform_request_record_has_pdf(recid))
     elif request_type in ('refextract', ):
         txt = None
         if data.has_key('txt'):
@@ -438,6 +449,7 @@ def perform_bulk_request_ajax(req, recid, uid, reqsData, undoRedo, cacheMTime):
             raise Exception(str(lastResult))
     return lastResult
 
+
 def perform_request_search(data):
     """Handle search requests."""
     response = {}
@@ -454,6 +466,7 @@ def perform_request_search(data):
     response['resultSet'] = result_set[0:CFG_BIBEDIT_MAX_SEARCH_RESULTS]
     return response
 
+
 def perform_request_user(req, request_type, recid, data):
     """Handle user related requests."""
     response = {}
@@ -466,6 +479,7 @@ def perform_request_user(req, request_type, recid, data):
         session_param_set(req, 'bibedit_tagformat', tagformat_settings)
         response['resultCode'] = 2
     return response
+
 
 def perform_request_holdingpen(request_type, recId, changeId=None):
     """
@@ -495,6 +509,7 @@ def perform_request_holdingpen(request_type, recId, changeId=None):
         assert(changeId != None)
         delete_hp_change(changeId)
     return response
+
 
 def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG):
     """Handle 'major' record related requests like fetching, submitting or
@@ -682,6 +697,8 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             if record_status == -1:
                 # The record was deleted
                 response['resultCode'] = 103
+
+            response['record_has_pdf'] = record_has_pdf(recid)
 
             response['cacheDirty'], response['record'], \
                 response['cacheMTime'], response['recordRevision'], \
@@ -892,6 +909,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV["record_submitted"]
 
     return response
+
 
 def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
                                   hpChanges, undoRedoOp, isBulk=False):
@@ -1157,6 +1175,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
 
     return response
 
+
 def perform_request_autocomplete(request_type, recid, uid, data):
     """
     Perfrom an AJAX request associated with the retrieval of autocomplete
@@ -1242,6 +1261,7 @@ def perform_request_autocomplete(request_type, recid, uid, data):
             response['autocomplete'] = new_vals
     response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['autosuggestion_scanned']
     return response
+
 
 def perform_request_bibcatalog(request_type, recid, uid):
     """Handle request to BibCatalog (RT).
@@ -1482,14 +1502,6 @@ def perform_request_get_pdf_url(recid):
     if not doc_pdf_url:
         response['pdf_url'] = ""
     return response
-
-
-def perform_request_record_has_pdf(recid):
-    """ Check if record has a pdf attached
-    """
-    rec_info = BibRecDocs(recid)
-    docs = rec_info.list_bibdocs()
-    return {'record_has_pdf': bool(docs)}
 
 
 def perform_request_get_textmarc(recid, uid):
