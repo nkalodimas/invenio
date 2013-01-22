@@ -58,11 +58,7 @@ CFG_INSPIRE_SITE = getattr(config, 'CFG_INSPIRE_SITE', False)
 
 
 def format_marker(line_marker):
-    if line_marker:
-        num_match = re_num.search(line_marker)
-        if num_match:
-            line_marker = num_match.group(0)
-    return line_marker
+    return line_marker.strip("[](){}. ")
 
 
 def create_xml_record(counts, recid, xml_lines, status_code=0):
