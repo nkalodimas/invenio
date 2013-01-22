@@ -597,6 +597,7 @@ def render_hepdata_dataset_html(dataset, recid, seq, display_link = True):
     @param display_link Indicates if a link to the data record should be displayed
     @type display_link boolean
     """
+    from invenio.search_engine import get_fieldvalues
 
     should_expand_table = len(dataset.data) > 0
 
@@ -644,9 +645,17 @@ def render_hepdata_dataset_html(dataset, recid, seq, display_link = True):
         c.append("<b>Comments: </b> " + dataset.comments + "<br>")
         c.append("<br>")
 
-    #TODO: As soon as DOIs are assigned, this should be replaced with a DOI
+    record_doi = get_fieldvalues(dataset.recid, '0247_a')
+    if record_doi:
+        link_txt = "DOI: %s" % record_doi[0]
+    else:
+        link_txt = "Go to the record"
+
     if display_link:
-        c.append("<a href=\"%s/record/%s\">Go to the record</a>" % (CFG_SITE_URL, str(dataset.recid)))
+        c.append("<a href=\"%s/record/%s\">%s</a>" % (CFG_SITE_URL, str(dataset.recid), link_txt))
+    else:
+        if record_doi:
+            c.append("%s" % link_txt)
 
     c.append("<div class=\"hepdataTablePlaceholder\">")
     c.append("<table cellpadding=\"0\" cellspacing=\"0\" class=\"hepdataTable\">")
