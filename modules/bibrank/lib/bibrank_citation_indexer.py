@@ -26,7 +26,6 @@ import sys
 import ConfigParser
 from datetime import datetime
 from itertools import islice
-from datetime import datetime
 
 from invenio.dbquery import run_sql, \
                             deserialize_via_marshal
@@ -551,15 +550,19 @@ def ref_analyzer(citation_informations, updated_recids, tags):
         # Workaround till we know why we are adding ourselves.
         if citer == citee:
             return
-        # Citations and citations weight
+
         citations[citee].add(citer)
+        if citer in updated_recids:
+            references[citer].add(citee)
 
     def add_to_refs(citer, citee):
         # Make sure we don't add ourselves
         # Workaround till we know why we are adding ourselves.
         if citer == citee:
             return
-        # References
+
+        if citee in updated_recids:
+            citations[citee].add(citer)
         references[citer].add(citee)
 
     # dict of recid -> institute_give_publ_id

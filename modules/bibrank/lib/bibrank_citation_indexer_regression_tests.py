@@ -21,6 +21,8 @@
 
 import unittest
 import ConfigParser
+import logging
+import sys
 
 from invenio.testutils import make_test_suite, run_test_suite
 from invenio.config import CFG_ETCDIR
@@ -36,7 +38,7 @@ def load_config():
 CONFIG = load_config()
 
 EXPECTED_DICTS = {
-    'refs': {77: [95], 79: [78], 80: [94], 82: [81], 83: [81], 85: [77, 84], 86: [77, 95], 87: [81], 88: [84], 89: [81], 91: [79, 78, 84], 92: [74, 91], 96: [18]},
+    'refs': {77: [95], 79: [78], 80: [94], 82: [81], 83: [81], 85: [77, 84], 86: [77, 95], 87: [81], 88: [84], 89: [81], 91: [78, 79, 84], 92: [74, 91], 96: [18]},
     'cites': {18: [96], 74: [92], 77: [85, 86], 78: [79, 91], 79: [91], 81: [82, 83, 87, 89], 84: [85, 88, 91], 91: [92], 94: [80], 95: [77, 86]},
 }
 
@@ -75,6 +77,25 @@ def remove_from_dicts(dicts, recid):
 
 class TestCitationIndexer(unittest.TestCase):
     """Testing citation indexer."""
+    def setUp(self):
+        logger = logging.getLogger()
+        for handler in logger.handlers:
+            logger.removeHandler(handler)
+
+        formatter = logging.Formatter('%(asctime)s --> %(message)s', '%Y-%m-%d %H:%M:%S')
+
+        stdout_logger = logging.StreamHandler(sys.stdout)
+        stdout_logger.setFormatter(formatter)
+        # stdout_logger.setLevel(logging.DEBUG)
+        stdout_logger.setLevel(logging.CRITICAL)
+        stderr_logger = logging.StreamHandler(sys.stderr)
+        stderr_logger.setFormatter(formatter)
+        # stderr_logger.setLevel(logging.WARNING)
+        stderr_logger.setLevel(logging.CRITICAL)
+        logger.addHandler(stderr_logger)
+        logger.addHandler(stdout_logger)
+        logger.setLevel(logging.INFO)
+
     def test_basic(self):
         from invenio.bibrank_citation_indexer import process_chunk
         cites, refs = process_chunk(range(1, 100), CONFIG)
