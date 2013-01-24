@@ -43,6 +43,10 @@ except ImportError, e:
     print "Error: %s" % (e,)
     sys.exit(1)
 
+# Add trailing slash to CFG_TMPSHAREDDIR, for find command to work
+# with symlinks
+CFG_TMPSHAREDDIR = CFG_TMPSHAREDDIR + os.sep
+
 # configure variables
 CFG_MYSQL_ARGUMENTLIST_SIZE = 100
 # After how many days to remove obsolete log/err files
