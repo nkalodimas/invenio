@@ -404,7 +404,7 @@ def start_datafield_element(line_marker):
         @return: (string) The string holding the relevant datafield and
         subfield tags.
     """
-    if line_marker.isspace():
+    if not format_marker(line_marker):
         marker_subfield = ""
     else:
         marker_subfield = """
