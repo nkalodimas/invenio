@@ -42,6 +42,7 @@ __revision__ = "$Id$"
 
 import sys
 import os
+import traceback
 
 from warnings import warn
 
@@ -63,12 +64,12 @@ CFG_BIBCONVERT_FUNCTION_NS = "http://cdsweb.cern.ch/bibconvert/fn"
 #        3 : 4suite
 processor_type = 0
 
-try:
+#try:
     # lxml
-    from lxml import etree
-    processor_type = 1
-except ImportError:
-    pass
+#    from lxml import etree
+#    processor_type = 1
+#except ImportError:
+#    pass
 
 if processor_type == 0:
     try:
@@ -350,7 +351,7 @@ def convert(xmltext, template_filename=None, template_source=None):
             temporary_result = xslt(xml)
         except:
             error = 'Failed to perform the XSL transformation.'
-            sys.stderr.write(error)
+            sys.stderr.write(traceback.print_exc())
             return None
 
         result = str(temporary_result)
