@@ -204,13 +204,6 @@ class RefextractTest(unittest.TestCase):
             "< yy 999>",
             "< yyyy 999>",
             "ATL PHYS INT---ATL-PHYS-INT",
-            "#####LANL#####",
-            "<s/syymm999>",
-            "<syymm999>",
-            "ASTRO PH---astro-ph",
-            "HEP PH---hep-ph",
-            "HEP TH---hep-th",
-            "HEP EX---hep-ex",
             "#####LHC#####",
             "< yy 999>",
             "<syyyy 999>",
@@ -862,14 +855,14 @@ class RefextractTest(unittest.TestCase):
 
     def test_misc14(self):
         """Same as test_misc12 but with unknow report numbers to the system"""
-        ref_line = u"""[37] some misc  lkjslkdjlksjflksj [hep-th/8703265] lkjlkjlkjlkj [hep-th/8606096], hep-ph/8002060, some more misc; Nucl. Phys. B546 (1999) 96"""
+        ref_line = u"""[37] some misc  lkjslkdjlksjflksj [hep-th/9206059] lkjlkjlkjlkj [hep-th/9206060], hep-ph/9206061, some more misc; Nucl. Phys. B546 (1999) 96"""
         reference_test(self, ref_line, u"""<record>
    <controlfield tag="001">1</controlfield>
    <datafield tag="999" ind1="C" ind2="5">
       <subfield code="o">37</subfield>
-      <subfield code="r">hep-th/8703265</subfield>
-      <subfield code="r">hep-th/8606096</subfield>
-      <subfield code="r">hep-ph/8002060</subfield>
+      <subfield code="r">hep-th/9206059</subfield>
+      <subfield code="r">hep-th/9206060</subfield>
+      <subfield code="r">hep-ph/9206061</subfield>
    </datafield>
    <datafield tag="999" ind1="C" ind2="5">
       <subfield code="o">37</subfield>
@@ -880,7 +873,7 @@ class RefextractTest(unittest.TestCase):
 
     def test_misc15(self):
         """Same as test_misc13 but with unknow report numbers to the system"""
-        ref_line = u"""[38] R. Emparan, C. Johnson and R.. Myers, Phys. Rev. D60 (1999) 104001; this is :: .... misc! hep-th/8703265. and some ...,.,.,.,::: more hep-th/8606096"""
+        ref_line = u"""[38] R. Emparan, C. Johnson and R.. Myers, Phys. Rev. D60 (1999) 104001; this is :: .... misc! hep-th/9206059. and some ...,.,.,.,::: more hep-th/9206060"""
         reference_test(self, ref_line, u"""<record>
    <controlfield tag="001">1</controlfield>
    <datafield tag="999" ind1="C" ind2="5">
@@ -891,8 +884,8 @@ class RefextractTest(unittest.TestCase):
    </datafield>
    <datafield tag="999" ind1="C" ind2="5">
       <subfield code="o">38</subfield>
-      <subfield code="r">hep-th/8703265</subfield>
-      <subfield code="r">hep-th/8606096</subfield>
+      <subfield code="r">hep-th/9206059</subfield>
+      <subfield code="r">hep-th/9206060</subfield>
    </datafield>
 </record>""")
 
@@ -2007,7 +2000,6 @@ and C. Tomei et al., Astropart. Phys. 33 (2010) 169 [arXiv:0912.0452 [physics.in
    </datafield>
    <datafield tag="999" ind1="C" ind2="5">
       <subfield code="o">26</subfield>
-      <subfield code="m">hep-th</subfield>
       <subfield code="h">U. Gursoy, E. Kiritsis and F. Nitti</subfield>
       <subfield code="t">Exploring improved holographic theories for QCD: Part II</subfield>
       <subfield code="s">JHEP,0802,019</subfield>
