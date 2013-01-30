@@ -29,6 +29,8 @@ from time import time, sleep
 from datetime import timedelta, datetime
 from re import split as re_split
 from re import compile as re_compile
+import requests
+import simplejson as json
 
 from invenio.webauthorprofile_config import serialize, deserialize
 from invenio.webauthorprofile_config import CFG_BIBRANK_SHOW_DOWNLOAD_STATS, \
@@ -42,6 +44,7 @@ from invenio.bibauthorid_webauthorprofileinterface import get_papers_by_person_i
     get_person_redirect_link, is_valid_canonical_id, split_name_parts, \
     gathered_names_by_personid, get_canonical_id_from_personid, get_coauthor_pids, \
     get_person_names_count, get_existing_personids
+from invenio.bibauthorid_dbinterface import get_personiID_external_ids
 from invenio.webauthorprofile_dbapi import get_cached_element, precache_element, cache_element, \
     expire_all_cache_for_person, get_expired_person_ids, get_cache_oldest_date
 from invenio.search_engine_summarizer import summarize_records
@@ -296,6 +299,125 @@ def _get_summarize_records(pubs, tag, ln, rec_query, person_id):
     html = summarize_records(intbitset(pubs), tag, ln, rec_query)
     return html
 
+def get_info_from_orcid(person_id):
+    '''
+    Returns orcid data for given personid.
+    @param person_id: int, person id
+    @return
+    '''
+    return retrieve_update_cache('orcid_info', 'pid:' + str(person_id), _get_info_from_orcid, person_id)
+
+def _get_info_from_orcid(person_id):
+    '''
+    Returns orcid data for given personid.
+    @param person_id: int, person id
+    @return
+    '''
+    # read from db the orcid of person_id
+    external_ids = get_personiID_external_ids(person_id)
+    if not external_ids:
+        return None
+    assert len(external_ids['ORCID']) <= 1, "A person cannot have more than one orcid id"
+    orcid_id = external_ids['ORCID'][0]
+    access_token = _get_access_token_from_orcid('/read-public', extra_data=[('grant_type', 'client_credentials')], response_format='json')
+    for request_type in ['orcid-bio', 'orcid-works', 'orcid-profile']:
+        orcid_response = _get_specific_info_from_orcid_member(orcid_id, access_token, request_type, endpoint='http://api.sandbox-1.orcid.org/', response_format='json')
+        orcid_data = json.loads(orcid_response)
+        print orcid_data
+        # process orcid_data
+
+def _get_access_token_from_orcid(scope, extra_data=None, response_format='json'):
+    '''
+    Returns a multi-use access token using the client credentials. With the specific access token
+    we can retreive public data of the given scope.
+    @param scope: int, person id
+    @param extra_data: list, [(field, value),]
+    @return str, access token
+    '''
+    from invenio.access_control_config import CFG_OAUTH2_CONFIGURATIONS
+
+    # in case an access token is already created (and additionally valid) return it
+    payload = {'client_id': CFG_OAUTH2_CONFIGURATIONS['orcid']['consumer_key'],
+               'client_secret': CFG_OAUTH2_CONFIGURATIONS['orcid']['consumer_secret'],
+               'scope': scope }
+    for field, value in extra_data:
+        payload[field] = value
+    request_url = '%s' % (CFG_OAUTH2_CONFIGURATIONS['orcid']['access_token_url'])
+    headers = {'Accept': 'application/json'}
+    response = requests.post(request_url, data=payload, headers=headers)
+    code = response.status_code
+    res = None
+    # response.raise_for_status()
+    if code == requests.codes.ok:
+        res = response.content
+    elif code == 500:
+        raise Exception()   # probably not needed to raise an Exception
+    else:
+        raise Exception()   # probably not needed to raise an Exception
+    return json.loads(res)['access_token']
+
+# probably not needed
+class Orcid_server_error(Exception):
+    """ Exception raised when the server status is 500 (Internal Server Error). """
+    def __str__(self):
+        return "Http response code 500. Orcid Internal Server Error."
+
+class Orcid_request_error(Exception):
+    """ Exception raised when the server status is:
+    204 No Content
+    400 Bad Request
+    401 Unauthorized
+    403 Forbidden
+    404 Not Found
+    410 Gone (deleted)
+    """
+    def __init__(self, code):
+        # depending on the code we should decide whether to send an email to the system admin
+        self.code = code
+    def __str__(self):
+        return "Http response code %s." % repr(self.code)
+
+def _get_specific_info_from_orcid_public(orcid_id, request_type='orcid-bio', endpoint='http://sandbox-1.orcid.org/', response_format='json'):
+    '''
+    '''
+    request_url = '%s%s/%s' % (endpoint, orcid_id, request_type)
+    headers = {'Accept': 'application/orcid+%s' % response_format}   # 'Accept-Charset': 'UTF-8'   # ATTENTION: it overwrites the response format header
+    response = requests.get(request_url, headers=headers)
+    code = response.status_code
+    res = None
+    # response.raise_for_status()
+    if code == requests.codes.ok:
+        res = response.content
+    elif code == 500:
+        raise Orcid_server_error()   # probably not needed to raise an Exception
+    else:
+        raise Orcid_request_error(code)   # probably not needed to raise an Exception
+    return res
+
+def _get_specific_info_from_orcid_member(orcid_id, access_token, request_type='orcid-bio', endpoint='http://api.sandbox-1.orcid.org/', response_format='json'):
+    '''
+    Returns the public data for the specific request query given an orcid id.
+    @param orcid_id: int, orcid_id
+    @param request_type: str, request type
+    @param endpoint: str, the API endpoint
+    @param response_format: str, the type of response that you will get as a result of the API call
+    @return
+    '''
+    request_url = '%s%s/%s' % (endpoint, orcid_id, request_type)
+    headers = {'Accept': 'application/orcid+%s' % response_format, 'Authorization': 'Bearer %s' % access_token}   # 'Accept-Charset': 'UTF-8'   # ATTENTION: it overwrites the response format header
+    response = requests.get(request_url, headers=headers)
+    code = response.status_code
+    res = None
+    # response.raise_for_status()
+    if code == requests.codes.ok:
+        res = response.content
+    elif code == 500:
+        raise Orcid_server_error()   # probably not needed to raise an Exception
+    else:
+        raise Orcid_request_error(code)   # probably not needed to raise an Exception
+    return res
+
+
 def _compute_cache_for_person(person_id):
     start = time()
     expire_all_cache_for_person(person_id)
@@ -315,6 +437,7 @@ def _compute_cache_for_person(person_id):
                (get_hepnames_data,),
                (get_pubs_per_year,),
                (get_summarize_records, ('hcs', 'en')),
+               (get_info_from_orcid,),
                 ]
     for f in f_to_call:
         r = [None, False]

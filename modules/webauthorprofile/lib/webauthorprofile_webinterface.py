@@ -36,7 +36,8 @@ from invenio.bibauthorid_webauthorprofileinterface import is_valid_canonical_id,
 from invenio.webauthorprofile_corefunctions import get_pubs, get_person_names_dicts, \
     get_institute_pubs, get_pubs_per_year, get_coauthors, get_summarize_records, \
     get_total_downloads, get_kwtuples, get_fieldtuples, get_veryfy_my_pubs_list_link, \
-    get_hepnames_data, get_self_pubs, get_collabtuples, expire_all_cache_for_person
+    get_hepnames_data, get_self_pubs, get_collabtuples, get_info_from_orcid, \
+    expire_all_cache_for_person
 
 from invenio.webpage import pageheaderonly
 from invenio.webinterface_handler import wash_urlargd, WebInterfaceDirectory
@@ -401,6 +402,11 @@ class WebAuthorPages(WebInterfaceDirectory):
         hepdict, hepdictStatus, last_updated = get_hepnames_data(person_id)
         lu(last_updated)
 
+        orcid_info, orcid_infoStatus, last_updated = get_info_from_orcid(person_id)
+        if not orcid_info:
+            orcid_info = {}
+        lu(last_updated)
+
 
         recompute_allowed = True
 
@@ -430,7 +436,8 @@ class WebAuthorPages(WebInterfaceDirectory):
                                                (pubs_per_year, pubs_per_yearStatus),
                                                (hepdict, hepdictStatus),
                                                (selfpubs, selfpubsStatus),
-                                               (collab, collabStatus)]]
+                                               (collab, collabStatus),
+                                               (orcid_info, orcid_infoStatus)]]
         # not_complete = False in eval
         # req.write(str(eval))
 
@@ -452,6 +459,8 @@ class WebAuthorPages(WebInterfaceDirectory):
             json_response['boxes_info'].update({'pubs_graph': {'status':beval[10], 'html_content': webauthorprofile_templates.tmpl_graph_box(pubs_per_year, ln, add_box=False, loading=not beval[10])}})
             json_response['boxes_info'].update({'hepdata': {'status':beval[11], 'html_content':webauthorprofile_templates.tmpl_hepnames(hepdict, ln, add_box=False, loading=not beval[11])}})
             json_response['boxes_info'].update({'collaborations': {'status':beval[13], 'html_content': webauthorprofile_templates.tmpl_collab_box(collab, bibauthorid_data, ln, add_box=False, loading=not beval[13])}})
+            json_response['boxes_info'].update({'orcid_info': {'status':beval[14], 'html_content': webauthorprofile_templates.tmpl_orcid_info_box(orcid_info, ln, add_box=False, loading=not beval[14])}})
+
 
             req.content_type = 'application/json'
             req.write(json.dumps(json_response))
@@ -466,5 +475,5 @@ class WebAuthorPages(WebInterfaceDirectory):
                                             fieldtuples, coauthors, db_names_dict, \
                                             person_link, bibauthorid_data, \
                                             summarize_records, pubs_per_year, \
-                                            hepdict, collab, ln, beval, \
+                                            hepdict, collab, orcid_info, ln, beval, \
                                             oldest_cache_date, recompute_allowed))
