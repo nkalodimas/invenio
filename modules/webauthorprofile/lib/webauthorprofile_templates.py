@@ -604,6 +604,21 @@ class Template:
         else:
             return html_graph_code
 
+    def tmpl_orcid_info_box(self, orcid_info, ln, add_box=True, loading=False):
+        """ ORCID info """
+        _ = gettext_set_language(ln)
+        html_head = _("<strong> ORCID info: </strong>")
+        html_orcid = _("No Info Available")
+        # if orcid_info:
+            # compute html_orcid
+        if loading:
+            html_orcid = self.loading_html()
+        if add_box:
+            orcid_box = self.tmpl_print_searchresultbox('orcid', html_head, html_orcid)
+            return orcid_box
+        else:
+            return html_orcid
+
     def tmpl_numpaperstitle(self, bibauthorid_data, pubs):
         if bibauthorid_data["cid"]:
             baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
@@ -625,7 +640,7 @@ class Template:
     def tmpl_author_page(self, pubs, selfpubs, authorname, num_downloads,
                         aff_pubdict, kwtuples, fieldtuples, authors,
                         names_dict, person_link, bibauthorid_data, summarize_records,
-                        pubs_per_year, hepdict, collabs, ln, beval, oldest_cache_date,
+                        pubs_per_year, hepdict, collabs, orcid_info, ln, beval, oldest_cache_date,
                         recompute_allowed):
         '''
         '''
@@ -680,6 +695,7 @@ class Template:
         html_citations = self.tmpl_citations_box(summarize_records, ln, loading=not beval[8])
         html_graph = self.tmpl_graph_box(pubs_per_year, ln, loading=not beval[10])
         html_collabs = self.tmpl_collab_box(collabs, bibauthorid_data, ln, loading=not beval[13])
+        html_orcid = self.tmpl_orcid_info_box(orcid_info, ln, loading=not beval[14])
 
         g = self._grid
 
@@ -694,9 +710,10 @@ class Template:
                                       g(1, 1, cell_padding=5)(html_fieldcodes)
                                      )
                               ),
-                      g(3, 1)(g(1, 1, cell_padding=5)(html_citations),
+                      g(4, 1)(g(1, 1, cell_padding=5)(html_citations),
                               g(1, 1, cell_padding=5)(html_graph),
-                              g(1, 1, cell_padding=5)(html_hepnames))
+                              g(1, 1, cell_padding=5)(html_hepnames),
+                              g(1, 1, cell_padding=5)(html_orcid))
                       )
         html.append(page)
         if oldest_cache_date:
