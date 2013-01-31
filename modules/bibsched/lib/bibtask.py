@@ -69,9 +69,12 @@ from invenio.errorlib import register_exception
 from invenio.access_control_config import CFG_EXTERNAL_AUTH_USING_SSO, \
     CFG_EXTERNAL_AUTHENTICATION
 from invenio.webuser import get_user_preferences, get_email
-from invenio.bibtask_config import CFG_BIBTASK_VALID_TASKS, \
-    CFG_BIBTASK_DEFAULT_TASK_SETTINGS, CFG_BIBTASK_FIXEDTIMETASKS, \
-    CFG_BIBTASK_DEFAULT_GLOBAL_TASK_SETTINGS
+from invenio.bibtask_config import \
+    CFG_BIBTASK_VALID_TASKS, \
+    CFG_BIBTASK_DEFAULT_TASK_SETTINGS, \
+    CFG_BIBTASK_FIXEDTIMETASKS, \
+    CFG_BIBTASK_DEFAULT_GLOBAL_TASK_SETTINGS, \
+    CFG_BIBSCHED_LOGDIR
 from invenio.dateutils import parse_runtime_limit
 from invenio.shellutils import escape_shell_arg
 from invenio.mailutils import send_email
@@ -312,8 +315,8 @@ def setup_loggers(task_id=None):
         logger.removeHandler(handler)
     formatter = logging.Formatter('%(asctime)s --> %(message)s', '%Y-%m-%d %H:%M:%S')
     if task_id is not None:
-        err_logger = logging.handlers.RotatingFileHandler(os.path.join(CFG_LOGDIR, 'bibsched_task_%d.err' % _TASK_PARAMS['task_id']), 'a', 1*1024*1024, 10)
-        log_logger = logging.handlers.RotatingFileHandler(os.path.join(CFG_LOGDIR, 'bibsched_task_%d.log' % _TASK_PARAMS['task_id']), 'a', 1*1024*1024, 10)
+        err_logger = logging.handlers.RotatingFileHandler(os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.err' % _TASK_PARAMS['task_id']), 'a', 1*1024*1024, 10)
+        log_logger = logging.handlers.RotatingFileHandler(os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.log' % _TASK_PARAMS['task_id']), 'a', 1*1024*1024, 10)
         log_logger.setFormatter(formatter)
         log_logger.setLevel(logging.DEBUG)
         err_logger.setFormatter(formatter)
@@ -462,7 +465,7 @@ def task_init(
                                 profile_dump.append(strstream.getvalue())
                         profile_dump = '\n'.join(profile_dump)
                         profile_dump += '\nYou can use profile=%s' % existing_sorts
-                        open(os.path.join(CFG_LOGDIR, 'bibsched_task_%d.log' % _TASK_PARAMS['task_id']), 'a').write("%s" % profile_dump)
+                        open(os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.log' % _TASK_PARAMS['task_id']), 'a').write("%s" % profile_dump)
                         os.remove(filename)
                     except ImportError:
                         ret = _task_run(task_run_fnc)

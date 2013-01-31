@@ -24,7 +24,8 @@ __revision__ = "$Id$"
 import os
 import sys
 import time
-from invenio.config import CFG_LOGDIR, CFG_PYLIBDIR, CFG_INSPIRE_SITE
+from invenio.config import CFG_LOGDIR, CFG_PYLIBDIR, CFG_INSPIRE_SITE, \
+                           CFG_BIBSCHED_LOGDIR
 
 # Which tasks are recognized as valid?
 CFG_BIBTASK_VALID_TASKS = ("bibindex", "bibupload", "bibreformat",
@@ -150,3 +151,4 @@ CFG_BIBTASK_DEFAULT_TASK_SETTINGS = {
 }
 
 CFG_BIBTASK_TASKLETS_PATH = os.path.join(CFG_PYLIBDIR, 'invenio', 'bibsched_tasklets')
+CFG_BIBSCHED_LOGDIR = os.path.join(CFG_LOGDIR, CFG_BIBSCHED_LOGDIR)

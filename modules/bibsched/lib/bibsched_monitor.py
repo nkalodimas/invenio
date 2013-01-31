@@ -27,7 +27,8 @@ import signal
 import textwrap
 
 from invenio.bibtask_config import \
-    CFG_BIBTASK_VALID_TASKS
+    CFG_BIBTASK_VALID_TASKS, \
+    CFG_BIBSCHED_LOGDIR
 from invenio.config import \
      CFG_BIBSCHED_REFRESHTIME, \
      CFG_BINDIR, \
@@ -267,9 +268,9 @@ class Manager(object):
     def openlog(self, err=False):
         task_id = self.currentrow[0]
         if err:
-            logname = os.path.join(CFG_LOGDIR, 'bibsched_task_%d.err' % task_id)
+            logname = os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.err' % task_id)
         else:
-            logname = os.path.join(CFG_LOGDIR, 'bibsched_task_%d.log' % task_id)
+            logname = os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.log' % task_id)
         if os.path.exists(logname):
             pager = get_pager()
             if os.path.exists(pager):

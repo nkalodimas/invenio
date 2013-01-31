@@ -36,7 +36,8 @@ import signal
 from invenio.bibtask_config import \
     CFG_BIBTASK_VALID_TASKS, \
     CFG_BIBTASK_MONOTASKS, \
-    CFG_BIBTASK_FIXEDTIMETASKS
+    CFG_BIBTASK_FIXEDTIMETASKS, \
+    CFG_BIBSCHED_LOGDIR
 from invenio.config import \
      CFG_PREFIX, \
      CFG_TMPSHAREDDIR, \
