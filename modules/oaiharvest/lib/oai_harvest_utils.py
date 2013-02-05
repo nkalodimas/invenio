@@ -98,12 +98,13 @@ def remove_duplicates(harvested_file_list):
         # Secondly, open files for writing and reading
         original_harvested_file = None
         try:
-            original_harvested_file = open("%s~" % (harvested_file,))
-            data = original_harvested_file.read()
-        except IOError:
-            write_message("Error opening harvested file '%s': %s" % \
-                         (harvested_file, traceback.print_exc()))
-            continue
+            try:
+                original_harvested_file = open("%s~" % (harvested_file,))
+                data = original_harvested_file.read()
+            except IOError:
+                write_message("Error opening harvested file '%s': %s" % \
+                             (harvested_file, traceback.print_exc()))
+                continue
         finally:
             if original_harvested_file:
                 original_harvested_file.close()
@@ -127,12 +128,13 @@ def remove_duplicates(harvested_file_list):
         updated_file_content.append("</ListRecords>\n</OAI-PMH>")
         updated_harvested_file = None
         try:
-            updated_harvested_file = open(harvested_file, 'w')
-            updated_harvested_file.write("\n".join(updated_file_content))
-        except IOError:
-            write_message("Error saving updated harvest-file '%s': %s" % \
-                         (harvested_file, traceback.print_exc()))
-            continue
+            try:
+                updated_harvested_file = open(harvested_file, 'w')
+                updated_harvested_file.write("\n".join(updated_file_content))
+            except IOError:
+                write_message("Error saving updated harvest-file '%s': %s" % \
+                             (harvested_file, traceback.print_exc()))
+                continue
         finally:
             if updated_harvested_file:
                 updated_harvested_file.close()
