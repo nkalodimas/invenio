@@ -27,6 +27,7 @@ def info():
     return "New selfcite tables"
 
 def do_upgrade():
+    return
     run_sql("""
 CREATE TABLE IF NOT EXISTS `rnkRECORDSCACHE` (
   `id_bibrec` int(10) unsigned NOT NULL,
