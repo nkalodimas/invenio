@@ -48,6 +48,8 @@ def get_dict():
 
 
 def do_upgrade():
+    if run_sql("SHOW TABLES LIKE 'rnkCITATIONDICT'"):
+        return
     run_sql("""
 CREATE TABLE IF NOT EXISTS rnkCITATIONDICT (
   citee int(10) unsigned NOT NULL,
@@ -73,9 +75,7 @@ def estimate():
 
 
 def pre_upgrade():
-    if run_sql("SHOW TABLES LIKE 'rnkCITATIONDICT'"):
-        raise Exception("rnkCITATIONDICT already exists!")
-
+    pass
 
 def post_upgrade():
     pass
