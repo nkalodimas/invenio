@@ -140,7 +140,7 @@ def bibreformat_task(fmt, sql, sql_queries, cds_query, process_format, process, 
         recIDs = intbitset([recid for recid, mod_date in run_sql(sql) \
                                                     if check_date(mod_date)])
         for r in recIDs:
-            recIDs |= intbitset(get_cited_by(r))
+            recIDs += get_cited_by(r)
 
 ### list of corresponding record IDs was retrieved
 ### now format the selected records
