@@ -83,8 +83,6 @@ class TexkeySeq(SequenceGenerator):
                                             ind1="",
                                             ind2="",
                                             code="a")
-        # Remove utf-8 special characters
-        main_author = unidecode(main_author.decode('utf-8'))
 
         if not main_author:
             # Try with collaboration name
@@ -96,9 +94,18 @@ class TexkeySeq(SequenceGenerator):
             main_author = "".join([p for p in main_author.split()
                                 if p.lower() != "collaboration"])
 
+        if not main_author:
+            # Try with corporate author
+            main_author = record_get_field_value(bibrecord,
+                                            tag="100",
+                                            ind1="",
+                                            ind2="",
+                                            code="a")
             if not main_author:
                 raise TexkeyNoAuthorError
 
+        # Remove utf-8 special characters
+        main_author = unidecode(main_author.decode('utf-8'))
         try:
             texkey_first_part = main_author.split(',')[0].replace(" ", "")
         except KeyError:
