@@ -340,6 +340,7 @@ def save_xml_record(recid, uid, xml_record='', to_upload=True, to_merge=False):
     if to_upload:
         # Pass XML file to BibUpload.
         task_low_level_submission('bibupload', 'bibedit', '-P', '5', '-r',
+                                  '--name', 'bibedit',
                                   file_path, '-u', user_name)
     return True
 
