@@ -176,6 +176,9 @@ var gRecordHasPDF = false;
 // queue with all requests to be sent to server
 var gReqQueue = [];
 
+// count number of requests since last save
+var gReqCounter = 0;
+
 
 /*
  * **************************** 2. Initialization ******************************
@@ -229,7 +232,6 @@ $(function(){
   // viewport
   resize_content();
   $(window).bind('resize', resize_content);
-  setInterval(save_changes, gSAVE_CHANGES_FREQUENCY);
 });
 
 
@@ -531,6 +533,13 @@ function queue_request(data) {
   /* Create a deep copy of the data to avoid being manipulated
   by other requests */
   gReqQueue.push(jQuery.extend(true, {}, data));
+
+  /* Update counter of requests to save */
+  gReqCounter++;
+  if (gReqCounter === gREQUESTS_UNTIL_SAVE) {
+    save_changes();
+    gReqCounter = 0;
+  }
 }
 
 function save_changes() {
