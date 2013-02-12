@@ -1392,8 +1392,6 @@ function onGetRecordSuccess(json){
 
   createReq({recID: gRecID, requestType: 'getTickets'}, onGetTicketsSuccess);
 
-  onHoldingPenPanelRecordIdChanged(gRecID); // reloading the Holding Pen toolbar
-
   // Refresh top toolbar
   updateToolbar(false);
   updateToolbar(true);
