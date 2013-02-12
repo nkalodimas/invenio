@@ -942,12 +942,12 @@ order to let this task run. The current priority is %s. New value:"
             table = "schTASK"
             where = "and (status='DONE' or status LIKE 'ACK%')"
             order = "runtime DESC"
-            limit = ""
+            limit = "limit %s" % CFG_BIBSCHED_MAX_ARCHIVED_ROWS_DISPLAY
         elif self.display == 2:
             table = "schTASK"
             where = "and (status<>'DONE' and status NOT LIKE 'ACK%')"
             order = "runtime ASC"
-            limit = "limit %s" % CFG_BIBSCHED_MAX_ARCHIVED_ROWS_DISPLAY
+            limit = ""
         else:
             table = "hstTASK"
             order = "runtime DESC"
