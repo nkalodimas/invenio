@@ -71,6 +71,38 @@ def update_person_canonical_name(person_id, canonical_name, userinfo=''):
     dbapi.update_personID_canonical_names([person_id], overwrite=True, suggested=canonical_name)
     dbapi.insert_user_log(userinfo, person_id, 'data_update', 'CMPUI_changecanonicalname', '', 'Canonical name manually updated.', userid=uid)
 
+def swap_person_canonical_name(person_id, desired_cname, userinfo=''):
+    '''
+    Swaps the canonical names of person_id and the person who withholds the desired canonical name.
+    @param person_id: int
+    @param desired_cname: string
+    '''
+    personid_with_desired_cname = get_person_id_from_canonical_id(desired_cname)
+    if personid_with_desired_cname == person_id:
+        return
+
+    if userinfo.count('||'):
+        uid = userinfo.split('||')[0]
+    else:
+        uid = ''
+
+    current_cname = get_canonical_id_from_person_id(person_id)
+    create_log_personid_with_desired_cname = False
+
+    if personid_with_desired_cname == -1:   # nobody withholds the desired canonical name
+        dbapi.change_personID_canonical_names([(person_id, desired_cname)])
+    elif not isinstance(current_cname, str):   # person_id doesn't own a canonical name
+        dbapi.change_personID_canonical_names([(person_id, desired_cname)])
+        dbapi.update_personID_canonical_names([personid_with_desired_cname], overwrite=True)
+        create_log_personid_with_desired_cname = True
+    else:   # both person_id and personid_with_desired_cname own a canonical name
+        dbapi.change_personID_canonical_names([(person_id, desired_cname), (personid_with_desired_cname, current_cname)])
+        create_log_personid_with_desired_cname = True
+
+    dbapi.insert_user_log(userinfo, person_id, 'data_update', 'CMPUI_changecanonicalname', '', 'Canonical name manually updated.', userid=uid)
+    if create_log_personid_with_desired_cname:
+        dbapi.insert_user_log(userinfo, personid_with_desired_cname, 'data_update', 'CMPUI_changecanonicalname', '', 'Canonical name manually updated.', userid=uid)
+
 def delete_person_external_ids(person_id, existing_ext_ids, userinfo=''):
     '''
     Deletes external ids of the person
@@ -338,7 +370,7 @@ def get_person_request_ticket(pid= -1, tid=None):
     if pid < 0:
         return []
     else:
-        return dbapi.get_request_ticket(pid, ticket_id=tid)
+        return dbapi.get_validated_request_ticket(pid, ticket_id=tid)
 
 def get_persons_with_open_tickets_list():
     '''

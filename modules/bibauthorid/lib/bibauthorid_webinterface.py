@@ -27,6 +27,7 @@ from cgi import escape
 from copy import deepcopy
 from pprint import pformat
 from operator import itemgetter
+import re
 
 try:
     from invenio.jsonutils import json, CFG_JSON_AVAILABLE
@@ -59,6 +60,7 @@ from invenio.bibauthorid_backinterface import update_personID_external_ids
 
 
 TEMPLATE = load('bibauthorid')
+swap = re.compile("\S*[.](\d)+$")
 
 class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
     """
@@ -1199,6 +1201,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         ticket = pinfo["ticket"]
         ticket = [row for row in ticket if not "execution_result" in row]
         skip_checkout_page = True
+        skip_checkout_page2 = True
         upid = -1
         user_first_name = ""
         user_first_name_sys = False
@@ -1260,18 +1263,19 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if [row for row in ticket
             if row["status"] in ["denied", "warning_granted",
                                  "warning_denied"]]:
-            skip_checkout_page = False
+            skip_checkout_page2 = False
 
         if 'external_first_entry_skip_review' in pinfo and pinfo['external_first_entry_skip_review']:
             del(pinfo["external_first_entry_skip_review"])
             skip_checkout_page = True
             session.dirty = True
 
-        if (not ticket or skip_checkout_page
+        if (not ticket or skip_checkout_page2
             or ("checkout_confirmed" in pinfo
                 and pinfo["checkout_confirmed"]
                 and "checkout_faulty_fields" in pinfo
-                and not pinfo["checkout_faulty_fields"])):
+                and not pinfo["checkout_faulty_fields"]
+                and skip_checkout_page)):
             self.adf['ticket_commit'][ulevel](req)
 
             if "checkout_confirmed" in pinfo:
@@ -1585,8 +1589,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         if not ("user_email_sys" in pinfo and pinfo["user_email_sys"]):
             if "user_email" in argd and argd['user_email']:
-                if (not argd["user_email"]
-                    or not email_valid_p(argd["user_email"])):
+                if not email_valid_p(argd["user_email"]):
                     pinfo["checkout_faulty_fields"].append("user_email")
                 else:
                     pinfo["user_email"] = escape(argd["user_email"])
@@ -1594,6 +1597,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 if (ulevel == "guest"
                     and emailUnique(argd["user_email"]) > 0):
                     pinfo["checkout_faulty_fields"].append("user_email_taken")
+            else:
+                pinfo["checkout_faulty_fields"].append("user_email")
 
         if "user_comments" in argd:
             if argd["user_comments"]:
@@ -1863,7 +1868,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 else:
                     return self._error_page(req, ln,
                                         "Fatal: cannot create ticket without any paper selected!")
-
             if 'rt_id' in argd and argd['rt_id']:
                 rt_id = argd['rt_id']
                 for b in bibrefs:
@@ -1881,6 +1885,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     if e['bibref'] == t['bibref']:
                         ticket.remove(e)
                 ticket.append(t)
+
             if 'search_ticket' in pinfo:
                 del(pinfo['search_ticket'])
 
@@ -1951,7 +1956,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             uid = getUid(req)
             userinfo = "%s||%s" % (uid, req.remote_ip)
-            webapi.update_person_canonical_name(pid, cname, userinfo)
+            if swap.match(cname):
+                webapi.swap_person_canonical_name(pid, cname, userinfo)
+            else:
+                webapi.update_person_canonical_name(pid, cname, userinfo)
 
             return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
 
