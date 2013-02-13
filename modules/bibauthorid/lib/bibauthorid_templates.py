@@ -206,14 +206,15 @@ class Template:
         h = html.append
 
         h('<div id="aid_notification_' + teaser_key + '" class="ui-widget ui-alert">')
-        h('  <div style="background: #FC2626; margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-error ui-corner-all">')
+        h('  <div style="background: #FC2626; margin-top: 20px; padding: 0pt 0.7em; color:#000000;" class="ui-state-error ui-corner-all">')
         h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-alert"></span>')
         h('    <strong>%s</strong> %s' % (teaser, message))
 
         if show_close_btn:
-            h('    <span style="float:right; margin-right: 0.3em;"><a rel="nofollow" href="#" class="aid_close-notify">X</a></span></p>')
+            h('    <span style="float:right; margin-right: 0.3em;"> ')
+            h('<a rel="nofollow" href="#" style="color: #000000; border: 1px #000000 solid;" class="aid_close-notify">X</a></span>')
 
-        h(' </div>')
+        h('</p> </div>')
         h('</div>')
 
         return "\n".join(html)
@@ -1017,19 +1018,21 @@ class Template:
             h('  <div id="tabData">')
             r = verbiage_dict['data_ns']
             h('<noscript><h5>%s</h5></noscript>' % r)
-            canonical_name = str(get_canonical_id_from_person_id(person_id))
-            if '.' in str(canonical_name) and not isinstance(canonical_name, int):
-                canonical_name = canonical_name[0:canonical_name.rindex('.')]
+            full_canonical_name = str(get_canonical_id_from_person_id(person_id))
+            if '.' in str(full_canonical_name) and not isinstance(full_canonical_name, int):
+                canonical_name = full_canonical_name[0:full_canonical_name.rindex('.')]
             h('<div><div> <strong> Person id </strong> <br> %s <br>' % person_id)
             h('<strong> <br> Canonical name setup </strong>')
-            h('<div style="margin-top: 15px;"> Current canonical name: %s  <form method="GET" action="%s/person/action" rel="nofollow">' % (canonical_name, CFG_SITE_URL))
+            h('<div style="margin-top: 15px;"> Current canonical name: %s' % full_canonical_name)
+            h('<form method="GET" action="%s/person/action" rel="nofollow">' % CFG_SITE_URL)
             h('<input type="hidden" name="set_canonical_name" value="True" />')
             h('<input name="canonical_name" id="canonical_name" type="text" style="border:1px solid #333; width:500px;" value="%s" /> ' % canonical_name)
             h('<input type="hidden" name="pid" value="%s" />' % person_id)
             h('<input type="submit" value="set canonical name" class="aid_btn_blue" />')
-            h('<br>NOTE: please note the a number is appended automatically to the name displayed above. This cannot be manually triggered so to ensure unicity of IDs.')
-            h('To change the number if greater then one, please change all the other names first, then updating this one will do the trick. </div>')
-            h('</form> </div></div>')
+
+            h('<br>NOTE: If the canonical ID is without any number (e.g. J.Ellis), it will take the first available number. ')
+            h('If the canonical ID is complete (e.g. J.Ellis.1) that ID will be assigned to the current person ')
+            h('and if another person had that ID, he will lose it and get a new one. </form>')
 
             userid = get_uid_from_personid(person_id)
             h('<div> <br>')

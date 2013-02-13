@@ -199,4 +199,4 @@ NAMES_SEPARATOR_CHARACTER_LIST = ",;.=\-\(\)"
 SURNAMES_SEPARATOR_CHARACTER_LIST = ",;"
 
 # Dict which maps an external system with the name of the tag with which an external id is stored in the db
-EXTERNAL_SYSTEMS_LIST = {'Inspire': 'INSPIREID', 'Orcid': 'ORCID', 'arXiv': 'ARXIVID'}
+EXTERNAL_SYSTEMS_LIST = {'Inspire': 'INSPIREID', 'Orcid': 'ORCID'}

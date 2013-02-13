@@ -397,13 +397,8 @@ def get_personids_by_canonical_name(target):
     @param target:
     @type target:
     '''
-    pid = run_sql("select personid from aidPERSONIDDATA where "
+    return run_sql("select personid, data from aidPERSONIDDATA where "
                   "tag='canonical_name' and data like %s", (target,))
-    if pid:
-        return run_sql("select personid, name from aidPERSONIDPAPERS "
-                       "where personid=%s and flag > -2", (pid[0][0],))
-    else:
-        return []
 
 def get_bibref_modification_status(bibref):
     '''
@@ -813,6 +808,7 @@ def get_persons_with_open_tickets_list():
     return run_sql("select personid, count(distinct opt1) from "
                     "aidPERSONIDDATA where tag like 'rt_%' group by personid")
 
+
 def get_request_ticket(person_id, ticket_id=None):
     '''
     Retrieves one or many requests tickets from a person
@@ -831,7 +827,33 @@ def get_request_ticket(person_id, ticket_id=None):
     return [[[(s[0][3:], s[1]) for s in d], k] for k, d in groupby(sorted(tickets, key=lambda k: k[2]), key=lambda k: k[2])]
 
 
-def insert_user_log(userinfo, personid, action, tag, value, comment='', transactionid=0, timestamp=None, userid=''):
+def get_validated_request_ticket(person_id, ticket_id=None):
+    '''
+    Validates request tickets before returning them.
+    '''
+    tickets = get_request_ticket(person_id, ticket_id)
+    for ticket in list(tickets):
+        for entry in list(ticket[0]):
+            if entry[0] == 'repeal' or entry[0] == 'confirm': #those should be the only possible actions in a ticket!
+                try:
+                    bibref, bibrec = entry[1].split(',')
+                    tab, val = bibref.split(':')
+                    sig = (int(tab), int(val), int(bibrec))
+                    present = bool(run_sql("select * from aidPERSONIDPAPERS where bibref_table like %s and bibref_value = %s and bibrec = %s ", sig))
+                    if not present:
+                        ticket[0].remove(entry)
+                except: #No matter what goes wrong, that's an invalid entry in the ticket. let's discard it.
+                    ticket[0].remove(entry)
+
+    for ticket in list(tickets):
+        tags = [x[0] for x in ticket[0]]
+        if 'repeal' not in tags and 'confirm' not in tags:
+            tickets.remove(ticket)
+
+    return tickets
+
+
+def insert_user_log(userinfo, personid, action, tag, value, comment='', transactionid=0, timestamp=None, userid=0):
     '''
     Instert log entries in the user log table.
     For example of entres look at the table generation script.
@@ -1422,6 +1444,20 @@ def get_personiID_external_ids(personid):
         except KeyError:
             extids[id_str] = [idd]
     return extids
+
+def change_personID_canonical_names(personid_cname_list=None):
+    '''
+    Changes the existing canonical name of a person with the given one.
+    @param: personid_cname_list: list of tuples [(person_id, new_canonical_name),]
+    '''
+    for idx, pid_cname in enumerate(personid_cname_list):
+        person_id, new_canonical_name = pid_cname
+        update_status(float(idx) / float(len(personid_cname_list)), "Changing canonical_names...")
+        # delete the current canonical name of person_id and the current holder of new_canonical_name
+        run_sql("delete from aidPERSONIDDATA where tag=%s and (personid=%s or data=%s)", ('canonical_name', person_id, new_canonical_name))
+        run_sql("insert into aidPERSONIDDATA (personid, tag, data) values (%s,%s,%s) ", (person_id, 'canonical_name', new_canonical_name))
+    update_status_final("Changing canonical_names finished.")
+
 
 #bibauthorid_maintenance personid update private methods
 def update_personID_canonical_names(persons_list=None, overwrite=False, suggested='', overwrite_not_claimed_only=False):
