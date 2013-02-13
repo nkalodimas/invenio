@@ -23,8 +23,8 @@
 # pylint: disable=C0301
 
 
-#from cgi import escape
-#from urllib import quote
+# from cgi import escape
+# from urllib import quote
 #
 import invenio.bibauthorid_config as bconfig
 from invenio.config import CFG_SITE_LANG
@@ -33,16 +33,16 @@ from invenio.config import CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL
 from invenio.bibformat import format_record
 from invenio.session import get_session
 from invenio.search_engine_utils import get_fieldvalues
-from invenio.bibauthorid_config import EXTERNAL_SYSTEMS_LIST
+from invenio.bibauthorid_config import PERSONID_EXTERNAL_IDENTIFIER_MAP
 from invenio.bibauthorid_webapi import get_person_redirect_link, get_canonical_id_from_person_id, get_person_names_from_id
-from invenio.bibauthorid_webapi import get_personiID_external_ids
-from invenio.bibauthorid_frontinterface import get_uid_from_personid
+from invenio.bibauthorid_webapi import get_external_ids_of_author
+from invenio.bibauthorid_frontinterface import get_uid_of_author
 from invenio.bibauthorid_frontinterface import get_bibrefrec_name_string
-from invenio.bibauthorid_frontinterface import get_canonical_id_from_personid
+from invenio.bibauthorid_frontinterface import get_canonical_name_of_author
 from invenio.messages import gettext_set_language, wash_language
 from invenio.webuser import get_email
 from invenio.htmlutils import escape_html
-#from invenio.textutils import encode_for_xml
+# from invenio.textutils import encode_for_xml
 
 class Template:
     """Templating functions used by aid"""
@@ -153,7 +153,7 @@ class Template:
         arg = ''
         if len(bibrefs) > 1:
             arg = 's'
-        message = self._(notification_message_dict[message_key] % (arg) )
+        message = self._(notification_message_dict[message_key] % (arg))
 
         html = []
         h = html.append
@@ -206,14 +206,15 @@ class Template:
         h = html.append
 
         h('<div id="aid_notification_' + teaser_key + '" class="ui-widget ui-alert">')
-        h('  <div style="background: #FC2626; margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-error ui-corner-all">')
+        h('  <div style="background: #FC2626; margin-top: 20px; padding: 0pt 0.7em; color:#000000;" class="ui-state-error ui-corner-all">')
         h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-alert"></span>')
         h('    <strong>%s</strong> %s' % (teaser, message))
 
         if show_close_btn:
-            h('    <span style="float:right; margin-right: 0.3em;"><a rel="nofollow" href="#" class="aid_close-notify">X</a></span></p>')
+            h('    <span style="float:right; margin-right: 0.3em;"> ')
+            h('<a rel="nofollow" href="#" style="color: #000000; border: 1px #000000 solid;" class="aid_close-notify">X</a></span>')
 
-        h(' </div>')
+        h('</p> </div>')
         h('</div>')
 
         return "\n".join(html)
@@ -289,7 +290,7 @@ class Template:
         arg = ''
         if len(bibrefs) > 1:
             arg = 's'
-        message = self._(error_message_dict[message_key] % (arg) )
+        message = self._(error_message_dict[message_key] % (arg))
 
         html = []
         h = html.append
@@ -311,6 +312,49 @@ class Template:
         if show_close_btn:
             h('    <span style="float:right; margin-right: 0.3em;"><a rel="nofollow" href="#" class="aid_close-notify">X</a></span></p>')
 
+        h(' </div>')
+        h('</div>')
+        h('<p>&nbsp;</p>')
+
+        return "\n".join(html)
+
+
+    def tmpl_merge_ticket_box(self, teaser_key, message_key, primary_profile, profiles, merge_power):
+        
+        message = self._('Person search for profile merging in progress!')
+        if not merge_power:
+            message += '(You have no rights to actualy merge profiles. However you can submit profiles for merging)'
+        
+        error_teaser_dict = {'person_search': message }
+        error_message_dict = {'merge_profiles': 'You are about to merge the following profile%s:' }
+
+        teaser = self._(error_teaser_dict[teaser_key])
+        arg = ''
+        if len(profiles) >= 1:
+            arg = 's'
+        message = self._(error_message_dict[message_key] % (arg))
+
+        html = []
+        h = html.append
+        h('<div id="aid_notification_' + teaser_key + '" class="ui-widget ui-alert">')
+        h('  <div style="margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">')
+        h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
+        h('    <strong>%s</strong> </br>%s ' % (teaser, message))
+        h("<ul>")
+        
+        h("<li><a href='%s'target='_blank'>%s</a> <strong>(primary profile)</strong></li>"
+          % (primary_profile, primary_profile))
+        for profile in profiles:
+            h("<li><a href='%s'target='_blank'>%s</a></li>"
+                   % (profile, profile))
+        h("</ul>")
+        h('<a rel="nofollow" id="checkout" href="manage_profile?pid=%s">' % (str(primary_profile),) + self._('Stop merging.') + '</a>' )
+        if len(profiles):
+            if merge_power:
+                h('<a rel="nofollow" id="merge" href="merge_profiles?search_pid=%s">' % (str(primary_profile),) + self._('Merge profiles.') + '</a>' )
+            else:
+                h('<a rel="nofollow" id="checkout" href="manage_profile?search_pid=%s">' % (str(primary_profile),) + self._('Submit for merging') + '</a>' )
+                
         h(' </div>')
         h('</div>')
         h('<p>&nbsp;</p>')
@@ -422,7 +466,7 @@ class Template:
                                                                        'repeal_text':'Repeal this record assignment.',
                                                                        'to_other_text':'Assign to another person',
                                                                        'alt_to_other':'To other person!'
-                                                                       } ):
+                                                                       }):
         '''
         Generate play per-paper links for the table for the
         status "repealed"
@@ -475,7 +519,7 @@ class Template:
         @param verbiage_dict: language for the link descriptions
         @type verbiage_dict: dict
         '''
-        #batchprocess?mconfirm=True&bibrefs=['100:17,16']&pid=1
+        # batchprocess?mconfirm=True&bibrefs=['100:17,16']&pid=1
         string = ('<!--0!--><span id="aid_status_details"> '
                 '<a rel="nofollow" id="aid_confirm" href="%(url)s/person/action?confirm=True&selection=%(ref)s&pid=%(pid)s">'
                 '<img src="%(url)s/img/aid_check.png" alt="%(alt_confirm)s" />'
@@ -521,12 +565,12 @@ class Template:
             bibs = bibs + 'selection=' + str(paper)
 
         if pid > -1:
-            h('<a rel="nofollow" id="clam_for_myself" href="%s/person/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(pid)) )
+            h('<a rel="nofollow" id="clam_for_myself" href="%s/person/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(pid)))
             h(self._('Claim for yourself') + ' </a> <br>')
 
         if last_viewed_pid:
-            h('<a rel="nofollow" id="clam_for_last_viewed" href="%s/person/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(last_viewed_pid[0])) )
-            h(self._('Attribute to') + ' %s </a> <br>' % (last_viewed_pid[1]) )
+            h('<a rel="nofollow" id="clam_for_last_viewed" href="%s/person/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(last_viewed_pid[0])))
+            h(self._('Attribute to') + ' %s </a> <br>' % (last_viewed_pid[1]))
 
         if search_enabled:
             h('<a rel="nofollow" id="claim_search" href="%s/person/action?to_other_person=True&%s"> ' % (CFG_SITE_URL, bibs))
@@ -577,7 +621,7 @@ class Template:
         @type buttons_verbiage_dict: dict
         '''
         no_papers_html = ['<div style="text-align:left;margin-top:1em;"><strong>']
-        no_papers_html.append('%s' % self._(verbiage_dict['no_doc_string']) )
+        no_papers_html.append('%s' % self._(verbiage_dict['no_doc_string']))
         no_papers_html.append('</strong></div>')
 
         if not bibrecids or not person_id:
@@ -589,7 +633,8 @@ class Template:
         h('<form id="%s" action="/person/action" method="post">'
                    % (form_id))
 
-        h('<div class="aid_reclist_selector">') #+self._(' On all pages: '))
+        # +self._(' On all pages: '))
+        h('<div class="aid_reclist_selector">')
         h('<a rel="nofollow" rel="group_1" href="#select_all">' + self._('Select All') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#select_none">' + self._('Select None') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#invert_selection">' + self._('Invert Selection') + '</a> | ')
@@ -601,10 +646,10 @@ class Template:
         h(('<img src="%s/img/aid_90low_right.png" alt="∟" />')
           % (CFG_SITE_URL))
         h('<input type="hidden" name="pid" value="%s" />' % (person_id))
-        h('<input type="submit" name="confirm" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_confirm']) )
-        h('<input type="submit" name="repeal" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_repeal']) )
-        h('<input type="submit" name="to_other_person" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_to_others']) )
-        #if show_reset_button:
+        h('<input type="submit" name="confirm" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_confirm']))
+        h('<input type="submit" name="repeal" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_repeal']))
+        h('<input type="submit" name="to_other_person" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_to_others']))
+        # if show_reset_button:
         #    h('<input type="submit" name="reset" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_forget'])
         h("  </div>")
 
@@ -683,7 +728,8 @@ class Template:
         h("  </tbody>")
         h("</table>")
 
-        h('<div class="aid_reclist_selector">') #+self._(' On all pages: '))
+        # +self._(' On all pages: '))
+        h('<div class="aid_reclist_selector">')
         h('<a rel="nofollow" rel="group_1" href="#select_all">' + self._('Select All') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#select_none">' + self._('Select None') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#invert_selection">' + self._('Invert Selection') + '</a> | ')
@@ -698,7 +744,7 @@ class Template:
         h('<input type="submit" name="confirm" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_confirm'])
         h('<input type="submit" name="repeal" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_repeal'])
         h('<input type="submit" name="to_other_person" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_to_others'])
-        #if show_reset_button:
+        # if show_reset_button:
         #    h('<input type="submit" name="reset" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_forget'])
         h("  </div>")
         h("</form>")
@@ -789,7 +835,7 @@ class Template:
         if not ln:
             pass
 
-        #class="ui-tabs ui-widget ui-widget-content ui-corner-all">
+        # class="ui-tabs ui-widget ui-widget-content ui-corner-all">
         h('<div id="aid_person_names"')
         h('<p><strong>' + self._('Names variants') + ':</strong></p>')
         h("<p>")
@@ -896,6 +942,11 @@ class Template:
         if 'data' in show_tabs:
             r = verbiage_dict['data']
             h('    <li><a rel="nofollow" href="#tabData"><span>%s</span></a></li>' % r)
+
+            userid = get_uid_of_author(person_id)
+            if userid:
+                h('<img src="%s/img/webbasket_user.png" alt="%s" width="30" height="30" />' %
+                   (CFG_SITE_URL, self._("The author has an internal ID!")))
         h('  </ul>')
 
         if 'records' in show_tabs:
@@ -1010,28 +1061,30 @@ class Template:
                     h(' - <a rel="nofollow" id="show_paper" target="_blank" href="%(url)s/record/%(record)s"> View record <br>' % ({'url':CFG_SITE_URL, 'record':str(bibrec)}))
                 h('</dd>')
                 h('</dd><br>')
-#            h(str(open_rt_tickets))
+                # h(str(open_rt_tickets))
             h("  </div>")
 
         if 'data' in show_tabs:
             h('  <div id="tabData">')
             r = verbiage_dict['data_ns']
             h('<noscript><h5>%s</h5></noscript>' % r)
-            canonical_name = str(get_canonical_id_from_person_id(person_id))
-            if '.' in str(canonical_name) and not isinstance(canonical_name, int):
-                canonical_name = canonical_name[0:canonical_name.rindex('.')]
+            full_canonical_name = str(get_canonical_id_from_person_id(person_id))
+            if '.' in str(full_canonical_name) and not isinstance(full_canonical_name, int):
+                canonical_name = full_canonical_name[0:full_canonical_name.rindex('.')]
             h('<div><div> <strong> Person id </strong> <br> %s <br>' % person_id)
             h('<strong> <br> Canonical name setup </strong>')
-            h('<div style="margin-top: 15px;"> Current canonical name: %s  <form method="GET" action="%s/person/action" rel="nofollow">' % (canonical_name, CFG_SITE_URL))
+            h('<div style="margin-top: 15px;"> Current canonical name: %s' % full_canonical_name)
+            h('<form method="GET" action="%s/person/action" rel="nofollow">' % CFG_SITE_URL)
             h('<input type="hidden" name="set_canonical_name" value="True" />')
             h('<input name="canonical_name" id="canonical_name" type="text" style="border:1px solid #333; width:500px;" value="%s" /> ' % canonical_name)
             h('<input type="hidden" name="pid" value="%s" />' % person_id)
             h('<input type="submit" value="set canonical name" class="aid_btn_blue" />')
-            h('<br>NOTE: please note the a number is appended automatically to the name displayed above. This cannot be manually triggered so to ensure unicity of IDs.')
-            h('To change the number if greater then one, please change all the other names first, then updating this one will do the trick. </div>')
-            h('</form> </div></div>')
 
-            userid = get_uid_from_personid(person_id)
+            h('<br>NOTE: If the canonical ID is without any number (e.g. J.Ellis), it will take the first available number. ')
+            h('If the canonical ID is complete (e.g. J.Ellis.1) that ID will be assigned to the current person ')
+            h('and if another person had that ID, he will lose it and get a new one. </form>')
+
+            userid = get_uid_of_author(person_id)
             h('<div> <br>')
             h('<strong> Internal IDs </strong> <br>')
             if userid:
@@ -1041,27 +1094,27 @@ class Template:
                 h('UserID: There is no INSPIRE user associated to this profile!')
             h('<br></div>')
 
-            external_ids = get_personiID_external_ids(person_id)
+            external_ids = get_external_ids_of_author(person_id)
             h('<div> <br>')
             h('<strong> External IDs </strong> <br>')
 
-            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL) )
+            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
             h('<input type="hidden" name="add_missing_external_ids" value="True">')
             h('<input type="hidden" name="pid" value="%s">' % person_id)
             h('<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>')
 
-            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL) )
+            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
             h('<input type="hidden" name="rewrite_all_external_ids" value="True">')
             h('<input type="hidden" name="pid" value="%s">' % person_id)
             h('<br> <input type="submit" value="rewrite all ids" class="aid_btn_blue"> </form> <br>')
 
             if external_ids:
-                h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL) )
+                h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
                 h('   <input type="hidden" name="delete_external_ids" value="True">')
                 h('   <input type="hidden" name="pid" value="%s">' % person_id)
                 for idx in external_ids:
                     try:
-                        sys = [s for s in EXTERNAL_SYSTEMS_LIST if EXTERNAL_SYSTEMS_LIST[s] == idx][0]
+                        sys = [s for s in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[s] == idx][0]
                     except (IndexError):
                         sys = ''
                     for k in external_ids[idx]:
@@ -1073,13 +1126,13 @@ class Template:
 
 
             h('<br> <br>')
-            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL) )
+            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
             h('   <input type="hidden" name="add_external_id" value="True">')
             h('   <input type="hidden" name="pid" value="%s">' % person_id)
             h('   <select name="ext_system">')
             h('      <option value="" selected>-- ' + self._('Choose system') + ' --</option>')
-            for el in EXTERNAL_SYSTEMS_LIST:
-                h('  <option value="%s"> %s </option>' % (EXTERNAL_SYSTEMS_LIST[el], el))
+            for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
+                h('  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el))
             h('   </select>')
             h('   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">')
             h('   <input type="submit" value="add external id" class="aid_btn_blue">')
@@ -1161,8 +1214,8 @@ class Template:
                     fv = escape_html(fv)
 
                     h('<div id="aid_moreinfo">')
-                    h(('%s' + self._(' --  With name: ')) % (fv) )
-                    #, bibrefs_auto_assigned[person]["bibrecs"][recid][0][1]))
+                    h(('%s' + self._(' --  With name: ')) % (fv))
+                    # , bibrefs_auto_assigned[person]["bibrecs"][recid][0][1]))
                     # asbibref = "%s||%s" % (person, bibrefs_auto_assigned[person]["bibrecs"][recid][0][0])
                     pbibref = bibrefs_auto_assigned[person]["bibrecs"][recid][0][0]
                     h('<select name="bibrecgroup%s">' % (recid))
@@ -1178,8 +1231,8 @@ class Template:
                           % (pid, bibref[0], selector, bibref[1]))
 
                     h('</select>')
-#                    h('<input type="hidden" name="bibrecgroup%s" value="%s" />'
-#                      % (recid, asbibref))
+                    # h('<input type="hidden" name="bibrecgroup%s" value="%s" />'
+                    #          % (recid, asbibref))
                     h('</div>')
 
         h('<div style="text-align:center;">')
@@ -1223,7 +1276,7 @@ class Template:
 
         return "\n".join(html)
 
-    def tmpl_person_menu_admin(self):
+    def tmpl_person_menu_admin(self, pid):
         '''
         Generate the menu bar
         '''
@@ -1233,6 +1286,7 @@ class Template:
         h('  <ul>')
         h('    <li>' + self._('Navigation:') + '</li>')
         h(('    <li><a rel="nofollow" href="%s/person/search">' + self._('Person Search') + '</a></li>') % CFG_SITE_URL)
+        h(('    <li><a rel="nofollow" href="%s/person/manage_profile?pid=%s">' + self._('Manage Profile') + '</a></li>') % (CFG_SITE_URL, pid))
         h(('    <li><a rel="nofollow" href="%s/person/tickets_admin">' + self._('Open tickets') + '</a></li>') % CFG_SITE_URL)
         h('    <!--<li><a rel="nofollow" href="#">' + self._('Person Interface FAQ') + '</a></li>!-->')
         h('  </ul>')
@@ -1313,7 +1367,7 @@ class Template:
             html = []
             h = html.append
 
-#            h("Debug: " + str(ticket) + "<br />")
+            # h("Debug: " + str(ticket) + "<br />")
             h('<td width="25">&nbsp;</td>')
             h('<td>')
             h(rectitle)
@@ -1353,7 +1407,7 @@ class Template:
         html = []
         h = html.append
 
-#        h(html_icon_legend())
+        # h(html_icon_legend())
 
         if "checkout_faulty_fields" in pinfo and pinfo["checkout_faulty_fields"]:
             h(self.tmpl_error_box('sorry', 'check_entries'))
@@ -1363,10 +1417,10 @@ class Template:
             and "tickets" in pinfo["checkout_faulty_fields"]):
             h(self.tmpl_error_box('error', 'provide_transaction'))
 
-#        h('<div id="aid_checkout_teaser">' +
-#          self._('Almost done! Please use the button "Confirm these changes" '
-#                 'at the end of the page to send this request to an operator '
-#                 'for review!') + '</div>')
+        # h('<div id="aid_checkout_teaser">' +
+        #          self._('Almost done! Please use the button "Confirm these changes" '
+        #                 'at the end of the page to send this request to an operator '
+        #                 'for review!') + '</div>')
 
         h('<div id="aid_person_names" '
           'class="ui-tabs ui-widget ui-widget-content ui-corner-all"'
@@ -1525,11 +1579,238 @@ class Template:
 
         return "\n".join(html)
 
+    def tmpl_welcome_search_new_person_generator(self):
+        def stub():
+            text = self._("Create new profile")
+            link = "%s/person/welcome?action=%s&pid=%s" % (CFG_SITE_URL, 'select', str(-1))
+            return text, link
 
-    def tmpl_author_search(self, query, results,
+        return stub
+
+    def tmpl_assigning_search_new_person_generator(self, bibrefs):
+        def stub():
+            text = self._("Create a new Person")
+            link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, '-3')
+
+            for r in bibrefs:
+                link = link + '&selection=%s' % str(r)
+
+            return text, link
+
+        return stub
+
+
+    def tmpl_welcome_search_button_generator(self):
+        def stub(pid):
+            text = self._("This is my profile")
+            link = "%s/person/welcome?action=%s&pid=%s" % (CFG_SITE_URL, 'select', str(pid))
+            return text, link
+
+        return stub
+
+    def tmpl_assigning_search_button_generator(self, bibrefs):
+        def stub(pid):
+            text = self._("Attribute paper")
+            link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, str(pid))
+
+            for r in bibrefs:
+                link = link + '&selection=%s' % str(r)
+
+            return text, link
+
+        return stub
+
+    def tmpl_welcome_search_bar(self):
+        def stub(search_param):
+            activated = True
+            parameters = [('search_param', search_param), ('action', 'search')]
+            link = "/person/welcome"
+            return activated, parameters, link
+
+        return stub
+
+    def tmpl_general_search_bar(self):
+        def stub(search_param):
+            activated = True
+            parameters = [('q', search_param)]
+            link = "/person/search"
+            return activated, parameters, link
+
+        return stub
+
+    def tmpl_merge_profiles_search_bar(self):
+        def stub(search_param):
+            activated = True
+            parameters = [('search_param', search_param)]
+            link = "/person/merge_profiles"
+            return activated, parameters, link
+
+        return stub
+
+    def merge_profiles_check_box_column(self):
+        def stub(pid):            
+            #link = link + '&selection='.join([str(element) for element in pidlist+prof])
+            checkbox = '<input type="checkbox" name="profile" value=%s>' %(str(pid),)
+            return checkbox
+
+        return stub
+    def tmpl_author_search(self, query, results, shown_element_functions):
+        '''
+        Generates the search for Person entities.
+
+        @param query: the query a user issued to the search
+        @type query: string
+        @param results: list of results
+        @type results: list
+        @param search_ticket: search ticket object to inform about pending
+            claiming procedure
+        @type search_ticket: dict
+        '''
+
+        if not query:
+            query = ""
+
+        html = []
+        h = html.append
+        
+        search_bar_activated = False
+        if 'show_search_bar' in shown_element_functions.keys():
+            search_bar_activated, parameters, link = shown_element_functions['show_search_bar'](query)
+
+        if search_bar_activated:
+            h('<div class="fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix" id="aid_search_bar">')
+            h('<form id="searchform" action="%s" method="GET">' % (link,))
+            h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
+
+            for param in parameters[1:]:
+                h('<input type="hidden" name=%s value=%s>' % (param[0], param[1]))
+
+            h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name=%s style="border:1px solid #333; width:500px;" '
+                        'maxlength="250" value="%s" class="focus" />' % (parameters[0][0], parameters[0][1]))
+            h('<input type="submit" value="Search" />')
+            h('</form>')
+            if 'new_person_gen' in shown_element_functions.keys():
+                new_person_text, new_person_link = shown_element_functions['new_person_gen']()
+                h('<button type="button" id="new_person_link"><a rel="nofollow" href="%s" >%s' % (new_person_link, new_person_text))
+                h('</a></button>')
+            h('</div>')
+
+        if not results and not query:
+            h('</div>')
+            return "\n".join(html)
+
+        if query and not results:
+            authemail = CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL
+            h(('<strong>' + self._("We do not have a publication list for '%s'." +
+                                 " Try using a less specific author name, or check" +
+                                 " back in a few days as attributions are updated " +
+                                 "frequently.  Or you can send us feedback, at ") +
+                                 "<a rel='nofollow' href=\"mailto:%s\">%s</a>.</strong>") % (query, authemail, authemail))
+            h('</div>')
+            return "\n".join(html)
+
+        show_action_button = False
+        if 'button_gen' in shown_element_functions.keys():
+            show_action_button = True
+
+        # base_color = 100
+        # row_color = 0
+        # html table
+        h('<table id="personsTable">')
+        h('<!-- Table header -->\
+                <thead>\
+                    <tr>\
+                        <th scope="col" id="" style="width:85px;">Number</th>\
+                        <th scope="col" id="">Identifier</th>\
+                        <th scope="col" id="">Names</th>\
+                        <th scope="col" id="">IDs</th>\
+                        <th scope="col" id="" style="width:350px">Papers</th>\
+                        <th scope="col" id="">Link</th>')
+        if show_action_button:
+            h('         <th scope="col" id="">Action</th>')
+        h('         </tr>\
+                </thead>\
+           <!-- Table body -->\
+                <tbody>')
+        for index, result in enumerate(results):
+            # if len(results) > base_color:
+                # row_color += 1
+            # else:
+            #     row_color = base_color - (base_color - index *
+            #                 base_color / len(results)))
+
+            pid = result['pid']
+            canonical_id = result['canonical_id']
+            names = result['name_variants']
+
+            external_ids = result['external_ids']
+
+            # person row
+            h('<tr id="pid'+ str(pid) + '">')
+            # (TODO pageNum - 1) * personsPerPage + 1
+            h('<td>%s</td>' % (index + 1))
+
+#            for nindex, name in enumerate(names):
+#                color = row_color + nindex * 35
+#                color = min(color, base_color)
+#                h('<span style="color:rgb(%d,%d,%d);">%s; </span>'
+#                            % (color, color, color, name[0]))
+            #Identifier
+            if canonical_id:
+                h('<td>%s</td>' % (canonical_id,))
+            else:
+                h('<td>%s</td>' % ('No canonical id',))
+            #Names
+            h('<td class="emptyName' + str(pid) + '">')
+            #html.extend(self.tmpl_gen_names(names))
+            h('</td>')
+            # IDs
+            h('<td class="emptyIDs' + str(pid) + '" >')#style="text-align:left;padding-left:35px;"
+            #html.extend(self.tmpl_gen_ext_ids(external_ids))
+            h('</td>')
+            # Recent papers
+            h('<td>')
+            h(('<a rel="nofollow" href="#" id="aid_moreinfolink" class="mpid%s">'
+                        '<img src="../img/aid_plus_16.png" '
+                        'alt = "toggle additional information." '
+                        'width="11" height="11"/> '
+                        + self._('Recent Papers') +
+                        '</a>')
+                        % (pid))
+            h('<div class="more-mpid%s" id="aid_moreinfo">' % (pid))
+            h('</div>')
+            h('</td>')
+
+            #Link
+            h('<td>')
+            h(('<span>'
+                    '<em><a rel="nofollow" href="%s/author/%s" id="aid_moreinfolink" target="_blank">'
+                    + self._('Publication List ') + '(%s)</a></em></span>')
+                    % (CFG_SITE_URL,get_person_redirect_link(pid),
+                       get_person_redirect_link(pid)))
+            h('</td>')
+
+            if show_action_button:
+                #action_button_text, action_button_link = shown_element_functions['button_gen'](pid)
+                #Action link
+                h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center">')
+                # h(('<span >'
+                #             '<a rel="nofollow" href="%s" class="confirmlink">'
+                #             '<strong>%s</strong>' + '</a></span>')
+                #             % (action_button_link, action_button_text))
+                h('<input type="checkbox" name="profile" value=%s>' %(str(pid),))
+                #h('<button type="button"><a rel="nofollow" href="%s" class="confirmlink">%s' % (action_button_link, action_button_link))
+                h('</a></button>')
+                h('</td>')
+            h('</tr>')
+        h('</tbody>')
+        h('</table>')
+
+        return "\n".join(html)
+
+    def old_tmpl_author_search(self, query, results,
                            search_ticket=None, author_pages_mode=True,
-                           fallback_mode=False, fallback_title='',
-                           fallback_message='', new_person_link=False):
+                           new_person_link=False, welcome_mode = False):
         '''
         Generates the search for Person entities.
 
@@ -1552,18 +1833,21 @@ class Template:
         html = []
         h = html.append
 
-        h('<form id="searchform" action="/person/search" method="GET">')
-        h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
-        h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="q" style="border:1px solid #333; width:500px;" '
-                    'maxlength="250" value="%s" class="focus" />' % query)
-        h('<input type="submit" value="Search" />')
-        h('</form>')
-
-        if fallback_mode:
-            if fallback_title:
-                h('<div id="header">%s</div>' % fallback_title)
-            if fallback_message:
-                h('%s' % fallback_message)
+        if welcome_mode:
+            h('<form id="searchform" action="/person/welcome" method="GET">')
+            h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
+            h('<input type="hidden" name="action" value="search">')
+            h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="search_param" style="border:1px solid #333; width:500px;" '
+                        'maxlength="250" value="%s" class="focus" />' % query)
+            h('<input type="submit" value="Search" />')
+            h('</form>')
+        else:
+            h('<form id="searchform" action="/person/search" method="GET">')
+            h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
+            h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="q" style="border:1px solid #333; width:500px;" '
+                        'maxlength="250" value="%s" class="focus" />' % query)
+            h('<input type="submit" value="Search" />')
+            h('</form>')
 
         if not results and not query:
             h('</div>')
@@ -1591,15 +1875,36 @@ class Template:
                 h('</div>')
             return "\n".join(html)
 
-#        base_color = 100
-#        row_color = 0
-
+        # base_color = 100
+        # row_color = 0
+        # html table
+        h('<table id="personsTable">')
+        h('<!-- Table header -->\
+                <thead>\
+                    <tr>\
+                        <th scope="col" id="" style="width:85px;">Number</th>\
+                        <th scope="col" id="">Identifiers</th>\
+                        <th scope="col" id="">Names</th>\
+                        <th scope="col" id="">IDs</th>\
+                        <th scope="col" id="" style="width:350px">Papers</th>\
+                        <th scope="col" id="">Link</th>\
+                        <th scope="col" id="">Action</th>\
+                    </tr>\
+                </thead>\
+           <!-- Table footer -->\
+                <tfoot>\
+                    <tr>\
+                        <td>Footer</td>\
+                    </tr>\
+                </tfoot>\
+           <!-- Table body -->\
+                <tbody>')
         for index, result in enumerate(results):
-#            if len(results) > base_color:
-#                row_color += 1
-#            else:
-#                row_color = base_color - (base_color - index *
-#                                          (base_color / len(results)))
+            # if len(results) > base_color:
+                # row_color += 1
+            # else:
+            #     row_color = base_color - (base_color - index *
+            #                 base_color / len(results)))
 
             pid = result[0]
             names = result[1]
@@ -1620,76 +1925,99 @@ class Template:
             except IndexError:
                 papers_string = ''
 
-            h('<div id="aid_result%s">' % (index % 2))
-            h('<div style="padding-bottom:5px;">')
-#            h('<span style="color:rgb(%d,%d,%d);">%s. </span>'
-#                         % (row_color, row_color, row_color, index + 1))
-            h('<span>%s. </span>' % (index + 1))
+            # person row
+            h('<tr id="pid'+ str(pid) + '">')
+            h('<td><span>%s</span></td>' % (index + 1))
 
 #            for nindex, name in enumerate(names):
 #                color = row_color + nindex * 35
 #                color = min(color, base_color)
 #                h('<span style="color:rgb(%d,%d,%d);">%s; </span>'
 #                            % (color, color, color, name[0]))
+            #Identifiers
+            h('<td>Sample identifier</td>')
+            #Names
+            h('<td>')
             for name in names:
                 h('<span style="margin-right:20px;">%s </span>'
                             % (name[0]))
-            h('</div>')
-            h('<em style="padding-left:1.5em;">')
+            h('</td>')
+            # IDs
+            h('<td>Sample Id</td>') # TODO: get id
+            # recent papers
+            h('<td>')
             if index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
                 h(('<a rel="nofollow" href="#" id="aid_moreinfolink" class="mpid%s">'
                             '<img src="../img/aid_plus_16.png" '
                             'alt = "toggle additional information." '
                             'width="11" height="11"/> '
                             + self._('Recent Papers') +
-                            '</a></em>')
+                            '</a>')
                             % (pid))
-            else:
-                h("</em>")
+                h('<div class="more-mpid%s" id="aid_moreinfo">' % (pid))
+                #html.extend(self.tmpl_gen_papers(pid, papers))
+                # if papers and index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
+                #     h((self._('Showing the') + ' %d ' + self._('most recent documents:')) % len(papers))
+                #     h("<ul>")
 
+                #     for paper in papers:
+                #         h("<li>%s</li>"
+                #                % (format_record(int(paper[0]), "ha")))
+
+                #     h("</ul>")
+                # elif not papers:
+                #     h("<p>" + self._('Sorry, there are no documents known for this person') + "</p>")
+                # elif index >= bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
+                #     h("<p>" + self._('Information not shown to increase performances. Please refine your search.') + "</p>")
+
+                # h(('<span style="margin-left: 40px;">'
+                #             '<em><a rel="nofollow" href="%s/%s/%s" target="_blank" id="aid_moreinfolink">'
+                #             + self._('Publication List ') + '(%s)</a> (in a new window or tab)</em></span>')
+                #             % (CFG_SITE_URL, linktarget,
+                #                get_person_redirect_link(pid),
+                #                get_person_redirect_link(pid)))
+                h('</div>')
+                h('</td>')
+            else:
+                h('</td>')
+
+            #Link
+            h('<td>')
             if search_ticket:
                 link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, pid)
 
                 for r in search_ticket['bibrefs']:
                     link = link + '&selection=%s' % str(r)
 
-                h(('<span style="margin-left: 120px;">'
+                h(('<span style="margin-left: 120px;float:left;">'
                             '<em><a rel="nofollow" href="%s" id="confirmlink">'
                             '<strong>' + self._('YES!') + '</strong>'
                             + self._(' Attribute Papers To ') +
                             '%s %s </a></em></span>')
                             % (link, get_person_redirect_link(pid), papers_string))
             else:
-                h(('<span style="margin-left: 40px;">'
-                            '<em><a rel="nofollow" href="%s/%s/%s" id="aid_moreinfolink">'
-                            + self._('Publication List ') + '(%s) %s </a></em></span>')
-                            % (CFG_SITE_URL, linktarget,
-                               get_person_redirect_link(pid),
-                               get_person_redirect_link(pid), papers_string))
-            h('<div class="more-mpid%s" id="aid_moreinfo">' % (pid))
+                if welcome_mode:
+                    link =  "%s/person/welcome?action=select&pid=%s" % (CFG_SITE_URL, pid)
+                    h(('<span style="margin-left: 120px;">'
+                                '<em><a rel="nofollow" href="%s" id="confirmlink">'
+                                '<strong>' + self._('Claim this profile!') + '</strong>'
+                                +'</a></em></span>')
+                                % (link))
+                else:
+                    h(('<span>'
+                                '<em><a rel="nofollow" href="%s/%s/%s" id="aid_moreinfolink">'
+                                + self._('Publication List ') + '(%s) %s </a></em></span>')
+                                % (CFG_SITE_URL, linktarget,
+                                   get_person_redirect_link(pid),
+                                   get_person_redirect_link(pid), papers_string))
 
-            if papers and index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
-                h((self._('Showing the') + ' %d ' + self._('most recent documents:')) % len(papers))
-                h("<ul>")
+            #Action link
+            h('<td><a class="actionLink" href="">Sample action</a></td>')
 
-                for paper in papers:
-                    h("<li>%s</li>"
-                           % (format_record(int(paper[0]), "ha")))
-
-                h("</ul>")
-            elif not papers:
-                h("<p>" + self._('Sorry, there are no documents known for this person') + "</p>")
-            elif index >= bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
-                h("<p>" + self._('Information not shown to increase performances. Please refine your search.') + "</p>")
-
-            h(('<span style="margin-left: 40px;">'
-                        '<em><a rel="nofollow" href="%s/%s/%s" target="_blank" id="aid_moreinfolink">'
-                        + self._('Publication List ') + '(%s)</a> (in a new window or tab)</em></span>')
-                        % (CFG_SITE_URL, linktarget,
-                           get_person_redirect_link(pid),
-                           get_person_redirect_link(pid)))
-            h('</div>')
-            h('</div>')
+            h('</td>')
+            h('</tr>')
+        h('</tbody>')
+        h('</table>')
 
         if new_person_link:
             link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, '-3')
@@ -1705,12 +2033,111 @@ class Template:
         return "\n".join(html)
 
 
+    def tmpl_gen_papers(self, papers):
+        """
+            Generates the recent papers html code.
+            Returns a list of strings
+        """
+        html = []
+        h = html.append
+
+        if papers:
+            h((self._('Showing the') + ' %d ' + self._('most recent documents:')) % len(papers))
+            h("<ul>")
+
+            for paper in papers:
+                h("<li>%s</li>"
+                       % (format_record(int(paper[0]), "ha")))
+
+            h("</ul>")
+        elif not papers:
+            h("<p>" + self._('Sorry, there are no documents known for this person') + "</p>")
+        return html
+
+    def tmpl_gen_names(self, names):
+        """
+            Generates the names html code.
+            Returns a list of strings
+        """
+        html = []
+        h = html.append
+        delimiter = ";"
+        if names:
+            for i,name in enumerate(names):
+                if i == 0:
+                    h('<span>%s</span>'
+                            % (name[0],))
+                else:
+                    h('<span">%s  &nbsp%s</span>'
+                            % (delimiter, name[0]))
+        else:
+            h('%s' % ('No names found',))
+        return html
+
+
+    def tmpl_gen_ext_ids(self, external_ids):
+        """
+            Generates the external ids html code.
+            Returns a list of strings
+        """
+        html = []
+        h = html.append
+        delimiter = ";"
+
+        if external_ids:
+            h('<table id="externalIDsTable">')
+            for key, value in external_ids.iteritems():
+                h('<tr>')
+                h('<td style="margin-top:5px; width:1px;  padding-right:2px;">%s:</td>' % key) #white-space:nowrap;
+                h('<td style="padding-left:5px;width:1px;">')
+                for i, item in enumerate(value):
+                    if i == 0:
+                        h('%s' % item)
+                    else:
+                        h('; %s' % item)
+                h('</td>')
+                h('</tr>')
+            h('</table>')
+        else:
+            h('%s' % ('No external ids found',))
+
+        return html
+
+
     def tmpl_welcome_start(self):
         '''
         Shadows the behaviour of tmpl_search_pagestart
         '''
         return '<div class="pagebody"><div class="pagebodystripemiddle">'
 
+
+    def tmpl_welcome_remote_login_systems(self, remote_login_systems_info, uid):
+        '''
+        SSO landing/welcome page.
+        '''
+        html = []
+        h = html.append
+        message = self._('Congratulations! you have now successfully connected to INSPIRE as a user with userid: %s via %s!'% (str(uid), (', ').join(remote_login_systems_info.keys())))
+        h('<p><b>%s</b></p>' % (message,))
+        message = self._('Right now, you can verify your'
+        ' publication records, which will help us to produce better publication lists and'
+        ' citation statistics.')
+        h('<p>%s</p>' % (message,))
+
+        message = self._('We are currently importing your publication list from %s .'
+        'When we\'re done, you\'ll see a link to verify your'
+        ' publications below; please claim the papers that are yours '
+        ' and remove the ones that are not. This information will be automatically processed'
+        ' or be sent to our operator for approval if needed, usually within 24'
+        ' hours.' % ((', ').join(remote_login_systems_info.keys()),))
+        h('<p>%s</p>' % (message,))
+        message = self._('If you have '
+          'any questions or encounter any problems please contact us here: ')
+        h('%s <a rel="nofollow" href="mailto:%s">%s</a></p>'
+          % (message, CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+             CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
+
+        return "\n".join(html)
 
     def tmpl_welcome_arxiv(self):
         '''
@@ -1741,22 +2168,53 @@ class Template:
         return "\n".join(html)
 
 
+    def tmpl_welcome_not_logged_in(self):
+        '''
+        Inform user that is not logged in
+        '''
+
+        html = []
+        h = html.append
+
+        message = self._('Unfortunately you cannot continue as it is seems that you are not logged in. Please login and try again.')
+        h('<p>%s</p>' % (message,))
+        return "\n".join(html)
+
+    def tmpl_suggest_not_remote_logged_in_systems(self, suggested_remote_login_systems):
+        '''
+        suggest external systems that the user is currently not logged in through
+        '''
+
+        html = []
+        h = html.append
+        links = []
+
+        for system in suggested_remote_login_systems:
+            links.append('<a href=%s>%s</a>' % (bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_LINKS[system], system))
+
+        message = self._('It is recommended to log in via as many remote login systems as possible. You can log in via the following: %s'
+                                                                                                            % (', ').join(links))
+        h('<p>%s</p>' % (message,))
+        return "\n".join(html)
+
     def tmpl_welcome(self):
         '''
         SSO landing/welcome page.
         '''
         html = []
         h = html.append
-        h('<p><b>Congratulations! you have successfully logged in!</b></p>')
+        message = self._('Congratulations! you have successfully logged in!')
+        h('<p><b>%s</b></p>'% (message,))
 
-        h('<p>We are currently creating your publication list. When we\'re done, you\'ll see a link to correct your '
-          'publications below.</p>')
+        message = self._('We are currently creating your publication list. When we\'re done, you\'ll see a link to correct your publications below.')
+        h('<p>%s</p>' % (message,))
 
-        h('<p>When the link appears we invite you to confirm the papers that are '
+        message = self._('When the link appears we invite you to confirm the papers that are '
           'yours and to reject the ones that you are not author of. If you have '
-          'any questions or encounter any problems please contact us here: '
+          'any questions or encounter any problems please contact us here: ')
+        h('<p>%s'
           '<a rel="nofollow" href="mailto:%s">%s</a></p>'
-          % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+          % (message, CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
              CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
 
         return "\n".join(html)
@@ -1768,12 +2226,12 @@ class Template:
         '''
         html = []
         h = html.append
-
-        h('<p>Unfortunately it was not possible to automatically match your arXiv account to an INSPIRE person profile. Please choose the correct person profile from the list below.')
-
-        h('If your profile is not in the list or none of them represents you correctly, please select the one which fits you best or choose '
-          'to create a new one; keep in mind that no matter what your choice is, you will be able to correct your publication list until it contains all of your publications.'
-          ' In case of any question please do not hesitate to contact us at <a rel="nofollow" href="mailto:%s">%s</a></p>' % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+        message = self._('Unfortunately it was not possible to automatically match your arXiv account to an INSPIRE person profile.'
+                         'Please choose the correct person profile from the list below.'
+                         ' If your profile is not in the list or none of them represents you correctly, please select the one which fits you best or choose '
+                         'to create a new one; keep in mind that no matter what your choice is, you will be able to correct your publication list until it contains all of your publications.'
+                         ' In case of any question please do not hesitate to contact us at ')
+        h('<p>%s <a rel="nofollow" href="mailto:%s">%s</a></p>' % (message, CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
              CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
 
         return "\n".join(html)
@@ -1789,7 +2247,7 @@ class Template:
         h('<table border="0"> <tr>')
         for pid in top5_list:
             pid = int(pid)
-            canonical_id = get_canonical_id_from_personid(pid)
+            canonical_id = get_canonical_name_of_author(pid)
             full_name = get_person_names_from_id(pid)
             name_length = 0
             most_common_name = ""
@@ -1830,22 +2288,61 @@ class Template:
 
         return "\n".join(html)
 
+    def tmpl_welcome_select_empty_profile(self):
+        html = []
+        h = html.append
+        message = self._("If your profile has not been presented, it seems that you cannot match any of the existing accounts.")
+        h('<p>%s</p>' % message)
+        h('<table border="0"> <tr>')
+        h('<td>')
+        h('%s ' % (self._('Would you like to create a new one?')))
+        h('</td>')
+        h('<td>')
+        h('<INPUT TYPE="BUTTON" VALUE="Create a profile" ONCLICK="window.location.href=\'welcome?action=%s&pid=%s\'">' % ('select', str(-1)))
+        h('</td>')
+        h('</tr>')
+        h('</table>')
+        h('</br>')
+        return "\n".join(html)
+
+    def tmpl_welcome_probable_profile_suggestion(self, profile_suggestion_info):
+        '''
+        Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through.
+        '''
+        html = []
+        h = html.append
+        message = self._("We strongly believe that your profile is the profile below. If you agree please claim this profile.")
+        h('<p>%s</p>' % message)
+        h('<table border="0"> <tr>')
+
+        h('<td>')
+        h('%s ' % (profile_suggestion_info['name_string']))
+        h('<a href="%s/author/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, profile_suggestion_info['canonical_id'], profile_suggestion_info['canonical_name_string']))
+        h('</td>')
+        h('<td>')
+        h('<INPUT TYPE="BUTTON" VALUE="This is my profile" ONCLICK="window.location.href=\'welcome?action=%s&pid=%s\'">' % ('select', str(profile_suggestion_info['pid'])))
+        h('</td>')
+        h('</tr>')
+        h('</table>')
+        h('</br>')
+        return "\n".join(html)
+
     def tmpl_profile_not_available(self):
         '''
         show profile option
         '''
         html = []
         h = html.append
-
-        h('<p> Unfortunately the profile that you previously chose is no longer available. A new empty profile has been created. You will be able to correct '
-          'your publication list until it contains all of your publications.</p>')
+        message = self._('Unfortunately the profile that you previously chose is no longer available. A new empty profile has been created. You will be able to correct '
+          'your publication list until it contains all of your publications.')
+        h('<p>%s</p>' % (message,))
         return "\n".join(html)
 
-    def tmpl_profile_assigned_by_user  (self):
+    def tmpl_profile_assigned_by_user(self):
         html = []
         h = html.append
-
-        h('<p> Congratulations you have successfully claimed the chosen profile.</p>')
+        message = self._(' Congratulations you have successfully claimed the chosen profile.')
+        h('<p>%s</p>'%(message,))
         return "\n".join(html)
 
 
@@ -1880,27 +2377,143 @@ class Template:
     def tmpl_welcome_personid_association(self, pid):
         """
         """
-        canon_name = get_canonical_id_from_personid(pid)
+        canon_name = get_canonical_name_of_author(pid)
         head = "<br>"
         if canon_name:
-            body = ("Your arXiv.org account is associated "
-                    "with person %s." % canon_name[0][0])
+            message = self._("Your external_systems accounts are associated "
+                    "with person %s." % (canon_name[0][0],))
         else:
-            body = ("Warning: your arXiv.org account is associated with an empty profile. "
+            message = self._("Warning: your external systems accounts account are associated with an empty profile. "
                     "This can happen if it is the first time you log in and you do not have any "
-                    "paper directly claimed in arXiv.org."
+                    "paper directly claimed from your external_systems accounts"
                     " In this case, you are welcome to search and claim your papers to your"
                     " new profile manually, or please contact us to get help.")
-
-        body += ("<br>You are very welcome to contact us shall you need any help or explanation"
+        body = (message)
+        message = self._("You are very welcome to contact us shall you need any help or explanation"
                  " about the management of"
                  " your profile page"
-                 " in INSPIRE and it's connections with arXiv.org: "
-                 '''<a href="mailto:authors@inspirehep.net?subject=Help on arXiv.org SSO login and paper claiming"> authors@inspirehep.net </a>''')
+                 " in INSPIRE and it's connections with arXiv.org: ")
+        body += ("<br>%s" % (message,))
+        body += ('''<a href="mailto:authors@inspirehep.net?subject=Help on arXiv.org SSO login and paper claiming"> authors@inspirehep.net </a>''')
         tail = "<br>"
 
         return head + body + tail
 
+    def tmpl_welcome_autoclaim_remote_login_systems_papers(self, remote_login_systems_papers, cached_ids_association, auto_claim_list):
+        papers_found = False
+        html = []
+        h = html.append
+        message = self._("<br><br><strong>We have got "
+                                "the following papers from the remote login systems you are logged in through: </strong><br>")
+        h('<p>%s</p>' % message)
+        h('<table class="idsAssociationTable" id="idsAssociationClaim">')
+        h('<!-- Table header -->\
+                <thead>\
+                    <tr>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                       </tr>\
+                </thead>\
+           <!-- Table body -->\
+                <tbody>' % (self._("External system"), self._("External id"), self._("Resolved record id"), self._("Status")))
+
+        for system in remote_login_systems_papers.keys():
+            if remote_login_systems_papers[system]:
+                papers_found = True
+
+            for paper in remote_login_systems_papers[system]:
+                h('<tr>')
+                h('<td>')
+                h('%s ' % (system))
+                h('</td>')
+                h('<td>')
+                h('%s ' % (paper))
+                h('</td>')
+                h('<td>')
+                key = (bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system], paper)
+
+                if key in cached_ids_association.keys() and cached_ids_association[key] != -1:
+                    recid = cached_ids_association[key]
+                    h('%s ' % (recid,))
+
+                    if recid in auto_claim_list:
+                        status = "Paper in the process of auto-claimed by the system."
+                    else:
+                        status = "Paper already claimed."
+                else:
+                    h(self._('Not available'))
+                    status = "Paper not present."
+
+                h('</td>')
+                h('<td>')
+                h('%s ' % (status,))
+                h('</td>')
+                h('</tr>')
+        h('</tbody>')
+        h('</table>')
+        h('</br>')
+
+        if not papers_found:
+            html = []
+            h = html.append
+            h('<p>%s</p>' % "We have got no papers from the remote login systems that you are currently logged in through. <br>")
+
+        return "\n".join(html)
+
+    def tmpl_welcome_remote_login_systems_papers(self, remote_login_systems_papers, cached_ids_association):
+        papers_found = False
+        html = []
+        h = html.append
+        message = self._("<br><br><strong>We have got "
+                                "the following papers from the remote login systems you are logged in through: </strong><br>")
+        h('<p>%s</p>' % message)
+        h('<table class="idsAssociationTable" id="idsAssociationReview">')
+        h('<!-- Table header -->\
+                <thead>\
+                    <tr>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                       </tr>\
+                </thead>\
+           <!-- Table body -->\
+                <tbody>' % (self._("External system"), self._("External id"), self._("Resolved record id")))
+        for system in remote_login_systems_papers.keys():
+            if remote_login_systems_papers[system]:
+                papers_found = True
+
+            for paper in remote_login_systems_papers[system]:
+                h('<tr>')
+                h('<td>')
+                h('%s ' % (system))
+                h('</td>')
+                h('<td>')
+                h('%s ' % (paper))
+                h('</td>')
+                h('<td>')
+                key = (bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system], paper)
+
+                if key in cached_ids_association.keys() and cached_ids_association[key] != -1:
+                    recid = cached_ids_association[key]
+                    h('%s ' % (recid,))
+                else:
+                    h(self._('Not available'))
+
+                h('</td>')
+                h('</tr>')
+
+        h('</tbody>')
+        h('</table>')
+        h('</br>')
+
+        if not papers_found:
+            html = []
+            message = self._("<br><br>We have got "
+                                "the following papers from the remote login systems you are logged in through: <br>")
+            h('<p>%s</p>' % "We have got no papers from the remote login systems that you are currently logged in through. <br>")
+        return "\n".join(html)
 
     def tmpl_welcome_arXiv_papers(self, paps):
         '''
@@ -1936,5 +2549,250 @@ class Template:
             h('There are currently no open tickets.')
         return "\n".join(html)
 
-# pylint: enable=C0301
+    def loading_html(self):
+        return '<img src=/img/ui-anim_basic_16x16.gif> Loading...'
+    
+    def tmpl_personnametitle(self, person_info, ln, loading=False):
+        _ = gettext_set_language(ln)
 
+        if loading:
+            html_header = '<span id="personnametitle">' + self.loading_html() + '</span>'
+        else:
+            if not person_info['name']:
+                display_name = " Name not available"
+            else:
+                display_name = str(person_info['name']) + ' (' + str(person_info['canonical_name']) + ')'
+
+            html_header = ('<h1><span id="personnametitle">%s</span></h1>'
+                          % (display_name))
+            html_header += ('<span id="personnametitle">%s</span>'
+                            % (_("Author Managment Page"))) 
+
+        return html_header
+
+
+    def tmpl_profile_managment(self, ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids, autoclaim_data, support_data):
+        '''
+        '''
+        _ = gettext_set_language(ln)
+
+        html = list()
+
+        html_header = self.tmpl_personnametitle(person_data, ln, loading=False)
+        html.append(html_header)
+
+        html_arxiv = self.tmpl_arxiv_box(arxiv_data, ln, loading=False)
+        html_orcid = self.tmpl_orcid_box(orcid_data, ln, loading=False)
+        html_claim_paper = self.tmpl_claim_paper_box(claim_paper_data, ln, loading=False)
+        html_ext_ids = self.tmpl_ext_ids_box(ext_ids, ln, loading=False)
+        html_autoclaim = self.tmpl_autoclaim_box(autoclaim_data, ln, loading=False)
+        html_support = self.tmpl_support_box(support_data, ln, loading=False)
+
+        g = self._grid
+
+        if html_autoclaim:
+            left_g = g(3, 1)(
+                              g(1, 1, cell_padding=5)(html_arxiv),
+                              g(1, 1, cell_padding=5)(html_claim_paper),
+                              g(1, 1, cell_padding=5)(html_autoclaim))
+        else:
+            left_g = g(2, 1)(
+                              g(1, 1, cell_padding=5)(html_arxiv),
+                              g(1, 1, cell_padding=5)(html_claim_paper))
+        page = g(1, 2)(
+                      left_g,
+                      g(3, 1)(
+                              g(1, 1, cell_padding=5)(html_orcid),
+                              g(1, 1, cell_padding=5)(html_ext_ids),
+                              g(1, 1, cell_padding=5)(html_support))
+                      )
+        html.append(page)
+
+        return ' '.join(html)
+
+    def tmpl_print_searchresultbox(self, bid, header, body):
+        """ Print a nicely formatted box for search results. """
+
+        # first find total number of hits:
+        out = ('<table class="searchresultsbox" ><thead><tr><th class="searchresultsboxheader">'
+            + header + '</th></tr></thead><tbody><tr><td id ="%s" class="searchresultsboxbody">' % bid
+            + body + '</td></tr></tbody></table>')
+        return out
+
+    def tmpl_arxiv_box(self, arxiv_data, ln, add_box=True, loading=True):
+        _ = gettext_set_language(ln)
+        html_head = _("<strong> Login with your arXiv.org account </strong>")
+        
+        if arxiv_data['login'] == True and arxiv_data['view_own_profile'] == True:
+           
+            if arxiv_data['view_own_profile'] == True:
+                html_arxiv = _("You have succesfully logged in through arXiv. You can now manage your profile accordingly.</br>")
+            else:
+                html_arxiv = _("You have succesfully logged in through arXiv. However the profile you are currently viewing is not your profile.</br>")
+                html_arxiv += ('</br><div><a href="mpla.com">Manage your profile/a></div>')
+            html_arxiv += ('</br><div><a href="mpla.com">Logout/a></div>')
+        else:
+            html_arxiv = _("Please login through arXiv.org to verify that you are the owner of this"
+                            " profile and update your paper list automatically. You may also proceed"
+                            " as a guest user, then your input will be processed by our staff and "
+                            "thus might take longer to display.</br>")
+            html_arxiv += ('</br><div><a href="mpla.com">Login into Inspire through arXiv.org</a></div>')
+        if loading:
+            html_arxiv = self.loading_html()
+        if add_box:
+            arxiv_box = self.tmpl_print_searchresultbox('arxiv', html_head, html_arxiv)
+            return arxiv_box
+        else:
+            return html_arxiv
+
+    def tmpl_orcid_box(self, orcid_data, ln, add_box=True, loading=True):
+        _ = gettext_set_language(ln)
+        
+        html_head = _("<strong> Connect this profile to an ORCID Id </strong>")
+        html_orcid = _("The Open Researcher and Contributor ID provides a persistent digital identifier"
+                       " that distinguishes you from every other researcher in the world and supports "
+                       "automated linkages between you and your professional activities.</br>")
+        
+        if orcid_data['orcids']:
+            html_orcid += _('This profile is already connected to an orcid. Do you believe this is wrong?</br>')
+        
+        html_orcid += '</br><div><a href="mpla.com">Add/connect an orcid  to this profile.</a></div>'
+        if loading:
+            html_orcid = self.loading_html()
+        if add_box:
+            orcid_box = self.tmpl_print_searchresultbox('orcid', html_head, html_orcid)
+            return orcid_box
+        else:
+            return html_orcid
+
+    def tmpl_claim_paper_box(self, claim_paper_data, ln, add_box=True, loading=True):
+        _ = gettext_set_language(ln)
+        
+        html_head = _("<strong> Claim papers for this profile </strong>")
+        html_claim_paper = _("If you claim papers on INSPIRE, you make sure that your publications and citations"
+                       " are being shown correctly on your pofile. You can also assi9gn publication to other "
+                       "authors and colleagues - that way you can also help us providing more accurate publication"
+                       " and citations statistics on INSPIRE.</br>")
+
+        html_claim_paper += '</br><div><a href=%s>%s</a></div>' % (claim_paper_data['link'], claim_paper_data['text'])
+        if loading:
+            html_claim_paper = self.loading_html()
+        if add_box:
+            claim_paper_box = self.tmpl_print_searchresultbox('claim_paper', html_head, html_claim_paper)
+            return claim_paper_box
+        else:
+            return html_claim_paper
+
+    def tmpl_ext_ids_box(self, ext_ids, ln, add_box=True, loading=True):
+        _ = gettext_set_language(ln)
+        
+        html_head = _("<strong> External Ids </strong>")
+        html_etx_ids = ''
+        if ext_ids:
+            html_etx_ids = '<tr>'
+        else:
+            html_etx_ids = _("There are no available external ids")
+            
+        for idType in ext_ids.keys():
+            html_etx_ids += '<td>' + str(idType) +'</td>' + '<td>' + str(ext_ids[idType]) +'</td>'
+
+        if ext_ids:
+            html_etx_ids = '</tr>'
+
+        if loading:
+            html_etx_ids = self.loading_html()
+        if add_box:
+            etx_ids_box = self.tmpl_print_searchresultbox('external_ids', html_head, html_etx_ids)
+            return etx_ids_box
+        else:
+            return html_etx_ids
+
+    def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True):
+        _ = gettext_set_language(ln)
+        
+        html_head = _("<strong> Autoclaim Papers </strong>")
+        if not autoclaim_data['hidden']:
+            html_support = _("Here you can see and manage papers that exist in your external system's account and"
+                           " not in INSPIRE's.</br>")
+    
+            html_support += '</br><div><a href=%s>Merge profiles</a></div>' % (support_data['merge_link'],)
+            html_support += '<div><a href=%s>Report a problem</a></div>' % (support_data['problem_link'],)
+            html_support += '++++<div><a href=%s>Get help!</a></div>' % (support_data['help_link'],)
+            if loading:
+                html_support = self.loading_html()
+            if add_box:
+                support_box = self.tmpl_print_searchresultbox('support', html_head, html_support)
+                return support_box
+            else:
+                return html_support
+            
+        return None
+    
+    def tmpl_support_box(self, support_data, ln, add_box=True, loading=True):
+        _ = gettext_set_language(ln)
+        
+        html_head = _("<strong> Contact and support </strong>")
+        html_support = _("Please, contact our support if you need any kind of help or if you want to suggest"
+                       " us  new ideas. We will get back to you quickly.</br>")
+
+        html_support += '</br><div><a href=%s>Merge profiles</a></div>' % (support_data['merge_link'],)
+        html_support += '<div><a href=%s>Report a problem</a></div>' % (support_data['problem_link'],)
+        html_support += '<div><a href=%s>Get help!</a></div>' % (support_data['help_link'],)
+        if loading:
+            html_support = self.loading_html()
+        if add_box:
+            support_box = self.tmpl_print_searchresultbox('support', html_head, html_support)
+            return support_box
+        else:
+            return html_support
+
+    def tmpl_open_table(self, width_pcnt=False, cell_padding=False, height_pcnt=False):
+        options = []
+
+        if height_pcnt:
+            options.append('height=%s' % height_pcnt)
+
+        if width_pcnt:
+            options.append('width=%s' % width_pcnt)
+        else:
+            options.append('width=100%')
+
+        if cell_padding:
+            options.append('cellpadding=%s' % cell_padding)
+        else:
+            options.append('cellpadding=0')
+
+        return '<table border=0 %s >' % ' '.join(options)
+
+    def tmpl_close_table(self):
+        return "</table>"
+
+    def tmpl_open_row(self):
+        return "<tr>"
+    def tmpl_close_row(self):
+        return "</tr>"
+    def tmpl_open_col(self):
+        return "<td valign='top'>"
+    def tmpl_close_col(self):
+        return "</td>"
+
+    def _grid(self, rows, cols, table_width=False, cell_padding=False):
+        tmpl = self
+        def cont(*boxes):
+            out = []
+            h = out.append
+            idx = 0
+            h(tmpl.tmpl_open_table(width_pcnt=table_width, cell_padding=cell_padding))
+            for _ in range(rows):
+                h(tmpl.tmpl_open_row())
+                for _ in range(cols):
+                    h(tmpl.tmpl_open_col())
+                    h(boxes[idx])
+                    idx += 1
+                    h(tmpl.tmpl_close_col())
+                h(tmpl.tmpl_close_row())
+            h(tmpl.tmpl_close_table())
+            return '\n'.join(out)
+        return cont
+
+    # pylint: enable=C0301

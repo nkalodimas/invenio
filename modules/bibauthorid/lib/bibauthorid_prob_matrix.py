@@ -17,15 +17,17 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
-from invenio import bibauthorid_config as bconfig
+
+import gc
+import invenio.bibauthorid_config as bconfig
 from invenio.bibauthorid_comparison import compare_bibrefrecs
 from invenio.bibauthorid_comparison import clear_all_caches as clear_comparison_caches
 from invenio.bibauthorid_backinterface import Bib_matrix
-from invenio.bibauthorid_backinterface import filter_modified_record_ids
+from invenio.bibauthorid_backinterface import get_modified_papers_before
 from invenio.bibauthorid_general_utils import bibauthor_print \
-                                    , update_status \
-                                    , update_status_final \
-                                    , is_eq
+                                        , update_status \
+                                        , update_status_final \
+                                        , is_eq
 
 if bconfig.DEBUG_CHECKS:
     def _debug_is_eq_v(vl1, vl2):
@@ -62,7 +64,7 @@ class ProbabilityMatrix(object):
 
 
     def __get_up_to_date_bibs(self):
-        return frozenset(filter_modified_record_ids(
+        return frozenset(get_modified_papers_before(
                          self._bib_matrix.get_keys(),
                          self._bib_matrix.creation_time))
 
@@ -78,6 +80,7 @@ class ProbabilityMatrix(object):
         the matrix.
         '''
         last_cleaned = 0
+        gc.disable()
 
         old_matrix = self._bib_matrix
         cached_bibs = self.__get_up_to_date_bibs()
@@ -96,24 +99,28 @@ class ProbabilityMatrix(object):
                 update_status((float(opti) + cur_calc) / expected, "Prob matrix: calc %d, opti %d." % (cur_calc, opti))
                 prints_counter = cur_calc+opti
 
-            #clean caches
-            if cur_calc - last_cleaned > 2000000:
-                clear_comparison_caches()
+#            #clean caches
+            if cur_calc - last_cleaned > 20000000:
+                gc.collect()
+#                clear_comparison_caches()
                 last_cleaned = cur_calc
 
             for cl2 in cluster_set.clusters:
                 if id(cl1) < id(cl2) and not cl1.hates(cl2):
                     for bib1 in cl1.bibs:
                         for bib2 in cl2.bibs:
-                            if have_cached_bibs and bib1 in cached_bibs and bib2 in cached_bibs:
-                                val = old_matrix[bib1, bib2]
-                                if not val:
-                                    cur_calc += 1
-                                    val = compare_bibrefrecs(bib1, bib2)
-                                else:
+                            if have_cached_bibs:
+                                try:
+                                    val = old_matrix[bib1, bib2]
                                     opti += 1
                                     if bconfig.DEBUG_CHECKS:
                                         assert _debug_is_eq_v(val, compare_bibrefrecs(bib1, bib2))
+                                except KeyError:
+                                    cur_calc += 1
+                                    val = compare_bibrefrecs(bib1, bib2)
+                                if not val:
+                                    cur_calc += 1
+                                    val = compare_bibrefrecs(bib1, bib2)
                             else:
                                 cur_calc += 1
                                 val = compare_bibrefrecs(bib1, bib2)
@@ -121,6 +128,7 @@ class ProbabilityMatrix(object):
 
         clear_comparison_caches()
         update_status_final("Matrix done. %d calc, %d opt." % (cur_calc, opti))
+        gc.enable()
 
 
 def prepare_matirx(cluster_set, force):
@@ -133,7 +141,6 @@ def prepare_matirx(cluster_set, force):
     if not force and matr.is_up_to_date(cluster_set):
         bibauthor_print("Cluster %s is up-to-date and therefore will not be computed."
             % cluster_set.last_name)
-        # nothing to do
         return False
 
     matr.load(cluster_set.last_name, load_map=False, load_matrix=True)

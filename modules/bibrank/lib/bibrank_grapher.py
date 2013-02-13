@@ -88,11 +88,15 @@ def create_temporary_image(recid, kind_of_graph, data_file, x_label, y_label, or
     intervals      - x tics location and xrange specification"""
     if (kind_of_graph == "citation" and CFG_BIBRANK_SHOW_CITATION_GRAPHS == 1) or \
         (kind_of_graph == "download_history" and CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS == 1) or \
-        (kind_of_graph == "download_users" and CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS_CLIENT_IP_DISTRIBUTION == 1):
+        (kind_of_graph == "download_users" and CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS_CLIENT_IP_DISTRIBUTION == 1) or \
+        (kind_of_graph == "pubs_per_year"):
         if cfg_gnuplot_available == 0:
             return (None, None)
         #Graphe name: file to store graph
         graphe_name = "tmp_%s_%s_stats.png" % (kind_of_graph, recid)
+        if kind_of_graph == "pubs_per_year":   # the 'pubs_per_year' graph is the same as 'citation' except that is saved in a different location
+            kind_of_graph = "citation"
+            graphe_name = "tmp/%s/%s.png" % (recid[0], recid)
         create_temporary_gnuplot_image(recid, kind_of_graph, data_file, x_label, y_label, origin_tuple, y_max, docid_list, graphe_titles, intervals, graphe_name)
     elif (kind_of_graph == "citation" and CFG_BIBRANK_SHOW_CITATION_GRAPHS == 2) or \
         (kind_of_graph == "download_history" and CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS == 2) or \
@@ -391,12 +395,14 @@ $("#overview%(graph)s").bind("plotselected", function (event, ranges) {
     out += "</noscript>"
     open(CFG_WEBDIR + "/img/" + graphe_name, 'w').write(out)
     data.close()
+
 def remove_old_img(prefix_file_name):
     """Detele all the images older than 10 minutes to prevent to much storage
     Takes 0.0 seconds for 50 files to delete"""
 
     command = "find %s/img/ -name tmp_%s*.png -amin +10 -exec rm -f {} \;" % (CFG_WEBDIR, prefix_file_name)
     return os.system(command)
+
 
 def plot_command(first_line, file_source, indexes, title, style, line_type, line_width, point_type="", point_size=""):
     """Return a string of a gnuplot plot command.Particularly useful when multiple curves

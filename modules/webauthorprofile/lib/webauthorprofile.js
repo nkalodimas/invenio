@@ -18,6 +18,8 @@
  */
 
 $(document).ready(function() {
+    $("a[rel=lightbox]").lightBox();
+
     $('[class^=more-]').hide();
 
     $('[class^=lmore]').each(function() {
@@ -35,6 +37,22 @@ $(document).ready(function() {
         return false;
         });
     });
+    //call name variants
+    var data = { 'personId': gPID };
+    var funcs = ['create_authorpage_name_variants', 'create_authorpage_combined_papers', 'create_authorpage_keywords', 'create_authorpage_fieldcodes', 'create_authorpage_affiliations',
+                 'create_authorpage_coauthors', 'create_authorpage_pubs', 'create_authorpage_authors_pubs', 'create_authorpage_citations', 'create_authorpage_pubs_graph',
+                 'create_authorpage_hepdata', 'create_authorpage_collaborations', 'create_authorpage_orcid_info'];
+    // use for(;;) instead? http://stackoverflow.com/questions/2265167/why-is-forvar-item-in-list-with-arrays-considered-bad-practice-in-javascript
+    for (var i in funcs) {
+      $.ajax({
+        dataType: 'json',
+        type: 'POST',
+        url: '/author/' + funcs[i],
+        data: {jsondata: JSON.stringify(data)},
+        success: onAjaxSuccess,
+        async: true
+      });
+    }
 });
 
 function initAjax(){
@@ -46,6 +64,19 @@ function initAjax(){
       dataType: 'json',
       type: 'POST',
       url: gBOX_STATUS
+    }
+  );
+}
+
+function initAjaxNew(){
+  /*
+   * Initialize Ajax.
+   */
+  $.ajaxSetup(
+    {cache: false,
+      dataType: 'json',
+      type: 'POST',
+      async: true
     }
   );
 }
@@ -108,7 +139,7 @@ $(function(){
     /*
      * Init functions
      */
-    initAjax();
+    initAjaxNew();
     if (gBOX_STATUS != 'noAjax') {
         initPing();
     	setTimeout("stopPing()", 360000);

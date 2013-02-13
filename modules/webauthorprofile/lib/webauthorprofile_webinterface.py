@@ -16,36 +16,33 @@
 ## You should have received a copy of the GNU General Public License
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
-"""WebAuthorProfile Web Interface Logic and URL handler."""
+
+"""
+WebAuthorProfile web interface logic and URL handler
+"""
+
 # pylint: disable=W0105
 # pylint: disable=C0301
 # pylint: disable=W0613
 
-import sys
-from operator import  itemgetter
+from sys import hexversion
+from operator import itemgetter
+from datetime import datetime, timedelta
 
 from invenio.bibauthorid_webauthorprofileinterface import is_valid_canonical_id, \
     get_person_id_from_paper, get_person_id_from_canonical_id, \
     search_person_ids_by_name, get_papers_by_person_id, get_person_redirect_link
 
 from invenio.webauthorprofile_corefunctions import get_pubs, get_person_names_dicts, \
-    get_institute_pub_dict, get_coauthors, get_summarize_records, \
-    get_total_downloads, get_cited_by_list, get_kwtuples, get_venuetuples, \
-    get_veryfy_my_pubs_list_link, get_hepnames_data, get_self_pubs, \
-    get_collabtuples, get_person_oldest_date, expire_all_cache_for_person
+    get_institute_pubs, get_pubs_per_year, get_coauthors, get_summarize_records, \
+    get_total_downloads, get_kwtuples, get_fieldtuples, get_veryfy_my_pubs_list_link, \
+    get_hepnames_data, get_self_pubs, get_collabtuples, get_info_from_orcid, \
+    expire_all_cache_for_person
 
-
-#from invenio.bibauthorid_config import EXTERNAL_CLAIMED_RECORDS_KEY
-from invenio.config import CFG_SITE_LANG
-from invenio.config import CFG_SITE_URL
-from invenio.config import CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID
 from invenio.webpage import pageheaderonly
 from invenio.webinterface_handler import wash_urlargd, WebInterfaceDirectory
 from invenio.urlutils import redirect_to_url
 from invenio.jsonutils import json_unicode_to_utf8
-
-import datetime
-
 
 import invenio.template
 websearch_templates = invenio.template.load('websearch')
@@ -55,7 +52,7 @@ bibauthorid_template = invenio.template.load('bibauthorid')
 from invenio.search_engine import page_end
 JSON_OK = False
 
-if sys.hexversion < 0x2060000:
+if hexversion < 0x2060000:
     try:
         import simplejson as json
         JSON_OK = True
@@ -70,65 +67,38 @@ else:
     except ImportError:
         JSON_OK = False
 
-#tag constants
-AUTHOR_TAG = "100__a"
-AUTHOR_INST_TAG = "100__u"
-COAUTHOR_TAG = "700__a"
-COAUTHOR_INST_TAG = "700__u"
-VENUE_TAG = "909C4p"
-KEYWORD_TAG = "695__a"
-FKEYWORD_TAG = "6531_a"
-CFG_INSPIRE_UNWANTED_KEYWORDS_START = ['talk',
-                                      'conference',
-                                      'conference proceedings',
-                                      'numerical calculations',
-                                      'experimental results',
-                                      'review',
-                                      'bibliography',
-                                      'upper limit',
-                                      'lower limit',
-                                      'tables',
-                                      'search for',
-                                      'on-shell',
-                                      'off-shell',
-                                      'formula',
-                                      'lectures',
-                                      'book',
-                                      'thesis']
-CFG_INSPIRE_UNWANTED_KEYWORDS_MIDDLE = ['GeV',
-                                        '((']
+from webauthorprofile_config import CFG_SITE_LANG, CFG_SITE_URL, \
+    CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID
 
-RECOMPUTE_ALLOWED_DELAY = datetime.timedelta(minutes=30)
+RECOMPUTE_ALLOWED_DELAY = timedelta(minutes=30)
 
 class WebAuthorPages(WebInterfaceDirectory):
-    """
-    Handle webauthorpages. /author/
-    """
-    _exports = ['']
+    """ Handle webauthorpages. /author/ """
+    _exports = ['', 'create_authorpage_name_variants', 'create_authorpage_combined_papers', 'create_authorpage_keywords', 'create_authorpage_fieldcodes', 'create_authorpage_affiliations',
+                'create_authorpage_coauthors', 'create_authorpage_pubs', 'create_authorpage_authors_pubs', 'create_authorpage_citations', 'create_authorpage_pubs_graph',
+                'create_authorpage_hepdata', 'create_authorpage_collaborations', 'create_authorpage_orcid_info']
 
     def _lookup(self, component, path):
-        """
+        '''
         This handler parses dynamic URLs:
         - /person/1332 shows the page of person 1332
         - /person/100:5522,1431 shows the page of the person
-            identified by the table:bibref,bibrec pair
-        """
+            identified by the table: bibref, bibrec pair
+        '''
         if not component in self._exports:
             return WebAuthorPages(component), path
 
     def __init__(self, person_id=None):
-        """
+        '''
         Constructor of the web interface.
-
         @param person_id: The identifier of a user. Can be one of:
             - a bibref: e.g. "100:1442,155"
             - a person id: e.g. "14"
             - a canonical id: e.g. "Ellis_J_1"
         @type person_id: string
-
         @return: will return an empty object if the identifier is of wrong type
         @rtype: None (if something is not right)
-        """
+        '''
         self.person_id = None
         self.cid = None
         self.original_search_parameter = person_id
@@ -194,9 +164,7 @@ class WebAuthorPages(WebInterfaceDirectory):
                 return
 
         self.person_id = -1
-
-        #self.person_id can be:
-        # -1 if not valid personid
+        # self.person_id can be: -1 if not valid person_id
 
     def index(self, req, form):
         '''
@@ -228,7 +196,7 @@ class WebAuthorPages(WebInterfaceDirectory):
             try:
                 self.person_id = int(self.person_id)
             except (TypeError, ValueError):
-                #In any case, if the parameter is invalid, go to a person search page
+                # In any case, if the parameter is invalid, go to a person search page
                 self.person_id = -1
                 return redirect_to_url(req, "%s/person/search?q=%s" %
                         (CFG_SITE_URL, self.original_search_parameter))
@@ -247,6 +215,8 @@ class WebAuthorPages(WebInterfaceDirectory):
             req.content_type = "text/html"
         req.send_http_header()
         metaheaderadd = '<script type="text/javascript" src="%s/js/webauthorprofile.js"> </script>' % (CFG_SITE_URL)
+        metaheaderadd += '<script type="text/javascript" src="%s/js/jquery-lightbox/js/jquery.lightbox-0.5.js"></script>' % (CFG_SITE_URL)
+        metaheaderadd += '<link rel="stylesheet" type="text/css" href="%s/js/jquery-lightbox/css/jquery.lightbox-0.5.css" media="screen" />' % (CFG_SITE_URL)
         metaheaderadd += """
         <style>
         .hidden {
@@ -255,13 +225,11 @@ class WebAuthorPages(WebInterfaceDirectory):
         </style>
         """
         title_message = "Author Publication Profile Page"
-
         req.write(pageheaderonly(req=req, title=title_message,
                                  metaheaderadd=metaheaderadd, language=ln))
         req.write(websearch_templates.tmpl_search_pagestart(ln=ln))
         self.create_authorpage_websearch(req, form, self.person_id, ln, expire_cache)
         return page_end(req, 'hb', ln)
-
 
     def __call__(self, req, form):
         '''
@@ -292,8 +260,8 @@ class WebAuthorPages(WebInterfaceDirectory):
             return redirect_to_url(req, '%s/author/%s/' % (CFG_SITE_URL, self.person_id))
 
         elif self.person_id and recid > -1:
-            #we got something different from person_id, canonical name or bibrefrec pair.
-            #try to figure out a personid
+            # we got something different from person_id, canonical name or bibrefrec pair
+            # try to figure out a personid
             argd = wash_urlargd(form,
                                 {'ln': (str, CFG_SITE_LANG),
                                  'verbose': (int, 0),
@@ -335,47 +303,642 @@ class WebAuthorPages(WebInterfaceDirectory):
                 else:
                     return redirect_to_url(req, "%s/person/search?q=%s" %
                     (CFG_SITE_URL, self.original_search_parameter))
-                    #req.write("Could not determine personID from bibrec. What to do here? %s"%
-                    #str(self.original_search_parameter))
+                    # req.write("Could not determine personID from bibrec. What to do here? %s"%
+                    #    str(self.original_search_parameter))
             else:
                 return redirect_to_url(req, "%s/person/search?q=%s" %
                     (CFG_SITE_URL, self.original_search_parameter))
-                #req.write("Could not determine personID from bibrec. What to do here 2? %s"%
-                #   (str(self.original_search_parameter),str(recid)))
+                # req.write("Could not determine personID from bibrec. What to do here 2? %s"%
+                #    str(self.original_search_parameter), str(recid))
 
         else:
             return redirect_to_url(req, "%s/person/search?q=%s" %
                     (CFG_SITE_URL, self.original_search_parameter))
             # req.write("Search param %s does not represent a valid person, please correct your query"%
-            #(str(self.original_search_parameter),))
+            #    str(self.original_search_parameter))
+
+
+    def create_authorpage_name_variants(self,  req, form): # , person_id, expire_cache
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                namesdict, namesdictStatus, last_updated = get_person_names_dicts(person_id)
+                if not namesdict:
+                    namesdict = {}
+
+                try:
+                    authorname = namesdict['longest']
+                    db_names_dict = namesdict['db_names_dict']
+                except (IndexError, KeyError):
+                    authorname = 'None'
+                    db_names_dict = {}
+
+                person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+                if not person_link or not person_linkStatus:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": None}
+                    person_link = str(person_id)
+                else:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": person_link}
+
+                json_response['boxes_info'].update({'name_variants': {'status': namesdictStatus, 'html_content': webauthorprofile_templates.tmpl_author_name_variants_box(db_names_dict, bibauthorid_data, ln='en', add_box=False, loading=not db_names_dict)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+
+    def create_authorpage_combined_papers(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                pubs, pubsStatus, last_updated = get_pubs(person_id)
+                if not pubs:
+                    pubs = []
+
+                selfpubs, selfpubsStatus, last_updated = get_self_pubs(person_id)
+                if not selfpubs:
+                    selfpubs = []
+
+                totaldownloads, totaldownloadsStatus, last_updated = get_total_downloads(person_id)
+                if not totaldownloads:
+                    totaldownloads = 0
+
+                person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+                if not person_link or not person_linkStatus:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": None}
+                    person_link = str(person_id)
+                else:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": person_link}
+                json_response['boxes_info'].update({'combined_papers': {'status': selfpubsStatus, 'html_content': webauthorprofile_templates.tmpl_papers_with_self_papers_box(pubs, selfpubs, bibauthorid_data, totaldownloads, ln='en', add_box=False, loading=not selfpubsStatus)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_keywords(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                kwtuples, kwtuplesStatus, last_updated = get_kwtuples(person_id)
+                if kwtuples:
+                    pass
+                    # kwtuples = kwtuples[0:MAX_KEYWORD_LIST]
+                else:
+                    kwtuples = []
+
+                person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+                if not person_link or not person_linkStatus:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": None}
+                    person_link = str(person_id)
+                else:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": person_link}
+
+                json_response['boxes_info'].update({'keywords': {'status': kwtuplesStatus, 'html_content': webauthorprofile_templates.tmpl_keyword_box(kwtuples, bibauthorid_data, ln='en', add_box=False, loading=not kwtuplesStatus)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_fieldcodes(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+
+                person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+                if not person_link or not person_linkStatus:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": None}
+                    person_link = str(person_id)
+                else:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": person_link}
+
+                fieldtuples, fieldtuplesStatus, last_updated = get_fieldtuples(person_id)
+                if fieldtuples:
+                    pass
+                    # fieldtuples = fieldtuples[0:MAX_FIELDCODE_LIST]
+                else:
+                    fieldtuples = []
+
+                json_response['boxes_info'].update({'fieldcodes': {'status': fieldtuplesStatus, 'html_content': webauthorprofile_templates.tmpl_fieldcode_box(fieldtuples, bibauthorid_data, ln='en', add_box=False, loading=not fieldtuplesStatus)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_affiliations(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                #author_aff_pubs, author_aff_pubsStatus = (None, None)
+                author_aff_pubs, author_aff_pubsStatus, last_updated = get_institute_pubs(person_id)
+                if not author_aff_pubs:
+                    author_aff_pubs = {}
+
+                json_response['boxes_info'].update({'affiliations': {'status': author_aff_pubsStatus, 'html_content': webauthorprofile_templates.tmpl_affiliations_box(author_aff_pubs, ln='en', add_box=False, loading=not author_aff_pubsStatus)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_coauthors(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                coauthors, coauthorsStatus, last_updated = get_coauthors(person_id)
+                if not coauthors:
+                    coauthors = {}
+
+                person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+                if not person_link or not person_linkStatus:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": None}
+                    person_link = str(person_id)
+                else:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": person_link}
+
+                json_response['boxes_info'].update({'coauthors': {'status': coauthorsStatus, 'html_content': webauthorprofile_templates.tmpl_coauthor_box(bibauthorid_data, coauthors, ln='en', add_box=False, loading=not coauthorsStatus)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_pubs(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                pubs, pubsStatus, last_updated = get_pubs(person_id)
+
+                if not pubs:
+                    pubs = []
+
+                person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+                if not person_link or not person_linkStatus:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": None}
+                    person_link = str(person_id)
+                else:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": person_link}
+
+                json_response['boxes_info'].update({'numpaperstitle': {'status': pubsStatus, 'html_content': webauthorprofile_templates.tmpl_numpaperstitle(bibauthorid_data, pubs)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_authors_pubs(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                namesdict, namesdictStatus, last_updated = get_person_names_dicts(person_id)
+                if not namesdict:
+                    namesdict = {}
+
+                try:
+                    authorname = namesdict['longest']
+                    db_names_dict = namesdict['db_names_dict']
+                except (IndexError, KeyError):
+                    authorname = 'None'
+                    db_names_dict = {}
+
+                person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+                if not person_link or not person_linkStatus:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": None}
+                    person_link = str(person_id)
+                else:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": person_link}
+
+                pubs, pubsStatus, last_updated = get_pubs(person_id)
+
+                if not pubs:
+                    pubs = []
+
+                json_response['boxes_info'].update({'authornametitle': {'status': (namesdictStatus and namesdictStatus and pubsStatus), 'html_content': webauthorprofile_templates.tmpl_authornametitle(authorname, bibauthorid_data, pubs, person_link, ln='en', loading=not (namesdictStatus and namesdictStatus and pubsStatus))}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_citations(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                summarize_records, summarize_recordsStatus, last_updated = get_summarize_records(person_id)
+                if not summarize_records:
+                    summarize_records = 'None'
+
+                pubs, pubsStatus, last_updated = get_pubs(person_id)
+
+                if not pubs:
+                    pubs = []
+
+                json_response['boxes_info'].update({'citations': {'status': (summarize_recordsStatus and pubsStatus), 'html_content': webauthorprofile_templates.tmpl_citations_box(summarize_records, pubs, ln='en', add_box=False, loading=not (summarize_recordsStatus and pubsStatus))}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_pubs_graph(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                pubs_per_year, pubs_per_yearStatus, last_updated = get_pubs_per_year(person_id)
+                if not pubs_per_year:
+                    pubs_per_year = {}
+
+                json_response['boxes_info'].update({'pubs_graph': {'status': pubs_per_yearStatus, 'html_content': webauthorprofile_templates.tmpl_graph_box(pubs_per_year, ln='en', add_box=False, loading=not pubs_per_yearStatus)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_hepdata(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                hepdict, hepdictStatus, last_updated = get_hepnames_data(person_id)
+
+                json_response['boxes_info'].update({'hepdata': {'status': hepdictStatus, 'html_content': webauthorprofile_templates.tmpl_hepnames(hepdict, ln='en', add_box=False, loading=not hepdictStatus)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_collaborations(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                collab, collabStatus, last_updated = get_collabtuples(person_id)
+
+                person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+                if not person_link or not person_linkStatus:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": None}
+                    person_link = str(person_id)
+                else:
+                    bibauthorid_data = {"is_baid": True, "pid": person_id, "cid": person_link}
+
+
+                json_response['boxes_info'].update({'collaborations': {'status': collabStatus, 'html_content': webauthorprofile_templates.tmpl_collab_box(collab, bibauthorid_data, ln='en', add_box=False, loading=not collabStatus)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    def create_authorpage_orcid_info(self,  req, form):
+        if form.has_key('jsondata'):
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
+                orcid_info, orcid_infoStatus, last_updated = get_info_from_orcid(person_id)
+                if not orcid_info:
+                    orcid_info = {}
+
+                json_response['boxes_info'].update({'orcid_info': {'status': orcid_infoStatus, 'html_content': webauthorprofile_templates.tmpl_orcid_info_box(orcid_info, ln='en', add_box=False, loading=not orcid_infoStatus)}})
+                req.content_type = 'application/json'
+                req.write(json.dumps(json_response))
+
+    # def create_authorpage(self,  req):
+
+    #     pubs, pubsStatus, last_updated = get_pubs(person_id)
+    #     if not pubs:
+    #         pubs = []
+    #     status = pubsStatus
+
+    #     selfpubs, selfpubsStatus, last_updated = get_self_pubs(person_id)
+    #     if not selfpubs:
+    #         selfpubs = []
+    #     status = status and selfpubsStatus
+
+    #     namesdict, namesdictStatus, last_updated = get_person_names_dicts(person_id)
+    #     if not namesdict:
+    #         namesdict = {}
+    #     status = status and namesdictStatus
+
+    #     try:
+    #         authorname = namesdict['longest']
+    #         db_names_dict = namesdict['db_names_dict']
+    #     except (IndexError, KeyError):
+    #         authorname = 'None'
+    #         db_names_dict = {}
+
+    #     #author_aff_pubs, author_aff_pubsStatus = (None, None)
+    #     author_aff_pubs, author_aff_pubsStatus, last_updated = get_institute_pubs(person_id)
+    #     if not author_aff_pubs:
+    #         author_aff_pubs = {}
+    #     status = status and author_aff_pubsStatus
+
+    #     coauthors, coauthorsStatus, last_updated = get_coauthors(person_id)
+    #     if not coauthors:
+    #         coauthors = {}
+    #     status = status and coauthorsStatus
+
+    #     summarize_records, summarize_recordsStatus, last_updated = get_summarize_records(person_id)
+    #     if not summarize_records:
+    #         summarize_records = 'None'
+    #     status = status and summarize_recordsStatus
+
+    #     pubs_per_year, pubs_per_yearStatus, last_updated = get_pubs_per_year(person_id)
+    #     if not pubs_per_year:
+    #         pubs_per_year = {}
+    #     status = status and pubs_per_yearStatus
+
+    #     totaldownloads, totaldownloadsStatus, last_updated = get_total_downloads(person_id)
+    #     if not totaldownloads:
+    #         totaldownloads = 0
+    #     status = status and totaldownloadsStatus
+
+    #     kwtuples, kwtuplesStatus, last_updated = get_kwtuples(person_id)
+    #     if kwtuples:
+    #         pass
+    #         # kwtuples = kwtuples[0:MAX_KEYWORD_LIST]
+    #     else:
+    #         kwtuples = []
+    #     status = status and kwtuplesStatus
+
+    #     fieldtuples, fieldtuplesStatus, last_updated = get_fieldtuples(person_id)
+    #     if fieldtuples:
+    #         pass
+    #         # fieldtuples = fieldtuples[0:MAX_FIELDCODE_LIST]
+    #     else:
+    #         fieldtuples = []
+    #     status = status and fieldtuplesStatus
+
+    #     collab, collabStatus, last_updated = get_collabtuples(person_id)
+    #     status = status and collabStatus
+
+    #     person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+    #     if not person_link or not person_linkStatus:
+    #         bibauthorid_data = {"is_baid": True, "pid":person_id, "cid": None}
+    #         person_link = str(person_id)
+    #     else:
+    #         bibauthorid_data = {"is_baid": True, "pid":person_id, "cid": person_link}
+    #     status = status and person_linkStatus
+
+    #     hepdict, hepdictStatus, last_updated = get_hepnames_data(person_id)
+    #     status = status and hepdictStatus
+
+    #     orcid_info, orcid_infoStatus, last_updated = get_info_from_orcid(person_id)
+    #     if not orcid_info:
+    #         orcid_info = {}
+    #     status = status and orcid_infoStatus
+
+    #     gboxstatus = self.person_id
+    #     if status:
+    #         gboxstatus = 'noAjax'
+    #     req.write('<script type="text/javascript">var gBOX_STATUS = "%s" </script>' % (gboxstatus))
+    #     req.write(webauthorprofile_templates.tmpl_author_page(pubs, \
+    #                                     selfpubs, authorname, totaldownloads, \
+    #                                     author_aff_pubs, kwtuples, \
+    #                                     fieldtuples, coauthors, db_names_dict, \
+    #                                     person_link, bibauthorid_data, \
+    #                                     summarize_records, pubs_per_year, \
+    #                                     hepdict, collab, orcid_info, ln, beval, \
+    #                                     oldest_cache_date, recompute_allowed))
+
+
+    # def new_create_authorpage_websearch(self, req, form, person_id, ln='en', expire_cache=False):
+
+    #     if CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID:
+    #         if person_id < 0:
+    #             return ("Critical Error. PersonID should never be less than 0!")
+
+    #     webauthorprofile_templates.new_tmpl_author_name_variants_box()
+    #     webauthorprofile_templates.new_tmpl_papers_with_self_papers_box()
+    #     webauthorprofile_templates.new_tmpl_keyword_box()
+    #     webauthorprofile_templates.new_tmpl_fieldcode_box()
+    #     webauthorprofile_templates.new_tmpl_affiliations_box()
+    #     webauthorprofile_templates.new_tmpl_coauthor_box()
+    #     webauthorprofile_templates.new_tmpl_numpaperstitle()
+    #     webauthorprofile_templates.new_tmpl_authornametitle()
+    #     webauthorprofile_templates.new_tmpl_citations_box()
+    #     webauthorprofile_templates.new_tmpl_graph_box()
+    #     webauthorprofile_templates.new_tmpl_hepnames()
+    #     webauthorprofile_templates.new_tmpl_collab_box()
+    #     webauthorprofile_templates.new_tmpl_orcid_info_box()
+
+    #     self.create_authorpage_name_variants(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_combined_papers(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_keywords(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_fieldcodes(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_affiliations(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_coauthors(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_pubs(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_authors_pubs(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_citations(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_pubs_graph(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_hepdata(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_collaborations(self,  req, form, person_id, expire_cache)
+
+    #     self.create_authorpage_orcid_info(self,  req, form, person_id, expire_cache)
+
 
     def create_authorpage_websearch(self, req, form, person_id, ln='en', expire_cache=False):
-
-        recompute_allowed = True
-
-        oldest_cache_date = get_person_oldest_date(person_id)
-        if oldest_cache_date:
-            delay = datetime.datetime.now() - oldest_cache_date
-            if delay > RECOMPUTE_ALLOWED_DELAY:
-                if expire_cache:
-                    recompute_allowed = False
-                    expire_all_cache_for_person(person_id)
-            else:
-                recompute_allowed = False
-
         if CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID:
             if person_id < 0:
                 return ("Critical Error. PersonID should never be less than 0!")
 
-        pubs, pubsStatus = get_pubs(person_id)
+        # last_updated_list = []
+        # lu = last_updated_list.append
+
+        # pubs, pubsStatus, last_updated = get_pubs(person_id)
+        # if not pubs:
+        #     pubs = []
+        # lu(last_updated)
+
+        # selfpubs, selfpubsStatus, last_updated = get_self_pubs(person_id)
+        # if not selfpubs:
+        #     selfpubs = []
+        # lu(last_updated)
+
+        # namesdict, namesdictStatus, last_updated = get_person_names_dicts(person_id)
+        # if not namesdict:
+        #     namesdict = {}
+
+        # try:
+        #     authorname = namesdict['longest']
+        #     db_names_dict = namesdict['db_names_dict']
+        # except (IndexError, KeyError):
+        #     authorname = 'None'
+        #     db_names_dict = {}
+        # lu(last_updated)
+
+        # #author_aff_pubs, author_aff_pubsStatus = (None, None)
+        # author_aff_pubs, author_aff_pubsStatus, last_updated = get_institute_pubs(person_id)
+        # if not author_aff_pubs:
+        #     author_aff_pubs = {}
+        # lu(last_updated)
+
+        # coauthors, coauthorsStatus, last_updated = get_coauthors(person_id)
+        # if not coauthors:
+        #     coauthors = {}
+        # lu(last_updated)
+
+        # summarize_records, summarize_recordsStatus, last_updated = get_summarize_records(person_id)
+        # if not summarize_records:
+        #     summarize_records = 'None'
+        # lu(last_updated)
+
+        # pubs_per_year, pubs_per_yearStatus, last_updated = get_pubs_per_year(person_id)
+        # if not pubs_per_year:
+        #     pubs_per_year = {}
+        # lu(last_updated)
+
+        # totaldownloads, totaldownloadsStatus, last_updated = get_total_downloads(person_id)
+        # if not totaldownloads:
+        #     totaldownloads = 0
+        # lu(last_updated)
+
+        # kwtuples, kwtuplesStatus, last_updated = get_kwtuples(person_id)
+        # if kwtuples:
+        #     pass
+        #     # kwtuples = kwtuples[0:MAX_KEYWORD_LIST]
+        # else:
+        #     kwtuples = []
+        # lu(last_updated)
+
+        # fieldtuples, fieldtuplesStatus, last_updated = get_fieldtuples(person_id)
+        # if fieldtuples:
+        #     pass
+        #     # fieldtuples = fieldtuples[0:MAX_FIELDCODE_LIST]
+        # else:
+        #     fieldtuples = []
+        # lu(last_updated)
+
+        # collab, collabStatus, last_updated = get_collabtuples(person_id)
+        # lu(last_updated)
+
+        # person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
+        # if not person_link or not person_linkStatus:
+        #     bibauthorid_data = {"is_baid": True, "pid":person_id, "cid": None}
+        #     person_link = str(person_id)
+        # else:
+        #     bibauthorid_data = {"is_baid": True, "pid":person_id, "cid": person_link}
+        # lu(last_updated)
+
+        # hepdict, hepdictStatus, last_updated = get_hepnames_data(person_id)
+        # lu(last_updated)
+
+        # orcid_info, orcid_infoStatus, last_updated = get_info_from_orcid(person_id)
+        # if not orcid_info:
+        #     orcid_info = {}
+        # lu(last_updated)
+
+
+        # recompute_allowed = True
+
+        # oldest_cache_date = min(last_updated_list)
+        # delay = datetime.now() - oldest_cache_date
+        # if delay > RECOMPUTE_ALLOWED_DELAY:
+        #     if expire_cache:
+        #         expire_all_cache_for_person(person_id)
+        #         return self.create_authorpage_websearch(req, form, person_id, ln, expire_cache=False)
+        # else:
+        #     recompute_allowed = False
+
+        # req.write("\nPAGE CONTENT START\n")
+        # req.write(str(time.time()))
+        # eval = [not_empty(x) or y for x, y in
+        # beval = [y for _, y in
+        #                                        [(authorname, namesdictStatus),
+        #                                        (totaldownloads, totaldownloadsStatus),
+        #                                        (author_aff_pubs, author_aff_pubsStatus),
+        #                                        (kwtuples, kwtuplesStatus),
+        #                                        (fieldtuples, fieldtuplesStatus),
+        #                                        (coauthors, coauthorsStatus),
+        #                                        (db_names_dict, namesdictStatus),
+        #                                        (person_link, person_linkStatus),
+        #                                        (summarize_records, summarize_recordsStatus),
+        #                                        (pubs, pubsStatus),
+        #                                        (pubs_per_year, pubs_per_yearStatus),
+        #                                        (hepdict, hepdictStatus),
+        #                                        (selfpubs, selfpubsStatus),
+        #                                        (collab, collabStatus),
+        #                                        (orcid_info, orcid_infoStatus)]]
+        # not_complete = False in eval
+        # req.write(str(eval))
+
+
+        if form.has_key('jsondata'):
+            print 'debug: json part'
+            json_response = {'boxes_info': {}}
+            json_data = json.loads(str(form['jsondata']))
+            json_data = json_unicode_to_utf8(json_data)
+            # loop to check which boxes need content
+            json_response['boxes_info'].update({'name_variants': {'status':beval[0], 'html_content': webauthorprofile_templates.tmpl_author_name_variants_box(db_names_dict, bibauthorid_data, ln, add_box=False, loading=not beval[0])}})
+            json_response['boxes_info'].update({'combined_papers': {'status':beval[12], 'html_content': webauthorprofile_templates.tmpl_papers_with_self_papers_box(pubs, selfpubs, bibauthorid_data, totaldownloads, ln, add_box=False, loading=not beval[12])}})
+            json_response['boxes_info'].update({'keywords': {'status':beval[3], 'html_content': webauthorprofile_templates.tmpl_keyword_box(kwtuples, bibauthorid_data, ln, add_box=False, loading=not beval[3])}})
+            json_response['boxes_info'].update({'fieldcodes': {'status':beval[4], 'html_content': webauthorprofile_templates.tmpl_fieldcode_box(fieldtuples, bibauthorid_data, ln, add_box=False, loading=not beval[4])}})
+            json_response['boxes_info'].update({'affiliations': {'status':beval[2], 'html_content': webauthorprofile_templates.tmpl_affiliations_box(author_aff_pubs, ln, add_box=False, loading=not beval[2])}})
+            json_response['boxes_info'].update({'coauthors': {'status':beval[5], 'html_content': webauthorprofile_templates.tmpl_coauthor_box(bibauthorid_data, coauthors, ln, add_box=False, loading=not beval[5])}})
+            json_response['boxes_info'].update({'numpaperstitle': {'status':beval[9], 'html_content': webauthorprofile_templates.tmpl_numpaperstitle(bibauthorid_data, pubs)}})
+            json_response['boxes_info'].update({'authornametitle': {'status':(beval[0] and beval[7] and beval[9]), 'html_content': webauthorprofile_templates.tmpl_authornametitle(authorname, bibauthorid_data, pubs, person_link, ln, loading=not (beval[0] and beval[7] and beval[9]))}})
+            json_response['boxes_info'].update({'citations': {'status':(beval[8] and beval[9]), 'html_content': webauthorprofile_templates.tmpl_citations_box(summarize_records, pubs, ln, add_box=False, loading=not (beval[8] and beval[9]))}})
+            json_response['boxes_info'].update({'pubs_graph': {'status':beval[10], 'html_content': webauthorprofile_templates.tmpl_graph_box(pubs_per_year, ln, add_box=False, loading=not beval[10])}})
+            json_response['boxes_info'].update({'hepdata': {'status':beval[11], 'html_content':webauthorprofile_templates.tmpl_hepnames(hepdict, ln, add_box=False, loading=not beval[11])}})
+            json_response['boxes_info'].update({'collaborations': {'status':beval[13], 'html_content': webauthorprofile_templates.tmpl_collab_box(collab, bibauthorid_data, ln, add_box=False, loading=not beval[13])}})
+            json_response['boxes_info'].update({'orcid_info': {'status':beval[14], 'html_content': webauthorprofile_templates.tmpl_orcid_info_box(orcid_info, ln, add_box=False, loading=not beval[14])}})
+
+
+            req.content_type = 'application/json'
+            req.write(json.dumps(json_response))
+        else:
+            gboxstatus = self.person_id
+            gpid = self.person_id
+            # if False not in beval:
+            gboxstatus = 'noAjax'
+            oldest_cache_date = min([5,7])
+            req.write('<script type="text/javascript">var gBOX_STATUS = "%s";var gPID = "%s"; </script>' % (gboxstatus, gpid))
+            req.write(webauthorprofile_templates.tmpl_author_page(ln, gpid, oldest_cache_date, True))
+            # req.write(webauthorprofile_templates.tmpl_author_page(pubs, \
+            #                                 selfpubs, authorname, totaldownloads, \
+            #                                 author_aff_pubs, kwtuples, \
+            #                                 fieldtuples, coauthors, db_names_dict, \
+            #                                 person_link, bibauthorid_data, \
+            #                                 summarize_records, pubs_per_year, \
+            #                                 hepdict, collab, orcid_info, ln, beval, \
+            #                                 oldest_cache_date, recompute_allowed))
+
+
+    def create_authorpage_websearch_old(self, req, form, person_id, ln='en', expire_cache=False):
+        if CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID:
+            if person_id < 0:
+                return ("Critical Error. PersonID should never be less than 0!")
+
+        last_updated_list = []
+        lu = last_updated_list.append
+
+        pubs, pubsStatus, last_updated = get_pubs(person_id)
         if not pubs:
             pubs = []
+        lu(last_updated)
 
-        selfpubs, selfpubsStatus = get_self_pubs(person_id)
+        selfpubs, selfpubsStatus, last_updated = get_self_pubs(person_id)
         if not selfpubs:
             selfpubs = []
+        lu(last_updated)
 
-        namesdict, namesdictStatus = get_person_names_dicts(person_id)
+        namesdict, namesdictStatus, last_updated = get_person_names_dicts(person_id)
         if not namesdict:
             namesdict = {}
 
@@ -385,119 +948,138 @@ class WebAuthorPages(WebInterfaceDirectory):
         except (IndexError, KeyError):
             authorname = 'None'
             db_names_dict = {}
+        lu(last_updated)
 
         #author_aff_pubs, author_aff_pubsStatus = (None, None)
-        author_aff_pubs, author_aff_pubsStatus = get_institute_pub_dict(person_id)
+        author_aff_pubs, author_aff_pubsStatus, last_updated = get_institute_pubs(person_id)
         if not author_aff_pubs:
             author_aff_pubs = {}
+        lu(last_updated)
 
-
-        coauthors, coauthorsStatus = get_coauthors(person_id)
+        coauthors, coauthorsStatus, last_updated = get_coauthors(person_id)
         if not coauthors:
             coauthors = {}
+        lu(last_updated)
 
-        summarize_records, summarize_recordsStatus = get_summarize_records(person_id, 'hcs', ln)
+        summarize_records, summarize_recordsStatus, last_updated = get_summarize_records(person_id)
         if not summarize_records:
             summarize_records = 'None'
+        lu(last_updated)
 
-        totaldownloads, totaldownloadsStatus = get_total_downloads(person_id)
+        pubs_per_year, pubs_per_yearStatus, last_updated = get_pubs_per_year(person_id)
+        if not pubs_per_year:
+            pubs_per_year = {}
+        lu(last_updated)
+
+        totaldownloads, totaldownloadsStatus, last_updated = get_total_downloads(person_id)
         if not totaldownloads:
             totaldownloads = 0
+        lu(last_updated)
 
-        citedbylist, citedbylistStatus = get_cited_by_list(person_id)
-        if not citedbylist:
-            citedbylist = 'None'
-
-        kwtuples, kwtuplesStatus = get_kwtuples(person_id)
+        kwtuples, kwtuplesStatus, last_updated = get_kwtuples(person_id)
         if kwtuples:
             pass
-            #kwtuples = kwtuples[0:MAX_KEYWORD_LIST]
+            # kwtuples = kwtuples[0:MAX_KEYWORD_LIST]
         else:
             kwtuples = []
+        lu(last_updated)
 
-        collab, collabStatus = get_collabtuples(person_id)
-
-        vtuples, venuetuplesStatus = get_venuetuples(person_id)
-        if vtuples:
+        fieldtuples, fieldtuplesStatus, last_updated = get_fieldtuples(person_id)
+        if fieldtuples:
             pass
-            #vtuples = venuetuples[0:MAX_VENUE_LIST]
+            # fieldtuples = fieldtuples[0:MAX_FIELDCODE_LIST]
         else:
-            vtuples = str(vtuples)
+            fieldtuples = []
+        lu(last_updated)
 
-        person_link, person_linkStatus = get_veryfy_my_pubs_list_link(person_id)
+        collab, collabStatus, last_updated = get_collabtuples(person_id)
+        lu(last_updated)
+
+        person_link, person_linkStatus, last_updated = get_veryfy_my_pubs_list_link(person_id)
         if not person_link or not person_linkStatus:
             bibauthorid_data = {"is_baid": True, "pid":person_id, "cid": None}
             person_link = str(person_id)
         else:
             bibauthorid_data = {"is_baid": True, "pid":person_id, "cid": person_link}
+        lu(last_updated)
 
-        hepdict, hepdictStatus = get_hepnames_data(person_id)
+        hepdict, hepdictStatus, last_updated = get_hepnames_data(person_id)
+        lu(last_updated)
 
-        oldest_cache_date = get_person_oldest_date(person_id)
+        orcid_info, orcid_infoStatus, last_updated = get_info_from_orcid(person_id)
+        if not orcid_info:
+            orcid_info = {}
+        lu(last_updated)
 
-        #req.write("\nPAGE CONTENT START\n")
-        #req.write(str(time.time()))
-        #eval = [not_empty(x) or y for x, y in
+
+        recompute_allowed = True
+
+        oldest_cache_date = min(last_updated_list)
+        delay = datetime.now() - oldest_cache_date
+        if delay > RECOMPUTE_ALLOWED_DELAY:
+            if expire_cache:
+                expire_all_cache_for_person(person_id)
+                return self.create_authorpage_websearch(req, form, person_id, ln, expire_cache=False)
+        else:
+            recompute_allowed = False
+
+        # req.write("\nPAGE CONTENT START\n")
+        # req.write(str(time.time()))
+        # eval = [not_empty(x) or y for x, y in
         beval = [y for _, y in
-                                               [(authorname, namesdictStatus) ,
+                                               [(authorname, namesdictStatus),
                                                (totaldownloads, totaldownloadsStatus),
                                                (author_aff_pubs, author_aff_pubsStatus),
-                                               (citedbylist, citedbylistStatus),
                                                (kwtuples, kwtuplesStatus),
+                                               (fieldtuples, fieldtuplesStatus),
                                                (coauthors, coauthorsStatus),
-                                               (vtuples, venuetuplesStatus),
                                                (db_names_dict, namesdictStatus),
                                                (person_link, person_linkStatus),
                                                (summarize_records, summarize_recordsStatus),
                                                (pubs, pubsStatus),
+                                               (pubs_per_year, pubs_per_yearStatus),
                                                (hepdict, hepdictStatus),
                                                (selfpubs, selfpubsStatus),
-                                               (collab, collabStatus)]]
-        #not_complete = False in eval
-        #req.write(str(eval))
+                                               (collab, collabStatus),
+                                               (orcid_info, orcid_infoStatus)]]
+        # not_complete = False in eval
+        # req.write(str(eval))
+
 
         if form.has_key('jsondata'):
+            print 'debug: json part'
             json_response = {'boxes_info': {}}
             json_data = json.loads(str(form['jsondata']))
             json_data = json_unicode_to_utf8(json_data)
             # loop to check which boxes need content
-            json_response['boxes_info'].update({'name_variants': {'status':beval[0], 'html_content': webauthorprofile_templates.tmpl_author_name_variants_box(req, db_names_dict, bibauthorid_data, ln, add_box=False, loading=not beval[0])}})
-            json_response['boxes_info'].update({'combined_papers': {'status':(beval[3] and beval[12]), 'html_content': webauthorprofile_templates.tmpl_papers_with_self_papers_box(req, pubs, selfpubs, bibauthorid_data, totaldownloads, ln, add_box=False, loading=not beval[3])}})
-            #json_response['boxes_info'].update({'papers': {'status':beval[3], 'html_content': webauthorprofile_templates.tmpl_papers_box(req, pubs, bibauthorid_data, totaldownloads, ln, add_box=False, loading=not beval[3])}})
-            json_response['boxes_info'].update({'selfpapers': {'status':beval[12], 'html_content': webauthorprofile_templates.tmpl_self_papers_box(req, selfpubs, bibauthorid_data, totaldownloads, ln, add_box=False, loading=not beval[12])}})
-            json_response['boxes_info'].update({'keywords': {'status':beval[4], 'html_content': webauthorprofile_templates.tmpl_keyword_box(kwtuples, bibauthorid_data, ln, add_box=False, loading=not beval[4])}})
+            json_response['boxes_info'].update({'name_variants': {'status':beval[0], 'html_content': webauthorprofile_templates.tmpl_author_name_variants_box(db_names_dict, bibauthorid_data, ln, add_box=False, loading=not beval[0])}})
+            json_response['boxes_info'].update({'combined_papers': {'status':beval[12], 'html_content': webauthorprofile_templates.tmpl_papers_with_self_papers_box(pubs, selfpubs, bibauthorid_data, totaldownloads, ln, add_box=False, loading=not beval[12])}})
+            json_response['boxes_info'].update({'keywords': {'status':beval[3], 'html_content': webauthorprofile_templates.tmpl_keyword_box(kwtuples, bibauthorid_data, ln, add_box=False, loading=not beval[3])}})
+            json_response['boxes_info'].update({'fieldcodes': {'status':beval[4], 'html_content': webauthorprofile_templates.tmpl_fieldcode_box(fieldtuples, bibauthorid_data, ln, add_box=False, loading=not beval[4])}})
             json_response['boxes_info'].update({'affiliations': {'status':beval[2], 'html_content': webauthorprofile_templates.tmpl_affiliations_box(author_aff_pubs, ln, add_box=False, loading=not beval[2])}})
             json_response['boxes_info'].update({'coauthors': {'status':beval[5], 'html_content': webauthorprofile_templates.tmpl_coauthor_box(bibauthorid_data, coauthors, ln, add_box=False, loading=not beval[5])}})
-            json_response['boxes_info'].update({'numpaperstitle': {'status':beval[10], 'html_content': webauthorprofile_templates.tmpl_numpaperstitle(bibauthorid_data, pubs)}})
-            json_response['boxes_info'].update({'authornametitle': {'status':beval[7], 'html_content': webauthorprofile_templates.tmpl_authornametitle(db_names_dict)}})
-            json_response['boxes_info'].update({'citations': {'status':beval[9], 'html_content': summarize_records}})
+            json_response['boxes_info'].update({'numpaperstitle': {'status':beval[9], 'html_content': webauthorprofile_templates.tmpl_numpaperstitle(bibauthorid_data, pubs)}})
+            json_response['boxes_info'].update({'authornametitle': {'status':(beval[0] and beval[7] and beval[9]), 'html_content': webauthorprofile_templates.tmpl_authornametitle(authorname, bibauthorid_data, pubs, person_link, ln, loading=not (beval[0] and beval[7] and beval[9]))}})
+            json_response['boxes_info'].update({'citations': {'status':(beval[8] and beval[9]), 'html_content': webauthorprofile_templates.tmpl_citations_box(summarize_records, pubs, ln, add_box=False, loading=not (beval[8] and beval[9]))}})
+            json_response['boxes_info'].update({'pubs_graph': {'status':beval[10], 'html_content': webauthorprofile_templates.tmpl_graph_box(pubs_per_year, ln, add_box=False, loading=not beval[10])}})
             json_response['boxes_info'].update({'hepdata': {'status':beval[11], 'html_content':webauthorprofile_templates.tmpl_hepnames(hepdict, ln, add_box=False, loading=not beval[11])}})
             json_response['boxes_info'].update({'collaborations': {'status':beval[13], 'html_content': webauthorprofile_templates.tmpl_collab_box(collab, bibauthorid_data, ln, add_box=False, loading=not beval[13])}})
+            json_response['boxes_info'].update({'orcid_info': {'status':beval[14], 'html_content': webauthorprofile_templates.tmpl_orcid_info_box(orcid_info, ln, add_box=False, loading=not beval[14])}})
+
 
             req.content_type = 'application/json'
             req.write(json.dumps(json_response))
         else:
             gboxstatus = self.person_id
+            gpid = self.person_id
             if False not in beval:
                 gboxstatus = 'noAjax'
-            req.write('<script type="text/javascript">var gBOX_STATUS = "%s" </script>' % (gboxstatus))
-            req.write(webauthorprofile_templates.tmpl_author_page(req,
-                                            pubs, \
-                                            selfpubs, \
-                                            authorname, \
-                                            totaldownloads, \
-                                            author_aff_pubs, \
-                                            citedbylist, kwtuples, \
-                                            coauthors, vtuples, \
-                                            db_names_dict, person_link, \
-                                            bibauthorid_data, \
-                                            summarize_records, \
-                                            hepdict, \
-                                            collab, \
-                                            ln, \
-                                            beval, \
-                                            oldest_cache_date,
-                                            recompute_allowed))
-
-
-
+            req.write('<script type="text/javascript">var gBOX_STATUS = "%s";var gPID = "%s"; </script>' % (gboxstatus,gpid))
+            req.write(webauthorprofile_templates.tmpl_author_page(None, \
+                                            None, None, None, \
+                                            None, None, \
+                                            None, None, None, \
+                                            None, None, \
+                                            None, None, \
+                                            None, None, None, ln, None, \
+                                            None, None))

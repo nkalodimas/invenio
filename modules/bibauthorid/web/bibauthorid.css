@@ -74,9 +74,11 @@
 }
 
 #aid_moreinfo {
-    background: #F0F0F6;
-    margin: 10px;
-    padding: 10px;
+    background: inherit;/*#F0F0F6;*/
+    margin: 0px;
+    margin-top: 15px;
+    padding: 0px;
+    text-align: left;
 }
 
 #aid_moreinfo .record_body {
@@ -92,7 +94,7 @@
 }
 
 #aid_moreinfo ul li {
-    margin-top: 10px;
+    margin-top: 0px;
 }
 
 #aid_result0 {
@@ -110,6 +112,10 @@
 #aid_moreinfolink {
     font-size:12px;
     text-decoration: none;
+}
+
+#aid_moreinfolink:visited {
+    color: #00c;
 }
 
 #aid_message-ribbon {
@@ -241,6 +247,12 @@
     color:red;
 }
 
+.aid_result {
+    /*position: relative;
+    display: inline-block;
+    width:1760px;*/
+}
+
 /* Hack for some UI Themes since not always are these 2 classes included */
 .css_right {
 	float: right;
@@ -285,3 +297,183 @@
 .reviewstable {
     width: 100% !Important;
 }
+
+/*#personHeaders {
+    min-height: 20px;
+    margin: 5px;
+    padding: 5px 15px;
+}
+
+#personHeaders > div{
+    float:left;
+}
+
+#personHeaders > div > span {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #3366CC;
+}*/
+
+/*
+ * Persons table
+ */
+
+#aid_search_bar {
+    padding: 5px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+#personsTable {
+    margin-top: 10px;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+
+}
+
+#personsTable th {
+    /*text-align: center;*/
+    line-height: 40px;
+    padding-left: 10px;
+}
+
+#personsTable tr {
+    height: 45px;
+    text-align: left;
+    padding-left: 10px;
+}
+
+#personsTable td {
+    padding-left: 10px;
+}
+
+#personsTable tbody tr.even:hover, #personsTable tr.even td.highlighted {
+    background-color: lightblue;
+}
+
+#personsTable tbody tr.odd:hover, #personsTable tr.odd td.highlighted {
+    background-color: lightblue;
+}
+
+#personsTable tr.even:hover td.sorting_1 {
+    background-color: lightblue;
+}
+
+#personsTable tr.odd:hover td.sorting_1 {
+    background-color: lightblue;
+}
+
+.idsAssociationTable {
+    width: 46%;
+    height:20px;
+    font-size: 12px;
+    border-spacing: 0px;
+}
+
+.idsAssociationTable th {
+    height: 36px;
+    text-align: left;
+    padding-left: 10px;
+}
+
+.idsAssociationTable td {
+    height: 45px;
+    padding-left: 10px;
+}
+
+#externalIDsTable {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+#externalIDsTable tr {
+    height: 25px;
+    text-align: left;
+}
+
+#externalIDsTable td {
+    padding-left: 0px;
+    word-wrap:break-word;
+}
+
+#new_person_link {
+/*    background-color: lightgreen!important;
+*/ /*   background: #65a9d7;
+   background: -webkit-gradient(linear, left top, left bottom, from(#3e779d), to(#65a9d7))!important;
+   background: -webkit-linear-gradient(top, #3e779d, #65a9d7)!important;
+   background: -moz-linear-gradient(top, #3e779d, #65a9d7)!important;
+   background: -ms-linear-gradient(top, #3e779d, #65a9d7)!important;
+   background: -o-linear-gradient(top, #3e779d, #65a9d7)!important;
+    color: white!important;*/
+    width: 200px;
+    height: 32px;
+    font-size: 1.2em;
+    position: absolute;
+    top: 12px;
+    right: 5px;
+    cursor: pointer;
+}
+
+#new_person_link a{
+    text-decoration: none;
+}
+
+.confirmlink {
+    text-decoration: none;
+}
+/*.new_person_link {
+    background-color: lightgreen!important;
+    color: blue;
+}*/
+
+/*.new_person_link:hover{
+    background-color: green!important;
+    color: red;
+    background: #28597a!important;
+    color: white!important;
+}*/
+
+/*.new_person_link:active{
+    position: relative;
+    top: 1px;
+    background: #1b435e!important;
+}*/
+/*.even {
+    background: #fff!important;
+}
+
+.odd {
+    background: #F0F0F6!important;
+}*/
+
+/*.pagination {
+    position: relative;
+    background-color: #D0D0D0;
+    border-color: #AAAAAA;
+    border-radius: 6px;
+    border-width: 1px;
+    border-style: solid;
+    height: 30px;
+}
+
+.paginationInfo {
+    position: absolute;
+    margin-left: 8px;
+    margin-top: 7px;
+    font-size: 1.1em;
+}
+
+.paginationSelection {
+    position: absolute;
+    right: 950px;
+    /*margin-right: 950px;*/
+/*    margin-top: 3px;
+    font-size: 1.1em;
+}
+
+.paginationSelection button {
+    width:70px;
+
+}*/

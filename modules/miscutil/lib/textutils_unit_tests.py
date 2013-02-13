@@ -448,6 +448,7 @@ class TestStripping(unittest.TestCase):
                 ["a i U", "Hohne", "Age Ost Vaer", "normal"]
             )
             self.assertEqual(translate_to_ascii("àèéìòù"), ["aeeiou"])
+            self.assertEqual(translate_to_ascii("ß"), ["ss"])
             self.assertEqual(translate_to_ascii(None), None)
             self.assertEqual(translate_to_ascii([]), [])
             self.assertEqual(translate_to_ascii([None]), [None])

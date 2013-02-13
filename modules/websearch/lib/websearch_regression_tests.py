@@ -1176,8 +1176,8 @@ class WebSearchSearchEnginePythonAPITest(unittest.TestCase):
 
     def test_search_engine_python_api_ranked_by_citation(self):
         """websearch - search engine Python API for citation ranking"""
-        self.assertEqual([82, 83, 87, 89],
-                perform_request_search(p='recid:81', rm='citation'))
+        self.assertEqual([86, 77],
+                perform_request_search(p='recid:95', rm='citation'))
 
     def test_search_engine_python_api_textmarc(self):
         """websearch - search engine Python API for Text MARC output"""

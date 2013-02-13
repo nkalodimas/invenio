@@ -28,8 +28,10 @@ $(document).ready(function() {
 
         if (toggleimg == '../img/aid_plus_16.png') {
             $this.find('img').attr({src:'../img/aid_minus_16.png'});
+            $this.closest('td').css('padding-top', '15px');
         } else {
             $this.find('img').attr({src:'../img/aid_plus_16.png'});
+            $this.closest('td').css('padding-top', '0px');
         }
         return false;
     });
@@ -94,6 +96,83 @@ $(document).ready(function() {
                 }
     });
 
+    // search box
+    if ( $('#personsTable').length ) {
+        // bind retrieve papers ajax request
+        $('[class^=mpid]').on('click', function(event){
+            if ( !$(this).siblings('.retreived_papers').length) {
+                var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
+                var data = { 'requestType': "getPapers", 'personId': pid.toString()};
+                var errorCallback = onRetrievePapersError(pid);
+                $.ajax({
+                    dataType: 'json',
+                    type: 'POST',
+                    url: '/person/search_box_ajax',
+                    data: {jsondata: JSON.stringify(data)},
+                    success: onRetrievePapersSuccess,
+                    error: errorCallback,
+                    async: true
+                });
+                event.preventDefault();
+            }
+        });
+        // create ui buttons
+        //$('.confirmlink').button();//#new_person_link, 
+        //$("#searchform :input").attr("disabled",true);
+        // gResultsPerPage = 3;
+        // gCurPage = 1;
+        // showPage(gCurPage);
+        var targets = [2,3,4,5,6];
+        if ($('#personsTable th').length == 6 ) {
+            targets = [2,3,4,5];
+        }
+        var pTable = $('#personsTable').dataTable({
+                "bJQueryUI": true,
+                "sPaginationType": "full_numbers",
+                "aoColumnDefs": [
+                    { "bSortable": false, "aTargets": targets },
+                    { "bSortable": true, "aTargets": [0,1] },
+                    { "sType": "numeric", "aTargets": [0] },
+                    { "sType": "string", "aTargets": [1] }
+                    ],
+                "aaSorting": [[0,'asc']],
+                "iDisplayLength": 5,
+                "aLengthMenu": [5, 10, 20],
+                "oLanguage": {
+                    "sSearch": "Filter: "
+                }
+        });
+        // { "sType": "numeric", "aTargets": [ 0 ] }
+        // draw first page
+        onPageChange();
+        // on page change
+        $(pTable).bind('draw', function() {
+            onPageChange();
+        });
+    }
+
+    if ( $('.idsAssociationTable').length ) {
+        var idTargets = [1,2];
+        if ( $('#idsAssociationTableClaim').length ) {
+            idTargets.push(3);
+        }
+        $('.idsAssociationTable').dataTable({
+                "bJQueryUI": true,
+                "sPaginationType": "full_numbers",
+                "aoColumnDefs": [
+                    { "bSortable": true, "aTargets": [0] },
+                    { "bSortable": false, "aTargets": idTargets },
+                    { "sType": "string", "aTargets": [0] }
+                    ],
+                "aaSorting": [[0,'asc']],
+                "iDisplayLength": 5,
+                "aLengthMenu": [5, 10, 20],
+                "oLanguage": {
+                    "sSearch": "Filter: "
+                }
+        });
+        $('.idsAssociationTable').siblings('.ui-toolbar').css({ "width": "45.4%", "font-size": "12px" });
+    }
 
     // Activate Tabs
     $("#aid_tabbing").tabs();
@@ -110,7 +189,7 @@ $(document).ready(function() {
 	$(this).click(function() {
             $(this).parents(".ui-alert").fadeOut("slow");
             return false;
-        } )
+        } );
     });
 
     // Set Focus on last input field w/ class 'focus'
@@ -137,8 +216,174 @@ $(document).ready(function() {
     });
 
 //    update_action_links();
+
 });
 
+function onPageChange() {
+    $('[class^=emptyName]').each( function(index){
+                var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
+                var data = { 'requestType': "getNames", 'personId': pid.toString()};
+                var errorCallback = onGetNamesError(pid);
+                $.ajax({
+                    dataType: 'json',
+                    type: 'POST',
+                    url: '/person/search_box_ajax',
+                    data: {jsondata: JSON.stringify(data)},
+                    success: onGetNamesSuccess,
+                    error: errorCallback,
+                    async: true
+                });
+        });
+
+    $('[class^=emptyIDs]').each( function(index){
+                var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
+                var data = { 'requestType': "getIDs", 'personId': pid.toString()};
+                var errorCallback = onGetIDsError(pid);
+                $.ajax({
+                    dataType: 'json',
+                    type: 'POST',
+                    url: '/person/search_box_ajax',
+                    data: {jsondata: JSON.stringify(data)},
+                    success: onGetIDsSuccess,
+                    error: errorCallback,
+                    async: true
+                });
+    });
+    $('[class^=uncheckedProfile]').each( function(index){
+                var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
+                var data = { 'requestType': "isProfileClaimed", 'personId': pid.toString()};
+                var errorCallback = onIsProfileClaimedError(pid);
+                $.ajax({
+                    dataType: 'json',
+                    type: 'POST',
+                    url: '/person/search_box_ajax',
+                    data: {jsondata: JSON.stringify(data)},
+                    success: onIsProfileClaimedSuccess,
+                    error: errorCallback,
+                    async: true
+                });
+    });
+}
+
+function onGetIDsSuccess(json){
+    if(json['resultCode'] == 1) {
+        $('.emptyIDs' + json['pid']).html(json['result']).addClass('retreivedIDs').removeClass('emptyIDs' + json['pid']);
+
+    }
+    else {
+        $('.emptyIDs' + json['pid']).text(json['result']);
+    }
+}
+
+function onGetIDsError(pid){
+  /*
+   * Handle failed 'getIDs' requests.
+   */
+   return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('.emptyIDs' + pID).text('External ids could not be retrieved');
+    };
+}
+
+function onGetNamesSuccess(json){
+    if(json['resultCode'] == 1) {
+        $('.emptyName' + json['pid']).html(json['result']).addClass('retreivedName').removeClass('emptyName' + json['pid']);
+    }
+    else {
+        $('.emptyName' + json['pid']).text(json['result']);
+    }
+}
+
+function onGetNamesError(pid){
+  /*
+   * Handle failed 'getNames' requests.
+   */
+   return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('.emptyName' + pID).text('Names could not be retrieved');
+    };
+}
+
+function onIsProfileClaimedSuccess(json){
+    if(json['resultCode'] == 1) {
+        $('.uncheckedProfile' + json['pid']).html('<span style="color:red;">Profile already claimed</span><br/>' +
+            '<span>If you think that this is actually your profile bla bla bla</span>')
+        .addClass('checkedProfile').removeClass('uncheckedProfile' + json['pid']);
+    }
+    else {
+        $('.uncheckedProfile' + json['pid']).addClass('checkedProfile').removeClass('uncheckedProfile' + json['pid']);
+    }
+}
+
+function onIsProfileClaimedError(pid){
+  /*
+   * Handle failed 'getNames' requests.
+   */
+   return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('.uncheckedProfile' + pID).text('Temporary not available');
+    };
+}
+
+function onRetrievePapersSuccess(json){
+    if(json['resultCode'] == 1) {
+        $('.more-mpid' + json['pid']).html(json['result']).addClass('retreived_papers');
+        $('.mpid' + json['pid']).append('(' + json['totalPapers'] + ')');
+    }
+    else {
+        $('.more-mpid' + json['pid']).text(json['result']);
+    }
+}
+
+function onRetrievePapersError(pid){
+  /*
+   * Handle failed 'getPapers' requests.
+   */
+   return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('.more-mpid' + pID).text('Papers could not be retrieved');
+    };
+}
+
+function showPage(pageNum) {
+    $(".aid_result:visible").hide();
+    var results = $(".aid_result");
+    var resultsNum = results.length;
+    var start = (pageNum-1) * gResultsPerPage;
+    results.slice( start, start+gResultsPerPage).show();
+    var pagesNum = Math.floor(resultsNum/gResultsPerPage) + 1;
+    $(".paginationInfo").text("Page " + pageNum + " of " + pagesNum);
+    generateNextPage(pageNum, pagesNum);
+    generatePreviousPage(pageNum, pagesNum);
+}
+
+function generateNextPage(pageNum, pagesNum) {
+    if (pageNum < pagesNum ) {
+        $(".nextPage").attr("disabled", false);
+        $(".nextPage").off("click");
+        $(".nextPage").on("click", function(event) {
+            gCurPage = pageNum+1;
+            showPage(gCurPage);
+        });
+    }
+    else {
+        $(".nextPage").attr("disabled", true);
+    }
+}
+
+function generatePreviousPage(pageNum, pagesNum) {
+    if (pageNum > 1 ) {
+        $(".previousPage").attr("disabled", false);
+        $(".previousPage").off("click");
+        $(".previousPage").on("click", function(event) {
+            gCurPage = pageNum-1;
+            showPage(gCurPage);
+        });
+    }
+    else {
+        $(".previousPage").attr("disabled", true);
+    }
+}
 
 function toggle_claimed_rows() {
     $('img[alt^="Confirmed."]').parents("tr").toggle()

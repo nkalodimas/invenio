@@ -39,7 +39,8 @@ try:
         CFG_BIBAUTHORID_ON_AUTHORPAGES, \
         CFG_BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, \
         CFG_INSPIRE_SITE, \
-        CFG_ADS_SITE
+        CFG_ADS_SITE, \
+        CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
 
 except ImportError:
     GLOBAL_CONFIG = False
@@ -67,6 +68,11 @@ CMPROLESLCUL = {'guest': 0,
                 CLAIMPAPER_USER_ROLE: 25,
                 CLAIMPAPER_ADMIN_ROLE: 50,
                 SUPERADMINROLE: 50}
+
+# Number of persons that will be shown per page in search results.
+PERSONS_PER_PAGE = 5
+# Max amount of recent papers shown to the user
+MAX_NUM_SHOW_PAPERS = 5
 
 # Globally enable AuthorID Interfaces.
 #     If False: No guest, user or operator will have access to the system.
@@ -115,7 +121,7 @@ if GLOBAL_CONFIG and CFG_BIBAUTHORID_MAX_PROCESSES:
 else:
     BIBAUTHORID_MAX_PROCESSES = 12
 
-WEDGE_THRESHOLD = 0.9
+WEDGE_THRESHOLD = 0.71
 
 
 #Rabbit use or ignore external ids
@@ -150,7 +156,7 @@ DEBUG_TIMESTAMPS = True
 DEBUG_TIMESTAMPS_UPDATE_STATUS = True
 
 DEBUG_UPDATE_STATUS_THREAD_SAFE = True
-DEBUG_LOG_TO_PIDFILE = True
+DEBUG_LOG_TO_PIDFILE = False
 
 # The following options trigger the output for parts of
 # bibauthorid which normally generate too much output
@@ -189,5 +195,26 @@ TICKET_SENDING_FROM_USER_EMAIL = True
 NAMES_SEPARATOR_CHARACTER_LIST = ",;.=\-\(\)"
 SURNAMES_SEPARATOR_CHARACTER_LIST = ",;"
 
-# Dict which maps an external system with the name of the tag with which an external id is stored in the db
-EXTERNAL_SYSTEMS_LIST = {'Inspire': 'INSPIREID', 'Orcid': 'ORCID', 'arXiv': 'ARXIVID'}
+#Dict which lists which external identifiers  can be stored on a person profile page, and maps them
+#with their representation in aidPERSONIDDATA
+PERSONID_EXTERNAL_IDENTIFIER_MAP = {'Inspire': 'INSPIREID', 'Orcid': 'ORCID'}
+
+NON_EMPTY_PERSON_TAGS = ['canonical_name']
+
+QGRAM_LEN = 2
+MATCHING_QGRAMS_PERCENTAGE = 0.8
+MAX_T_OCCURANCE_RESULT_LIST_CARDINALITY = 35
+MIN_T_OCCURANCE_RESULT_LIST_CARDINALITY = 10
+MAX_NOT_MATCHING_NAME_CHARS = 0.33
+PREFIX_SCORE_COEFFICIENT = 0.7
+NAME_SCORE_COEFFICIENT = 0.5
+
+# List that contains the existing remote systems that a user can logged in via them in Inspire
+CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS = ['arXiv', 'orcid']
+
+if GLOBAL_CONFIG and not set(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS ) <= set(CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS):
+    raise Exception("Wrong configuration!!! CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS must be a subset of %s"%str(CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS))
+
+CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS = {'arXiv': '037', 'orcid': 'doi' }
+CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_LINKS = {'arXiv': 'invalid', 'invalid': 'invalid' }
+CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES = {'arXiv': 'arxivid', 'orcid': 'doi' }

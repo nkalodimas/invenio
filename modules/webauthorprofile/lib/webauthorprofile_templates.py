@@ -17,63 +17,69 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
+"""
+WebAuthorProfile web templates
+"""
+
 # pylint: disable=C0301
 
 __revision__ = "$Id$"
 
-import re
+from re import compile, findall
 from operator import itemgetter
+from datetime import datetime
+from StringIO import StringIO
 
-from invenio.config import \
-     CFG_WEBSEARCH_DEF_RECORDS_IN_GROUPS, \
-     CFG_BIBRANK_SHOW_DOWNLOAD_STATS, \
-     CFG_SITE_NAME, \
-     CFG_SITE_URL, \
-     CFG_INSPIRE_SITE, \
-     CFG_WEBSEARCH_DEFAULT_SEARCH_INTERFACE, \
-     CFG_BIBINDEX_CHARS_PUNCTUATION, \
-     CFG_WEBSEARCH_WILDCARD_LIMIT
 
-#maximum number of collaborating authors etc shown in GUI
-from invenio.config import CFG_WEBAUTHORPROFILE_MAX_COLLAB_LIST
-from invenio.config import CFG_WEBAUTHORPROFILE_MAX_KEYWORD_LIST
-from invenio.config import CFG_WEBAUTHORPROFILE_MAX_AFF_LIST
-from invenio.config import CFG_WEBAUTHORPROFILE_MAX_COAUTHOR_LIST
+import sys
+if sys.hexversion < 0x2060000:
+    from md5 import md5
+else:
+    from hashlib import md5
 
-import cgi
-import urllib
-
-CFG_HEPNAMES_EMAIL = 'authors@inspirehep.net'
-MAX_ITEM_BEFORE_COLLAPSE = 10
-
+from invenio.webauthorprofile_publication_grapher import get_graph_code
 from invenio.messages import gettext_set_language
-
 from invenio.intbitset import intbitset
-
 from invenio.search_engine import perform_request_search
+from invenio.search_engine_summarizer import render_citation_summary
 from invenio.urlutils import create_html_link
-
-_RE_PUNCTUATION = re.compile(CFG_BIBINDEX_CHARS_PUNCTUATION)
-_RE_SPACES = re.compile(r"\s+")
-
 import invenio.template
 websearch_templates = invenio.template.load('websearch')
+
+from webauthorprofile_config import CFG_WEBSEARCH_DEF_RECORDS_IN_GROUPS, \
+     CFG_BIBRANK_SHOW_DOWNLOAD_STATS, CFG_SITE_NAME, CFG_SITE_URL, \
+     CFG_INSPIRE_SITE, CFG_WEBSEARCH_DEFAULT_SEARCH_INTERFACE, \
+     CFG_BIBINDEX_CHARS_PUNCTUATION, CFG_WEBSEARCH_WILDCARD_LIMIT, \
+     CFG_WEBAUTHORPROFILE_CFG_HEPNAMES_EMAIL, CFG_WEBAUTHORPROFILE_FIELDCODE_TAG, \
+     CFG_WEBAUTHORPROFILE_GENERATED_TIMESTAMP_BOTTOM_POSITION
+
+# maximum number of collaborating authors etc shown in GUI
+from webauthorprofile_config import CFG_WEBAUTHORPROFILE_MAX_COLLAB_LIST, \
+    CFG_WEBAUTHORPROFILE_MAX_KEYWORD_LIST, CFG_WEBAUTHORPROFILE_MAX_FIELDCODE_LIST, \
+    CFG_WEBAUTHORPROFILE_MAX_AFF_LIST, CFG_WEBAUTHORPROFILE_MAX_COAUTHOR_LIST
+
+_RE_PUNCTUATION = compile(CFG_BIBINDEX_CHARS_PUNCTUATION)
+_RE_SPACES = compile(r"\s+")
+
 
 def wrap_author_name_in_quotes_if_needed(author_name):
     """
     If AUTHOR_NAME contains space, return it wrapped inside double
-    quotes.  Otherwise return it as is.  Useful for links like
+    quotes. Otherwise return it as it is. Useful for links like
     author:J.R.Ellis.1 versus author:"Ellis, J".
     """
     if not author_name:
         return ''
+
+    if not isinstance(author_name, str):
+        author_name = str(author_name)
+
     if ' ' in author_name: # and not author_name.startswith('"') and not author_name.endswith('"'):
         return '"' + author_name + '"'
     else:
         return author_name
 
 class Template:
-
     # This dictionary maps Invenio language code to locale codes (ISO 639)
     tmpl_localemap = {
         'bg': 'bg_BG',
@@ -148,25 +154,28 @@ class Template:
         'as': (int, CFG_WEBSEARCH_DEFAULT_SEARCH_INTERFACE),
         'verbose': (int, 0)}
 
-
-
     tmpl_opensearch_rss_url_syntax = "%(CFG_SITE_URL)s/rss?p={searchTerms}&amp;jrec={startIndex}&amp;rg={count}&amp;ln={language}" % {'CFG_SITE_URL': CFG_SITE_URL}
     tmpl_opensearch_html_url_syntax = "%(CFG_SITE_URL)s/search?p={searchTerms}&amp;jrec={startIndex}&amp;rg={count}&amp;ln={language}" % {'CFG_SITE_URL': CFG_SITE_URL}
 
     def loading_html(self):
         return '<img src=/img/ui-anim_basic_16x16.gif> Loading...'
 
-    def tmpl_print_searchresultbox(self, id, header, body):
-        """print a nicely formatted box for search results """
+    def tmpl_print_searchresultbox(self, bid, header, body):
+        """ Print a nicely formatted box for search results. """
         #_ = gettext_set_language(ln)
 
         # first find total number of hits:
         out = ('<table class="searchresultsbox" ><thead><tr><th class="searchresultsboxheader">'
+<<<<<<< HEAD
             + header + '</th></tr></thead><tbody><tr><td id ="%s" class="searchresultsboxbody">' % cgi.escape(id)
+=======
+            + header + '</th></tr></thead><tbody><tr><td id ="%s" class="searchresultsboxbody">' % bid
+>>>>>>> 1a1d577... BibAuthorID: fixes and improvements
             + body + '</td></tr></tbody></table>')
         return out
 
     def tmpl_hepnames(self, hepdict, ln, add_box=True, loading=False):
+        _ = gettext_set_language(ln)
         if not CFG_INSPIRE_SITE:
             return ''
         if not loading:
@@ -190,7 +199,7 @@ class Template:
                                "with the HepNames record %s. Best regards" % (hepdict['cid'], '%s'))
                     mailstr = ('''<a href='mailto:%s?subject=HepNames record match&amp;body=%s'>'''
                                '''This is the right one!</a>''')
-                    choices = ['<tr><td>' + x[0] + '</td><td>&nbsp;&nbsp;</td><td  align="right">' + mailstr % (CFG_HEPNAMES_EMAIL, mailbody % x[1]) + '</td></tr>'
+                    choices = ['<tr><td>' + x[0] + '</td><td>&nbsp;&nbsp;</td><td  align="right">' + mailstr % (CFG_WEBAUTHORPROFILE_CFG_HEPNAMES_EMAIL, mailbody % x[1]) + '</td></tr>'
                                for x in hepdict['HepChoices']]
 
                     contents += '<table>' + ' '.join(choices) + '</table>'
@@ -202,24 +211,16 @@ class Template:
         else:
             return self.tmpl_print_searchresultbox('hepdata', '<strong> HepNames data </strong>', contents)
 
-    def tmpl_author_name_variants_box(self, req, names_dict, bibauthorid_data, ln, add_box=True, loading=False):
-        '''
-        names_dict - a dict of {name: frequency}
-        '''
+    def tmpl_author_name_variants_box(self, names_dict, bibauthorid_data, ln, add_box=True, loading=False):
+        """
+        Returns a dict consisting of: name -> frequency.
+        """
         _ = gettext_set_language(ln)
 
-        if bibauthorid_data["cid"]:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
-        elif bibauthorid_data["pid"] > -1:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
-        else:
-            baid_query = ''
-
-        sorted_names_list = sorted(names_dict.iteritems(), key=itemgetter(1),
-                                   reverse=True)
         header = "<strong>" + _("Name variants") + "</strong>"
         content = []
 
+<<<<<<< HEAD
         for name, frequency in sorted_names_list:
             if not name:
                 name = ''
@@ -233,138 +234,60 @@ class Template:
         if not content:
             content = [_("No Name Variants")]
 
+=======
+>>>>>>> 1a1d577... BibAuthorID: fixes and improvements
         if loading:
             content = self.loading_html()
         else:
+            if bibauthorid_data["cid"]:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
+            elif bibauthorid_data["pid"] > -1:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
+            else:
+                baid_query = ''
+
+            # perform_request_search function is not case sensitive, so we should agglomerate names which differ only in case
+            new_names_dict = {}
+            for name, papers_num in names_dict.iteritems():
+                ln = name.lower()
+                caps = len(findall("[A-Z]", name))
+                try:
+                    prev_papers_num = new_names_dict[ln][1][1]
+                    new_papers_num = prev_papers_num + papers_num
+
+                    new_caps = new_names_dict[ln][0]
+                    new_name = new_names_dict[ln][1][0]
+                    if new_names_dict[ln][0] < caps:
+                        new_name = name
+                        new_caps = caps
+
+                    new_names_dict[ln] = [new_caps, (new_name, new_papers_num)]
+                except KeyError:
+                    new_names_dict[ln] = [caps, (name, papers_num)]
+
+            filtered_list = [name[1] for name in new_names_dict.values()]
+            sorted_names_list = sorted(filtered_list, key=itemgetter(0), reverse=True)
+
+            for name, frequency in sorted_names_list:
+                if not name:
+                    name = ''
+
+                prquery = baid_query + ' exactauthor:"' + name + '"'
+                name_lnk = create_html_link(websearch_templates.build_search_url(p=prquery),
+                                                                  {},
+                                                                  str(frequency),)
+                content.append("%s (%s)" % (name, name_lnk))
             content = "<br />\n".join(content)
+            if not content:
+                content = [_("No Name Variants")]
+
         if not add_box:
             return content
         names_box = self.tmpl_print_searchresultbox("name_variants", header, content)
 
         return names_box
 
-    def tmpl_self_papers_box(self, req, pubs, bibauthorid_data, num_downloads, ln, add_box=True, loading=False):
-        _ = gettext_set_language(ln)
-        if not loading and pubs:
-            ib_pubs = intbitset(pubs)
-            if bibauthorid_data["cid"]:
-                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
-            elif bibauthorid_data["pid"] > -1:
-                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
-            baid_query = baid_query + " authorcount:1 "
-
-            rec_query = baid_query
-            searchstr = create_html_link(websearch_templates.build_search_url(p=rec_query),
-                                         {}, "<strong>" + "All papers (" + str(len(pubs)) + ")" + "</strong>",)
-
-            line2 = searchstr
-
-            if CFG_BIBRANK_SHOW_DOWNLOAD_STATS and num_downloads:
-                line2 += " (" + _("downloaded") + " "
-                line2 += str(num_downloads) + " " + _("times") + ")"
-
-            if CFG_INSPIRE_SITE:
-                CFG_COLLS = ['Book',
-                             'ConferencePaper',
-                             'Introductory',
-                             'Lectures',
-                             'Preprint',
-                             'Published',
-                             'Review',
-                             'Thesis']
-            else:
-                CFG_COLLS = ['Article',
-                             'Book',
-                             'Preprint', ]
-            collsd = {}
-            for coll in CFG_COLLS:
-                coll_papers = list(ib_pubs & intbitset(perform_request_search(rg=0, f="collection", p=coll)))
-                if coll_papers:
-                    collsd[coll] = coll_papers
-            colls = collsd.keys()
-            colls.sort(lambda x, y: cmp(len(collsd[y]), len(collsd[x]))) # sort by number of papers
-            for coll in colls:
-                rec_query = baid_query + 'collection:' + wrap_author_name_in_quotes_if_needed(coll)
-                line2 += "<br />" + create_html_link(websearch_templates.build_search_url(p=rec_query),
-                                                                           {}, coll + " (" + str(len(collsd[coll])) + ")",)
-
-        elif not pubs and not loading:
-            line2 = _("No Papers")
-
-        elif loading:
-            line2 = self.loading_html()
-
-        else:
-            line2 = 'This is a bug and should be corrected'
-
-        if not add_box:
-            return line2
-        line1 = "<strong>" + _("Papers written alone") + "</strong>"
-        papers_box = self.tmpl_print_searchresultbox("selfpapers", line1, line2)
-        return papers_box
-
-    def tmpl_papers_box(self, req, pubs, bibauthorid_data, num_downloads, ln, add_box=True, loading=False):
-        _ = gettext_set_language(ln)
-        if not loading and pubs:
-            ib_pubs = intbitset(pubs)
-            if bibauthorid_data["cid"]:
-                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
-            elif bibauthorid_data["pid"] > -1:
-                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
-            baid_query = baid_query + " "
-
-            rec_query = baid_query
-            searchstr = create_html_link(websearch_templates.build_search_url(p=rec_query),
-                                         {}, "<strong>" + "All papers (" + str(len(pubs)) + ")" + "</strong>",)
-
-            line2 = searchstr
-
-            if CFG_BIBRANK_SHOW_DOWNLOAD_STATS and num_downloads:
-                line2 += " (" + _("downloaded") + " "
-                line2 += str(num_downloads) + " " + _("times") + ")"
-
-            if CFG_INSPIRE_SITE:
-                CFG_COLLS = ['Book',
-                             'ConferencePaper',
-                             'Introductory',
-                             'Lectures',
-                             'Preprint',
-                             'Published',
-                             'Review',
-                             'Thesis']
-            else:
-                CFG_COLLS = ['Article',
-                             'Book',
-                             'Preprint', ]
-            collsd = {}
-            for coll in CFG_COLLS:
-                coll_papers = list(ib_pubs & intbitset(perform_request_search(rg=0, f="collection", p=coll)))
-                if coll_papers:
-                    collsd[coll] = coll_papers
-            colls = collsd.keys()
-            colls.sort(lambda x, y: cmp(len(collsd[y]), len(collsd[x]))) # sort by number of papers
-            for coll in colls:
-                rec_query = baid_query + 'collection:' + wrap_author_name_in_quotes_if_needed(coll)
-                line2 += "<br />" + create_html_link(websearch_templates.build_search_url(p=rec_query),
-                                                                           {}, coll + " (" + str(len(collsd[coll])) + ")",)
-
-        elif not pubs and not loading:
-            line2 = _("No Papers")
-
-        elif loading:
-            line2 = self.loading_html()
-
-        else:
-            line2 = 'This is a bug and should be corrected'
-
-        if not add_box:
-            return line2
-        line1 = "<strong>" + _("Papers") + "</strong>"
-        papers_box = self.tmpl_print_searchresultbox("papers", line1, line2)
-        return papers_box
-
-
-    def tmpl_papers_with_self_papers_box(self, req, pubs, self_pubs, bibauthorid_data,
+    def tmpl_papers_with_self_papers_box(self, pubs, self_pubs, bibauthorid_data,
                                          num_downloads,
                                          ln, add_box=True, loading=False):
         _ = gettext_set_language(ln)
@@ -383,13 +306,18 @@ class Template:
             descstr = ['', "<strong>" + "All papers" + "</strong>"]
             searchstr = [" All papers "]
             self_searchstr = [" Single authored "]
-            searchstr.append(("" +
+            if pubs:
+                searchstr.append(("" +
                         create_html_link(websearch_templates.build_search_url(p=rec_query),
                         {}, str(len(pubs)) ,) + ""))
-            self_searchstr.append(("" +
+            else:
+                searchstr.append(("0"))
+            if self_pubs:
+                self_searchstr.append(("" +
                         create_html_link(websearch_templates.build_search_url(p=self_rec_query),
                         {}, str(len(self_pubs)) ,) + ""))
-
+            else:
+                self_searchstr.append(("0"))
             psummary = searchstr
             self_psummary = self_searchstr
 
@@ -402,10 +330,10 @@ class Template:
                              'ConferencePaper',
                              'Introductory',
                              'Lectures',
-                             'Preprint',
                              'Published',
                              'Review',
-                             'Thesis']
+                             'Thesis',
+                             'Proceedings']
             else:
                 CFG_COLLS = ['Article',
                              'Book',
@@ -423,13 +351,18 @@ class Template:
                 rec_query = baid_query + 'collection:' + wrap_author_name_in_quotes_if_needed(coll)
                 self_rec_query = baid_query + 'collection:' + wrap_author_name_in_quotes_if_needed(coll) + ' authorcount:1 '
                 descstr.append("%s" % coll)
-                psummary.append(("" +
+                if collsd[coll]:
+                    psummary.append(("" +
                              create_html_link(websearch_templates.build_search_url(p=rec_query),
                              {}, str(len(collsd[coll])),) + ''))
-                self_psummary.append(("" +
+                else:
+                    psummary.append(("0"))
+                if self_collsd[coll]:
+                    self_psummary.append(("" +
                              create_html_link(websearch_templates.build_search_url(p=self_rec_query),
                              {}, str(len(self_collsd[coll])),) + ''))
-
+                else:
+                    self_psummary.append(("0"))
             tp = "<tr><td> %s </td> <td align='right'> %s </td> <td align='right'> %s </td></tr>"
             line2 = "<table > %s </table>"
             line2 = line2 % ''.join(tp % (x, y, z) for x, y, z in zip(*(descstr, psummary, self_psummary)))
@@ -445,47 +378,82 @@ class Template:
 
     def tmpl_keyword_box(self, kwtuples, bibauthorid_data, ln, add_box=True, loading=False):
         _ = gettext_set_language(ln)
-        if bibauthorid_data["cid"]:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
+        if not loading:
+            if bibauthorid_data["cid"]:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
+            else:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
+            # print frequent keywords:
+            keywstr = ""
+            if (kwtuples):
+                if CFG_WEBAUTHORPROFILE_MAX_KEYWORD_LIST > 0:
+                    kwtuples = kwtuples[:CFG_WEBAUTHORPROFILE_MAX_KEYWORD_LIST]
+                def print_kw(kwtuples):
+                    keywstr = ""
+                    for (kw, freq) in kwtuples:
+                        if keywstr:
+                            keywstr += '<br>'
+                        rec_query = baid_query + ' keyword:"' + kw + '" '
+                        searchstr = kw + ' (' + create_html_link(websearch_templates.build_search_url(p=rec_query),
+                                                                           {}, str(freq),) + ')'
+                        keywstr = keywstr + " " + searchstr
+                    return keywstr
+                keywstr = self.print_collapsable_html(print_kw, kwtuples, 'keywords', keywstr)
+
+            else:
+                keywstr += _('No Keywords')
+            line2 = keywstr
         else:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
-        # print frequent keywords:
-        keywstr = ""
-        if (kwtuples):
-            if CFG_WEBAUTHORPROFILE_MAX_KEYWORD_LIST > 0:
-                kwtuples = kwtuples[:CFG_WEBAUTHORPROFILE_MAX_KEYWORD_LIST]
-            def print_kw(kwtuples):
-                keywstr = ""
-                for (kw, freq) in kwtuples:
-                    if keywstr:
-                        keywstr += '<br>'
-                    rec_query = baid_query + ' keyword:"' + kw + '" '
-                    searchstr = kw + ' (' + create_html_link(websearch_templates.build_search_url(p=rec_query),
-                                                                       {}, str(freq),) + ')'
-                    keywstr = keywstr + " " + searchstr
-                return keywstr
-            keywstr = self.print_collapsable_html(print_kw, kwtuples, 'keywords', keywstr)
-
-        else:
-            keywstr += _('No Keywords')
-
-
-        line1 = "<strong>" + _("Frequent keywords") + "</strong>"
-        line2 = keywstr
-        if loading:
             line2 = self.loading_html()
         if not add_box:
-            return keywstr
+            return line2
+        line1 = "<strong>" + _("Frequent keywords") + "</strong>"
         keyword_box = self.tmpl_print_searchresultbox('keywords', line1, line2)
         return keyword_box
+
+    def tmpl_fieldcode_box(self, fieldtuples, bibauthorid_data, ln, add_box=True, loading=False):
+        _ = gettext_set_language(ln)
+        if not loading:
+            if bibauthorid_data["cid"]:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
+            else:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
+            # print frequent fieldcodes:
+            fieldstr = ""
+            if (fieldtuples):
+                if CFG_WEBAUTHORPROFILE_MAX_FIELDCODE_LIST > 0:
+                    fieldtuples = fieldtuples[:CFG_WEBAUTHORPROFILE_MAX_FIELDCODE_LIST]
+                def print_fieldcode(fieldtuples):
+                    fieldstr = ""
+                    for (field, freq) in fieldtuples:
+                        if fieldstr:
+                            fieldstr += '<br>'
+                        rec_query = baid_query + ' ' + CFG_WEBAUTHORPROFILE_FIELDCODE_TAG + ':"' + field + '"'
+                        searchstr = field + ' (' + create_html_link(websearch_templates.build_search_url(p=rec_query),
+                                                                           {}, str(freq),) + ')'
+                        fieldstr = fieldstr + " " + searchstr
+                    return fieldstr
+                fieldstr = self.print_collapsable_html(print_fieldcode, fieldtuples, 'fieldcodes', fieldstr)
+
+            else:
+                fieldstr += _('No Subject categories')
+
+            line2 = fieldstr
+        else:
+            line2 = self.loading_html()
+        if not add_box:
+            return line2
+        line1 = "<strong>" + _("Subject categories") + "</strong>"
+        fieldcode_box = self.tmpl_print_searchresultbox('fieldcodes', line1, line2)
+        return fieldcode_box
 
     def print_collapsable_html(self, print_func, data, identifier, append_to=''):
         bsize = 10
         current = 0
-        max = len(data)
+        maximum = len(data)
         first = data[current:bsize]
         rest = []
-        while current < max:
+        while current < maximum:
             current += bsize
             bsize *= 2
             rest.append(data[current:current + bsize])
@@ -507,35 +475,35 @@ class Template:
 
     def tmpl_collab_box(self, collabs, bibauthorid_data, ln, add_box=True, loading=False):
         _ = gettext_set_language(ln)
-        if bibauthorid_data["cid"]:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
+        if not loading:
+            if bibauthorid_data["cid"]:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
+            else:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
+            # print frequent keywords:
+            collabstr = ""
+            if (collabs):
+                if CFG_WEBAUTHORPROFILE_MAX_COLLAB_LIST > 0:
+                    collabs = collabs[0:CFG_WEBAUTHORPROFILE_MAX_COLLAB_LIST]
+                def print_collabs(collabs):
+                    collabstr = ""
+                    for (cl, freq) in collabs:
+                        if collabstr:
+                            collabstr += '<br>'
+                        rec_query = baid_query + ' collaboration:"' + cl + '"'
+                        searchstr = cl + ' (' + create_html_link(websearch_templates.build_search_url(p=rec_query),
+                                                                           {}, str(freq),) + ')'
+                        collabstr = collabstr + " " + searchstr
+                    return collabstr
+
+                collabstr = self.print_collapsable_html(print_collabs, collabs, "collabs", collabstr)
+            else:
+                collabstr += _('No Collaborations')
+
+            line2 = collabstr
         else:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
-        # print frequent keywords:
-        collabstr = ""
-        if (collabs):
-            if CFG_WEBAUTHORPROFILE_MAX_COLLAB_LIST > 0:
-                collabs = collabs[0:CFG_WEBAUTHORPROFILE_MAX_COLLAB_LIST]
-            def print_collabs(collabs):
-                collabstr = ""
-                for (cl, freq) in collabs:
-                    if collabstr:
-                        collabstr += '<br>'
-                    rec_query = baid_query + ' collaboration:"' + cl + '"'
-                    searchstr = cl + ' (' + create_html_link(websearch_templates.build_search_url(p=rec_query),
-                                                                       {}, str(freq),) + ')'
-                    collabstr = collabstr + " " + searchstr
-                return collabstr
-
-            collabstr = self.print_collapsable_html(print_collabs, collabs, "collabs", collabstr)
-        else:
-            collabstr += _('No Collaborations')
-
-
-        line1 = "<strong>" + _("Collaborations") + "</strong>"
-        line2 = collabstr
-        if loading:
             line2 = self.loading_html()
+        line1 = "<strong>" + _("Collaborations") + "</strong>"
         if not add_box:
             return collabstr
         colla_box = self.tmpl_print_searchresultbox('collaborations', line1, line2)
@@ -543,104 +511,151 @@ class Template:
 
     def tmpl_affiliations_box(self, aff_pubdict, ln, add_box=True, loading=False):
         _ = gettext_set_language(ln)
-        #make a authoraff string that looks like CERN (1), Caltech (2) etc
-        authoraff = ""
-        aff_pubdict_keys = aff_pubdict.keys()
-        aff_pubdict_keys.sort(lambda x, y: cmp(len(aff_pubdict[y]), len(aff_pubdict[x])))
+        if not loading:
+            #make a authoraff string that looks like CERN (1), Caltech (2) etc
+            authoraff = ""
+            aff_pubdict_keys = aff_pubdict.keys()
+            aff_pubdict_keys.sort(lambda x, y: cmp(len(aff_pubdict[y]), len(aff_pubdict[x])))
 
-        aff_pubdict = [(k, aff_pubdict[k]) for k in aff_pubdict_keys]
+            aff_pubdict = [(k, aff_pubdict[k]) for k in aff_pubdict_keys]
 
-        if aff_pubdict:
-            if CFG_WEBAUTHORPROFILE_MAX_AFF_LIST > 0:
-                aff_pubdict = aff_pubdict[:CFG_WEBAUTHORPROFILE_MAX_AFF_LIST]
-            def print_aff(aff_pubdict):
-                authoraff = ""
-                for a in aff_pubdict:
-                    print_a = a[0]
-                    if (print_a == ' '):
-                        print_a = _("unknown affiliation")
-                    if authoraff:
-                        authoraff += '<br>'
-                    authoraff += (print_a + ' (' + create_html_link(
-                                 websearch_templates.build_search_url(p=' or '.join(
-                                                                ["%s" % x for x in a[1]]),
-                                                f='recid'),
-                                                {}, str(len(a[1])),) + ')')
-                return authoraff
+            if aff_pubdict:
+                if CFG_WEBAUTHORPROFILE_MAX_AFF_LIST > 0:
+                    aff_pubdict = aff_pubdict[:CFG_WEBAUTHORPROFILE_MAX_AFF_LIST]
+                def print_aff(aff_pubdict):
+                    authoraff = ""
+                    for a in aff_pubdict:
+                        print_a = a[0]
+                        if (print_a == ' '):
+                            print_a = _("unknown affiliation")
+                        if authoraff:
+                            authoraff += '<br>'
+                        authoraff += (print_a + ' (' + create_html_link(
+                                     websearch_templates.build_search_url(p=' or '.join(
+                                                                    ["%s" % x for x in a[1]]),
+                                                    f='recid'),
+                                                    {}, str(len(a[1])),) + ')')
+                    return authoraff
 
-            authoraff = self.print_collapsable_html(print_aff, aff_pubdict, 'affiliations', authoraff)
+                authoraff = self.print_collapsable_html(print_aff, aff_pubdict, 'affiliations', authoraff)
+            else:
+                authoraff = _("No Affiliations")
+
+            line2 = authoraff
         else:
-            authoraff = _("No Affiliations")
-
-        line1 = "<strong>" + _("Affiliations") + "</strong>"
-        line2 = authoraff
-        if loading:
             line2 = self.loading_html()
         if not add_box:
             return line2
+        line1 = "<strong>" + _("Affiliations") + "</strong>"
         affiliations_box = self.tmpl_print_searchresultbox('affiliations', line1, line2)
         return affiliations_box
 
     def tmpl_coauthor_box(self, bibauthorid_data, authors, ln, add_box=True, loading=False):
         _ = gettext_set_language(ln)
-        if bibauthorid_data["cid"]:
-            baid_query = 'exactauthor:%s ' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
-        else:
-            baid_query = 'exactauthor:%s ' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
         header = "<strong>" + _("Frequent co-authors (excluding collaborations)") + "</strong>"
         content = ""
-        sorted_coauthors = sorted(sorted(authors, key=itemgetter(1)),
-                                  key=itemgetter(2), reverse=True)
+        if not loading:
+            if bibauthorid_data["cid"]:
+                baid_query = 'exactauthor:%s ' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
+            else:
+                baid_query = 'exactauthor:%s ' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
+            sorted_coauthors = sorted(sorted(authors, key=itemgetter(1)),
+                                      key=itemgetter(2), reverse=True)
 
-        if CFG_WEBAUTHORPROFILE_MAX_COAUTHOR_LIST > 0:
-            sorted_coauthors = sorted_coauthors[:CFG_WEBAUTHORPROFILE_MAX_COAUTHOR_LIST]
+            if CFG_WEBAUTHORPROFILE_MAX_COAUTHOR_LIST > 0:
+                sorted_coauthors = sorted_coauthors[:CFG_WEBAUTHORPROFILE_MAX_COAUTHOR_LIST]
 
-        def print_coauthors(sorted_coauthors):
-            content = []
-            for canonical, name, frequency in sorted_coauthors:
-                if canonical:
-                    second_author = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(canonical)
-                else:
-                    second_author = 'exactauthor:"%s"' % name
-                rec_query = baid_query + second_author + " -710:'Collaboration' "
-                lnk = " <a href='%s/author/%s'> %s </a> (" % (CFG_SITE_URL, canonical, name) + create_html_link(websearch_templates.build_search_url(p=rec_query), {}, "%s" % (frequency,),) + ')'
-                content.append("%s" % lnk)
-            return "<br>\n".join(content)
+            def print_coauthors(sorted_coauthors):
+                content = []
+                for canonical, name, frequency in sorted_coauthors:
+                    if canonical:
+                        second_author = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(canonical)
+                    else:
+                        second_author = 'exactauthor:"%s"' % name
+                    rec_query = baid_query + second_author + " -cn:'Collaboration' "
+                    lnk = " <a href='%s/author/%s'> %s </a> (" % (CFG_SITE_URL, canonical, name) + create_html_link(websearch_templates.build_search_url(p=rec_query), {}, "%s" % (frequency,),) + ')'
+                    content.append("%s" % lnk)
+                return "<br>\n".join(content)
 
-        content = self.print_collapsable_html(print_coauthors, sorted_coauthors, 'coauthors', content)
+            content = self.print_collapsable_html(print_coauthors, sorted_coauthors, 'coauthors', content)
+        else:
+            content = self.loading_html()
 
         if not content:
             content = _("No Frequent Co-authors")
 
-        if loading:
-            content = self.loading_html()
         if add_box:
             coauthor_box = self.tmpl_print_searchresultbox('coauthors', header, content)
             return coauthor_box
         else:
             return content
 
-    def tmpl_citations_box(self, citedbylist, pubs, summarize_records, ln, add_box=True, loading=False):
+    def tmpl_citations_box(self, summarize_records, pubs, ln, add_box=True, loading=False):
         _ = gettext_set_language(ln)
         if CFG_INSPIRE_SITE:
             addition = ' (from papers in INSPIRE)'
         else:
             addition = ''
-        if len(citedbylist):
-            line1 = "<strong>" + _("Citations%s:" % addition) + "</strong>"
-            line2 = ""
+        line1 = "<strong>" + _("Citations%s:" % addition) + "</strong>"
+        if not loading:
+            for i in summarize_records[1].keys():
+                summarize_records[1][i] = intbitset(summarize_records[1][i])
 
-            if not pubs:
-                line2 = _("No Citation Information available")
-
-        line2 = summarize_records
-        if loading:
+            str_buffer = StringIO()
+            render_citation_summary(str_buffer, ln, intbitset(pubs), citation_summary=summarize_records)
+            str_buffer.write(websearch_templates.tmpl_citesummary_footer())
+            line2 = str_buffer.getvalue()
+        else:
             line2 = self.loading_html()
         if add_box:
             citations_box = self.tmpl_print_searchresultbox('citations', line1, line2)
             return citations_box
         else:
             return line2
+
+    def tmpl_graph_box(self, pubs_per_year, ln, add_box=True, loading=False):
+        """ Creates graph images (if not already existent) with publication history over the years for
+            the specific author and returns HTML code refering to those images. """
+        _ = gettext_set_language(ln)
+        html_head = _("<strong> Publications per year: </strong>")
+        html_graph_code = _("No Publication Graph")
+        if not loading:
+            if pubs_per_year:
+                graph_data = []
+                end = datetime.now().year+2
+                start = min([min(pubs_per_year.keys())-1, end-6])
+                for year in range(start, end):
+                    try:
+                        graph_data.append((year, pubs_per_year[year]))
+                    except KeyError:
+                        graph_data.append((year, 0))
+
+                graph_file_name = '%s' % (md5(str(graph_data)).hexdigest())
+                temp_graph_code = get_graph_code(graph_file_name, graph_data)
+                if temp_graph_code:
+                    html_graph_code = temp_graph_code
+        else:
+            html_graph_code = self.loading_html()
+        if add_box:
+            graph_box = self.tmpl_print_searchresultbox('pubs_graph', html_head, html_graph_code)
+            return graph_box
+        else:
+            return html_graph_code
+
+    def tmpl_orcid_info_box(self, orcid_info, ln, add_box=True, loading=False):
+        """ ORCID info """
+        _ = gettext_set_language(ln)
+        html_head = _("<strong> ORCID profile: </strong>")
+        html_orcid = _("No profile available")
+        if orcid_info:
+            html_orcid = "<a href='http://orcid.org/%s' target='_blank'> %s </a>" % (orcid_info, orcid_info)
+        if loading:
+            html_orcid = self.loading_html()
+        if add_box:
+            orcid_box = self.tmpl_print_searchresultbox('orcid', html_head, html_orcid)
+            return orcid_box
+        else:
+            return html_orcid
 
     def tmpl_numpaperstitle(self, bibauthorid_data, pubs):
         if bibauthorid_data["cid"]:
@@ -652,47 +667,109 @@ class Template:
 
         return  '(%s papers)' % pubs_to_papers_link
 
-    def tmpl_authornametitle(self, names_dict):
-        sorted_names_list = sorted(names_dict.iteritems(), key=itemgetter(1),
-                                   reverse=True)
-        try:
-            return sorted_names_list[0][0]
-        except IndexError:
-            return ''
 
-    def tmpl_author_page(self, req, pubs, selfpubs, authorname, num_downloads,
-                        aff_pubdict, citedbylist, kwtuples, authors,
-                        vtuples, names_dict, person_link,
-                        bibauthorid_data, summarize_records, hepdict, collabs, ln, eval, oldest_cache_date,
+    def tmpl_authornametitle(self, authorname, bibauthorid_data, pubs, person_link, ln, loading=False):
+        _ = gettext_set_language(ln)
+
+        if loading:
+            html_header = '<span id="authornametitle">' + self.loading_html() + '</span>'
+        else:
+            display_name = authorname
+            if not display_name:
+                if bibauthorid_data["cid"]:
+                    display_name = bibauthorid_data["cid"]
+                else:
+                    display_name = bibauthorid_data["pid"]
+
+            if bibauthorid_data["cid"]:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
+            else:
+                baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
+
+            pubs_to_papers_link = create_html_link(websearch_templates.build_search_url(p=baid_query), {}, str(len(pubs)))
+
+            addition = ''
+            if CFG_INSPIRE_SITE:
+                addition = ' relevant to High Energy Physics'
+
+            headernumpapers = ''
+            if pubs:
+                headernumpapers = '(%s papers%s)' % (pubs_to_papers_link, addition)
+
+            html_header = ('<h1><span id="authornametitle">%s</span> <span id="numpaperstitle" style="font-size:50%%;">%s</span></h1>'
+                          % (display_name, headernumpapers))
+
+            if person_link or person_link == 'None':
+                html_header += ('<div><a href="%s/person/claimstub?person=%s">%s</a></div>'
+                               % (CFG_SITE_URL, person_link, _("This is me.  Verify my publication list.")))
+
+        return html_header
+
+
+    def tmpl_author_page_old(self, pubs, selfpubs, authorname, num_downloads,
+                        aff_pubdict, kwtuples, fieldtuples, authors,
+                        names_dict, person_link, bibauthorid_data, summarize_records,
+                        pubs_per_year, hepdict, collabs, orcid_info, ln, beval, oldest_cache_date,
                         recompute_allowed):
         '''
         '''
         _ = gettext_set_language(ln)
-        if bibauthorid_data["cid"]:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
-        else:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
-        sorted_names_list = sorted(names_dict.iteritems(), key=itemgetter(1),
-                                   reverse=True)
-        pubs_to_papers_link = create_html_link(websearch_templates.build_search_url(p=baid_query), {}, str(len(pubs)))
-        display_name = ""
 
-        try:
-            display_name = sorted_names_list[0][0]
-        except IndexError:
-            if bibauthorid_data["cid"]:
-                display_name = bibauthorid_data["cid"]
-            else:
-                display_name = bibauthorid_data["pid"]
+        html = list()
 
+        html_header = self.tmpl_authornametitle(authorname, bibauthorid_data, pubs, person_link, ln, loading=not (beval[0] and beval[7] and beval[9]))
+        html.append(html_header)
+
+        html_name_variants = self.tmpl_author_name_variants_box(names_dict, bibauthorid_data, ln, loading=not beval[0])
+        html_combined_papers = self.tmpl_papers_with_self_papers_box(pubs, selfpubs, bibauthorid_data, num_downloads, ln, loading=not beval[12])
+        html_keywords = self.tmpl_keyword_box(kwtuples, bibauthorid_data, ln, loading=not beval[3])
+        html_fieldcodes = self.tmpl_fieldcode_box(fieldtuples, bibauthorid_data, ln, loading=not beval[4])
+        html_affiliations = self.tmpl_affiliations_box(aff_pubdict, ln, loading=not beval[2])
+        html_coauthors = self.tmpl_coauthor_box(bibauthorid_data, authors, ln, loading=not beval[5])
         if CFG_INSPIRE_SITE:
-            addition = ' relevant to High Energy Physics'
+            html_hepnames = self.tmpl_hepnames(hepdict, ln, loading=not beval[11])
+            html_orcid = self.tmpl_orcid_info_box(orcid_info, ln, loading=not beval[14])
         else:
-            addition = ''
+            html_hepnames = ''
+            html_orcid = ''
+        html_citations = self.tmpl_citations_box(summarize_records, pubs, ln, loading=not (beval[8] and beval[9]))
+        html_graph = self.tmpl_graph_box(pubs_per_year, ln, loading=not beval[10])
+        html_collabs = self.tmpl_collab_box(collabs, bibauthorid_data, ln, loading=not beval[13])
 
-        if pubs:
-            headernumpapers = '(%s papers%s)' % (pubs_to_papers_link, addition)
+        g = self._grid
+
+        page = g(1, 2)(
+                      g(3, 2)(
+                              g(1, 1, cell_padding=5)(html_name_variants),
+                              g(1, 1, cell_padding=5)(html_combined_papers),
+                              g(1, 1, cell_padding=5)(html_affiliations),
+                              g(1, 1, cell_padding=5)(html_collabs),
+                              g(1, 1, cell_padding=5)(html_coauthors),
+                              g(2, 1)(g(1, 1, cell_padding=5)(html_keywords),
+                                      g(1, 1, cell_padding=5)(html_fieldcodes)
+                                     )
+                              ),
+                      g(4, 1)(g(1, 1, cell_padding=5)(html_citations),
+                              g(1, 1, cell_padding=5)(html_orcid),
+                              g(1, 1, cell_padding=5)(html_graph),
+                              g(1, 1, cell_padding=5)(html_hepnames))
+                      )
+        html.append(page)
+
+        rec_date = 'now'
+        if oldest_cache_date:
+            rec_date = str(oldest_cache_date)
+
+        cache_reload_link = ''
+        if recompute_allowed:
+            cache_reload_link = ('<a href="%s/author/%s/?recompute=1">%s</a>'
+                                % (CFG_SITE_URL, person_link, _("Recompute Now!")))
+        html_generated_timestamp = "<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link)
+
+        if CFG_WEBAUTHORPROFILE_GENERATED_TIMESTAMP_BOTTOM_POSITION:
+            html.append(html_generated_timestamp)
         else:
+<<<<<<< HEAD
             headernumpapers = ''
         headertext = ('<h1><span id="authornametitle">%s</span> <span id="numpaperstitle" style="font-size:50%%;">%s</span></h1>'
                       % (cgi.escape(display_name), headernumpapers))
@@ -711,12 +788,39 @@ class Template:
         html_keywords = self.tmpl_keyword_box(kwtuples, bibauthorid_data, ln, loading=not eval[4])
         html_affiliations = self.tmpl_affiliations_box(aff_pubdict, ln, loading=not eval[2])
         html_coauthors = self.tmpl_coauthor_box(bibauthorid_data, authors, ln, loading=not eval[5])
+=======
+            html.insert(0, html_generated_timestamp)
+
+        return ' '.join(html)
+
+
+    def tmpl_author_page(self, ln, person_link,oldest_cache_date,
+                        recompute_allowed):
+        '''
+        '''
+        _ = gettext_set_language(ln)
+
+        html = list()
+
+        html_header = self.tmpl_authornametitle(None, None, None, None, ln, loading=True)
+        html.append(html_header)
+
+        html_name_variants = self.tmpl_author_name_variants_box(None, None, ln, loading=True)
+        html_combined_papers = self.tmpl_papers_with_self_papers_box(None, None, None, None, ln, loading=True)
+        html_keywords = self.tmpl_keyword_box(None, None, ln, loading=True)
+        html_fieldcodes = self.tmpl_fieldcode_box(None, None, ln, loading=True)
+        html_affiliations = self.tmpl_affiliations_box(None, ln, loading=True)
+        html_coauthors = self.tmpl_coauthor_box(None, None, ln, loading=True)
+>>>>>>> 1a1d577... BibAuthorID: fixes and improvements
         if CFG_INSPIRE_SITE:
-            html_hepnames = self.tmpl_hepnames(hepdict, ln, loading=not eval[11])
+            html_hepnames = self.tmpl_hepnames(None, ln, loading=True)
+            html_orcid = self.tmpl_orcid_info_box(False, ln, loading=True)
         else:
             html_hepnames = ''
-        html_citations = self.tmpl_citations_box(citedbylist, pubs, summarize_records, ln, loading=not eval[9])
-        html_collabs = self.tmpl_collab_box(collabs, bibauthorid_data, ln, loading=not eval[13])
+            html_orcid = ''
+        html_citations = self.tmpl_citations_box(None, None, ln, loading=True)
+        html_graph = self.tmpl_graph_box(None, ln, loading=True)
+        html_collabs = self.tmpl_collab_box(None, None, ln, loading=True)
 
         g = self._grid
 
@@ -727,27 +831,102 @@ class Template:
                               g(1, 1, cell_padding=5)(html_affiliations),
                               g(1, 1, cell_padding=5)(html_collabs),
                               g(1, 1, cell_padding=5)(html_coauthors),
-                              g(1, 1, cell_padding=5)(html_keywords)
-                              #g(1, 1, cell_padding=5)('')
+                              g(2, 1)(g(1, 1, cell_padding=5)(html_keywords),
+                                      g(1, 1, cell_padding=5)(html_fieldcodes)
+                                     )
                               ),
-                      g(2, 1)(g(1, 1, cell_padding=5)(html_citations),
+                      g(4, 1)(g(1, 1, cell_padding=5)(html_citations),
+                              g(1, 1, cell_padding=5)(html_orcid),
+                              g(1, 1, cell_padding=5)(html_graph),
                               g(1, 1, cell_padding=5)(html_hepnames))
                       )
         html.append(page)
+
+        rec_date = 'now'
         if oldest_cache_date:
             rec_date = str(oldest_cache_date)
-        else:
-            rec_date = 'now'
 
+        cache_reload_link = ''
         if recompute_allowed:
             cache_reload_link = ('<a href="%s/author/%s/?recompute=1">%s</a>'
-                      % (CFG_SITE_URL, person_link,
-                         _("Recompute Now!")))
-        else:
-            cache_reload_link = ''
+                                % (CFG_SITE_URL, person_link, _("Recompute Now!")))
+        html_generated_timestamp = "<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link)
 
-        html.append("<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link))
+        if CFG_WEBAUTHORPROFILE_GENERATED_TIMESTAMP_BOTTOM_POSITION:
+            html.append(html_generated_timestamp)
+        else:
+            html.insert(0, html_generated_timestamp)
+
         return ' '.join(html)
+
+
+    def tmpl_author_page_new(self, pubs, selfpubs, authorname, num_downloads,
+                        aff_pubdict, kwtuples, fieldtuples, authors,
+                        names_dict, person_link, bibauthorid_data, summarize_records,
+                        pubs_per_year, hepdict, collabs, orcid_info, ln, beval, oldest_cache_date,
+                        recompute_allowed):
+        '''
+        '''
+        _ = gettext_set_language(ln)
+
+        html = list()
+
+        html_header = self.tmpl_authornametitle(authorname, bibauthorid_data, pubs, person_link, ln, loading=not (beval[0] and beval[7] and beval[9]))
+        html.append(html_header)
+
+        html_name_variants = self.tmpl_author_name_variants_box({}, bibauthorid_data, ln, loading=True)
+        html_combined_papers = self.tmpl_papers_with_self_papers_box(pubs, selfpubs, bibauthorid_data, num_downloads, ln, loading=True)
+        html_keywords = self.tmpl_keyword_box(kwtuples, bibauthorid_data, ln, loading=True)
+        html_fieldcodes = self.tmpl_fieldcode_box(fieldtuples, bibauthorid_data, ln, loading=True)
+        html_affiliations = self.tmpl_affiliations_box(aff_pubdict, ln, loading=True)
+        html_coauthors = self.tmpl_coauthor_box(bibauthorid_data, authors, ln, loading=True)
+        if CFG_INSPIRE_SITE:
+            html_hepnames = self.tmpl_hepnames(hepdict, ln, loading=True)
+            html_orcid = self.tmpl_orcid_info_box(orcid_info, ln, loading=True)
+        else:
+            html_hepnames = ''
+            html_orcid = ''
+        html_citations = self.tmpl_citations_box(summarize_records, pubs, ln, loading=True)
+        html_graph = self.tmpl_graph_box(pubs_per_year, ln, loading=True)
+        html_collabs = self.tmpl_collab_box(collabs, bibauthorid_data, ln, loading=True)
+
+        g = self._grid
+
+        page = g(1, 2)(
+                      g(3, 2)(
+                              g(1, 1, cell_padding=5)(html_name_variants),
+                              g(1, 1, cell_padding=5)(html_combined_papers),
+                              g(1, 1, cell_padding=5)(html_affiliations),
+                              g(1, 1, cell_padding=5)(html_collabs),
+                              g(1, 1, cell_padding=5)(html_coauthors),
+                              g(2, 1)(g(1, 1, cell_padding=5)(html_keywords),
+                                      g(1, 1, cell_padding=5)(html_fieldcodes)
+                                     )
+                              ),
+                      g(4, 1)(g(1, 1, cell_padding=5)(html_citations),
+                              g(1, 1, cell_padding=5)(html_orcid),
+                              g(1, 1, cell_padding=5)(html_graph),
+                              g(1, 1, cell_padding=5)(html_hepnames))
+                      )
+        html.append(page)
+
+        rec_date = 'now'
+        if oldest_cache_date:
+            rec_date = str(oldest_cache_date)
+
+        cache_reload_link = ''
+        if recompute_allowed:
+            cache_reload_link = ('<a href="%s/author/%s/?recompute=1">%s</a>'
+                                % (CFG_SITE_URL, person_link, _("Recompute Now!")))
+        html_generated_timestamp = "<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link)
+
+        if CFG_WEBAUTHORPROFILE_GENERATED_TIMESTAMP_BOTTOM_POSITION:
+            html.append(html_generated_timestamp)
+        else:
+            html.insert(0, html_generated_timestamp)
+
+        return ' '.join(html)
+
 
     def tmpl_open_table(self, width_pcnt=False, cell_padding=False, height_pcnt=False):
         options = []
@@ -779,16 +958,16 @@ class Template:
     def tmpl_close_col(self):
         return "</td>"
 
-    def _grid(self, rows, cols, table_width=False, row_width=False, cell_padding=False):
+    def _grid(self, rows, cols, table_width=False, cell_padding=False):
         tmpl = self
         def cont(*boxes):
             out = []
             h = out.append
             idx = 0
             h(tmpl.tmpl_open_table(width_pcnt=table_width, cell_padding=cell_padding))
-            for i in range(rows):
+            for _ in range(rows):
                 h(tmpl.tmpl_open_row())
-                for j in range(cols):
+                for _ in range(cols):
                     h(tmpl.tmpl_open_col())
                     h(boxes[idx])
                     idx += 1

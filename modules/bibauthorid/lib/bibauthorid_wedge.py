@@ -30,6 +30,9 @@ import numpy
 #mport cPickle as SER
 import msgpack as SER
 
+import gzip as filehandler
+
+
 import gc
 
 SP_NUMBERS = Bib_matrix.special_numbers
@@ -92,7 +95,7 @@ def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
 
     if report_cluster_status:
         destfile = '/tmp/baistats/cluster_status_report_pid_%s_lastname_%s_thrsh_%s' % (str(PID()),str(cluster_set.last_name),str(wedge_thrsh))
-        f = open(destfile, 'w')
+        f = filehandler.open(destfile, 'w')
         SER.dump([wedge_thrsh,cluster_set.last_name,report,cluster_set.num_all_bibs],f)
         f.close()
     gc.collect()
@@ -195,15 +198,20 @@ def do_wedge(cluster_set, deep_debug=False):
 
     interval = 500000
     wedge_print("Wedge: New wedge, %d edges." % len(edges))
-    for current, (v1, v2, unused) in enumerate(edges):
+    current = -1
+    for  v1, v2, unused in edges:
+        current += 1
         if (current % interval) == 0:
             update_status(float(current) / len(edges), "Wedge...")
 
         assert unused != '+' and unused != '-', PID()+"Signed edge after filter!"
         cl1 = bib_map[v1]
         cl2 = bib_map[v2]
-        idcl1 = cluster_set.clusters.index(cl1)
-        idcl2 = cluster_set.clusters.index(cl2)
+        #try using object ids instead of index to boost performances
+        #idcl1 = cluster_set.clusters.index(cl1)
+        #idcl2 = cluster_set.clusters.index(cl2)
+        idcl1 = id(cl1)
+        idcl2 = id(cl2)
 
         #keep the ids low!
         if idcl1 > idcl2:
@@ -267,22 +275,26 @@ def meld_edges(p1, p2):
         i2 = e2[1] * verts2
         inter_cert = i1 + i2
         inter_prob = e1[0] * i1 + e2[0] * i2
-        return (inter_prob / inter_cert, inter_cert * invsum)
+        if inter_cert > 0:
+            return (inter_prob / inter_cert, inter_cert * invsum)
+        else:
+            return (0.,0.)
 
     assert len(out_edges1) == len(out_edges2), "Invalid arguments for meld edges"
     size = len(out_edges1)
 
     result = numpy.ndarray(shape=(size, 2), dtype=float, order='C')
+    gc.disable()
     for i in xrange(size):
         result[i] = median(out_edges1[i], out_edges2[i])
         assert (result[i][0] >= 0 and result[i][0] <= 1) or result[i][0] in Bib_matrix.special_numbers, PID()+'MELD_EDGES: value %s' % result[i]
         assert (result[i][1] >= 0 and result[i][1] <= 1) or result[i][1] in Bib_matrix.special_numbers, PID()+'MELD_EDGES: compat %s' % result[i]
-
+    gc.enable()
     return (result, vsum)
 
 def convert_cluster_set(cs, prob_matr):
     '''
-    Convertes a normal cluster set to a wedge clsuter set.
+    Convertes a normal cluster set to a wedge cluster set.
     @param cs: a cluster set to be converted
     @param type: cluster set
     @return: a mapping from a number to a bibrefrec.
@@ -311,8 +323,10 @@ def convert_cluster_set(cs, prob_matr):
 
     special_symbols = Bib_matrix.special_symbols #locality optimization
 
-    interval = 10000
-    for current, c1 in enumerate(cs.clusters):
+    interval = 1000
+    current = -1
+    for c1 in cs.clusters:
+        current += 1
         if (current % interval) == 0:
             update_status(float(current) / len(cs.clusters), "Converting the cluster set...")
 
@@ -320,21 +334,26 @@ def convert_cluster_set(cs, prob_matr):
         pointers = []
 
         for v1 in c1.bibs:
-            pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
-            pointer.fill(special_symbols[None])
+            pointer = list()
+            index = list()
+            pointerappend = pointer.append
+            indexappend = index.append
             rm = result_mapping[v1] #locality optimization
             for c2 in cs.clusters:
                 if c1 != c2 and not c1.hates(c2):
                     for v2 in c2.bibs:
                         val = prob_matr[rm, result_mapping[v2]]
-                        try:
-                            numb = special_symbols[val]
-                            val = (numb, numb)
-                        except KeyError:
-                            pass
-                        assert len(val) == 2, "Edge coding failed"
-                        pointer[v2] = val
-            pointers.append((pointer, 1))
+                        #WARNING: assume special values are representet with lenght one string. Strong optimization
+                        if len(val) < 2:
+                                numb = special_symbols[val]
+                                val = (numb, numb)
+                        assert len(val) == 2, "Edge coding failed val: %s, orig: %s "% (str(val), str(prob_matr[rm, result_mapping[v2]]) )
+                        pointerappend(val)
+                        indexappend(v2)
+            real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
+            real_pointer.fill(special_symbols[None])
+            real_pointer[index] = pointer
+            pointers.append((real_pointer, 1))
         c1.out_edges = reduce(meld_edges, pointers)[0]
 
     update_status_final("Converting the cluster set done.")
@@ -364,7 +383,9 @@ def group_edges(cs):
     pairs = []
     gc.disable()
     interval = 1000
-    for current, cl1 in enumerate(cs.clusters):
+    current = -1
+    for cl1 in cs.clusters:
+        current += 1
         if (current % interval) == 0:
             update_status(float(current) / len(cs.clusters), "Grouping all edges...")
 
@@ -408,14 +429,14 @@ def join(cl1, cl2):
 
 
 def export_to_dot(cs, fname, graph_info, extra_edge=None):
-    from invenio.bibauthorid_dbinterface import get_name_by_bibrecref
+    from invenio.bibauthorid_dbinterface import get_name_by_bibref
 
     fptr = open(fname, "w")
     fptr.write("graph wedgy {\n")
     fptr.write("    overlap=prism\n")
 
     for idx, bib in enumerate(graph_info):
-        fptr.write('    %d [color=black label="%s"];\n' % (idx, get_name_by_bibrecref(idx)))
+        fptr.write('    %d [color=black label="%s"];\n' % (idx, get_name_by_bibref(idx)))
 
     if extra_edge:
         v1, v2, (prob, cert) = extra_edge

@@ -23,8 +23,10 @@ import os
 #import cPickle as SER
 import msgpack as SER
 
+
+import gzip as filehandler
+
 import gc
-import matplotlib.pyplot as plt
 import numpy as np
 
 #This is supposed to defeat a bit of the python vm performance losses:
@@ -34,14 +36,16 @@ sys.setcheckinterval(1000000)
 from collections import defaultdict
 
 from itertools import groupby, chain, repeat
-from invenio.bibauthorid_general_utils import update_status, update_status_final, override_stdout_config
+from invenio.bibauthorid_general_utils import update_status, update_status_final, override_stdout_config, override_stdout_config
+
+override_stdout_config(fileout=True, stdout=False)
 
 from invenio.bibauthorid_cluster_set import delayed_cluster_sets_from_marktables
 from invenio.bibauthorid_cluster_set import delayed_cluster_sets_from_personid
 from invenio.bibauthorid_wedge import wedge
 from invenio.bibauthorid_name_utils import generate_last_name_cluster_str
-from invenio.bibauthorid_backinterface import empty_results_table
-from invenio.bibauthorid_backinterface import remove_result_cluster
+from invenio.bibauthorid_backinterface import empty_tortoise_results_table
+from invenio.bibauthorid_backinterface import remove_clusters_by_name
 from invenio.bibauthorid_general_utils import bibauthor_print
 from invenio.bibauthorid_prob_matrix import prepare_matirx
 from invenio.bibauthorid_scheduler import schedule, matrix_coefs
@@ -91,7 +95,7 @@ def tortoise_from_scratch():
     assert len(exit_statuses) == len(cluster_sets)
     assert all(stat == os.EX_OK for stat in exit_statuses)
 
-    empty_results_table()
+    empty_tortoise_results_table()
 
     bibauthor_print("Preparing cluster sets.")
     cluster_sets, _lnames, sizes = delayed_cluster_sets_from_marktables()
@@ -133,7 +137,7 @@ def tortoise(pure=False,
     assert all(stat == os.EX_OK for stat in exit_statuses)
 
 
-def tortoise_last_name(name, from_mark=False, pure=False):
+def tortoise_last_name(name, from_mark=True, pure=False):
     bibauthor_print('Start working on %s' % name)
     assert not(from_mark and pure)
 
@@ -144,60 +148,70 @@ def tortoise_last_name(name, from_mark=False, pure=False):
         clusters, lnames, sizes = delayed_cluster_sets_from_marktables([lname])
         bibauthor_print(' ... delayed done')
     else:
-        bibauthor_print(' ... from pid, pure')
+        bibauthor_print(' ... from pid, pure=%s'%str(pure))
         clusters, lnames, sizes = delayed_cluster_sets_from_personid(pure)
         bibauthor_print(' ... delayed pure done!')
 
-#    try:
-    idx = lnames.index(lname)
-    cluster = clusters[idx]
-    size = sizes[idx]
-    cluster_set = cluster()
-    bibauthor_print("Found, %s(%s). Total number of bibs: %d." % (name, lname, size))
-    create_matrix(cluster_set, True)
-    wedge_and_store(cluster_set)
-#    except IndexError:
-#        bibauthor_print("Sorry, %s(%s) not found in the last name clusters" % (name, lname))
+    try:
+        idx = lnames.index(lname)
+        cluster = clusters[idx]
+        size = sizes[idx]
+        cluster_set = cluster()
+        bibauthor_print("Found, %s(%s). Total number of bibs: %d." % (name, lname, size))
+        create_matrix(cluster_set, True)
+        wedge_and_store(cluster_set)
+    except (IndexError, ValueError):
+        bibauthor_print("Sorry, %s(%s) not found in the last name clusters" % (name, lname))
+
+def tortoise_last_names(names_list):
+    pool = mp.Pool()
+    pool.map(tortoise_last_name, names_list)
 
 def _collect_statistics_lname_coeff(params):
     lname = params[0]
     coeff = params[1]
 
     clusters, lnames, sizes = delayed_cluster_sets_from_marktables([lname])
-    idx = lnames.index(lname)
-    cluster = clusters[idx]
-    size = sizes[idx]
-    bibauthor_print("Found, %s. Total number of bibs: %d." % (lname, size))
-    cluster_set = cluster()
-    create_matrix(cluster_set, False)
+    try:
+        idx = lnames.index(lname)
+        cluster = clusters[idx]
+        size = sizes[idx]
+        bibauthor_print("Found, %s. Total number of bibs: %d." % (lname, size))
+        cluster_set = cluster()
+        create_matrix(cluster_set, False)
 
-    bibs = cluster_set.num_all_bibs
-    expected = bibs * (bibs - 1) / 2
-    bibauthor_print("Start working on %s. Total number of bibs: %d, "
-                    "maximum number of comparisons: %d"
-                    % (cluster_set.last_name, bibs, expected))
+        bibs = cluster_set.num_all_bibs
+        expected = bibs * (bibs - 1) / 2
+        bibauthor_print("Start working on %s. Total number of bibs: %d, "
+                        "maximum number of comparisons: %d"
+                        % (cluster_set.last_name, bibs, expected))
 
-    wedge(cluster_set, True, coeff)
-    remove_result_cluster(cluster_set.last_name)
+        wedge(cluster_set, True, coeff)
+        remove_clusters_by_name(cluster_set.last_name)
+    except (IndexError, ValueError):
+        bibauthor_print("Sorry, %s not found in the last name clusters," % (lname))
 
 def _create_matrix(lname):
 
     clusters, lnames, sizes = delayed_cluster_sets_from_marktables([lname])
-    idx = lnames.index(lname)
-    cluster = clusters[idx]
-    size = sizes[idx]
-    bibauthor_print("Found, %s. Total number of bibs: %d." % (lname, size))
-    cluster_set = cluster()
-    create_matrix(cluster_set, True)
+    try:
+        idx = lnames.index(lname)
+        cluster = clusters[idx]
+        size = sizes[idx]
+        bibauthor_print("Found, %s. Total number of bibs: %d." % (lname, size))
+        cluster_set = cluster()
+        create_matrix(cluster_set, True)
 
-    bibs = cluster_set.num_all_bibs
-    expected = bibs * (bibs - 1) / 2
-    bibauthor_print("Start working on %s. Total number of bibs: %d, "
-                    "maximum number of comparisons: %d"
-                    % (cluster_set.last_name, bibs, expected))
-    cluster_set.store()
+        bibs = cluster_set.num_all_bibs
+        expected = bibs * (bibs - 1) / 2
+        bibauthor_print("Start working on %s. Total number of bibs: %d, "
+                        "maximum number of comparisons: %d"
+                        % (cluster_set.last_name, bibs, expected))
+        cluster_set.store()
+    except (IndexError, ValueError):
+        bibauthor_print("Sorry, %s not found in the last name clusters, not creating matrix" % (lname))
 
-def tortoise_tweak_coefficient(lastnames, min_coef, max_coef, stepping, create_matrix=True):
+def tortoise_tweak_coefficient(lastnames, min_coef, max_coef, stepping, build_matrix=True):
     bibauthor_print('Coefficient tweaking!')
     bibauthor_print('Cluster sets from mark...')
 
@@ -206,50 +220,49 @@ def tortoise_tweak_coefficient(lastnames, min_coef, max_coef, stepping, create_m
 
     pool = mp.Pool()
 
-    if create_matrix:
+    if build_matrix:
         pool.map(_create_matrix, lnames)
     pool.map(_collect_statistics_lname_coeff, ((x,y) for x in lnames for y in coefficients ))
 
-
-def _gen_plot(data, filename):
-    plt.clf()
-    ax = plt.subplot(111)
-    ax.grid(visible=True)
-    x = sorted(data.keys())
-
-    w = [data[k][0] for k in x]
-    try:
-        wscf = max(w)
-    except:
-        wscf = 0
-    w = [float(i)/wscf for i in w]
-    y = [data[k][1] for k in x]
-    maxi = [data[k][3] for k in x]
-    mini = [data[k][2] for k in x]
-
-    lengs = [data[k][4] for k in x]
-    try:
-        ml = float(max(lengs))
-    except:
-        ml = 1
-    lengs = [k/ml for k in lengs]
-
-    normalengs = [data[k][5] for k in x]
-
-    ax.plot(x,y,'-o',label='avg')
-    ax.plot(x,maxi,'-o', label='max')
-    ax.plot(x,mini,'-o', label='min')
-    ax.plot(x,w, '-x', label='norm %s' % str(wscf))
-    ax.plot(x,lengs,'-o',label='acl %s' % str(int(ml)))
-    ax.plot(x,normalengs, '-o', label='ncl')
-    plt.ylim(ymax = 1., ymin = -0.01)
-    plt.xlim(xmax = 1., xmin = -0.01)
-    ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,ncol=6, mode="expand", borderaxespad=0.)
-    plt.savefig(filename)
-
-
-
 def tortoise_coefficient_statistics(pickle_output=None, generate_graphs=True):
+    import matplotlib.pyplot as plt
+    plt.ioff()
+    def _gen_plot(data, filename):
+        plt.clf()
+        ax = plt.subplot(111)
+        ax.grid(visible=True)
+        x = sorted(data.keys())
+
+        w = [data[k][0] for k in x]
+        try:
+            wscf = max(w)
+        except:
+            wscf = 0
+        w = [float(i)/wscf for i in w]
+        y = [data[k][1] for k in x]
+        maxi = [data[k][3] for k in x]
+        mini = [data[k][2] for k in x]
+
+        lengs = [data[k][4] for k in x]
+        try:
+            ml = float(max(lengs))
+        except:
+            ml = 1
+        lengs = [k/ml for k in lengs]
+
+        normalengs = [data[k][5] for k in x]
+
+        ax.plot(x,y,'-o',label='avg')
+        ax.plot(x,maxi,'-o', label='max')
+        ax.plot(x,mini,'-o', label='min')
+        ax.plot(x,w, '-x', label='norm %s' % str(wscf))
+        ax.plot(x,lengs,'-o',label='acl %s' % str(int(ml)))
+        ax.plot(x,normalengs, '-o', label='ncl')
+        plt.ylim(ymax = 1., ymin = -0.01)
+        plt.xlim(xmax = 1., xmin = -0.01)
+        ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,ncol=6, mode="expand", borderaxespad=0.)
+        plt.savefig(filename)
+
     override_stdout_config(stdout=True)
 
     files = ['/tmp/baistats/'+x for x in os.listdir('/tmp/baistats/') if x.startswith('cluster_status_report_pid')]
@@ -281,7 +294,7 @@ def tortoise_coefficient_statistics(pickle_output=None, generate_graphs=True):
             if i%1000 ==0:
                 gen_graphs(True)
 
-        f = open(fi,'r')
+        f = filehandler.open(fi,'r')
         status = i/fnum
         update_status(status, 'Loading '+ fi[fi.find('lastname')+9:])
         contents = SER.load(f)
@@ -377,7 +390,7 @@ def wedge_and_store(cluster_set):
                     % (cluster_set.last_name, bibs, expected))
 
     wedge(cluster_set)
-    remove_result_cluster(cluster_set.last_name)
+    remove_clusters_by_name(cluster_set.last_name)
     cluster_set.store()
     return True
 
