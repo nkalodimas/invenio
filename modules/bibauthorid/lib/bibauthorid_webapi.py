@@ -338,7 +338,7 @@ def get_person_request_ticket(pid= -1, tid=None):
     if pid < 0:
         return []
     else:
-        return dbapi.get_request_ticket(pid, ticket_id=tid)
+        return dbapi.get_validated_request_ticket(pid, ticket_id=tid)
 
 def get_persons_with_open_tickets_list():
     '''

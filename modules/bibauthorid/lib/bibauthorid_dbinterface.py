@@ -813,6 +813,7 @@ def get_persons_with_open_tickets_list():
     return run_sql("select personid, count(distinct opt1) from "
                     "aidPERSONIDDATA where tag like 'rt_%' group by personid")
 
+
 def get_request_ticket(person_id, ticket_id=None):
     '''
     Retrieves one or many requests tickets from a person
@@ -831,7 +832,33 @@ def get_request_ticket(person_id, ticket_id=None):
     return [[[(s[0][3:], s[1]) for s in d], k] for k, d in groupby(sorted(tickets, key=lambda k: k[2]), key=lambda k: k[2])]
 
 
-def insert_user_log(userinfo, personid, action, tag, value, comment='', transactionid=0, timestamp=None, userid=''):
+def get_validated_request_ticket(person_id, ticket_id=None):
+    '''
+    Validates request tickets before returning them.
+    '''
+    tickets = get_request_ticket(person_id, ticket_id)
+    for ticket in list(tickets):
+        for entry in list(ticket[0]):
+            if entry[0] == 'repeal' or entry[0] == 'confirm': #those should be the only possible actions in a ticket!
+                try:
+                    bibref, bibrec = entry[1].split(',')
+                    tab, val = bibref.split(':')
+                    sig = (int(tab), int(val), int(bibrec))
+                    present = bool(run_sql("select * from aidPERSONIDPAPERS where bibref_table like %s and bibref_value = %s and bibrec = %s ", sig))
+                    if not present:
+                        ticket[0].remove(entry)
+                except: #No matter what goes wrong, that's an invalid entry in the ticket. let's discard it.
+                    ticket[0].remove(entry)
+
+    for ticket in list(tickets):
+        tags = [x[0] for x in ticket[0]]
+        if 'repeal' not in tags and 'confirm' not in tags:
+            tickets.remove(ticket)
+
+    return tickets
+
+
+def insert_user_log(userinfo, personid, action, tag, value, comment='', transactionid=0, timestamp=None, userid=None):
     '''
     Instert log entries in the user log table.
     For example of entres look at the table generation script.
