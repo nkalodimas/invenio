@@ -706,8 +706,6 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 response['resultCode'] = 103
 
             response['record_has_pdf'] = record_has_pdf(recid)
-            # order subfields alphabetically
-            record_order_subfields(record)
 
             response['cacheDirty'], response['record'], \
                 response['cacheMTime'], response['recordRevision'], \
