@@ -1364,7 +1364,7 @@ function onGetRecordSuccess(json){
 
   // the current mode should is indicated by the result from the server
   gReadOnlyMode = (json['inReadOnlyMode'] != undefined) ? json['inReadOnlyMode'] : false;
-  gRecLatestRev = (json['latestRevision'] != undefined) ? json['latestRevision'] : null;
+  gRecLatestRev = (json['lastRevision'] != undefined) ? json['lastRevision'] : null;
   gRecRevisionHistory = (json['revisionsHistory'] != undefined) ? json['revisionsHistory'] : null;
 
   if (json["resultCode"] === 103) {
@@ -2998,6 +2998,15 @@ function convertFieldIntoEditable(cell, shouldSelect){
     /* function to send edited content to */
     function(value) {
       newVal = onContentChange(value, this);
+      if (typeof newVal === "undefined") {
+        /* content could not be changed, keep old value */
+        var tmpArray = this.id.split('_');
+        var tag = tmpArray[1],
+            fieldPosition = tmpArray[2],
+            subfieldIndex = tmpArray[3];
+        var field = gRecord[tag][fieldPosition];
+        return field[0][subfieldIndex][1];
+      }
       if (newVal.substring(0,9) == "VOLATILE:"){
         $(cell).addClass("bibEditVolatileSubfield");
         newVal = newVal.substring(9);
@@ -3832,14 +3841,19 @@ function switchToReadOnlyMode(){
 function canSwitchToReadWriteMode(){
   /*A function determining if at current moment, it is possible to switch to the read/write mode*/
   // If the revision is not the newest -> return false
-  return true;
+  if (!(gRecRev === gRecLatestRev)) {
+    return false;
+  }
+  else {
+    return true;
+  }
 }
 
 
 function switchToReadWriteMode(){
   // swtching to a normal editing mode of BibEdit
   if (!canSwitchToReadWriteMode()){
-    alert("It is not possible to switch to the editing mode at the moment");
+    alert("Only the latest revision can be edited");
     return false;
   }
 
