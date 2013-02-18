@@ -29,7 +29,7 @@ pylib_DATA = docextract_pdf.py \
              refextract_engine.py \
              refextract_re.py \
              refextract_api.py \
-             refextract_api_unit_tests.py \
+             refextract_api_regression_tests.py \
              refextract_text.py \
              refextract_xml.py \
              refextract_find.py \
