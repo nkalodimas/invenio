@@ -29,6 +29,7 @@ from bibauthorid_prob_matrix import ProbabilityMatrix
 import numpy
 #mport cPickle as SER
 import msgpack as SER
+import bz2 as filehandler
 
 import gc
 
@@ -92,7 +93,7 @@ def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
 
     if report_cluster_status:
         destfile = '/tmp/baistats/cluster_status_report_pid_%s_lastname_%s_thrsh_%s' % (str(PID()),str(cluster_set.last_name),str(wedge_thrsh))
-        f = open(destfile, 'w')
+        f = filehandler.open(destfile, 'w')
         SER.dump([wedge_thrsh,cluster_set.last_name,report,cluster_set.num_all_bibs],f)
         f.close()
     gc.collect()

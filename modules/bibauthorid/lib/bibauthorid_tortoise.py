@@ -22,6 +22,7 @@ from datetime import datetime
 import os
 #import cPickle as SER
 import msgpack as SER
+import bz2 as filehandler
 
 import gc
 import matplotlib.pyplot as plt
@@ -281,7 +282,7 @@ def tortoise_coefficient_statistics(pickle_output=None, generate_graphs=True):
             if i%1000 ==0:
                 gen_graphs(True)
 
-        f = open(fi,'r')
+        f = filehandler.open(fi,'r')
         status = i/fnum
         update_status(status, 'Loading '+ fi[fi.find('lastname')+9:])
         contents = SER.load(f)
