@@ -30,7 +30,8 @@ from invenio.testutils import make_test_suite, run_test_suite
 from invenio.dbquery import run_sql
 
 from invenio.sequtils import SequenceGenerator
-from invenio.sequtils_texkey import TexkeySeq, TexkeyNoAuthorError
+from invenio.sequtils_texkey import TexkeySeq, TexkeyNoAuthorError, \
+                                    task_run_core
 
 
 def get_bibrecord_mock(_):
@@ -203,9 +204,17 @@ class TestTexkeySequenceGeneratorClass(unittest.TestCase):
                                                                self.texkey2,
                                                                self.texkey3))
 
+
+class TestTexkeydaemonClass(unittest.TestCase):
+    def test_task_run_core(self):
+        """ Basic task_run_core check """
+        task_run_core()
+
+
 TEST_SUITE = make_test_suite(TestIntSequenceGeneratorClass,
                              TestCnumSequenceGeneratorClass,
-                             TestTexkeySequenceGeneratorClass)
+                             TestTexkeySequenceGeneratorClass,
+                             TestTexkeydaemonClass)
 
 
 if __name__ == "__main__":

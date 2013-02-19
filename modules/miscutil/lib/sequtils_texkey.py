@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 ##
 ## This file is part of Invenio.
-## Copyright (C) 2012 CERN.
+## Copyright (C) 2012, 2013 CERN.
 ##
 ## Invenio is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -21,9 +21,33 @@ from invenio.sequtils import SequenceGenerator
 from invenio.bibedit_utils import get_bibrecord
 from invenio.bibrecord import record_get_field_value, create_record
 
+# Imports related to the texkey generation daemon
+from invenio.search_engine import perform_request_search, get_record
+from invenio.bibrecord import field_get_subfield_values, \
+                              record_get_field_instances, \
+                              record_add_field, print_rec
+from invenio.config import CFG_TMPSHAREDDIR, CFG_VERSION
+from invenio.bibtask import task_init, write_message, \
+    task_low_level_submission, task_update_progress, \
+    task_sleep_now_if_required
+
 import string
 import random
+import os
 from unidecode import unidecode
+from tempfile import mkstemp
+
+DESCRIPTION = """
+    Generate TexKeys in records without one
+"""
+
+HELP_MESSAGE = """
+  Examples:
+   (run a daemon job every hour)
+      bibtex -s 1h
+"""
+
+PREFIX = "bibtex"
 
 TEXKEY_MAXTRIES = 10
 
@@ -151,3 +175,149 @@ class TexkeySeq(SequenceGenerator):
             tries += 1
 
         return texkey
+
+
+### Functions related to texkey generator daemon ###
+
+def submit_task(to_submit, mode, sequence_id):
+    """ calls bibupload with all records to be modified
+
+    @param to_submit: list of xml snippets to be submitted
+    @type: list
+    @param mode: mode to be used in bibupload
+    @type: list
+    @param sequence_id: sequence id to be included in the task_id
+    @type: str
+
+    @return: id of the submitted task
+    @rtype: int
+    """
+    (temp_fd, temp_path) = mkstemp(prefix=PREFIX,
+                                   dir=CFG_TMPSHAREDDIR)
+    temp_file = os.fdopen(temp_fd, 'w')
+    temp_file.write('<?xml version="1.0" encoding="UTF-8"?>')
+    temp_file.write('<collection>')
+    for el in to_submit:
+        temp_file.write(el)
+    temp_file.write('</collection>')
+    temp_file.close()
+
+    return task_low_level_submission('bibupload', PREFIX, '-P', '3', '-I',
+                                     sequence_id, '-%s' % mode,
+                                     temp_path, '--notimechange')
+
+
+def submit_bibindex_task(to_update, sequence_id):
+    """ submits a bibindex task for a set of records
+
+    @param to_update: list of recids to be updated by bibindex
+    @type: list
+    @param sequence_id: sequence id to be included in the task_id
+    @type: str
+
+    @return: id of bibindex task
+    @rtype: int
+    """
+    recids = [str(r) for r in to_update]
+    return task_low_level_submission('bibindex', PREFIX, '-I',
+                                      sequence_id, '-P', '2', '-w', 'global',
+                                      '-i', ','.join(recids))
+
+
+def process_chunk(to_process, sequence_id):
+    """ submit bibupload task and wait for it to finish
+
+    @param to_process: list of marcxml snippets
+    @type: list
+    """
+    task_id = submit_task(to_process, 'a', sequence_id)
+    return task_id
+
+
+def create_xml(recid, texkey):
+    """ Create the marcxml snippet with the new texkey
+
+    @param recid: recid of the record to be updated
+    @type: int
+    @param texkey: texkey that has been generated
+    @type: str
+
+    @return: marcxml with the fields to be record_add_field
+    @rtype: str
+    """
+    record = {}
+    record_add_field(record, '001', controlfield_value=str(recid))
+    subfields_toadd = [('a', texkey), ('9', 'INSPIRETeX')]
+    record_add_field(record, tag='035', subfields=subfields_toadd)
+    return print_rec(record)
+
+
+def task_run_core():
+    """ Performs a search to find records without a texkey, generates a new
+    one and uploads the changes in chunks """
+    recids = perform_request_search(p='-035:spirestex -035:inspiretex', cc='HEP')
+
+    write_message("Found %s records to assign texkeys" % len(recids))
+    processed_recids = []
+    xml_to_process = []
+    for count, recid in enumerate(recids):
+        write_message("processing recid %s" % recid)
+
+        # Check that the record does not have already a texkey
+        has_texkey = False
+        recstruct = get_record(recid)
+        for instance in record_get_field_instances(recstruct, tag="035", ind1="", ind2=""):
+            try:
+                provenance = field_get_subfield_values(instance, "9")[0]
+            except IndexError:
+                provenance = ""
+            try:
+                value = field_get_subfield_values(instance, "z")[0]
+            except IndexError:
+                value = ""
+            provenances = ["SPIRESTeX", "INSPIRETeX"]
+            if provenance in provenances and value:
+                has_texkey = True
+                write_message("INFO: Record %s has already texkey %s" % (recid, value))
+
+        if not has_texkey:
+            TexKeySeq = TexkeySeq()
+            new_texkey = ""
+            try:
+                new_texkey = TexKeySeq.next_value(recid)
+            except TexkeyNoAuthorError:
+                write_message("WARNING: Record %s has no first author or collaboration" % recid)
+                continue
+            write_message("Created texkey %s for record %d" % (new_texkey, recid))
+            xml = create_xml(recid, new_texkey)
+            processed_recids.append(recid)
+            xml_to_process.append(xml)
+
+        task_update_progress("Done %d out of %d." % (count, len(recids)))
+        task_sleep_now_if_required()
+
+    # sequence ID to be used in all subsequent tasks
+    sequence_id = str(random.randrange(1, 4294967296))
+    if xml_to_process:
+        process_chunk(xml_to_process, sequence_id)
+
+    # Finally, index all the records processed
+    if processed_recids:
+        submit_bibindex_task(processed_recids, sequence_id)
+
+    return True
+
+
+def main():
+    """Constructs the bibtask."""
+    # Build and submit the task
+    task_init(authorization_action='runtexkeygeneration',
+        authorization_msg="Texkey generator task submission",
+        description=DESCRIPTION,
+        help_specific_usage=HELP_MESSAGE,
+        version="Invenio v%s" % CFG_VERSION,
+        specific_params=("", []),
+        # task_submit_elaborate_specific_parameter_fnc=parse_option,
+        # task_submit_check_options_fnc=check_options,
+        task_run_fnc=task_run_core
+    )
