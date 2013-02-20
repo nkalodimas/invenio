@@ -204,7 +204,7 @@ def submit_task(to_submit, mode, sequence_id):
 
     return task_low_level_submission('bibupload', PREFIX, '-P', '3', '-I',
                                      sequence_id, '-%s' % mode,
-                                     temp_path, '--notimechange')
+                                     temp_path)
 
 
 def submit_bibindex_task(to_update, sequence_id):
@@ -302,8 +302,9 @@ def task_run_core():
         process_chunk(xml_to_process, sequence_id)
 
     # Finally, index all the records processed
-    if processed_recids:
-        submit_bibindex_task(processed_recids, sequence_id)
+    #FIXME: Waiting for sequence id to be fixed
+    # if processed_recids:
+    #     submit_bibindex_task(processed_recids, sequence_id)
 
     return True
 
