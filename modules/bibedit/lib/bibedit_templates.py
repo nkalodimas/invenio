@@ -291,15 +291,18 @@ class Template:
                 'circulationmenu': bibcirculationpanel
                 }
 
-    def history_comparebox(self, ln, revdate, revdate_cmp, comparison):
+    def history_comparebox(self, ln, revdate, revdate_cmp, person1, person2, comparison):
         """ Display the bibedit history comparison box. """
         _ = gettext_set_language(ln)
-        title = '<b>%(comp)s</b><br /><span class="diff_field_added">%(rev)s %(revdate)s</span>\
-        <br /><span class="diff_field_deleted">%(rev)s %(revdate_cmp)s</span>' % {
+        title = '<b>%(comp)s</b><br /><span class="diff_field_added">\
+        %(rev)s %(revdate)s %(person1)s</span><br /><span class="diff_field_deleted">\
+        %(rev)s %(revdate_cmp)s %(person2)s</span>' % {
             'comp': _('Comparison of:'),
             'rev': _('Revision'),
             'revdate': revdate,
-            'revdate_cmp': revdate_cmp}
+            'revdate_cmp': revdate_cmp,
+            'person1': person1 and 'by ' + person1 or '',
+            'person2': person2 and 'by ' + person2 or ''}
         return '''
        <div class="bibEditHistCompare">
          <p>%s</p>

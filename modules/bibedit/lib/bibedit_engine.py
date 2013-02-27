@@ -58,7 +58,7 @@ from invenio.bibedit_dblayer import get_name_tags_all, reserve_record_id, \
     get_related_hp_changesets, get_hp_update_xml, delete_hp_change, \
     get_record_last_modification_date, get_record_revision_author, \
     get_marcxml_of_record_revision, delete_related_holdingpen_changes, \
-    get_record_revisions
+    get_record_revisions, get_info_of_record_revision
 
 from invenio.bibedit_utils import cache_exists, cache_expired, \
     create_cache_file, delete_cache_file, get_bibrecord, \
@@ -323,6 +323,8 @@ def perform_request_compare(ln, recid, rev1, rev2):
     body = ""
     errors = []
     warnings = []
+    person1 = ""
+    person2 = ""
 
     if (not record_revision_exists(recid, rev1)) or \
        (not record_revision_exists(recid, rev2)):
@@ -336,8 +338,15 @@ def perform_request_compare(ln, recid, rev1, rev2):
         comparison = show_diff(marc1, marc2)
         job_date1 = "%s-%s-%s %s:%s:%s" % re_revdate_split.search(rev1).groups()
         job_date2 = "%s-%s-%s %s:%s:%s" % re_revdate_split.search(rev2).groups()
-        body += bibedit_templates.history_comparebox(ln, job_date1,
-                                                 job_date2, comparison)
+        # Geting the author of each revision
+        info1 = get_info_of_record_revision(recid, job_date1)
+        info2 = get_info_of_record_revision(recid, job_date2)
+        if info1:
+            person1 = info1[0][1]
+        if info2:
+            person2 = info2[0][1]
+        body += bibedit_templates.history_comparebox(ln, job_date1, job_date2,
+                                                person1, person2, comparison)
     return body, errors, warnings
 
 def perform_request_newticket(recid, uid):
