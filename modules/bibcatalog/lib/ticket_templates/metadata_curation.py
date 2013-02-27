@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+##
 ## This file is part of Invenio.
 ## Copyright (C) 2013 CERN.
 ##
@@ -15,18 +17,28 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
-SUBDIRS = ticket_templates
+"""
+BibCatalog template
+"""
+from invenio.bibrecord import record_get_field_instances, \
+                              field_get_subfield_values
 
-pylibdir = $(libdir)/python/invenio
 
-pylib_DATA = bibcatalog.py \
-             bibcatalog_templates.py \
-             bibcatalog_system.py \
-             bibcatalog_system_rt.py \
-             bibcatalog_system_rt_unit_tests.py \
-             bibcatalog_task.py \
-             bibcatalog_dblayer.py
+def check_record(record):
+    """ Expects a record object """
+    return _is_core_record(record)
 
-EXTRA_DIST = $(pylib_DATA)
 
-CLEANFILES = *~ *.tmp *.pyc
+def process_ticket(record):
+    return "Ticket body"
+
+
+def _is_core_record(record):
+    """
+    Returns True/False if given record is a core record.
+    """
+    for collection_tag in record_get_field_instances(record, "980"):
+        for collection in field_get_subfield_values(collection_tag, 'a'):
+            if collection.lower() == "core":
+                return True
+    return False

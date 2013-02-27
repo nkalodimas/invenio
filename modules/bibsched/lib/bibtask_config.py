@@ -25,13 +25,30 @@ import os
 from invenio.config import CFG_LOGDIR, CFG_PYLIBDIR
 
 # Which tasks are recognized as valid?
-CFG_BIBTASK_VALID_TASKS = ("bibindex", "bibupload", "bibreformat",
-                           "webcoll", "bibtaskex", "bibrank",
-                           "oaiharvest", "oairepositoryupdater", "inveniogc",
-                           "webstatadmin", "bibclassify", "bibexport",
-                           "dbdump", "batchuploader", "bibauthorid", 'bibencode',
-                           "bibtasklet", "refextract", "bibcircd", "bibsort",
-                           "webauthorprofile", "selfcites")
+CFG_BIBTASK_VALID_TASKS = ("bibindex",
+                           "bibupload",
+                           "bibreformat",
+                           "webcoll",
+                           "bibtaskex",
+                           "bibrank",
+                           "oaiharvest",
+                           "oairepositoryupdater",
+                           "inveniogc",
+                           "webstatadmin",
+                           "bibclassify",
+                           "bibexport",
+                           "dbdump",
+                           "batchuploader",
+                           "bibauthorid",
+                           "bibencode",
+                           "bibtasklet",
+                           "refextract",
+                           "bibcircd",
+                           "bibsort",
+                           "webauthorprofile",
+                           "selfcites",
+                           "bibcatalog",
+                           )
 
 # Tasks that should be run as standalone task
 CFG_BIBTASK_MONOTASKS = ("bibupload", "dbdump", "inveniogc")
