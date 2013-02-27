@@ -480,7 +480,7 @@ div .boxleft_2 {
             <option value="1">%(text_contains)s</option>
             <option value="2">%(text_not_exists)s</option>
         </select>
-        <input id="textBoxCondition" class="txtValue textBoxCondition" type="text" value="%(text_condition)s"/>
+        <input id="textBoxCondition" class="txtValue textBoxCondition" type="text" placeholder="%(text_condition)s"/>
         </td>
     </tr>
     <tr class="conditionActOnFields">
@@ -579,7 +579,7 @@ div .boxleft_2 {
             <option value="1">%(text_contains)s</option>
             <option value="2">%(text_not_exists)s</option>
         </select>
-        <input id="textBoxCondition" class="txtValue textBoxCondition" type="text" value="%(text_condition)s"/>
+        <input id="textBoxCondition" class="txtValue textBoxCondition" type="text" placeholder="%(text_condition)s"/>
         </td>
     </tr>
     <tr class="conditionActOnFields">
