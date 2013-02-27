@@ -28,14 +28,33 @@ from invenio.config import CFG_LOGDIR, CFG_PYLIBDIR, CFG_INSPIRE_SITE, \
                            CFG_BIBSCHED_LOGDIR
 
 # Which tasks are recognized as valid?
-CFG_BIBTASK_VALID_TASKS = ("bibindex", "bibupload", "bibreformat",
-                           "webcoll", "bibtaskex", "bibrank",
-                           "oaiharvest", "oairepositoryupdater", "inveniogc",
-                           "webstatadmin", "bibclassify", "bibexport",
-                           "dbdump", "batchuploader", "bibauthorid", 'bibencode',
-                           "bibtasklet", "refextract", "bibsort",
-                           "webauthorprofile", "selfcites", "arxiv-pdf-checker",
-                           "hepdataharvest", "bibtex")
+CFG_BIBTASK_VALID_TASKS = ("bibindex",
+                           "bibupload",
+                           "bibreformat",
+                           "webcoll",
+                           "bibtaskex",
+                           "bibrank",
+                           "oaiharvest",
+                           "oairepositoryupdater",
+                           "inveniogc",
+                           "webstatadmin",
+                           "bibclassify",
+                           "bibexport",
+                           "dbdump",
+                           "batchuploader",
+                           "bibauthorid",
+                           "bibencode",
+                           "bibtasklet",
+                           "refextract",
+                           "bibcircd",
+                           "bibsort",
+                           "webauthorprofile",
+                           "selfcites",
+                           "bibcatalog",
+                           "arxiv-pdf-checker",
+                           "hepdataharvest",
+                           "bibtex"
+                           )
 
 # Tasks that should be run as standalone task
 if CFG_INSPIRE_SITE:
