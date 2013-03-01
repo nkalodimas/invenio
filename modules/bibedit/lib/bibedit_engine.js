@@ -1286,8 +1286,11 @@ function getRecord(recID, recRev, onSuccess){
    *             interface
    */
 
-  // Temporary store the record ID by attaching it to the onGetRecordSuccess
-  // function.
+  /* Make sure the record revision exists, otherwise default to current */
+  if ($.inArray(recRev, gRecRevisionHistory) === -1) {
+    recRev = 0;
+  }
+
   if (onSuccess == undefined)
     onSuccess = onGetRecordSuccess;
   if (recRev != undefined && recRev != 0){
