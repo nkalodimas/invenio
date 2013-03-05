@@ -861,6 +861,101 @@ def set_processed_external_recids(pid, recid_list):
     dbapi.set_processed_external_recids(pid, recid_list_str)
 
 
+def login_status(req):
+    
+    login_status = dict()
+    login_status['uid'] = getUid(req)
+    login_status['logged_in_sources'] = [] 
+    
+    if login_status['uid'] > 0:
+        login_status['logged_in'] = False
+        return login_status
+    
+    login_status['logged_in'] = True
+    
+    for source in CFG_BIBAUTHORID_SOURCES:          #move
+       if source_exist(source):                     #implement
+           login_status['logged_in_sources'].append(source) 
+    
+    return login_status
+
+
+
+    for source in CFG_BIBAUTHORID_SOURCES:
+           collect_info(source)
+
+
+def get_ext_sources_info(req, logged_in_sources):
+    uinfo = collect_user_info(req)
+    user_sources_info = dict()
+    
+    for source in logged_in_sourced:
+        user_sources_info[source] = ext_sources_info_functions[source](uinfo)
+    
+    return user_sources_info
+
+
+def get_source_info(source, uinfo):
+    return 
+    
+
+
+def get_ext_sources_recids(req, logged_in_sources):
+    uinfo = collect_user_info(req)
+    external_recids = []
+    
+    for source in logged_in_sources:
+        external_recid.append(get_source_recids(uinfo, source))     #implement
+    
+    return external_recid
+
+def collect_info(source):
+    pass
+
+def get_user_pid(uid):
+    
+    pid, pid_found = dbapi.get_personid_from_uid([[uid]])
+    
+    if not pid_found:
+        return -1
+    
+    return pid[0]
+
+
+def claim_papers_from_source_to_inspire_profile(pid, sources_recids):
+
+    pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
+    missing_bibrecs = found_bibrecs - pid_bibrecs
+    #present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
+
+    #assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
+
+    tempticket = []
+    #now we have to open the tickets...
+    #person_papers contains the papers which are already assigned to the person and came from arxive,
+    #they can be claimed regardless
+
+    for bibrec in missing_bibrecs:
+        tempticket.append({'pid':pid, 'bibref':str(bibrec), 'action':'confirm'})
+
+    #check if ticket targets (bibref for pid) are already in ticket
+    for t in list(tempticket):
+        for e in list(ticket):
+            if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
+                ticket.remove(e)
+        ticket.append(t)
+
+    session.dirty = True
+    
+    return pid
+
+
+def match_profile(sources_recids, sources_info):
+    top5_list = dbapi.find_top5_personid_for_new_arXiv_user(user_source_info['found_bibrecs'],
+        nameapi.create_normalized_name(nameapi.split_name_parts(user_source_info['surname'] + ', ' + user_source_info['name'])))
+    return ("top5_list", top5_list)        
+
+   
 def arxiv_login(req, picked_profile=None):
     '''
     Log in through arxive. If user already associated to a personid, returns the personid.
@@ -887,9 +982,6 @@ def arxiv_login(req, picked_profile=None):
             session['personinfo'] = pinfo
             pinfo["ticket"] = []
         session.dirty = True
-
-
-
 
     session_bareinit(req)
     session = get_session(req)
@@ -1387,3 +1479,8 @@ def sign_assertion(robotname, assertion):
         secr = ""
 
     return robot.sign(secr, assertion)
+
+
+CFG_BIBAUTHORID_SOURCES = ['Arxiv', 'Orcid']
+ext_recid_types = {'Arxiv': "arxiv_id", "Orcid": "doi" }
+ext_sources_info_functions{'Arxiv': }

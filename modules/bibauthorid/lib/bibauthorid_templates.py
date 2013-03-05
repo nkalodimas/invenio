@@ -1720,6 +1720,62 @@ class Template:
         return '<div class="pagebody"><div class="pagebodystripemiddle">'
 
 
+    def tmpl_welcome_unique_source(self, source):
+        '''
+        SSO landing/welcome page.
+        '''
+        html = []
+        h = html.append
+        h('<p><b>Congratulations! you have now successfully connected to INSPIRE via %s!</b></p>' % source)
+
+        h('<p>Right now, you can verify your'
+        ' publication records, which will help us to produce better publication lists and'
+        ' citation statistics.'
+        '</p>')
+
+        h('<p>We are currently importing your publication list from %s .'
+        'When we\'re done, you\'ll see a link to verify your'
+        ' publications below; please claim the papers that are yours '
+        ' and remove the ones that are not. This information will be automatically processed'
+        ' or be sent to our operator for approval if needed, usually within 24'
+        ' hours.'
+        '</p>' % source)
+        h('If you have '
+          'any questions or encounter any problems please contact us here: '
+          '<a rel="nofollow" href="mailto:%s">%s</a></p>'
+          % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+             CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
+
+        return "\n".join(html)
+
+    def tmpl_welcome_source(self, sources_list):
+        '''
+        SSO landing/welcome page.
+        '''
+        html = []
+        h = html.append
+        h('<p><b>Congratulations! you have now successfully connected to INSPIRE as user %s via %s!</b></p>' % (', ').join(sources_list))
+
+        h('<p>Right now, you can verify your'
+        ' publication records, which will help us to produce better publication lists and'
+        ' citation statistics.'
+        '</p>')
+
+        h('<p>We are currently importing your publication list from %s .'
+        'When we\'re done, you\'ll see a link to verify your'
+        ' publications below; please claim the papers that are yours '
+        ' and remove the ones that are not. This information will be automatically processed'
+        ' or be sent to our operator for approval if needed, usually within 24'
+        ' hours.'
+        '</p>' % (', ').join(sources_list))
+        h('If you have '
+          'any questions or encounter any problems please contact us here: '
+          '<a rel="nofollow" href="mailto:%s">%s</a></p>'
+          % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+             CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
+
+        return "\n".join(html)
+
     def tmpl_welcome_arxiv(self):
         '''
         SSO landing/welcome page.

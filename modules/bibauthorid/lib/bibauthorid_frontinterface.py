@@ -285,3 +285,9 @@ def check_personids_availability(picked_profile, uid):
         else:
             return create_new_person(uid, uid_is_owner=True)
 
+def find_most_compatible_person( bibrecs, name_variants ):
+    pass
+
+
+def person_search( param1, param2):
+    pass
