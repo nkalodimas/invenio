@@ -3512,6 +3512,9 @@ function onDeleteClick(event){
   addUndoOperation(urHandler);
   var ajaxData = deleteFields(toDelete, urHandler);
 
+  // Disable the delete button
+  $('#btnDeleteSelected').attr('disabled', 'disabled');
+
   queue_request(ajaxData);
 }
 
@@ -3642,14 +3645,15 @@ function onRevertClick(revisionId){
   if (displayAlert('confirmRevert')){
     createReq({recID: gRecID, revId: revisionId, requestType: 'revert',
          force: onSubmitClick.force}, function(json){
-    // Submission was successful.
+      // Submission was successful.
       changeAndSerializeHash({state: 'submit', recid: gRecID});
       var resCode = json['resultCode'];
       cleanUp(!gNavigatingRecordSet, '', null, true);
-      updateStatus('report', gRESULT_CODES[resCode]);
-      displayMessage(resCode);
       // clear the list of record revisions
-      resetBibeditState()
+      resetBibeditState();
+      displayMessage(resCode, false, [json['recID']]);
+      updateToolbar(false);
+      updateStatus('report', gRESULT_CODES[resCode]);
     });
     onSubmitClick.force = false;
   }
