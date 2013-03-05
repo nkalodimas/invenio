@@ -26,18 +26,42 @@ import sys
 import os
 
 from invenio.bibtask import task_init, task_set_option, \
-                            task_get_option, write_message
+                            task_get_option, write_message, \
+                            task_update_progress, \
+                            task_sleep_now_if_required
 from invenio.config import CFG_VERSION, \
                            CFG_SITE_SECURE_URL, \
                            CFG_BIBCATALOG_SYSTEM, \
                            CFG_PYLIBDIR
-from invenio.docextract_task import split_ids
+from invenio.docextract_task import split_ids, \
+                                    fetch_last_updated, \
+                                    store_last_updated
 from invenio.search_engine import perform_request_search
 from invenio.bibcatalog import bibcatalog_system
+from invenio.bibcatalog_utils import record_id_from_record
 from invenio.bibedit_utils import get_bibrecord
 from invenio.bibrecord import record_get_field_instances, \
                               field_get_subfield_values
 from invenio.pluginutils import PluginContainer
+
+
+class BibCatalogTicket(object):
+    """
+    Represents a Ticket to create using BibCatalog API.
+    """
+    def __init__(self, subject="", text="", queue="", ticketid=None, recid=""):
+        self.subject = subject
+        self.queue = queue
+        self.text = text
+        self.ticketid = ticketid
+        self.recid = recid
+
+    def submit(self):
+        self.ticketid = bibcatalog_system.ticket_submit(subject=self.subject,
+                                                        queue=self.queue,
+                                                        text=self.text,
+                                                        recordid=self.recid)
+        return self.ticketid
 
 
 def task_check_options():
@@ -53,7 +77,7 @@ def task_check_options():
             ' to specify which records to run on'
         return False
 
-    ticket_plugins = []
+    ticket_plugins = {}
     all_plugins, error_messages = load_ticket_plugins()
     if error_messages:
         # We got broken plugins. We alert only for now.
@@ -65,7 +89,7 @@ def task_check_options():
             if ticket not in all_plugins.get_enabled_plugins():
                 print >>sys.stderr, 'Error: plugin %s is broken or does not exist'
                 return False
-            ticket_plugins.append(all_plugins[ticket])
+            ticket_plugins[ticket] = all_plugins[ticket]
     else:
         ticket_plugins = all_plugins.get_enabled_plugins()
     task_set_option('tickets', ticket_plugins)
@@ -77,7 +101,7 @@ def task_check_options():
     res = bibcatalog_system.check_system()
     if res:
         print >>sys.stderr, 'Error while checking cataloging system: %s' % \
-                              (res,)
+            (res,)
     return True
 
 
@@ -112,29 +136,63 @@ def task_parse_options(key, value, opts, args):
             task_set_option('tickets', tickets)
         for item in value.split(','):
             tickets.update(item.strip())
-
+    elif key in ('-q', '--query'):
+        query = task_get_option('query')
+        if not query:
+            query = set()
+            task_set_option('query', query)
+        query.update(value)
     return True
 
 
 def task_run_core():
     """
+    Main daemon task.
+
+    Returns True when run successfully. False otherwise.
     """
     tickets_to_apply = task_get_option('tickets')
-    records_concerned = load_records()
+    write_message("Ticket plugins found: %s" %
+                  (str(tickets_to_apply),), verbose=9)
 
-    for ticket in tickets_to_apply:
-        for record in records_concerned:
-            if ticket['check_record'](record):
-                write_message("Record OK")
-                res = ticket['process_ticket'](record)
-                write_message("Out: %s" % (res,))
-            else:
-                write_message("Record NOT OK")
+    records_concerned = load_records()
+    write_message("Number of records found: %i" %
+                  (len(records_concerned),), verbose=9)
+
+
+    # CHECK IF TICKET CREATED. recid Y in custom field in queue X
+
+    records_processed = []
+    for record in records_concerned:
+        task_update_progress("Processing records %s/%s (%i %%)" \
+                             % (len(records_processed), len(records_concerned), \
+                                int(float(len(records_processed)) / len(records_concerned) * 100)))
+        task_sleep_now_if_required(can_stop_too=False)
+        for ticket_name, plugin in tickets_to_apply.items():
+            if plugin:
+                if plugin['check_record'](record):
+                    subject, text, queue = plugin['generate_ticket'](record)
+                    recid = record_id_from_record(record)
+                    ticket = BibCatalogTicket(subject=subject,
+                                              text=text,
+                                              queue=queue,
+                                              recid=recid)
+                    if ticket.submit():
+                        write_message("Ticket #%s created for %i" %
+                                      (ticket.ticketid, recid))
+                    else:
+                        write_message("Error submitting ticket for record %s" %
+                                      (recid,))
+                else:
+                    write_message("Record NOT OK")
+    return True
 
 
 def load_ticket_plugins():
     """
     Will load all the ticket plugins found under CFG_BIBCATALOG_PLUGIN_DIR.
+
+    Returns a tuple of plugin_object, list of errors.
     """
     #TODO add to configfile
     CFG_BIBCATALOG_PLUGIN_DIR = os.path.join(CFG_PYLIBDIR,
@@ -169,6 +227,37 @@ def load_records():
             write_message("Error: could not load record %s" % (recid,))
             continue
         loaded_records.append(record)
+
+    query_given = task_get_option("query")
+    if query_given:
+        write_message("Performing a search query")
+
+        # We are doing a search query, rg=0 allows the return of all results.
+        result = perform_request_search(p=query, \
+                                        cc=CFG_APSHARVEST_SEARCH_COLLECTION, \
+                                        of='id', \
+                                        rg=0, \
+                                        wl=0)
+        for recid in result:
+            final_record_list.append(APSRecord(recid))
+
+    last_id, last_date = fetch_last_updated(name="apsharvest")
+    if records in ("new", "modified", "both"):
+        # We fetch records from the database
+        records_found = []
+        if records == "new":
+            records_found = get_all_new_records(since=last_date, last_id=last_id)
+        elif records == "modified":
+            records_found = get_all_modified_records(since=last_date, last_id=last_id)
+        elif records == "both":
+            records_found.extend(get_all_new_records(since=last_date, last_id=last_id))
+            records_found.extend(get_all_modified_records(since=last_date, last_id=last_id))
+
+        for recid, date in records_found:
+            final_record_list.append(APSRecord(recid, date=date))
+
+
+
     return loaded_records
 
 
@@ -183,9 +272,11 @@ def _bibcatalog_plugin_builder(plugin_name, plugin_code):
     @type plugin_code: module
     @return: the plugin
     """
+    if plugin_name == "__init__":
+        return
     final_plugin = {}
     final_plugin["check_record"] = getattr(plugin_code, "check_record", None)
-    final_plugin["process_ticket"] = getattr(plugin_code, "process_record", None)
+    final_plugin["process_ticket"] = getattr(plugin_code, "process_ticket", None)
     return final_plugin
 
 
@@ -203,6 +294,7 @@ def main():
   -r, --recids       Record id for extraction.
   -c, --collections  Entire Collection for extraction.
   -t, --tickets=     All arxiv modified records within last week
+  -q, --query=       Specify a search query to fetch records.
 
   Examples:
    (run a periodical daemon job on a given ticket template)
@@ -214,13 +306,14 @@ def main():
 
 """,
         version="Invenio v%s" % CFG_VERSION,
-        specific_params=("hVv:r:c:t:am",
+        specific_params=("hVv:r:c:t:q:am",
                             ["help",
                              "version",
                              "verbose=",
                              "recids=",
                              "collections=",
-                             "tickets="
+                             "tickets=",
+                             "query=",
                              "new",
                              "modified"]),
         task_submit_elaborate_specific_parameter_fnc=task_parse_options,

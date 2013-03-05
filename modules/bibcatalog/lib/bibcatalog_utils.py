@@ -1,0 +1,79 @@
+# -*- coding: utf-8 -*-
+##
+## This file is part of Invenio.
+## Copyright (C) 2013 CERN.
+##
+## Invenio is free software; you can redistribute it and/or
+## modify it under the terms of the GNU General Public License as
+## published by the Free Software Foundation; either version 2 of the
+## License, or (at your option) any later version.
+##
+## Invenio is distributed in the hope that it will be useful, but
+## WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+## General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with Invenio; if not, write to the Free Software Foundation, Inc.,
+## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+
+"""
+BibCatalog utility functions
+"""
+from invenio.bibrecord import record_get_field_instances, \
+                              field_get_subfield_values
+
+
+def record_in_collection(record, collection):
+    """
+    Returns True/False if given record is a core record.
+    """
+    for collection_tag in record_get_field_instances(record, "980"):
+        for coll in field_get_subfield_values(collection_tag, 'a'):
+            if coll.lower() == collection.lower():
+                return True
+    return False
+
+
+def record_id_from_record(record):
+    """
+    Given a BibRecord object, returns the record id.
+    """
+    if "001" in record:
+        return record['001'][0][3]
+
+
+def record_get_value_with_provenence(record, provenence_value, provenence_code,
+                                     tag, ind1=" ", ind2=" ", code=""):
+    """
+    Retrieves the value of the given field(s) with given provenence code/value
+    combo.
+
+    For example:
+
+    If one would like to extract all subject categories (65017 $a) with a given
+    provenence, in this case "arXiv" in $9:
+
+    65017 $ahep-ph$9arXiv
+    65017 $ahep-th$9arXiv
+    65017 $aMath$9INSPIRE
+
+    this function would return ["hep-ph", "hep-th"]
+
+    Returns a list of subfield values.
+    """
+    fields = record_get_field_instances(record, tag, ind1, ind2)
+    final_values = []
+    for subfields, dummy1, dummy2, dummy3, dummy4 in fields:
+        for code, value in subfields:
+            if code == provenence_code and value == provenence_value:
+                # We have a hit. Stop to look for right value
+                break
+        else:
+            # No hits.. continue to next field
+            continue
+        for subfield_code, value in subfields:
+            if subfield_code == code:
+                # This is the value we are looking for with the correct provenence
+                final_values.append(value)
+    return final_values
