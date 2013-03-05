@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-##
-## This file is part of Invenio.
-## Copyright (C) 2011, 2012 CERN.
-##
-## Invenio is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 2 of the
-## License, or (at your option) any later version.
-##
-## Invenio is distributed in the hope that it will be useful, but
-## WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-## General Public License for more details.
-##
-## You should have received a copy of the GNU General Public License
-## along with Invenio; if not, write to the Free Software Foundation, Inc.,
-## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+# #
+# # This file is part of Invenio.
+# # Copyright (C) 2011, 2012 CERN.
+# #
+# # Invenio is free software; you can redistribute it and/or
+# # modify it under the terms of the GNU General Public License as
+# # published by the Free Software Foundation; either version 2 of the
+# # License, or (at your option) any later version.
+# #
+# # Invenio is distributed in the hope that it will be useful, but
+# # WITHOUT ANY WARRANTY; without even the implied warranty of
+# # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# # General Public License for more details.
+# #
+# # You should have received a copy of the GNU General Public License
+# # along with Invenio; if not, write to the Free Software Foundation, Inc.,
+# # 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
 """ Bibauthorid Web Interface Logic and URL handler. """
 
@@ -39,10 +39,10 @@ from invenio.bibauthorid_config import AID_ENABLED, CLAIMPAPER_ADMIN_ROLE, CLAIM
                             PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT, \
                             BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS
 
-from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE #, CFG_SITE_SECURE_URL
+from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE  # , CFG_SITE_SECURE_URL
 
 from invenio.webpage import page, pageheaderonly, pagefooteronly
-from invenio.messages import gettext_set_language #, wash_language
+from invenio.messages import gettext_set_language  # , wash_language
 from invenio.template import load
 from invenio.webinterface_handler import wash_urlargd, WebInterfaceDirectory
 from invenio.session import get_session
@@ -173,7 +173,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # ln = wash_language(argd['ln'])
 
         rt_ticket_id = argd['ticketid']
-        req.argd = argd #needed for perform_req_search
+        req.argd = argd  # needed for perform_req_search
         session = get_session(req)
         ulevel = self.__get_user_role(req)
         uid = getUid(req)
@@ -364,7 +364,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @return: call dispatcher dictionary
         @rtype: dict
         '''
-        #author_detail_functions
+        # author_detail_functions
         adf = dict()
         adf['title'] = dict()
         adf['optional_menu'] = dict()
@@ -650,7 +650,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             ln = CFG_SITE_LANG
         _ = gettext_set_language(ln)
 
-        links = [] # ['delete', 'commit','del_entry','commit_entry']
+        links = []  # ['delete', 'commit','del_entry','commit_entry']
         tabs = ['records', 'repealed', 'review']
         verbiage_dict = {'confirmed': 'Papers', 'repealed': _('Papers removed from this profile'),
                                          'review': _('Papers in need of review'),
@@ -1099,7 +1099,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 recid = webapi.wash_integer_id(transaction['bibref'])
 
                 if recid < 0:
-                    continue #this doesn't look like a recid--discard!
+                    continue  # this doesn't look like a recid--discard!
 
                 pid = transaction['pid']
 
@@ -1110,7 +1110,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     (pid in bibrefs_to_confirm
                      and 'bibrecs' in bibrefs_to_confirm[pid]
                      and recid in bibrefs_to_confirm[pid]['bibrecs'])):
-                    continue # we already assessed those bibrefs.
+                    continue  # we already assessed those bibrefs.
 
                 fctptr = webapi.get_possible_bibrefs_from_pid_bibrec
                 bibrec_refs = fctptr(pid, [recid], additional_names=arxiv_name)
@@ -1138,7 +1138,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                             try:
                                 brr[1] = tmp[0][1]
                             except IndexError:
-                                continue # No bibrefs on record--discard
+                                continue  # No bibrefs on record--discard
 
                         if not pid in bibrefs_to_confirm:
                             bibrefs_to_confirm[pid] = {
@@ -1172,7 +1172,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 del(pinfo["external_first_entry"])
                 pinfo['external_first_entry_skip_review'] = True
                 session.dirty = True
-                return "" # don't bother the user the first time
+                return ""  # don't bother the user the first time
 
             body = TEMPLATE.tmpl_bibref_check(bibrefs_auto_assigned,
                                           bibrefs_to_confirm)
@@ -1328,7 +1328,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         metaheaderadd = self._scripts(kill_browser_cache=True)
         title = _("Please review your actions")
 
-        #body = body + '<pre>' + pformat(pinfo) + '</pre>'
+        # body = body + '<pre>' + pformat(pinfo) + '</pre>'
         return page(title=title,
             metaheaderadd=metaheaderadd,
             body=body,
@@ -1401,7 +1401,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             webapi.send_user_commit_notification_email(userinfo, ok_tickets)
 
         for t in ticket:
-            t['execution_result'] = [(True, ''),]
+            t['execution_result'] = [(True, ''), ]
 
         ticket[:] = ok_tickets
         session.dirty = True
@@ -1433,7 +1433,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         webapi.create_request_ticket(userinfo, ticket)
 
         for t in ticket:
-            t['execution_result'] = [(True, ''),]
+            t['execution_result'] = [(True, ''), ]
 
         session.dirty = True
 
@@ -1773,7 +1773,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             session.dirty = True
             return self.adf['ticket_dispatch'][ulevel](req)
-            #return self._ticket_final_review(req)
+            # return self._ticket_final_review(req)
 
         if action in ["checkout_remove_transaction"]:
             bibref = argd['checkout_remove_transaction']
@@ -1786,7 +1786,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             pinfo["checkout_confirmed"] = False
             session.dirty = True
             return self.adf['ticket_dispatch'][ulevel](req)
-            #return self._ticket_final_review(req)
+            # return self._ticket_final_review(req)
 
         if action in ["checkout_continue_claiming"]:
             pinfo["checkout_faulty_fields"] = []
@@ -1872,14 +1872,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 rt_id = argd['rt_id']
                 for b in bibrefs:
                     self._cancel_transaction_from_rt_ticket(rt_id, pid, action, b)
-            #create temporary ticket
+            # create temporary ticket
             if pid == -3:
                 pid = webapi.create_new_person(uid)
 
             for bibref in bibrefs:
                 tempticket.append({'pid': pid, 'bibref': bibref, 'action': action})
 
-            #check if ticket targets (bibref for pid) are already in ticket
+            # check if ticket targets (bibref for pid) are already in ticket
             for t in tempticket:
                 for e in list(ticket):
                     if e['bibref'] == t['bibref']:
@@ -1889,7 +1889,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if 'search_ticket' in pinfo:
                 del(pinfo['search_ticket'])
 
-            #start ticket processing chain
+            # start ticket processing chain
             pinfo["claimpaper_admin_last_viewed_pid"] = pid
             session.dirty = True
             return self.adf['ticket_dispatch'][ulevel](req)
@@ -1913,7 +1913,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         elif action in ['checkout']:
             return self.adf['ticket_dispatch'][ulevel](req)
-            #return self._ticket_final_review(req)
+            # return self._ticket_final_review(req)
 
         elif action in ['cancel_rt_ticket', 'commit_rt_ticket']:
             if 'selection' in argd and len(argd['selection']) > 0:
@@ -2147,20 +2147,20 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         tic = [a for a in open_rt_tickets if str(a[1]) == str(bibref)]
         if len(tic) > 0:
             tic = tic[0][0]
-        #create temporary ticket
+        # create temporary ticket
         tempticket = []
         for t in tic:
             if t[0] in ['confirm', 'repeal']:
                 tempticket.append({'pid': pid, 'bibref': t[1], 'action': t[0]})
 
-        #check if ticket targets (bibref for pid) are already in ticket
+        # check if ticket targets (bibref for pid) are already in ticket
         for t in tempticket:
             for e in list(ticket):
                 if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
                     ticket.remove(e)
             ticket.append(t)
         session.dirty = True
-        #start ticket processing chain
+        # start ticket processing chain
         webapi.delete_request_ticket(pid, bibref)
         return self.adf['ticket_dispatch'][ulevel](req)
 
@@ -2233,7 +2233,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if "checkout_faulty_fields" in pinfo:
             del(pinfo["checkout_faulty_fields"])
 
-        #pinfo['ulevel'] = ulevel
+        # pinfo['ulevel'] = ulevel
 #        pinfo["claimpaper_admin_last_viewed_pid"] = -1
         pinfo["admin_requested_ticket_id"] = -1
         session.dirty = True
@@ -2352,9 +2352,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 #                authorpapers = sorted(authorpapers, key=itemgetter(0),
 #                                      reverse=True)
                 if index < PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
-                    #We are no longer sorting by date because of the huge impact this have
-                    #on the system.
-                    #The sorting is now done per recordid
+                    # We are no longer sorting by date because of the huge impact this have
+                    # on the system.
+                    # The sorting is now done per recordid
 #                    authorpapers = [[paper] for paper in
 #                                    sort_records(None, [i[0] for i in
 #                                                 webapi.get_papers_by_person_id(pid, -1)],
@@ -2446,7 +2446,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         '''
         uid = getUid(req)
         self._session_bareinit(req)
-
         argd = wash_urlargd(
             form,
             {'ln': (str, CFG_SITE_LANG),
@@ -2479,13 +2478,19 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         body = ""
 
         if CFG_INSPIRE_SITE:
-            body = TEMPLATE.tmpl_welcome_arxiv()
+            body = TEMPLATE.tmpl_welcome_arxiv()  ###### edw allaxe ta welcoming messages
         else:
             body = TEMPLATE.tmpl_welcome()
 
         req.write(body)
 
         req.write("USERID: %s " % str(uid))
+
+
+        if action == None:
+            pid = webapi.get_user_pid(req)
+
+
 
         if chosen_profile == None:
             archive_user_info = webapi.arxiv_login(req)
@@ -2495,7 +2500,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             archive_user_info = webapi.arxiv_login(req, chosen_profile)
         # now do what will take time...
 
-        #req.write("ARXIV USER INFO: %s" % str(archive_user_info))
+        # req.write("ARXIV USER INFO: %s" % str(archive_user_info))
 
         if archive_user_info[0] == "pid":  ##### differentiate the two cases
             pid = archive_user_info[1]
@@ -2511,7 +2516,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             req.write(pagefooteronly(req=req))
             return
 
-        #session must be read after webapi.arxiv_login did it's stuff
+        # session must be read after webapi.arxiv_login did it's stuff
         session = get_session(req)
         pinfo = session["personinfo"]
         pinfo["claimpaper_admin_last_viewed_pid"] = pid
@@ -2533,7 +2538,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
         req.write(TEMPLATE.tmpl_welcome_arXiv_papers(arxivp))
         if CFG_INSPIRE_SITE:
-            #logs arXive logins, for debug purposes.
+            # logs arXive logins, for debug purposes.
             dbg = ('uinfo= ' + str(uinfo) + '\npinfo= ' + str(pinfo) + '\nreq= ' + str(req)
                     + '\nsession= ' + str(session))
             userinfo = "%s||%s" % (uid, req.remote_ip)
@@ -2541,6 +2546,91 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         req.write(TEMPLATE.tmpl_welcome_end())
         req.write(pagefooteronly(req=req))
+
+
+
+    def new_welcome(self, req, form):
+        '''
+        Generate SSO landing/welcome page
+
+        @param req: Apache request object
+        @type req: Apache request object
+        @param form: GET/POST request params
+        @type form: dict
+        '''
+        # uid = getUid(req)
+
+        login_status = webapi.login_status(req)
+        login_status = {'logged_in': True, 'uid': getUid(req), 'logged_in_sources':['Arxiv']}
+
+        if not login_status['logged_in']:
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
+
+        self._session_bareinit(req)
+
+        argd = wash_urlargd(
+            form,
+            {'ln': (str, CFG_SITE_LANG),
+             'action': (str, None),
+             'pid': (int, None),
+             'name_search_param': (str, None),
+             'surname_search_param':(str, None)})
+
+        ln = argd['ln']
+        action = argd['action']
+        pid = argd['pid']
+        name_search_param = agrd['name_search_param']
+        surname_search_param = argd['surname_search_param']
+
+        # ln = wash_language(argd['ln'])
+        _ = gettext_set_language(ln)
+
+        title_message = _('Welcome!')
+
+        # start continuous writing to the browser...
+        req.content_type = "text/html"
+        req.send_http_header()
+        ssl_param = 0
+
+        if req.is_https():
+            ssl_param = 1
+
+        req.write(pageheaderonly(req=req, title=title_message,
+                                 language=ln, secure_page_p=ssl_param))
+        req.write(TEMPLATE.tmpl_welcome_start())
+        body = ""
+
+        sources_info = webapi.get_ext_sources_info(req, login_status['logged_in_sources'])
+        sources_recids = webapi.get_ext_sources_recids(req)
+
+        if CFG_INSPIRE_SITE:
+                body = TEMPLATE.tmpl_welcome_source(sources_info)  # impelement
+
+        else:
+            body = TEMPLATE.tmpl_welcome()
+
+        req.write(body)
+        req.write("USERID: %s " % str(login_status['uid']))
+
+        req.write(TEMPLATE.tmpl_suggest_not_logged_in_sources(login_status['logged_in_sources']))  # implement
+
+
+
+        pid = webapi.get_user_pid(login_status['uid'])
+
+        if pid != -1:
+            paper_dict = webabi.claim_papers_from_source_to_inspire_profile(pid, sources_recids)  # implement
+            req.write(TEMPLATE.tmpl_welcome_personid_association(pid))  # review
+            req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
+
+        else:
+            propable_pid = webapi.match_profile(sources_recids, sources_info)  # impelement
+            req.write(TEMPLATE.tmpl_welcome_propable_profile_suggestion(propable_pid))  # review
+            # search_results = search...
+            req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
+        req.write(TEMPLATE.tmpl_welcome_end())
+        req.write(pagefooteronly(req=req))
+
 
     def tickets_admin(self, req, form):
         '''
