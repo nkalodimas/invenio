@@ -49,8 +49,8 @@ from invenio.refextract_tag import tag_reference_line, \
                                    identify_and_tag_URLs, \
                                    find_numeration, \
                                    extract_series_from_volume
-from invenio.refextract_xml import create_xml_record, \
-                                   build_xml_references
+from invenio.refextract_record import build_record, \
+                                      build_references
 from invenio.docextract_pdf import convert_PDF_to_plaintext
 from invenio.docextract_utils import write_message
 from invenio.refextract_kbs import get_kbs
@@ -310,6 +310,7 @@ def split_citations(citation_elements):
     splitted_citations = []
     new_elements = []
     current_recid = None
+    current_doi = None
 
     def check_ibid(current_elements, trigger_el):
         for el in new_elements:
@@ -334,7 +335,6 @@ def split_citations(citation_elements):
         del new_elements[:]
 
     for el in citation_elements:
-
         try:
             el_recid = el['recid']
         except IndexError:
@@ -343,7 +343,9 @@ def split_citations(citation_elements):
         if current_recid and el_recid and current_recid == el_recid:
             # Do not start a new citation
             pass
-        elif current_recid and el_recid and current_recid != el_recid:
+        elif current_recid and el_recid and current_recid != el_recid \
+                or current_doi and el['type'] == 'DOI' and \
+                                            current_doi != el['doi_string']:
             start_new_citation()
             # Some authors may be found in the previous citation
             balance_authors(splitted_citations, new_elements)
@@ -351,19 +353,20 @@ def split_citations(citation_elements):
             misc_txt, el['misc_txt'] = el['misc_txt'].split(';', 1)
             if misc_txt:
                 new_elements.append({'type': 'MISC',
-                                     'misc_txt': misc_txt,
-                                    })
+                                     'misc_txt': misc_txt})
             start_new_citation()
             while ';' in el['misc_txt']:
                 misc_txt, el['misc_txt'] = el['misc_txt'].split(';', 1)
                 if misc_txt:
                     new_elements.append({'type': 'MISC',
-                                         'misc_txt': misc_txt,
-                                        })
+                                         'misc_txt': misc_txt})
                     start_new_citation()
 
         if el_recid:
             current_recid = el_recid
+
+        if el['type'] == 'DOI':
+            current_doi = el['doi_string']
 
         check_ibid(new_elements, el)
         new_elements.append(el)
@@ -500,8 +503,7 @@ def look_for_implied_ibids(splitted_citations):
                                    'year'       : numeration['year'],
                                    'page'       : numeration['page'],
                                    'is_ibid'    : True,
-                                   'extra_ibids': []
-                                  }
+                                   'extra_ibids': []}
                         citation.append(ibid_el)
                         el['misc_txt'] = el['misc_txt'][numeration['len']:]
 
@@ -527,6 +529,19 @@ def remove_duplicated_authors(splitted_citations):
     return splitted_citations
 
 
+def remove_duplicated_dois(splitted_citations):
+    for citation in splitted_citations:
+        found_doi = False
+        for el in citation[:]:
+            if el['type'] == 'DOI':
+                if found_doi:
+                    citation.remove(el)
+                else:
+                    found_doi = True
+
+    return splitted_citations
+
+
 def add_recid_elements(splitted_citations):
     for citation in splitted_citations:
         for el in citation:
@@ -535,6 +550,7 @@ def add_recid_elements(splitted_citations):
                                  'recid': el['recid'],
                                  'misc_txt': ''})
                 break
+
 
 ## End of elements transformations
 
@@ -604,6 +620,8 @@ def parse_reference_line(ref_line, kbs, bad_titles_count={}):
     add_year_elements(splitted_citations)
     # Remove duplicate authors
     remove_duplicated_authors(splitted_citations)
+    # Remove duplicate DOIs
+    remove_duplicated_dois(splitted_citations)
     # Add recid elements
     add_recid_elements(splitted_citations)
     # For debugging puposes
@@ -1174,7 +1192,7 @@ def get_plaintext_document_body(fpath, keep_layout=False):
     return (textbody, status)
 
 
-def parse_references(reference_lines, recid=1, kbs_files=None):
+def parse_references(reference_lines, recid=None, kbs_files=None):
     """Parse a list of references
 
     Given a list of raw reference lines (list of strings),
@@ -1183,9 +1201,9 @@ def parse_references(reference_lines, recid=1, kbs_files=None):
     # RefExtract knowledge bases
     kbs = get_kbs(custom_kbs_files=kbs_files)
     # Identify journal titles, report numbers, URLs, DOIs, and authors...
-    (processed_references, counts, dummy_bad_titles_count) = \
+    processed_references, counts, dummy_bad_titles_count = \
                                 parse_references_elements(reference_lines, kbs)
     # Generate marc xml using the elements list
-    xml_out = build_xml_references(processed_references)
+    fields = build_references(processed_references)
     # Generate the xml string to be outputted
-    return create_xml_record(counts, recid, xml_out)
+    return build_record(counts, fields, recid=recid)

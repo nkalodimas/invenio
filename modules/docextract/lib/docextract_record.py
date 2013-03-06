@@ -61,7 +61,7 @@ def convert_record(bibrecord):
         return BibRecordControlField(inst[3].decode('utf-8'))
 
     def create_field(inst):
-        subfields = [BibRecordSubField(code, value.decode('utf-8')) \
+        subfields = [BibRecordSubField(code, value.decode('utf-8'))
                                                 for code, value in inst[0]]
         return BibRecordField(ind1=inst[1], ind2=inst[2], subfields=subfields)
 
@@ -87,6 +87,16 @@ def create_record(xml):
 
 def create_records(xml):
     return [convert_record(rec[0]) for rec in create_records_original(xml)]
+
+
+def print_records(records, encoding='utf-8'):
+    root = ET.Element('collection',
+                      {'xmlns': 'http://www.loc.gov/MARC21/slim'})
+
+    for record in records:
+        root.append(record._to_element_tree())
+
+    return ET.tostring(root, encoding=encoding)
 
 
 class BibRecord(object):
@@ -137,14 +147,35 @@ class BibRecord(object):
 
         return results
 
+    def find_fields(self, tag):
+        tag_code, ind1, ind2, dummy = parse_tag(tag)
+        results = []
+        for field in self.record.get(tag_code, []):
+            if ind1 != '%' and field.ind1 != ind1:
+                continue
+
+            if ind2 != '%' and field.ind2 != ind2:
+                continue
+
+            results.append(field)
+
+        return results
+
+    def add_field(self, tag):
+        tag_code, ind1, ind2, dummy = parse_tag(tag)
+        field = BibRecordField(ind1=ind1, ind2=ind2)
+        self.record.setdefault(tag_code, []).append(field)
+        return field
+
     def add_subfield(self, tag, value):
         tag_code, ind1, ind2, subfield_code = parse_tag(tag)
 
         subfield = BibRecordSubField(code=subfield_code, value=value)
         field = BibRecordField(ind1=ind1, ind2=ind2, subfields=[subfield])
         self.record.setdefault(tag_code, []).append(field)
+        return subfield
 
-    def to_xml(self):
+    def _to_element_tree(self):
         root = ET.Element('record')
         for tag, fields in sorted(self.record.iteritems(), key=itemgetter(0)):
             for field in fields:
@@ -162,7 +193,10 @@ class BibRecord(object):
                         attrs = {'code': subfield.code}
                         s = ET.SubElement(datafield, 'subfield', attrs)
                         s.text = subfield.value
-        return ET.tostring(root)
+        return root
+
+    def to_xml(self, encoding='utf-8'):
+        return ET.tostring(self._to_element_tree(), encoding='utf-8')
 
 
 class BibRecordControlField(object):
@@ -185,8 +219,8 @@ class BibRecordField(object):
         self.subfields = subfields
 
     def __repr__(self):
-        return 'BibRecordField(ind1="%s", ind2="%s", subfields=%s)' \
-                                       % (self.ind1, self.ind2, self.subfields)
+        return 'BibRecordField(ind1=%s, ind2=%s, subfields=%s)' \
+                     % (repr(self.ind1), repr(self.ind2), repr(self.subfields))
 
     def __eq__(self, b):
         return self.ind1 == b.ind1 and self.ind2 == b.ind2 \
@@ -198,6 +232,11 @@ class BibRecordField(object):
     def get_subfield_values(self, code):
         return [s.value for s in self.subfields if s.code == code]
 
+    def add_subfield(self, code, value):
+        subfield = BibRecordSubField(code=code, value=value)
+        self.subfields.append(subfield)
+        return subfield
+
 
 class BibRecordSubField(object):
     def __init__(self, code, value):
@@ -205,8 +244,8 @@ class BibRecordSubField(object):
         self.value = value
 
     def __repr__(self):
-        return 'BibRecordSubField(code="%s", value="%s")' \
-                                                      % (self.code, self.value)
+        return 'BibRecordSubField(code=%s, value=%s)' \
+                                          % (repr(self.code), repr(self.value))
 
     def __eq__(self, b):
         return self.code == b.code and self.value == b.value

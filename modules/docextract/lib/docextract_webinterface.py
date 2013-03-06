@@ -188,7 +188,7 @@ class WebInterfaceDocExtract(WebInterfaceDirectory):
             """
             out += format_record(0,
                                 'hdref',
-                                xml_record=references_xml.encode('utf-8'),
+                                xml_record=references_xml,
                                 user_info=user_info)
 
         # Render the page (including header, footer)

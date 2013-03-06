@@ -34,7 +34,7 @@ pylib_DATA = docextract_pdf.py \
              refextract_api.py \
              refextract_api_regression_tests.py \
              refextract_text.py \
-             refextract_xml.py \
+             refextract_record.py \
              refextract_find.py \
              refextract_tag.py \
              refextract_cli.py \

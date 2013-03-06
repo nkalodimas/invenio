@@ -54,7 +54,7 @@ def extract_references_from_fulltext(fulltext):
         ## No References
         refs = []
         status = 4
-        write_message("* extract_references_from_fulltext: " \
+        write_message("* extract_references_from_fulltext: "
                          "ref_sect_start is None", verbose=2)
     else:
         # If a reference section was found, however weak
@@ -67,7 +67,7 @@ def extract_references_from_fulltext(fulltext):
             # No End to refs? Not safe to extract
             refs = []
             status = 5
-            write_message("* extract_references_from_fulltext: " \
+            write_message("* extract_references_from_fulltext: "
                              "no end to refs!", verbose=2)
         else:
             # If the end of the reference section was found.. start extraction
@@ -118,7 +118,7 @@ def get_reference_lines(docbody,
         title_start = docbody[start_idx].find(ref_sect_title)
         if title_start != -1:
             # Set the first line with no title
-            docbody[start_idx] = docbody[start_idx][title_start + \
+            docbody[start_idx] = docbody[start_idx][title_start +
                                                     len(ref_sect_title):]
     elif ref_sect_title is not None:
         # Set the start of the reference section to be after the title line
@@ -183,7 +183,7 @@ def rebuild_reference_lines(ref_sectn, ref_line_marker_ptn):
     # This should be moved the function detecting the pattern!
     if not ref_line_marker_ptn:
         if test_for_blank_lines_separating_reference_lines(ref_sectn):
-            ## Use blank lines to separate ref lines
+            # Use blank lines to separate ref lines
             ref_line_marker_ptn = ur'^\s*$'
         else:
             # No ref line dividers
@@ -328,7 +328,7 @@ def test_for_blank_lines_separating_reference_lines(ref_sect):
     # Now from the number of blank lines & the number of text lines, if
     # num_lines > 3, & num_blanks = num_lines, or num_blanks = num_lines - 1,
     # then we have blank line separators between reference lines
-    if (num_lines > 3) and ((num_blanks == num_lines) or \
+    if (num_lines > 3) and ((num_blanks == num_lines) or
                             (num_blanks == num_lines - 1)) and \
                             (multi_nonblanks_found):
         blank_line_separators = 1

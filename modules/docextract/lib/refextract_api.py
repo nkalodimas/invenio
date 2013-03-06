@@ -84,12 +84,22 @@ def extract_references_from_url_xml(url):
     return marcxml
 
 
-def extract_references_from_file_xml(path, recid=1):
+def extract_references_from_file_xml(path, recid=None):
     """Extract references from a local pdf file
 
     The single parameter is the path to the file
     It raises FullTextNotAvailable if the file does not exist
     The result is given in marcxml.
+    """
+    return extract_references_from_file(path=path, recid=recid).to_xml()
+
+
+def extract_references_from_file(path, recid=None):
+    """Extract references from a local pdf file
+
+    The single parameter is the path to the file
+    It raises FullTextNotAvailable if the file does not exist
+    The result is given as a bibrecord class.
     """
     if not os.path.isfile(path):
         raise FullTextNotAvailable()
@@ -103,7 +113,23 @@ def extract_references_from_file_xml(path, recid=1):
     return parse_references(reflines, recid=recid)
 
 
-def extract_references_from_string_xml(source, is_only_references=True):
+def extract_references_from_string_xml(source,
+                                       is_only_references=True,
+                                       recid=None):
+    """Extract references from a string
+
+    The single parameter is the document
+    The result is given as a bibrecord class.
+    """
+    r = extract_references_from_string(source=source,
+                                       is_only_references=is_only_references,
+                                       recid=recid)
+    return r.to_xml()
+
+
+def extract_references_from_string(source,
+                                   is_only_references=True,
+                                   recid=None):
     """Extract references from a string
 
     The single parameter is the document
@@ -120,7 +146,7 @@ def extract_references_from_string_xml(source, is_only_references=True):
             refs_info['end_line'] = len(docbody) - 1,
 
         reflines = rebuild_reference_lines(docbody, refs_info['marker_pattern'])
-    return parse_references(reflines)
+    return parse_references(reflines, recid=recid)
 
 
 def extract_references_from_record_xml(recid):

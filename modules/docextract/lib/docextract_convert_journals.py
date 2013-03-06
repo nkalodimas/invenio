@@ -20,15 +20,11 @@
 import optparse
 import sys
 
-from invenio.docextract_record import create_records
+from invenio.docextract_record import create_records, print_records
 from invenio.refextract_kbs import get_kbs
 
 from invenio.docextract_text import re_group_captured_multiple_space
 from invenio.refextract_re import re_punctuation
-
-from invenio.refextract_config import CFG_REFEXTRACT_XML_VERSION, \
-                                      CFG_REFEXTRACT_XML_COLLECTION_OPEN, \
-                                      CFG_REFEXTRACT_XML_COLLECTION_CLOSE
 
 
 DESCRIPTION = """Utility to convert journal names from abbreviations
@@ -92,12 +88,10 @@ def write_records(config, records):
     else:
         out = sys.stdout
 
+    xml = print_records(records)
+
     try:
-        print >>out, CFG_REFEXTRACT_XML_VERSION.encode("utf-8")
-        print >>out, CFG_REFEXTRACT_XML_COLLECTION_OPEN.encode("utf-8")
-        for record in records:
-            print >>out, record.to_xml().encode("utf-8")
-        print >>out, CFG_REFEXTRACT_XML_COLLECTION_CLOSE.encode("utf-8")
+        print >>out, xml
         out.flush()
     finally:
         if config.xmlfile:

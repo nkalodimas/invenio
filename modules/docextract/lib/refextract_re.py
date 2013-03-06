@@ -700,6 +700,7 @@ def get_reference_line_numeration_marker_patterns(prefix=u''):
     patterns = [
         # [1]
         space + title + g_name + ur'\[\s*(?P<marknum>\d+)\s*\]' + g_close,
+        # [<letters and numbers]
         space + title + g_name + ur'\[\s*[a-zA-Z:-]+\+?\s?(\d{1,4}[A-Za-z:-]?)?\s*\]' + g_close,
         # {1}
         space + title + g_name + ur'\{\s*(?P<marknum>\d+)\s*\}' + g_close,
@@ -715,6 +716,8 @@ def get_reference_line_numeration_marker_patterns(prefix=u''):
         space + title + g_name + ur'(?P<marknum>\d+)\s*\)' + g_close,
         # 1)
         space + title + g_name + ur'(?P<marknum>\d+)\s*\>' + g_close,
+        # [1.1]
+        space + title + g_name + ur'\[\s*\d+\.\d+\s*\]' + g_close,
         # [    ]
         space + title + g_name + ur'\[\s*\]' + g_close,
         # *

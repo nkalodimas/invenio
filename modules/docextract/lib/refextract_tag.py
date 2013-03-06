@@ -69,7 +69,6 @@ from invenio.refextract_re import \
     RE_ATLAS_CONF_POST_2010
 
 from invenio.authorextract_re import re_auth, \
-                                     re_collaborations, \
                                      re_auth_near_miss, \
                                      re_etal, \
                                      etal_matches, \
@@ -94,7 +93,7 @@ def tag_reference_line(line, kbs, record_titles_count):
     # This is useful for books matching
     # This is also used by the author tagger to remove quoted
     # text which is a sign of a title and not an author
-    working_line1 = tag_titles(working_line1)
+    working_line1 = tag_quoted_text(working_line1)
 
     # Identify ISBN (for books)
     working_line1 = tag_isbn(working_line1)
@@ -166,8 +165,7 @@ def tag_reference_line(line, kbs, record_titles_count):
         publishers_matches=publishers_matches,
         removed_spaces=removed_spaces,
         standardised_titles=standardised_titles,
-        authors_kb=kbs['authors'],
-        publishers_kb=kbs['publishers'],
+        kbs=kbs,
     )
 
     return tagged_line, record_titles_count
@@ -180,8 +178,7 @@ def process_reference_line(working_line,
                            publishers_matches,
                            removed_spaces,
                            standardised_titles,
-                           authors_kb,
-                           publishers_kb):
+                           kbs):
     """After the phase of identifying and tagging citation instances
        in a reference line, this function is called to go through the
        line and the collected information about the recognised citations,
@@ -298,8 +295,7 @@ def process_reference_line(working_line,
                     reportnum=pprint_repnum_matchtext[replacement_index],
                     startpos=startpos,
                     true_replacement_index=true_replacement_index,
-                    extras=extras
-                )
+                    extras=extras)
                 tagged_line += rebuilt_chunk
 
             elif replacement_types[replacement_index] == u"publisher":
@@ -310,8 +306,7 @@ def process_reference_line(working_line,
                     startpos=startpos,
                     true_replacement_index=true_replacement_index,
                     extras=extras,
-                    kb_publishers=publishers_kb
-                )
+                    kb_publishers=kbs['publishers'])
                 tagged_line += rebuilt_chunk
 
         # add the remainder of the original working-line into the rebuilt line:
@@ -323,11 +318,11 @@ def process_reference_line(working_line,
         # e.g. B 20 -> B20
         tagged_line = wash_volume_tag(tagged_line)
 
-    # Before moving onto creating the XML string...
-    # try to find any authors in the line
-    # Found authors are immediately placed into tags
-    # (after Titles and Repnum's have been found)
-    tagged_line = identify_and_tag_authors(tagged_line, authors_kb)
+    # Try to find any authors in the line
+    tagged_line = identify_and_tag_authors(tagged_line, kbs['authors'])
+    # Try to find any collaboration in the line
+    tagged_line = identify_and_tag_collaborations(tagged_line,
+                                                  kbs['collaborations'])
 
     return tagged_line.replace('\n', '')
 
@@ -341,7 +336,7 @@ def tag_isbn(line):
     return re_isbn.sub(ur'<cds.ISBN>\g<code></cds.ISBN>', line)
 
 
-def tag_titles(line):
+def tag_quoted_text(line):
     """Tag quoted titles
 
     We use titles for pretty display of references that we could not
@@ -848,36 +843,34 @@ def strip_tags(line):
     return line
 
 
+def identify_and_tag_collaborations(line, collaborations_kb):
+    """Given a line where Authors have been tagged, and all other tags
+       and content has been replaced with underscores, go through and try
+       to identify extra items of data which should be placed into 'h'
+       subfields.
+       Later on, these tagged pieces of information will be merged into
+       the content of the most recently found author. This is separated
+       from the author tagging procedure since separate tags can be used,
+       which won't influence the reference splitting heuristics
+       (used when looking at mulitple <AUTH> tags in a line).
+    """
+    for collab, re_collab in collaborations_kb.iteritems():
+        matches = re_collab.finditer(strip_tags(line))
+
+        for match in reversed(list(matches)):
+            line = line[:match.start()] \
+                + CFG_REFEXTRACT_MARKER_OPENING_COLLABORATION \
+                + match.group(1).strip(".,:;- [](){}") \
+                + CFG_REFEXTRACT_MARKER_CLOSING_COLLABORATION \
+                + line[match.end():]
+
+    return line
+
+
 def identify_and_tag_authors(line, authors_kb):
     """Given a reference, look for a group of author names,
        place tags around the author group, return the newly tagged line.
     """
-    def identify_and_tag_collaborations(line):
-        """Given a line where Authors have been tagged, and all other tags
-           and content has been replaced with underscores, go through and try
-           to identify extra items of data which should be placed into 'h'
-           subfields.
-           Later on, these tagged pieces of information will be merged into
-           the content of the most recently found author. This is separated
-           from the author tagging procedure since separate tags can be used,
-           which won't influence the reference splitting heuristics
-           (used when looking at mulitple <AUTH> tags in a line).
-        """
-        collaborations = re_collaborations.finditer(strip_tags(line))
-        positions = []
-        for match in collaborations:
-            positions.append({'start'   : match.start(),
-                              'end'     : match.end(),
-                              'author'  : match.group('extra_auth')})
-        positions.reverse()
-        for p in positions:
-            line = line[:p['start']] \
-                + CFG_REFEXTRACT_MARKER_OPENING_COLLABORATION \
-                + p['author'].strip(".,:;- []") \
-                + CFG_REFEXTRACT_MARKER_CLOSING_COLLABORATION \
-                + line[p['end']:]
-
-        return line
 
     # Replace authors which do not convert well from utf-8
     for pattern, repl in authors_kb:
@@ -885,7 +878,10 @@ def identify_and_tag_authors(line, authors_kb):
 
     output_line = line
 
-    line = unidecode(strip_tags(line))
+    line = strip_tags(unidecode(line))
+    if len(line) != len(output_line):
+        output_line = unidecode(output_line)
+        line = strip_tags(output_line)
 
     # Find as many author groups (collections of author names) as possible from the 'title-hidden' line
     matched_authors = re_auth.finditer(line)
@@ -939,7 +935,7 @@ def identify_and_tag_authors(line, authors_kb):
             # A bad 'and' will only be denoted as such if there exists only one author after it
             # and the author group is legit (not to be dumped in misc)
             if not dump_in_misc and not (m['multi_auth'] or m['multi_surs']) \
-                and (lower_text_before.endswith(' and')):
+                    and (lower_text_before.endswith(' and')):
                 # Search using a weaker author pattern to try and find the missed author(s) (cut away the end 'and')
                 weaker_match = re_auth_near_miss.match(m['text_before'])
                 if weaker_match and not (weaker_match.group('es') or weaker_match.group('ee')):
@@ -963,7 +959,9 @@ def identify_and_tag_authors(line, authors_kb):
             tmp_output_line = re.sub(re_etal, 'et al.',
                 tmp_output_line, re.IGNORECASE)
             # Strip
-            tmp_output_line = tmp_output_line.strip(",:;- [](")
+            tmp_output_line = tmp_output_line.lstrip('.').strip(",:;- [](")
+            if not tmp_output_line.endswith('(ed.)'):
+                tmp_output_line = tmp_output_line.strip(')')
 
             # ONLY wrap author data with tags IF there is no evidence that it is an
             # ed. author. (i.e. The author is not referred to as an editor)
@@ -999,10 +997,6 @@ def identify_and_tag_authors(line, authors_kb):
                     + CFG_REFEXTRACT_MARKER_CLOSING_AUTHOR_INCL \
                     + add_to_misc \
                     + output_line[end:]
-
-    # Now that authors have been tagged, search for the extra information which should be included in $h
-    # Tag for this datafield, merge into one $h subfield later on
-    output_line = identify_and_tag_collaborations(output_line)
 
     return output_line
 
@@ -1395,7 +1389,7 @@ def identify_and_tag_DOI(line):
     # Run the DOI pattern on the line, returning the re.match objects
     matched_doi = re_doi.finditer(line)
     # For each match found in the line
-    for match in matched_doi:
+    for match in reversed(list(matched_doi)):
         # Store the start and end position
         start = match.start()
         end = match.end()
@@ -1407,4 +1401,5 @@ def identify_and_tag_DOI(line):
         # Add the single DOI string to the list of DOI strings
         doi_strings.append(doi_phrase)
 
+    doi_strings.reverse()
     return line, doi_strings
