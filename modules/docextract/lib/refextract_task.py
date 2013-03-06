@@ -40,8 +40,8 @@ from invenio.refextract_api import update_references, \
                                    FullTextNotAvailable, \
                                    RecordHasReferences
 from invenio.docextract_task import task_run_core_wrapper, \
-                                    split_ids, \
-                                    setup_loggers
+                                    split_ids
+from invenio.docextract_utils import setup_loggers
 from invenio.bibcatalog_system_rt import BibCatalogSystemRT
 from invenio.bibedit_utils import get_bibrecord
 from invenio.bibrecord import record_get_field_instances, \
@@ -163,7 +163,7 @@ def create_ticket(recid, bibcatalog_system, queue=CFG_REFEXTRACT_TICKET_QUEUE):
 
 
 def task_run_core(recid, bibcatalog_system=None, _arxiv=False):
-    setup_loggers(use_bibtask=True)
+    setup_loggers(None, use_bibtask=True)
 
     if _arxiv:
         overwrite = True
