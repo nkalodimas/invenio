@@ -661,6 +661,32 @@ def get_personids_from_bibrec(bibrec):
     else:
         return set()
 
+def get_most_compatible_pids_from_bibrecs_and_names(bibrecs, limit_by_name=None):
+    '''
+    Gives back a list of tuples (personid, set_of_papers_owned_by) limited to the given list of bibrecs.
+    @param bibrecs:
+    @type bibrecs:
+    @param limit_by_name:
+    @type limit_by_name:
+    '''
+    if not bibrecs:
+        return []
+    else:
+        bibrecs = list_2_SQL_str(bibrecs)
+    if limit_by_name:
+        try:
+            surname = split_name_parts(limit_by_name)[0]
+        except IndexError:
+            surname = None
+    else:
+        surname = None
+    if not surname:
+        data = run_sql("select personid,bibrec from aidPERSONIDPAPERS where bibrec in %s" % (bibrecs,))
+    else:
+        surname = split_name_parts(limit_by_name)[0]
+        data = run_sql(("select personid,bibrec from aidPERSONIDPAPERS where bibrec in %s "
+                       "and name like " % bibrecs) + ' %s ', (surname + '%',))
+
 def get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=None):
     '''
     Gives back a list of tuples (personid, set_of_papers_owned_by) limited to the given list of bibrecs.
@@ -1558,10 +1584,12 @@ def personid_get_recids_affected_since(last_timestamp):
 
 def get_all_paper_records(pid, claimed_only=False):
     if not claimed_only:
-        return run_sql("SELECT distinct bibrec FROM aidPERSONIDPAPERS WHERE personid = %s", (str(pid),))
+        result =  run_sql("SELECT bibrec FROM aidPERSONIDPAPERS WHERE personid = %s", (str(pid),))
     else:
-        return run_sql("SELECT distinct bibrec FROM aidPERSONIDPAPERS WHERE "
+        result = run_sql("SELECT bibrec FROM aidPERSONIDPAPERS WHERE "
                        "personid = %s and flag=2 or flag=-2", (str(pid),))
+    
+    return tuple(set(result))
 
 
 def get_all_modified_names_from_personid(since=None):

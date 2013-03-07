@@ -286,7 +286,12 @@ def check_personids_availability(picked_profile, uid):
             return create_new_person(uid, uid_is_owner=True)
 
 def find_most_compatible_person( bibrecs, name_variants ):
-    pass
+    pidlist = get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=name)
+    
+    for p in pidlist:
+        if not get_uid_from_personid(p[0]):
+            return p[0]
+    return -1
 
 
 def person_search( param1, param2):

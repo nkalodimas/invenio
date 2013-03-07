@@ -885,29 +885,100 @@ def login_status(req):
            collect_info(source)
 
 
+def session_bareinit(req):
+    session = get_session(req)
+    try:
+        pinfo = session["personinfo"]
+        if 'ticket' not in pinfo:
+            pinfo["ticket"] = []
+            if 'ext_system' not in pinfo:
+                pinfo["ext_system"] = []
+            for source in logged_in_sources:
+                if source not in pinfo["ext_system"]:
+                    pinfo["ext_system"][source] = { 'name': None,'external_ids':None}
+    except KeyError:
+        pinfo = dict()
+        session['personinfo'] = pinfo
+        pinfo["ticket"] = []
+        pinfo["ext_system"] = []
+        for source in logged_in_sources:
+            pinfo["ext_system"][source] = { 'name': None,'external_ids':None}
+            
 def get_ext_sources_info(req, logged_in_sources):
-    uinfo = collect_user_info(req)
-    user_sources_info = dict()
     
-    for source in logged_in_sourced:
-        user_sources_info[source] = ext_sources_info_functions[source](uinfo)
+    session_bareinit(req)
+    session = get_session(req)
+    user_sources_info = dict()
+
+    pinfo = session['personinfo']
+    uinfo = collect_user_info(req)
+    pinfo['external_first_entry'] = False
+    
+    for source in logged_in_sources:
+        user_sources_info[source] = []
+        try:
+            name = uinfo[source + '_firstname']
+        except KeyError:
+            name = ''
+        try:
+            surname = uinfo[source + '_familyname']
+        except KeyError:
+            surname = ''
+    
+        if surname:
+            session['personinfo']['ext_system'][source]['name'] = nameapi.create_normalized_name(
+                                              nameapi.split_name_parts(surname + ', ' + name))
+        else:
+            session['personinfo']['ext_system'][source]['name'] = ''
+        user_sources_info[source][name]= session['personinfo']['ext_system'][source]['name']
+
+    session.dirty = True
+
     
     return user_sources_info
 
 
-def get_source_info(source, uinfo):
-    return 
+def get_Arxiv_info(req, old_external_ids):
+    session = get_session(req)
+    uinfo = collect_user_info(req)
+    pinfo = session['personinfo']
+    current_external_ids = uinfo['external_arxivids'].split(';')
+    recids_from_arxivids = []
+    cached_ids_assocciation = dict()
+    if current_external_ids and not old_external_ids:
+        for arxiv_id in current_external_ids:
+            recid = perform_request_search(p='037:' + str(arxiv_id), of='id', rg=0)[0]
+            recids_from_arxivids.append(recid)
+            cached_ids_assocciation[arxiv_id] = recid
+    elif current_external_ids:
+        for arxivid in current_external_ids:
+            if arxivid in old_external_ids.keys():
+                recid = old_external_ids[[arxiv_id]]
+                recids_from_arxivids[arxiv_id] = recid
+            else:
+                recid = perform_request_search(p='037:' + str(arxiv_id), of='id', rg=0)[0]
+                recids_from_arxivids.append(recid)
+            cached_ids_assocciation[arxiv_id] = recid
     
-
+    pinfo['ext_system']['Arxiv']['external_ids'] = cached_ids_assocciation
+    session.dirty = True
+    return recids_from_arxivids
+        
+def get_Orcid_info(req, current_external_ids):
+    return 
 
 def get_ext_sources_recids(req, logged_in_sources):
-    uinfo = collect_user_info(req)
-    external_recids = []
+    session_bareinit(req)
+    session = get_session(req)
+    pinfo = session['personinfo']
+    external_sources_recids = []
     
     for source in logged_in_sources:
-        external_recid.append(get_source_recids(uinfo, source))     #implement
-    
-    return external_recid
+        old_external_ids = pinfo['ext_system'][source]['external_ids'];
+        source_recids = ext_sources_info_functions[source](req, old_external_ids)
+        external_sources_recids.append(source_recids)    
+        
+    return list(set(external_sources_recids))
 
 def collect_info(source):
     pass
@@ -922,10 +993,16 @@ def get_user_pid(uid):
     return pid[0]
 
 
-def claim_papers_from_source_to_inspire_profile(pid, sources_recids):
+def auto_claim_papers(pid, sources_recids):
 
+    session_bareinit(req)
+    session = get_session(req)
+
+
+    ticket = session['personinfo']['ticket']
+    
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
-    missing_bibrecs = found_bibrecs - pid_bibrecs
+    missing_bibrecs = sources_recids - pid_bibrecs
     #present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
 
     #assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
@@ -946,14 +1023,17 @@ def claim_papers_from_source_to_inspire_profile(pid, sources_recids):
         ticket.append(t)
 
     session.dirty = True
-    
-    return pid
 
 
 def match_profile(sources_recids, sources_info):
-    top5_list = dbapi.find_top5_personid_for_new_arXiv_user(user_source_info['found_bibrecs'],
-        nameapi.create_normalized_name(nameapi.split_name_parts(user_source_info['surname'] + ', ' + user_source_info['name'])))
-    return ("top5_list", top5_list)        
+    name_variants = []
+    for source in sources_info.keys():
+        name = sources_info[source]['name']
+        
+        if name not in name_variants:
+            name_variants.append(name)
+            
+    return dbapi.find_most_compatible_person(sources_recids, name_variants)        
 
    
 def arxiv_login(req, picked_profile=None):
@@ -1483,4 +1563,4 @@ def sign_assertion(robotname, assertion):
 
 CFG_BIBAUTHORID_SOURCES = ['Arxiv', 'Orcid']
 ext_recid_types = {'Arxiv': "arxiv_id", "Orcid": "doi" }
-ext_sources_info_functions{'Arxiv': }
+ext_sources_info_functions = {'Arxiv': get_Arxiv_info,'Orcid': get_Orcid_info}
