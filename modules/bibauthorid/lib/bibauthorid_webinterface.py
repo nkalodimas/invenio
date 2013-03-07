@@ -2619,7 +2619,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         pid = webapi.get_user_pid(login_status['uid'])
 
         if pid != -1:
-            paper_dict = webabi.claim_papers_from_source_to_inspire_profile(pid, sources_recids)  # implement
+            paper_dict = webabi.auto_claim_papers(pid, sources_recids)  # implement
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))  # review
             req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
 
