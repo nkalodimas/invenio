@@ -39,7 +39,7 @@ from invenio.bibtask import write_message, task_get_option, \
                      task_get_task_param
 from invenio.bibindex_engine import get_field_tags
 from invenio.bibindex_engine import CFG_JOURNAL_PUBINFO_STANDARD_FORM_REGEXP_CHECK
-
+from invenio.docextract_record import get_record
 
 INTBITSET_OF_DELETED_RECORDS = search_unit(p='DELETED', f='980', m='a')
 
@@ -319,53 +319,69 @@ def get_tags_config(config):
 
 def get_journal_info(recid, tags):
     record_info = []
-    # TODO: handle recors with multiple journals
-    tagsvalues = {}  # we store the tags and their values here
-                     # like c->444 y->1999 p->"journal of foo",
-                     # v->20
+
     tmp = get_fieldvalues(recid, tags['publication']['journal'])
-    if tmp:
-        tagsvalues["p"] = tmp[0]
-    tmp = get_fieldvalues(recid, tags['publication']['volume'])
-    if tmp:
-        tagsvalues["v"] = tmp[0]
-    tmp = get_fieldvalues(recid, tags['publication']['year'])
-    if tmp:
-        tagsvalues["y"] = tmp[0]
-    tmp = get_fieldvalues(recid, tags['publication']['pages'])
-    if tmp:
-        # if the page numbers have "x-y" take just x
-        pages = tmp[0]
-        hpos = pages.find("-")
-        if hpos > 0:
-            pages = pages[:hpos]
-        tagsvalues["c"] = pages
+    record = get_record(recid)
+    journals_fields = record.find_fields(tags['publication']['journal'][:4])
+    for field in journals_fields:
+        # we store the tags and their values here
+        # like c->444 y->1999 p->"journal of foo",
+        # v->20
+        tagsvalues = {}
+        try:
+            tmp = field.get_subfield_values(tags['publication']['journal'][4])[0]
+        except IndexError:
+            pass
+        else:
+            tagsvalues["p"] = tmp
 
-    # check if we have the required data
-    ok = True
-    for c in tags['publication_format']:
-        if c in ('p', 'v', 'y', 'c'):
-            if c not in tagsvalues:
-                ok = False
+        try:
+            tmp = field.get_subfield_values(tags['publication']['volume'][4])[0]
+        except IndexError:
+            pass
+        else:
+            tagsvalues["v"] = tmp
 
-    if ok:
-        publ = format_journal(tags['publication_format'], tagsvalues)
-        record_info += [publ]
+        try:
+            tmp = field.get_subfield_values(tags['publication']['year'][4])[0]
+        except IndexError:
+            pass
+        else:
+            tagsvalues["y"] = tmp
 
-        alt_volume = get_alt_volume(tagsvalues['v'])
-        if alt_volume:
-            tagsvalues2 = tagsvalues.copy()
-            tagsvalues2['v'] = alt_volume
-            publ = format_journal(tags['publication_format'], tagsvalues2)
+        try:
+            tmp = field.get_subfield_values(tags['publication']['pages'][4])[0]
+        except IndexError:
+            pass
+        else:
+            # if the page numbers have "x-y" take just x
+            tagsvalues["c"] = tmp.lsplit('-', 1)[0]
+
+        # check if we have the required data
+        ok = True
+        for c in tags['publication_format']:
+            if c in ('p', 'v', 'y', 'c'):
+                if c not in tagsvalues:
+                    ok = False
+
+        if ok:
+            publ = format_journal(tags['publication_format'], tagsvalues)
             record_info += [publ]
 
-        # Add codens
-        for coden in get_kb_mappings('CODENS',
-                                     value=tagsvalues['p']):
-            tagsvalues2 = tagsvalues.copy()
-            tagsvalues2['p'] = coden['key']
-            publ = format_journal(tags['publication_format'], tagsvalues2)
-            record_info += [publ]
+            alt_volume = get_alt_volume(tagsvalues['v'])
+            if alt_volume:
+                tagsvalues2 = tagsvalues.copy()
+                tagsvalues2['v'] = alt_volume
+                publ = format_journal(tags['publication_format'], tagsvalues2)
+                record_info += [publ]
+
+            # Add codens
+            for coden in get_kb_mappings('CODENS',
+                                         value=tagsvalues['p']):
+                tagsvalues2 = tagsvalues.copy()
+                tagsvalues2['p'] = coden['key']
+                publ = format_journal(tags['publication_format'], tagsvalues2)
+                record_info += [publ]
 
     return record_info
 
