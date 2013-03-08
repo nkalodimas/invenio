@@ -864,26 +864,21 @@ def set_processed_external_recids(pid, recid_list):
 def login_status(req):
     
     login_status = dict()
+    #are we sure that we can get only one? ask SamK
     login_status['uid'] = getUid(req)
     login_status['logged_in_sources'] = [] 
     
-    if login_status['uid'] > 0:
+    if login_status['uid'] == 0:
         login_status['logged_in'] = False
         return login_status
     
     login_status['logged_in'] = True
     
     for source in CFG_BIBAUTHORID_SOURCES:          #move
-       if source_exist(source):                     #implement
+       if is_logged_in_through(source):                     #implement
            login_status['logged_in_sources'].append(source) 
     
     return login_status
-
-
-
-    for source in CFG_BIBAUTHORID_SOURCES:
-           collect_info(source)
-
 
 def session_bareinit(req):
     session = get_session(req)
@@ -903,6 +898,8 @@ def session_bareinit(req):
         pinfo["ext_system"] = []
         for source in logged_in_sources:
             pinfo["ext_system"][source] = { 'name': None,'external_ids':None}
+    #this can be optimized so it's not set dirty if not necessary!
+    session.dirty = True
             
 def get_ext_sources_info(req, logged_in_sources):
     
@@ -937,8 +934,15 @@ def get_ext_sources_info(req, logged_in_sources):
     
     return user_sources_info
 
+#all teh get_info methods should standardize the content:
+def get_arXiv_info(req):
+	name = something_in_session(req)
+	email = something_in_session(req)
+	return {}
+	#{the dictionary we define in _webinterface}
 
-def get_Arxiv_info(req, old_external_ids):
+
+def get_arXiv_recids(req, old_external_ids):
     session = get_session(req)
     uinfo = collect_user_info(req)
     pinfo = session['personinfo']
@@ -964,7 +968,7 @@ def get_Arxiv_info(req, old_external_ids):
     session.dirty = True
     return recids_from_arxivids
         
-def get_Orcid_info(req, current_external_ids):
+def get_Orcid_recids(req, current_external_ids):
     return 
 
 def get_ext_sources_recids(req, logged_in_sources):
