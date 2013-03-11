@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-##
-## This file is part of Invenio.
-## Copyright (C) 2011, 2012 CERN.
-##
-## Invenio is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 2 of the
-## License, or (at your option) any later version.
-##
-## Invenio is distributed in the hope that it will be useful, but
-## WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-## General Public License for more details.
-##
-## You should have received a copy of the GNU General Public License
-## along with Invenio; if not, write to the Free Software Foundation, Inc.,
-## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+# #
+# # This file is part of Invenio.
+# # Copyright (C) 2011, 2012 CERN.
+# #
+# # Invenio is free software; you can redistribute it and/or
+# # modify it under the terms of the GNU General Public License as
+# # published by the Free Software Foundation; either version 2 of the
+# # License, or (at your option) any later version.
+# #
+# # Invenio is distributed in the hope that it will be useful, but
+# # WITHOUT ANY WARRANTY; without even the implied warranty of
+# # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# # General Public License for more details.
+# #
+# # You should have received a copy of the GNU General Public License
+# # along with Invenio; if not, write to the Free Software Foundation, Inc.,
+# # 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 '''
 Bibauthorid_webapi
 Point of access to the documents clustering facility.
@@ -45,7 +45,7 @@ from invenio.mailutils import send_email
 
 from operator import add
 
-from invenio.bibauthorid_dbinterface import get_personiID_external_ids    #pylint: disable-msg=W0614
+from invenio.bibauthorid_dbinterface import get_personiID_external_ids  # pylint: disable-msg=W0614
 
 def get_person_redirect_link(pid):
     '''
@@ -89,13 +89,13 @@ def swap_person_canonical_name(person_id, desired_cname, userinfo=''):
     current_cname = get_canonical_id_from_person_id(person_id)
     create_log_personid_with_desired_cname = False
 
-    if personid_with_desired_cname == -1:   # nobody withholds the desired canonical name
+    if personid_with_desired_cname == -1:  # nobody withholds the desired canonical name
         dbapi.change_personID_canonical_names([(person_id, desired_cname)])
-    elif not isinstance(current_cname, str):   # person_id doesn't own a canonical name
+    elif not isinstance(current_cname, str):  # person_id doesn't own a canonical name
         dbapi.change_personID_canonical_names([(person_id, desired_cname)])
         dbapi.update_personID_canonical_names([personid_with_desired_cname], overwrite=True)
         create_log_personid_with_desired_cname = True
-    else:   # both person_id and personid_with_desired_cname own a canonical name
+    else:  # both person_id and personid_with_desired_cname own a canonical name
         dbapi.change_personID_canonical_names([(person_id, desired_cname), (personid_with_desired_cname, current_cname)])
         create_log_personid_with_desired_cname = True
 
@@ -334,7 +334,7 @@ def get_papers_by_person_id(person_id= -1, rec_status= -2, ext_out=False):
                 date = "Not available"
 
             exp = ", ".join(row['experiment'])
-            #date = ""
+            # date = ""
             records.append([recid, bibref, flag, authorname,
                             authoraff, date, rt_status, exp])
 
@@ -486,7 +486,7 @@ def get_paper_status(bibref):
     @type bibref: string
     '''
     db_data = dbapi.get_papers_status(bibref)
-    #data,PersonID,flag
+    # data,PersonID,flag
     status = None
 
     try:
@@ -860,24 +860,53 @@ def set_processed_external_recids(pid, recid_list):
 
     dbapi.set_processed_external_recids(pid, recid_list_str)
 
+def is_logged_in_through_arXiv(req):
+    '''
+    Checks if the user is logged in through the arXiv.
+
+    @param req: Apache request object
+    @type req: Apache request object
+    '''
+    session = get_session(req)
+
+    if 'user_info' in session.keys():
+        if 'external_firstname' in session['user_info'] in session.keys():
+            if session['user_info']['external_firstname']:
+                return True
+    return False
+
+def is_logged_in_through_orcid(req):
+    '''
+    Checks if the user is logged in through the orcid.
+
+    @param req: Apache request object
+    @type req: Apache request object
+    '''
+    pass
 
 def login_status(req):
-    
+    '''
+    Checks if the user is logged in and return his uid and external systems that he is logged in through.
+
+    @param req: Apache request object
+    @type req: Apache request object
+    '''
     login_status = dict()
-    #are we sure that we can get only one? ask SamK
+    # are we sure that we can get only one? ask SamK
     login_status['uid'] = getUid(req)
-    login_status['logged_in_sources'] = [] 
-    
+    login_status['logged_in_sources'] = []
+
     if login_status['uid'] == 0:
         login_status['logged_in'] = False
         return login_status
-    
+
     login_status['logged_in'] = True
-    
-    for source in CFG_BIBAUTHORID_SOURCES:          #move
-       if is_logged_in_through(source):                     #implement
-           login_status['logged_in_sources'].append(source) 
-    
+
+    # for every source available
+    for source in CFG_BIBAUTHORID_SOURCES:  # move
+       if is_logged_in_through[source](req):
+           login_status['logged_in_sources'].append(source)
+
     return login_status
 
 def session_bareinit(req):
@@ -890,57 +919,70 @@ def session_bareinit(req):
                 pinfo["ext_system"] = []
             for source in logged_in_sources:
                 if source not in pinfo["ext_system"]:
-                    pinfo["ext_system"][source] = { 'name': None,'external_ids':None}
+                    pinfo["ext_system"][source] = { 'name': None, 'external_ids':None}
     except KeyError:
         pinfo = dict()
         session['personinfo'] = pinfo
         pinfo["ticket"] = []
         pinfo["ext_system"] = []
         for source in logged_in_sources:
-            pinfo["ext_system"][source] = { 'name': None,'external_ids':None}
-    #this can be optimized so it's not set dirty if not necessary!
+            pinfo["ext_system"][source] = { 'name': None, 'external_ids':None}
+    # this can be optimized so it's not set dirty if not necessary!
     session.dirty = True
-            
+
+# all teh get_info methods should standardize the content:
+def get_arXiv_info(req, uinfo):
+    session = get_session(req)
+    arXiv_info = dict()
+
+    try:
+        name = uinfo[source + '_firstname']
+    except KeyError:
+        name = ''
+    try:
+        surname = uinfo[source + '_familyname']
+    except KeyError:
+        surname = ''
+
+    if surname:
+        session['personinfo']['ext_system'][source]['name'] = nameapi.create_normalized_name(
+                                          nameapi.split_name_parts(surname + ', ' + name))
+    else:
+        session['personinfo']['ext_system'][source]['name'] = ''
+    arXiv_info['name'] = session['personinfo']['ext_system'][source]['name']
+    arXiv_info['email'] = ''
+    session.dirty = True
+
+    return arXiv_info
+    # {the dictionary we define in _webinterface}
+
+
+# all teh get_info methods should standardize the content:
+def get_orcid_info(req, uinfo):
+    pass
+    # {the dictionary we define in _webinterface}
+
 def get_ext_sources_info(req, logged_in_sources):
+    '''
+    For every external source get all of their info but for records and store them into a session dictionary
+
+    @param req: Apache request object
+    @type req: Apache request object
     
+    @param logged_in_sources: contains all external sources tha the user is logged in through
+    @type logged_in_sources: dict    
+    '''
     session_bareinit(req)
     session = get_session(req)
     user_sources_info = dict()
 
-    pinfo = session['personinfo']
     uinfo = collect_user_info(req)
-    pinfo['external_first_entry'] = False
-    
+    session['personinfo']['external_first_entry'] = False
+
     for source in logged_in_sources:
-        user_sources_info[source] = []
-        try:
-            name = uinfo[source + '_firstname']
-        except KeyError:
-            name = ''
-        try:
-            surname = uinfo[source + '_familyname']
-        except KeyError:
-            surname = ''
-    
-        if surname:
-            session['personinfo']['ext_system'][source]['name'] = nameapi.create_normalized_name(
-                                              nameapi.split_name_parts(surname + ', ' + name))
-        else:
-            session['personinfo']['ext_system'][source]['name'] = ''
-        user_sources_info[source][name]= session['personinfo']['ext_system'][source]['name']
+        user_sources_info[source] = ext_sources_info_functions[source](req, uinfo)
 
-    session.dirty = True
-
-    
     return user_sources_info
-
-#all teh get_info methods should standardize the content:
-def get_arXiv_info(req):
-	name = something_in_session(req)
-	email = something_in_session(req)
-	return {}
-	#{the dictionary we define in _webinterface}
-
 
 def get_arXiv_recids(req, old_external_ids):
     session = get_session(req)
@@ -963,37 +1005,37 @@ def get_arXiv_recids(req, old_external_ids):
                 recid = perform_request_search(p='037:' + str(arxiv_id), of='id', rg=0)[0]
                 recids_from_arxivids.append(recid)
             cached_ids_assocciation[arxiv_id] = recid
-    
-    pinfo['ext_system']['Arxiv']['external_ids'] = cached_ids_assocciation
+
+    pinfo['ext_system']['arXiv']['external_ids'] = cached_ids_assocciation
     session.dirty = True
     return recids_from_arxivids
-        
-def get_Orcid_recids(req, current_external_ids):
-    return 
+
+def get_orcid_recids(req, current_external_ids):
+    pass
 
 def get_ext_sources_recids(req, logged_in_sources):
     session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
     external_sources_recids = []
-    
+
     for source in logged_in_sources:
         old_external_ids = pinfo['ext_system'][source]['external_ids'];
-        source_recids = ext_sources_info_functions[source](req, old_external_ids)
-        external_sources_recids.append(source_recids)    
-        
+        source_recids = ext_sources_recids_functions[source](req, old_external_ids)
+        external_sources_recids.append(source_recids)
+
     return list(set(external_sources_recids))
 
 def collect_info(source):
     pass
 
 def get_user_pid(uid):
-    
+
     pid, pid_found = dbapi.get_personid_from_uid([[uid]])
-    
+
     if not pid_found:
         return -1
-    
+
     return pid[0]
 
 
@@ -1004,22 +1046,22 @@ def auto_claim_papers(pid, sources_recids):
 
 
     ticket = session['personinfo']['ticket']
-    
+
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
     missing_bibrecs = sources_recids - pid_bibrecs
-    #present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
+    # present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
 
-    #assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
+    # assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
 
     tempticket = []
-    #now we have to open the tickets...
-    #person_papers contains the papers which are already assigned to the person and came from arxive,
-    #they can be claimed regardless
+    # now we have to open the tickets...
+    # person_papers contains the papers which are already assigned to the person and came from arxive,
+    # they can be claimed regardless
 
     for bibrec in missing_bibrecs:
         tempticket.append({'pid':pid, 'bibref':str(bibrec), 'action':'confirm'})
 
-    #check if ticket targets (bibref for pid) are already in ticket
+    # check if ticket targets (bibref for pid) are already in ticket
     for t in list(tempticket):
         for e in list(ticket):
             if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
@@ -1033,13 +1075,13 @@ def match_profile(sources_recids, sources_info):
     name_variants = []
     for source in sources_info.keys():
         name = sources_info[source]['name']
-        
+
         if name not in name_variants:
             name_variants.append(name)
-            
-    return dbapi.find_most_compatible_person(sources_recids, name_variants)        
 
-   
+    return dbapi.find_most_compatible_person(sources_recids, name_variants)
+
+
 def arxiv_login(req, picked_profile=None):
     '''
     Log in through arxive. If user already associated to a personid, returns the personid.
@@ -1098,16 +1140,16 @@ def arxiv_login(req, picked_profile=None):
     except KeyError:
         arxiv_p_ids = []
 
-    #'external_arxivids': 'hep-th/0112017;hep-th/0112020',
-    #'external_familyname': 'Weiler',
-    #'external_firstname': 'Henning',
+    # 'external_arxivids': 'hep-th/0112017;hep-th/0112020',
+    # 'external_familyname': 'Weiler',
+    # 'external_firstname': 'Henning',
 
     try:
         found_bibrecs = set(reduce(add, [perform_request_search(p='037:' + str(arx), of='id', rg=0)for arx in arxiv_p_ids]))
     except (IndexError, TypeError):
         found_bibrecs = set()
 
-    #found_bibrecs = [567700, 567744]
+    # found_bibrecs = [567700, 567744]
 
     uid = getUid(req)
     pid, pid_found = dbapi.get_personid_from_uid([[uid]])
@@ -1124,19 +1166,19 @@ def arxiv_login(req, picked_profile=None):
 
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
     missing_bibrecs = found_bibrecs - pid_bibrecs
-    #present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
+    # present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
 
-    #assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
+    # assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
 
     tempticket = []
-    #now we have to open the tickets...
-    #person_papers contains the papers which are already assigned to the person and came from arxive,
-    #they can be claimed regardless
+    # now we have to open the tickets...
+    # person_papers contains the papers which are already assigned to the person and came from arxive,
+    # they can be claimed regardless
 
     for bibrec in missing_bibrecs:
         tempticket.append({'pid':pid, 'bibref':str(bibrec), 'action':'confirm'})
 
-    #check if ticket targets (bibref for pid) are already in ticket
+    # check if ticket targets (bibref for pid) are already in ticket
     for t in list(tempticket):
         for e in list(ticket):
             if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
@@ -1165,7 +1207,7 @@ def external_user_can_perform_action(uid):
     @return: is user allowed to perform actions?
     @rtype: boolean
     '''
-    #If no EXTERNAL_CLAIMED_RECORDS_KEY we bypass this check
+    # If no EXTERNAL_CLAIMED_RECORDS_KEY we bypass this check
     if not bconfig.EXTERNAL_CLAIMED_RECORDS_KEY:
         return True
 
@@ -1194,7 +1236,7 @@ def is_external_user(uid):
     @return: is user allowed to perform actions?
     @rtype: boolean
     '''
-    #If no EXTERNAL_CLAIMED_RECORDS_KEY we bypass this check
+    # If no EXTERNAL_CLAIMED_RECORDS_KEY we bypass this check
     if not bconfig.EXTERNAL_CLAIMED_RECORDS_KEY:
         return False
 
@@ -1251,7 +1293,7 @@ def check_transaction_permissions(uid, bibref, pid, action):
     if not uid_pid[1] or pid != uid_pid[0][0]:
         c_own = False
 
-    #if we cannot override an already touched bibref, no need to go on checking
+    # if we cannot override an already touched bibref, no need to go on checking
     if c_override:
         if is_superadmin:
             return 'warning_granted'
@@ -1261,7 +1303,7 @@ def check_transaction_permissions(uid, bibref, pid, action):
         if is_superadmin:
             return 'granted'
 
-    #let's check if invenio is allowing us the action we want to perform
+    # let's check if invenio is allowing us the action we want to perform
     if c_own:
         action = bconfig.CLAIMPAPER_CLAIM_OWN_PAPERS
     else:
@@ -1270,7 +1312,7 @@ def check_transaction_permissions(uid, bibref, pid, action):
     if auth[0] != 0:
         return "denied"
 
-    #now we know if claiming for ourselfs, we can ask for external ideas
+    # now we know if claiming for ourselfs, we can ask for external ideas
     if c_own:
         action = 'claim_own_paper'
     else:
@@ -1278,8 +1320,8 @@ def check_transaction_permissions(uid, bibref, pid, action):
 
     ext_permission = external_user_can_perform_action(uid)
 
-    #if we are here invenio is allowing the thing and we are not overwriting a
-    #user with higher privileges, if externals are ok we go on!
+    # if we are here invenio is allowing the thing and we are not overwriting a
+    # user with higher privileges, if externals are ok we go on!
     if ext_permission:
         if not c_override:
             return "granted"
@@ -1360,7 +1402,7 @@ def create_request_ticket(userinfo, ticket):
         elif not is_valid_bibref(t['bibref']):
             return False
         if t['action'] == 'reset':
-            #we ignore reset tickets
+            # we ignore reset tickets
             continue
         else:
             if t['pid'] not in tic:
@@ -1529,8 +1571,8 @@ def execute_action(action, pid, bibref, uid, userinfo='', comment=''):
         dbapi.insert_user_log(userinfo, pid, 'reset', 'CMPUI_ticketcommit', bibref, comment, userid=uid)
         res = dbapi.reset_papers_flag(pid, [bibref])
 
-    #This is the only point which modifies a person, so this can trigger the
-    #deletion of a cached page
+    # This is the only point which modifies a person, so this can trigger the
+    # deletion of a cached page
     webauthorapi.expire_all_cache_for_personid(pid)
 
     return res
@@ -1565,6 +1607,8 @@ def sign_assertion(robotname, assertion):
     return robot.sign(secr, assertion)
 
 
-CFG_BIBAUTHORID_SOURCES = ['Arxiv', 'Orcid']
-ext_recid_types = {'Arxiv': "arxiv_id", "Orcid": "doi" }
-ext_sources_info_functions = {'Arxiv': get_Arxiv_info,'Orcid': get_Orcid_info}
+CFG_BIBAUTHORID_SOURCES = ['arXiv', 'orcid']
+ext_recid_types = {'arXiv': "arxiv_id", "orcid": "doi" }
+ext_sources_info_functions = {'arXiv': get_arXiv_info, 'orcid': get_orcid_info}
+ext_sources_recids_functions = {'arXiv': is_logged_in_through_arXiv, 'orcid': is_logged_in_through_orcid}
+is_logged_in_through = {'arXiv': get_arXiv_recids, 'orcid': get_orcid_recids}

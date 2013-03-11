@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-##
-## This file is part of Invenio.
-## Copyright (C) 2011, 2012, 2013 CERN.
-##
-## Invenio is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 2 of the
-## License, or (at your option) any later version.
-##
-## Invenio is distributed in the hope that it will be useful, but
-## WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-## General Public License for more details.
-##
-## You should have received a copy of the GNU General Public License
-## along with Invenio; if not, write to the Free Software Foundation, Inc.,
-## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+# #
+# # This file is part of Invenio.
+# # Copyright (C) 2011, 2012, 2013 CERN.
+# #
+# # Invenio is free software; you can redistribute it and/or
+# # modify it under the terms of the GNU General Public License as
+# # published by the Free Software Foundation; either version 2 of the
+# # License, or (at your option) any later version.
+# #
+# # Invenio is distributed in the hope that it will be useful, but
+# # WITHOUT ANY WARRANTY; without even the implied warranty of
+# # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# # General Public License for more details.
+# #
+# # You should have received a copy of the GNU General Public License
+# # along with Invenio; if not, write to the Free Software Foundation, Inc.,
+# # 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
 '''
     bibauthorid_bdinterface
@@ -32,7 +32,7 @@ from invenio.htmlutils import X
 import os
 import gc
 
-#python2.4 compatibility
+# python2.4 compatibility
 from invenio.bibauthorid_general_utils import bai_all as all
 
 from itertools import groupby, count, ifilter, chain, imap, repeat
@@ -347,10 +347,10 @@ def update_request_ticket(person_id, tag_data_tuple, ticket_id=None):
     @param: tag_data_tuples 'image' of the ticket: (('paper', '700:316,10'), ('owner', 'admin'), ('external_id', 'ticket_18'))
     @return: ticketid
     '''
-    #tags: rt_owner (the owner of the ticket, associating the rt_number to the transaction)
+    # tags: rt_owner (the owner of the ticket, associating the rt_number to the transaction)
     #      rt_external_id
     #      rt_paper_cornfirm, rt_paper_reject, rt_paper_forget, rt_name, rt_email, rt_whatever
-    #flag: rt_number
+    # flag: rt_number
     if not ticket_id:
         last_id = run_sql("select max(opt1) from aidPERSONIDDATA where personid=%s and tag like %s", (str(person_id), 'rt_%'))[0][0]
 
@@ -505,18 +505,18 @@ def get_persons_from_recids(recids, return_alt_names=False,
         pid_data = {}
 
         canonical = get_canonical_name(pid)
-        #We can supposed that this person didn't have a chance to get a canonical name yet
-        #because it was not fully processed by it's creator. Anyway it's safe to try to create one
-        #before failing miserably
+        # We can supposed that this person didn't have a chance to get a canonical name yet
+        # because it was not fully processed by it's creator. Anyway it's safe to try to create one
+        # before failing miserably
         if not canonical:
             update_personID_canonical_names([pid])
         canonical = get_canonical_name(pid)
 
-        #assert len(canonical) == 1
-        #This condition cannot hold in case claims or update daemons are run in parallel
-        #with this, as it can happen that a person with papers exists for wich a canonical name
-        #has not been computed yet. Hence, it will be indexed next time, so it learns.
-        #Each person should have at most one canonical name, so:
+        # assert len(canonical) == 1
+        # This condition cannot hold in case claims or update daemons are run in parallel
+        # with this, as it can happen that a person with papers exists for wich a canonical name
+        # has not been computed yet. Hence, it will be indexed next time, so it learns.
+        # Each person should have at most one canonical name, so:
         assert len(canonical) <= 1, "A person cannot have more than one canonical name"
 
         if len(canonical) == 1:
@@ -876,7 +876,7 @@ def get_validated_request_ticket(person_id, ticket_id=None):
     tickets = get_request_ticket(person_id, ticket_id)
     for ticket in list(tickets):
         for entry in list(ticket[0]):
-            if entry[0] == 'repeal' or entry[0] == 'confirm': #those should be the only possible actions in a ticket!
+            if entry[0] == 'repeal' or entry[0] == 'confirm':  # those should be the only possible actions in a ticket!
                 try:
                     bibref, bibrec = entry[1].split(',')
                     tab, val = bibref.split(':')
@@ -884,7 +884,7 @@ def get_validated_request_ticket(person_id, ticket_id=None):
                     present = bool(run_sql("select * from aidPERSONIDPAPERS where bibref_table like %s and bibref_value = %s and bibrec = %s ", sig))
                     if not present:
                         ticket[0].remove(entry)
-                except: #No matter what goes wrong, that's an invalid entry in the ticket. let's discard it.
+                except:  # No matter what goes wrong, that's an invalid entry in the ticket. let's discard it.
                     ticket[0].remove(entry)
 
     for ticket in list(tickets):
@@ -983,7 +983,7 @@ def confirm_papers_to_person(pid, papers, user_level=0):
         ref = int(ref)
         sig = (table, ref, rec)
 
-        #Check the status of pid: the paper should be present, either assigned or rejected
+        # Check the status of pid: the paper should be present, either assigned or rejected
         gen_papers = run_sql("select bibref_table, bibref_value, bibrec, personid, flag, name "
                              "from aidPERSONIDPAPERS "
                              "where bibrec=%s "
@@ -991,7 +991,7 @@ def confirm_papers_to_person(pid, papers, user_level=0):
                        , (rec,))
 
         paps = [el[0:3] for el in gen_papers if el[3] == pid and el[4] > -2]
-        #run_sql("select bibref_table, bibref_value, bibrec "
+        # run_sql("select bibref_table, bibref_value, bibrec "
         #               "from aidPERSONIDPAPERS "
         #               "where personid=%s "
         #               "and bibrec=%s "
@@ -999,7 +999,7 @@ def confirm_papers_to_person(pid, papers, user_level=0):
         #               , (pid, rec))
 
         other_paps = [el[0:3] for el in gen_papers if el[3] != pid and el[4] > -2]
-        #other_paps = run_sql("select bibref_table, bibref_value, bibrec "
+        # other_paps = run_sql("select bibref_table, bibref_value, bibrec "
         #               "from aidPERSONIDPAPERS "
         #               "where personid <> %s "
         #               "and bibrec=%s "
@@ -1007,7 +1007,7 @@ def confirm_papers_to_person(pid, papers, user_level=0):
         #               , (pid, rec))
 
         rej_paps = [el[0:3] for el in gen_papers if el[3] == pid and el[4] == -2]
-        #rej_paps = run_sql("select bibref_table, bibref_value, bibrec "
+        # rej_paps = run_sql("select bibref_table, bibref_value, bibrec "
         #               "from aidPERSONIDPAPERS "
         #               "where personid=%s "
         #               "and bibrec=%s "
@@ -1015,7 +1015,7 @@ def confirm_papers_to_person(pid, papers, user_level=0):
         #               , (pid, rec))
 
         bibref_exists = [el[0:3] for el in gen_papers if el[0] == table and el[1] == ref and el[4] > -2]
-        #bibref_exists = run_sql("select * "
+        # bibref_exists = run_sql("select * "
         #                        "from aidPERSONIDPAPERS "
         #                        "and bibref_table=%s "
         #                        "and bibref_value=%s "
@@ -1048,7 +1048,7 @@ def confirm_papers_to_person(pid, papers, user_level=0):
         # else before we can claim the incoming one
         if paps:
             for pap in paps:
-                #kick out all unwanted signatures
+                # kick out all unwanted signatures
                 if  sig != pap:
                     new_pid = get_new_personid()
                     pids_to_update.add(new_pid)
@@ -1145,14 +1145,14 @@ def reset_papers_flag(pid, papers):
                        , (rec, pid))
 
         paps = [el[0:3] for el in gen_papers]
-        #run_sql("select bibref_table, bibref_value, bibrec "
+        # run_sql("select bibref_table, bibref_value, bibrec "
         #               "from aidPERSONIDPAPERS "
         #               "where personid=%s "
         #               "and bibrec=%s "
         #               , (pid, rec))
 
         rej_paps = [el[0:3] for el in gen_papers if el[3] == -2]
-        #rej_paps = run_sql("select bibref_table, bibref_value, bibrec "
+        # rej_paps = run_sql("select bibref_table, bibref_value, bibrec "
         #               "from aidPERSONIDPAPERS "
         #               "where personid=%s "
         #               "and bibrec=%s "
@@ -1160,7 +1160,7 @@ def reset_papers_flag(pid, papers):
         #               , (pid, rec))
 
         pid_bibref_exists = [el[0:3] for el in gen_papers if el[0] == table and el[1] == ref and el[3] > -2]
-        #bibref_exists = run_sql("select * "
+        # bibref_exists = run_sql("select * "
         #                        "from aidPERSONIDPAPERS "
         #                        "and bibref_table=%s "
         #                        "and bibref_value=%s "
@@ -1501,7 +1501,7 @@ def change_personID_canonical_names(personid_cname_list=None):
     update_status_final("Changing canonical_names finished.")
 
 
-#bibauthorid_maintenance personid update private methods
+# bibauthorid_maintenance personid update private methods
 def update_personID_canonical_names(persons_list=None, overwrite=False, suggested='', overwrite_not_claimed_only=False):
     '''
     Updates the personID table creating or updating canonical names for persons
@@ -1579,16 +1579,16 @@ def personid_get_recids_affected_since(last_timestamp):
                     "select bibrec from aidPERSONIDPAPERS "
                     "where personid in %s" % pids_s))
 
-    return list(vset) # I'm not sure about this cast. It might work without it.
+    return list(vset)  # I'm not sure about this cast. It might work without it.
 
 
 def get_all_paper_records(pid, claimed_only=False):
     if not claimed_only:
-        result =  run_sql("SELECT bibrec FROM aidPERSONIDPAPERS WHERE personid = %s", (str(pid),))
+        result = run_sql("SELECT bibrec FROM aidPERSONIDPAPERS WHERE personid = %s", (str(pid),))
     else:
         result = run_sql("SELECT bibrec FROM aidPERSONIDPAPERS WHERE "
                        "personid = %s and flag=2 or flag=-2", (str(pid),))
-    
+
     return tuple(set(result))
 
 
@@ -1682,8 +1682,8 @@ def _get_grouped_records_using_caches(brr, *args):
     except KeyError:
         return dict((arg, []) for arg in args)
     if not fn or len(fn) > 1:
-        #if len fn > 1 it's BAD: the same signature is at least twice on the same paper.
-        #Let's default to nothing, to be on the safe side.
+        # if len fn > 1 it's BAD: the same signature is at least twice on the same paper.
+        # Let's default to nothing, to be on the safe side.
         return dict((arg, []) for arg in args)
     ids = set(chain(*(c['fn'][i] for i in fn)))
     tuples = [MARC_100_700_CACHE['b%s' % str(brr[0])][i] for i in ids]
@@ -1884,8 +1884,8 @@ def _get_name_by_bibrecref_from_cache(bib):
         if tag in MARC_100_700_CACHE[table][refid][0]:
             ret = MARC_100_700_CACHE[table][refid][1]
     except (KeyError, IndexError), e:
-        #The GC did run and the table is not clean?
-        #We might want to allow empty response here
+        # The GC did run and the table is not clean?
+        # We might want to allow empty response here
         raise Exception(str(bib) + str(e))
     if bconfig.DEBUG_CHECKS:
         assert ret == _get_name_by_bibrecref_from_db(bib)
@@ -2058,7 +2058,7 @@ class Bib_matrix(object):
                 bibmap_v = cPickle.load(open(Bib_matrix.get_map_path(files_dir, name), 'r'))
                 rec_v, self.creation_time, self._bibmap = bibmap_v
                 if (rec_v != Bib_matrix.current_comparison_version or
-                    Bib_matrix.current_comparison_version < 0): # you can use negative
+                    Bib_matrix.current_comparison_version < 0):  # you can use negative
                                                                 # version to recalculate
                     self._bibmap = dict()
                     return False
@@ -2243,7 +2243,7 @@ def get_name_string_to_pid_dictionary():
         namesdict.setdefault(x[1], set()).add(x[0])
     return namesdict
 
-#could be useful to optimize rabbit, still unused and untested, watch out.
+# could be useful to optimize rabbit, still unused and untested, watch out.
 def get_bibrecref_to_pid_dictuonary():
     brr2pid = {}
     all_brr = run_sql("select personid,bibref_table,bibref_value.bibrec from aidPERSONIDPAPERS")
@@ -2270,7 +2270,7 @@ def check_personid_papers(output_file=None):
                 check_wrong_rejection,
                 check_canonical_names,
                 check_empty_personids
-                #check_claim_inspireid_contradiction
+                # check_claim_inspireid_contradiction
                 )
     # Avoid writing f(a) or g(a), because one of the calls
     # might be optimized.
@@ -2293,7 +2293,7 @@ def repair_personid(output_file=None):
                 check_wrong_rejection,
                 check_canonical_names,
                 check_empty_personids
-                #check_claim_inspireid_contradiction
+                # check_claim_inspireid_contradiction
                 )
 
     first_check = [check(printer) for check in checkers]
@@ -2526,10 +2526,10 @@ def check_wrong_rejection(printer, repair=False):
         from bibauthorid_rabbit import rabbit
 
         if to_reassign:
-            #Rabbit is not designed to reassign signatures which are rejected but not assigned:
-            #All signatures should stay assigned, if a rejection occours the signature should get
-            #moved to a new place and the rejection entry added, but never exist as a rejection only.
-            #Hence, to force rabbit to reassign it, we have to delete the rejection.
+            # Rabbit is not designed to reassign signatures which are rejected but not assigned:
+            # All signatures should stay assigned, if a rejection occours the signature should get
+            # moved to a new place and the rejection entry added, but never exist as a rejection only.
+            # Hence, to force rabbit to reassign it, we have to delete the rejection.
             printer("Reassigning bibrecs with missing entries: %s" % str(to_reassign))
             for sig in to_reassign:
                 run_sql("delete from aidPERSONIDPAPERS where bibref_table=%s and "
@@ -2537,8 +2537,8 @@ def check_wrong_rejection(printer, repair=False):
             rabbit([s[2] for s in to_reassign])
 
         if to_deal_with:
-            #We got claims and rejections on the same person for the same paper. Let's forget about
-            #it and reassign it automatically, they'll make up their minds sooner or later.
+            # We got claims and rejections on the same person for the same paper. Let's forget about
+            # it and reassign it automatically, they'll make up their minds sooner or later.
             printer("Deleting and reassigning bibrefrecs with conflicts %s" % str(to_deal_with))
             for sig in to_deal_with:
                 run_sql("delete from aidPERSONIDPAPERS where personid=%s and bibref_table=%s and "
@@ -2576,11 +2576,11 @@ def check_merger():
 
     old_assigned = set(run_sql("select bibref_table, bibref_value, bibrec "
                                "from aidPERSONIDPAPERS_copy"))
-                                #"where flag <> -2 and flag <> 2"))
+                                # "where flag <> -2 and flag <> 2"))
 
     cur_assigned = set(run_sql("select bibref_table, bibref_value, bibrec "
                                "from aidPERSONIDPAPERS"))
-                                #"where flag <> -2 and flag <> 2"))
+                                # "where flag <> -2 and flag <> 2"))
 
     errors = ((old_assigned - cur_assigned, "Some signatures were lost during the merge."),
               (cur_assigned - old_assigned, "Some new signatures appeared after the merge."))
@@ -3047,7 +3047,7 @@ def get_doi_from_rec(recid):
         doi = run_sql("SELECT id, tag, value FROM bib02x WHERE id in %s " % doi_id_s)
         if doi:
             grouped = groupby(idx, lambda x: x[1])
-            doi_dict = dict((x[0],x[1:]) for x in doi)
+            doi_dict = dict((x[0], x[1:]) for x in doi)
             for group in grouped:
                 elms = [x[0] for x in list(group[1])]
                 found = False
@@ -3074,7 +3074,7 @@ def export_person(person_id):
     full_names = get_person_db_names_set(person_id)
     if full_names:
         splitted_names = [split_name_parts(n[0]) for n in full_names]
-        splitted_names = [x+[len(x[2])] for x in splitted_names]
+        splitted_names = [x + [len(x[2])] for x in splitted_names]
         max_first_names = max([x[4] for x in splitted_names])
         full_name_candidates = filter(lambda x: x[4] == max_first_names, splitted_names)
         full_name = create_normalized_name(full_name_candidates[0])
@@ -3083,7 +3083,7 @@ def export_person(person_id):
         person_info['names']['full_name'] = (full_name,)
         person_info['names']['surname'] = (full_name_candidates[0][0],)
         if full_name_candidates[0][2]:
-            person_info['names']['first_names'] =  (' '.join(full_name_candidates[0][2]),)
+            person_info['names']['first_names'] = (' '.join(full_name_candidates[0][2]),)
         person_info['names']['name_variants'] = ('; '.join([create_normalized_name(x) for x in splitted_names]),)
 
     bibrecs = get_person_bibrecs(person_id)
@@ -3095,7 +3095,7 @@ def export_person(person_id):
         recid_dict['INSPIRE-record-url'] = ('%s/record/%s' % (CFG_SITE_URL, str(recid)),)
         rec_doi = get_doi_from_rec(recid)
         if rec_doi:
-            recid_dict['DOI']= (str(rec_doi),)
+            recid_dict['DOI'] = (str(rec_doi),)
         recids_data.append(recid_dict)
 
     person_info['records']['record'] = tuple(recids_data)
@@ -3107,9 +3107,9 @@ def export_person(person_id):
     canonical_names = get_canonical_names_by_pid(person_id)
     if canonical_names:
         person_info['identifiers']['INSPIRE_canonical_name'] = (str(canonical_names[0][0]),)
-        person_info['profile_page']['INSPIRE_profile_page']  = ('%s/author/%s' % (CFG_SITE_URL,canonical_names[0][0]),)
+        person_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/%s' % (CFG_SITE_URL, canonical_names[0][0]),)
     else:
-        person_info['profile_page']['INSPIRE_profile_page']  = ('%s/author/%s' % (CFG_SITE_URL,str(person_id)),)
+        person_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/%s' % (CFG_SITE_URL, str(person_id)),)
 
     orcids = get_orcids_by_pids(person_id)
     if orcids:
@@ -3134,16 +3134,16 @@ def export_person_to_foaf(person_id):
     def export(val, indent=0):
         if isinstance(val, dict):
             contents = list()
-            for k,v in val.iteritems():
-                if isinstance(v,tuple):
-                    contents.append( ''.join( [ X[str(k)](indent=indent, body=export(c)) for c in v] ))
+            for k, v in val.iteritems():
+                if isinstance(v, tuple):
+                    contents.append(''.join([ X[str(k)](indent=indent, body=export(c)) for c in v]))
                 else:
-                    contents.append( X[str(k)](indent=indent,body=export(v, indent=indent+1)) )
+                    contents.append(X[str(k)](indent=indent, body=export(v, indent=indent + 1)))
             return ''.join(contents)
         elif isinstance(val, str):
             return str(X.escaper(val))
         else:
-            raise Exception('WHAT THE HELL DID WE GET HERE? %s' % str(val) )
+            raise Exception('WHAT THE HELL DID WE GET HERE? %s' % str(val))
 
     return X['person'](body=export(infodict, indent=1))
 
