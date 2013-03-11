@@ -2454,6 +2454,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         ln = argd['ln']
         chosen_profile = argd['chosen_profile']
 
+
+        self._error_page(req, ln,
+                                        "%s"% str(get_session(req)))
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
 
@@ -2558,8 +2561,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @param form: GET/POST request params
         @type form: dict
         '''
+<<<<<<< HEAD
         # uid = getUid(req)
 
+=======
+        
+        # login_status checks if the user is logged in and return his uid and external systems that he is logged in through.
+        # return a dictionary of the following form: {'logged_in': True, 'uid': 2, 'logged_in_sources':['Arxiv', ...]}
+>>>>>>> d281748... BAI: Interface functionality
         login_status = webapi.login_status(req)
 	# this is mocking the session
 	# # Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
