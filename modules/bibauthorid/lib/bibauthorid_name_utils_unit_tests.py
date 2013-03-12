@@ -46,7 +46,9 @@ names = [
  'test, s. still be',
  'with .[+)* ] just but without comma test']
 
-from invenio.bibauthorid_name_utils import *
+from invenio.bibauthorid_name_utils import split_name_parts, distance, create_canonical_name, create_normalized_name, create_unified_name, soft_compare_names
+from invenio.bibauthorid_name_utils import full_names_are_equal_composites, full_names_are_substrings, surname_compatibility, initials_compatibility, compare_names
+from invenio.bibauthorid_name_utils import create_name_tuples
 
 class Test_distance_functions(unittest.TestCase):
     """ Test string distance functions """
@@ -82,7 +84,7 @@ class Test_split_name_parts(unittest.TestCase):
 
     def test_split_name_parss(self):
         for tn in self.names_split_name_parts.keys():
-             self.assertEqual(split_name_parts(tn), self.names_split_name_parts[tn])
+            self.assertEqual(split_name_parts(tn), self.names_split_name_parts[tn])
 
 
 class Test_create_canonical_names(unittest.TestCase):
@@ -161,8 +163,8 @@ class Test_create_uinified_name(unittest.TestCase):
      'with .[+)* ] just but without comma test': 'Test, W. [. *. ]. J. B. W. C. '}
 
     def test_create_unified_name(self):
-         for tn in self.tc.keys():
-             self.assertEqual(create_unified_name(tn), self.tc[tn])
+        for tn in self.tc.keys():
+            self.assertEqual(create_unified_name(tn), self.tc[tn])
 
 class Test_soft_name_comparison(unittest.TestCase):
     'Test soft name comparison'
@@ -177,7 +179,7 @@ class Test_soft_name_comparison(unittest.TestCase):
         'Tast, C N': ['Test, N C', [(ge, 0.0), (le, 0.5)]],
         'Diff, C N': ['Erent, C N', [(ge, 0.0), (le, 0.4)]],
         'Diff, Con Nome': ['Erent, Con Nome', [(ge, 0.0), (le, 0.4)]],
-        'Diff, Con Nome': ['Erent, Che Noun', [(ge, 0.0), (le, 0.2)]],
+        'Diff, Con Nomee': ['Erent, Che Noun', [(ge, 0.0), (le, 0.2)]],
         'Diff, Name': ['Erent, Completely', [(ge, 0.0), (le, 0.1)]],
         }
 
@@ -203,7 +205,7 @@ class Test_name_comparison(unittest.TestCase):
         'Tast, C N': ['Test, C N', [(ge, 0.4), (le, 0.7)]],
         'Diff, C N': ['Erent, C N', [(ge, 0.0), (le, 0.2)]],
         'Diff, Con Nome': ['Erent, Con Nome', [(ge, 0.0), (le, 0.2)]],
-        'Diff, Con Nome': ['Erent, Che Noun', [(ge, 0.0), (le, 0.2)]],
+        'Diff, Con Nomee': ['Erent, Che Noun', [(ge, 0.0), (le, 0.2)]],
         'Diff, Name': ['Erent, Completely', [(ge, 0.0), (le, 0.1)]],
         }
 

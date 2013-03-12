@@ -41,6 +41,7 @@ from operator import itemgetter
 from invenio.search_engine import perform_request_search
 from invenio.access_control_engine import acc_authorize_action
 from invenio.config import CFG_SITE_URL
+from invenio.bibauthorid_config import QGRAM_LEN
 
 from invenio.bibauthorid_name_utils import split_name_parts
 from invenio.bibauthorid_name_utils import create_canonical_name
@@ -627,21 +628,12 @@ def get_person_names_count(pid):
                   "personid=%s and flag > -2", (pid,))
     reslist = [x[0] for x in res]
     reslist.sort()
-    names_count = []
-    try:
-        current_name = reslist[0]
-        counter = 1
-        for name in reslist[1:]:
-            if current_name == name:
-                counter += 1
-            else:
-                names_count.append((current_name, counter))
-                current_name = name
-                counter = 1
-        names_count.append((current_name, counter))
-    except IndexError:
-            pass
-    return tuple(names_count)
+    names_count = defaultdict(int)
+    for name in reslist:
+        names_count[name]+=1
+
+    return names_count.items()
+
 
 def get_person_db_names_set(pid):
     '''
@@ -3122,3 +3114,80 @@ def export_person_to_foaf(person_id):
             raise Exception('WHAT THE HELL DID WE GET HERE? %s' % str(val) )
 
     return X['person'](body=export(infodict, indent=1))
+
+def insert_multiple_values(table_name, column_names, args):
+    '''
+    docstring
+
+    @param table_name:
+    @type table_name:
+    @param column_names:
+    @type column_names:
+    @param args:
+    @type args:
+    '''
+    column_num = len(column_names)
+    strs = ("%s" for i in range(column_num))
+    values_list_str = "(%s)" % ", ".join(strs)
+    strs2 = (values_list_str for i in range(len(args)/column_num))
+    insert_query = 'insert into %s (%s) values %s' % (table_name, ", ".join(column_names), ", ".join(strs2))
+    run_sql(insert_query, args)
+
+def trancate_table(table_name):
+    '''
+    docstring
+
+    @param table_name:
+    @type table_name:
+    '''
+    run_sql("truncate table %s" % (table_name,))
+
+def set_dense_index_ready():
+    '''
+    docstring
+    '''
+    run_sql("insert into denseINDEX (name_id,person_name,personids) values (%s,%s,%s)", (-1,'',''))
+
+def set_inverted_lists_ready():
+    '''
+    docstring
+    '''
+    run_sql("insert into invertedLISTS (qgram,inverted_list,list_cardinality) values (%s,%s,%s)", ('!'*QGRAM_LEN,'',0))
+
+def get_inverted_lists(qgrams):
+    '''
+    docstring
+
+    @param table_name:
+    @type table_name:
+    @return:
+    @rtype:
+    '''
+    inverted_lists = run_sql("select inverted_list, list_cardinality from invertedLISTS where qgram in %s"
+                                % (list_2_SQL_str(qgrams, f=lambda x: "'%s'" % x), ))
+    return inverted_lists
+
+def get_indexable_name_personids(nameids):
+    '''
+    docstring
+
+    @param table_name:
+    @type table_name:
+    @return:
+    @rtype:
+    '''
+    name_personids = run_sql("select person_name, personids from denseINDEX where name_id in %s" % (list_2_SQL_str(nameids),) )
+    return name_personids
+
+def check_search_engine_status():
+    '''
+    docstring
+
+    @return:
+    @rtype:
+    '''
+    denseINDEX_exists = run_sql("select * from denseINDEX where name_id=%s", (-1,))
+    invertedLISTS_exists = run_sql("select * from invertedLISTS where qgram=%s", ('!'*QGRAM_LEN,) )
+    if denseINDEX_exists and invertedLISTS_exists:
+        return True
+    return False

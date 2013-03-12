@@ -33,7 +33,7 @@ from invenio.config import CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL
 from invenio.bibformat import format_record
 from invenio.session import get_session
 from invenio.search_engine_utils import get_fieldvalues
-from invenio.bibauthorid_config import EXTERNAL_SYSTEMS_LIST
+from invenio.bibauthorid_config import PERSONID_EXTERNAL_IDENTIFIER_MAP
 from invenio.bibauthorid_webapi import get_person_redirect_link, get_canonical_id_from_person_id, get_person_names_from_id
 from invenio.bibauthorid_webapi import get_personiID_external_ids
 from invenio.bibauthorid_frontinterface import get_uid_from_personid
@@ -1064,7 +1064,7 @@ class Template:
                 h('   <input type="hidden" name="pid" value="%s">' % person_id)
                 for idx in external_ids:
                     try:
-                        sys = [s for s in EXTERNAL_SYSTEMS_LIST if EXTERNAL_SYSTEMS_LIST[s] == idx][0]
+                        sys = [s for s in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[s] == idx][0]
                     except (IndexError):
                         sys = ''
                     for k in external_ids[idx]:
@@ -1081,8 +1081,8 @@ class Template:
             h('   <input type="hidden" name="pid" value="%s">' % person_id)
             h('   <select name="ext_system">')
             h('      <option value="" selected>-- ' + self._('Choose system') + ' --</option>')
-            for el in EXTERNAL_SYSTEMS_LIST:
-                h('  <option value="%s"> %s </option>' % (EXTERNAL_SYSTEMS_LIST[el], el))
+            for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
+                h('  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el))
             h('   </select>')
             h('   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">')
             h('   <input type="submit" value="add external id" class="aid_btn_blue">')

@@ -19,7 +19,6 @@
 
 from itertools import chain, groupby, izip, cycle
 from operator import itemgetter
-import cPickle
 from invenio.bibauthorid_matrix_optimization import maximized_mapping
 from invenio.bibauthorid_backinterface import save_cluster
 from invenio.bibauthorid_backinterface import get_all_papers_of_pids

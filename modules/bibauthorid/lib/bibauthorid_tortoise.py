@@ -200,7 +200,7 @@ def _create_matrix(lname):
                     % (cluster_set.last_name, bibs, expected))
     cluster_set.store()
 
-def tortoise_tweak_coefficient(lastnames, min_coef, max_coef, stepping, create_matrix=True):
+def tortoise_tweak_coefficient(lastnames, min_coef, max_coef, stepping, build_matrix=True):
     bibauthor_print('Coefficient tweaking!')
     bibauthor_print('Cluster sets from mark...')
 
@@ -209,7 +209,7 @@ def tortoise_tweak_coefficient(lastnames, min_coef, max_coef, stepping, create_m
 
     pool = mp.Pool()
 
-    if create_matrix:
+    if build_matrix:
         pool.map(_create_matrix, lnames)
     pool.map(_collect_statistics_lname_coeff, ((x,y) for x in lnames for y in coefficients ))
 
