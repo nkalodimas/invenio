@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-##
-## This file is part of Invenio.
-## Copyright (C) 2011 CERN.
-##
-## Invenio is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 2 of the
-## License, or (at your option) any later version.
-##
-## Invenio is distributed in the hope that it will be useful, but
-## WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-## General Public License for more details.
-##
-## You should have received a copy of the GNU General Public License
-## along with Invenio; if not, write to the Free Software Foundation, Inc.,
-## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+# #
+# # This file is part of Invenio.
+# # Copyright (C) 2011 CERN.
+# #
+# # Invenio is free software; you can redistribute it and/or
+# # modify it under the terms of the GNU General Public License as
+# # published by the Free Software Foundation; either version 2 of the
+# # License, or (at your option) any later version.
+# #
+# # Invenio is distributed in the hope that it will be useful, but
+# # WITHOUT ANY WARRANTY; without even the implied warranty of
+# # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# # General Public License for more details.
+# #
+# # You should have received a copy of the GNU General Public License
+# # along with Invenio; if not, write to the Free Software Foundation, Inc.,
+# # 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
 """Bibauthorid HTML templates"""
 
@@ -23,8 +23,8 @@
 # pylint: disable=C0301
 
 
-#from cgi import escape
-#from urllib import quote
+# from cgi import escape
+# from urllib import quote
 #
 import invenio.bibauthorid_config as bconfig
 from invenio.config import CFG_SITE_LANG
@@ -42,7 +42,7 @@ from invenio.bibauthorid_frontinterface import get_canonical_id_from_personid
 from invenio.messages import gettext_set_language, wash_language
 from invenio.webuser import get_email
 from invenio.htmlutils import escape_html
-#from invenio.textutils import encode_for_xml
+# from invenio.textutils import encode_for_xml
 
 class Template:
     """Templating functions used by aid"""
@@ -153,7 +153,7 @@ class Template:
         arg = ''
         if len(bibrefs) > 1:
             arg = 's'
-        message = self._(notification_message_dict[message_key] % (arg) )
+        message = self._(notification_message_dict[message_key] % (arg))
 
         html = []
         h = html.append
@@ -290,7 +290,7 @@ class Template:
         arg = ''
         if len(bibrefs) > 1:
             arg = 's'
-        message = self._(error_message_dict[message_key] % (arg) )
+        message = self._(error_message_dict[message_key] % (arg))
 
         html = []
         h = html.append
@@ -423,7 +423,7 @@ class Template:
                                                                        'repeal_text':'Repeal this record assignment.',
                                                                        'to_other_text':'Assign to another person',
                                                                        'alt_to_other':'To other person!'
-                                                                       } ):
+                                                                       }):
         '''
         Generate play per-paper links for the table for the
         status "repealed"
@@ -476,7 +476,7 @@ class Template:
         @param verbiage_dict: language for the link descriptions
         @type verbiage_dict: dict
         '''
-        #batchprocess?mconfirm=True&bibrefs=['100:17,16']&pid=1
+        # batchprocess?mconfirm=True&bibrefs=['100:17,16']&pid=1
         string = ('<!--0!--><span id="aid_status_details"> '
                 '<a rel="nofollow" id="aid_confirm" href="%(url)s/person/action?confirm=True&selection=%(ref)s&pid=%(pid)s">'
                 '<img src="%(url)s/img/aid_check.png" alt="%(alt_confirm)s" />'
@@ -522,12 +522,12 @@ class Template:
             bibs = bibs + 'selection=' + str(paper)
 
         if pid > -1:
-            h('<a rel="nofollow" id="clam_for_myself" href="%s/person/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(pid)) )
+            h('<a rel="nofollow" id="clam_for_myself" href="%s/person/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(pid)))
             h(self._('Claim for yourself') + ' </a> <br>')
 
         if last_viewed_pid:
-            h('<a rel="nofollow" id="clam_for_last_viewed" href="%s/person/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(last_viewed_pid[0])) )
-            h(self._('Attribute to') + ' %s </a> <br>' % (last_viewed_pid[1]) )
+            h('<a rel="nofollow" id="clam_for_last_viewed" href="%s/person/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(last_viewed_pid[0])))
+            h(self._('Attribute to') + ' %s </a> <br>' % (last_viewed_pid[1]))
 
         if search_enabled:
             h('<a rel="nofollow" id="claim_search" href="%s/person/action?to_other_person=True&%s"> ' % (CFG_SITE_URL, bibs))
@@ -578,7 +578,7 @@ class Template:
         @type buttons_verbiage_dict: dict
         '''
         no_papers_html = ['<div style="text-align:left;margin-top:1em;"><strong>']
-        no_papers_html.append('%s' % self._(verbiage_dict['no_doc_string']) )
+        no_papers_html.append('%s' % self._(verbiage_dict['no_doc_string']))
         no_papers_html.append('</strong></div>')
 
         if not bibrecids or not person_id:
@@ -590,7 +590,7 @@ class Template:
         h('<form id="%s" action="/person/action" method="post">'
                    % (form_id))
 
-        h('<div class="aid_reclist_selector">') #+self._(' On all pages: '))
+        h('<div class="aid_reclist_selector">')  # +self._(' On all pages: '))
         h('<a rel="nofollow" rel="group_1" href="#select_all">' + self._('Select All') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#select_none">' + self._('Select None') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#invert_selection">' + self._('Invert Selection') + '</a> | ')
@@ -602,10 +602,10 @@ class Template:
         h(('<img src="%s/img/aid_90low_right.png" alt="∟" />')
           % (CFG_SITE_URL))
         h('<input type="hidden" name="pid" value="%s" />' % (person_id))
-        h('<input type="submit" name="confirm" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_confirm']) )
-        h('<input type="submit" name="repeal" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_repeal']) )
-        h('<input type="submit" name="to_other_person" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_to_others']) )
-        #if show_reset_button:
+        h('<input type="submit" name="confirm" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_confirm']))
+        h('<input type="submit" name="repeal" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_repeal']))
+        h('<input type="submit" name="to_other_person" value="%s" class="aid_btn_blue" />' % self._(verbiage_dict['b_to_others']))
+        # if show_reset_button:
         #    h('<input type="submit" name="reset" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_forget'])
         h("  </div>")
 
@@ -684,7 +684,7 @@ class Template:
         h("  </tbody>")
         h("</table>")
 
-        h('<div class="aid_reclist_selector">') #+self._(' On all pages: '))
+        h('<div class="aid_reclist_selector">')  # +self._(' On all pages: '))
         h('<a rel="nofollow" rel="group_1" href="#select_all">' + self._('Select All') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#select_none">' + self._('Select None') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#invert_selection">' + self._('Invert Selection') + '</a> | ')
@@ -699,7 +699,7 @@ class Template:
         h('<input type="submit" name="confirm" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_confirm'])
         h('<input type="submit" name="repeal" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_repeal'])
         h('<input type="submit" name="to_other_person" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_to_others'])
-        #if show_reset_button:
+        # if show_reset_button:
         #    h('<input type="submit" name="reset" value="%s" class="aid_btn_blue" />' % verbiage_dict['b_forget'])
         h("  </div>")
         h("</form>")
@@ -790,7 +790,7 @@ class Template:
         if not ln:
             pass
 
-        #class="ui-tabs ui-widget ui-widget-content ui-corner-all">
+        # class="ui-tabs ui-widget ui-widget-content ui-corner-all">
         h('<div id="aid_person_names"')
         h('<p><strong>' + self._('Names variants') + ':</strong></p>')
         h("<p>")
@@ -1053,18 +1053,18 @@ class Template:
             h('<div> <br>')
             h('<strong> External IDs </strong> <br>')
 
-            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL) )
+            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
             h('<input type="hidden" name="add_missing_external_ids" value="True">')
             h('<input type="hidden" name="pid" value="%s">' % person_id)
             h('<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>')
 
-            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL) )
+            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
             h('<input type="hidden" name="rewrite_all_external_ids" value="True">')
             h('<input type="hidden" name="pid" value="%s">' % person_id)
             h('<br> <input type="submit" value="rewrite all ids" class="aid_btn_blue"> </form> <br>')
 
             if external_ids:
-                h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL) )
+                h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
                 h('   <input type="hidden" name="delete_external_ids" value="True">')
                 h('   <input type="hidden" name="pid" value="%s">' % person_id)
                 for idx in external_ids:
@@ -1081,7 +1081,7 @@ class Template:
 
 
             h('<br> <br>')
-            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL) )
+            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
             h('   <input type="hidden" name="add_external_id" value="True">')
             h('   <input type="hidden" name="pid" value="%s">' % person_id)
             h('   <select name="ext_system">')
@@ -1169,8 +1169,8 @@ class Template:
                     fv = escape_html(fv)
 
                     h('<div id="aid_moreinfo">')
-                    h(('%s' + self._(' --  With name: ')) % (fv) )
-                    #, bibrefs_auto_assigned[person]["bibrecs"][recid][0][1]))
+                    h(('%s' + self._(' --  With name: ')) % (fv))
+                    # , bibrefs_auto_assigned[person]["bibrecs"][recid][0][1]))
                     # asbibref = "%s||%s" % (person, bibrefs_auto_assigned[person]["bibrecs"][recid][0][0])
                     pbibref = bibrefs_auto_assigned[person]["bibrecs"][recid][0][0]
                     h('<select name="bibrecgroup%s">' % (recid))
@@ -1748,13 +1748,13 @@ class Template:
 
         return "\n".join(html)
 
-    def tmpl_welcome_source(self, sources_list):
+    def tmpl_welcome_source(self, sources_info, uid):
         '''
         SSO landing/welcome page.
         '''
         html = []
         h = html.append
-        h('<p><b>Congratulations! you have now successfully connected to INSPIRE as user %s via %s!</b></p>' % (', ').join(sources_list))
+        h('<p><b>Congratulations! you have now successfully connected to INSPIRE as user %s via %s!</b></p>' % (str(uid), (', ').join(sources_info.keys())))
 
         h('<p>Right now, you can verify your'
         ' publication records, which will help us to produce better publication lists and'
@@ -1767,7 +1767,7 @@ class Template:
         ' and remove the ones that are not. This information will be automatically processed'
         ' or be sent to our operator for approval if needed, usually within 24'
         ' hours.'
-        '</p>' % (', ').join(sources_list))
+        '</p>' % (', ').join(sources_info.keys()))
         h('If you have '
           'any questions or encounter any problems please contact us here: '
           '<a rel="nofollow" href="mailto:%s">%s</a></p>'

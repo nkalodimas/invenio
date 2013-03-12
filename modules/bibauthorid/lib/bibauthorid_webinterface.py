@@ -2435,7 +2435,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     req=req,
                     language=ln)
 
-    def welcome(self, req, form):
+    def old_welcome(self, req, form):
         '''
         Generate SSO landing/welcome page
 
@@ -2454,9 +2454,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         ln = argd['ln']
         chosen_profile = argd['chosen_profile']
 
-
-        self._error_page(req, ln,
-                                        "%s"% str(get_session(req)))
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
 
@@ -2488,7 +2485,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         req.write(body)
 
         req.write("USERID: %s " % str(uid))
-
+        return self._error_page(req, ln, "%s" % str(get_session(req)))
 
         if action == None:
             pid = webapi.get_user_pid(req)
@@ -2551,8 +2548,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         req.write(pagefooteronly(req=req))
 
 
-
-    def new_welcome(self, req, form):
+    def welcome(self, req, form):
         '''
         Generate SSO landing/welcome page
 
@@ -2561,24 +2557,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @param form: GET/POST request params
         @type form: dict
         '''
-<<<<<<< HEAD
-        # uid = getUid(req)
-
-=======
-        
-        # login_status checks if the user is logged in and return his uid and external systems that he is logged in through.
-        # return a dictionary of the following form: {'logged_in': True, 'uid': 2, 'logged_in_sources':['Arxiv', ...]}
->>>>>>> d281748... BAI: Interface functionality
-        login_status = webapi.login_status(req)
-	# this is mocking the session
-	# # Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
-	# aka can we arrive here with two distinct uids? I hope not!
-        login_status = {'logged_in': True, 'uid': getUid(req), 'logged_in_sources':['Arxiv']}
-
-        if not login_status['logged_in']:
-	    # here will have to display please log in through whatever is available (/youraccount/login to be included? probably not Salvatore says)
-            return page_not_authorized(req, text=_("This page in not accessible directly."))
-
         self._session_bareinit(req)
 
         argd = wash_urlargd(
@@ -2589,8 +2567,23 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
              'name_search_param': (str, None),
              'surname_search_param':(str, None)})
 
+        ln = argd['ln']
+        action = argd['action']
+        pid = argd['pid']
+        name_search_param = argd['name_search_param']
+        surname_search_param = argd['surname_search_param']
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
+
+        # login_status checks if the user is logged in and return his uid and external systems that he is logged in through.
+        # return a dictionary of the following form: {'logged_in': True, 'uid': 2, 'logged_in_sources':['Arxiv', ...]}
+        login_status = webapi.login_status(req)
+	    # # Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
+        # aka can we arrive here with two distinct uids? I hope not!
+
+        if not login_status['logged_in']:
+	    # here will have to display please log in through whatever is available (/youraccount/login to be included? probably not Salvatore says)
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
 
         title_message = _('Welcome!')
 
@@ -2602,34 +2595,31 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if req.is_https():
             ssl_param = 1
 
-        req.write(pageheaderonly(req=req, title=title_message,
-                                 language=ln, secure_page_p=ssl_param))
+        req.write(pageheaderonly(req=req, title=title_message, uid=login_status["uid"],
+                               language=ln, secure_page_p=ssl_param))
         req.write(TEMPLATE.tmpl_welcome_start())
         body = ""
 
-	# get name strings and email addresses from SSO/Oauth logins: {'source':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
+	    # get name strings and email addresses from SSO/Oauth logins: {'source':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
         sources_info = webapi.get_ext_sources_info(req, login_status['logged_in_sources'])
-        # get union of recids from all external sources: set(inspire_recids_list)
-	sources_recids = webapi.get_ext_sources_recids(req)
-
-        ln = argd['ln']
-        action = argd['action']
-        pid = argd['pid']
-        name_search_param = agrd['name_search_param']
-        surname_search_param = argd['surname_search_param']
 
         # here must read parameters and take according action:
         # if search parameter: show search page with search results                                                                                                                                             	# if confirmation of pid associaton, corresponding page
 
         if CFG_INSPIRE_SITE:
 		# sho info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
-                body = TEMPLATE.tmpl_welcome_source(sources_info)  # impelement
+            body = TEMPLATE.tmpl_welcome_source(sources_info, login_status["uid"])  # impelement
         else:
-            body = TEMPLATE.tmpl_welcome()
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
+
+
+        # get union of recids from all external sources: set(inspire_recids_list)
+        sources_recids = webapi.get_ext_sources_recids(req, login_status['logged_in_sources'])
 
         req.write(body)
         req.write("USERID: %s " % str(login_status['uid']))
 
+        return self._error_page(req, ln, "%s" % str(get_session(req)))
 	# warmly suggest the user to log in through all the others available sources if possible so we gather all papers for him for free!
         req.write(TEMPLATE.tmpl_suggest_not_logged_in_sources(login_status['logged_in_sources']))  # implement
 
@@ -2646,16 +2636,16 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 	    req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
 
         else:
-	    # show: this is who we think you are, if you lije this profile click here and you'll become him!
-	    # this is the profile with the biggest intersection of papers
+    	    # show: this is who we think you are, if you lije this profile click here and you'll become him!
+    	    # this is the profile with the biggest intersection of papers
             propable_pid = webapi.match_profile(sources_recids, sources_info)  # impelement
             req.write(TEMPLATE.tmpl_welcome_propable_profile_suggestion(propable_pid))  # review
             # search_results = search...
-	    # if the one we suggested is not the one you think, please search for the one you like most
-	    # this show the search box prefilled with one of the names we got
-	    # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
+    	    # if the one we suggested is not the one you think, please search for the one you like most
+    	    # this show the search box prefilled with one of the names we got
+    	    # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
             req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
-	    # plus the create a new empty one button!
+	        # plus the create a new empty one button!
         req.write(TEMPLATE.tmpl_welcome_end())
         req.write(pagefooteronly(req=req))
 

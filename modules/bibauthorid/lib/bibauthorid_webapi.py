@@ -869,10 +869,8 @@ def is_logged_in_through_arXiv(req):
     '''
     session = get_session(req)
 
-    if 'user_info' in session.keys():
-        if 'external_firstname' in session['user_info'] in session.keys():
-            if session['user_info']['external_firstname']:
-                return True
+    if 'user_info' in session.keys() and 'external_firstname' in session['user_info'].keys() and session['user_info']['external_firstname']:
+        return True
     return False
 
 def is_logged_in_through_orcid(req):
@@ -915,18 +913,18 @@ def session_bareinit(req):
         pinfo = session["personinfo"]
         if 'ticket' not in pinfo:
             pinfo["ticket"] = []
-            if 'ext_system' not in pinfo:
-                pinfo["ext_system"] = []
-            for source in logged_in_sources:
-                if source not in pinfo["ext_system"]:
-                    pinfo["ext_system"][source] = { 'name': None, 'external_ids':None}
+        if 'ext_system' not in pinfo:
+            pinfo["ext_system"] = dict()
+        for source in CFG_BIBAUTHORID_SOURCES:
+            if source not in pinfo["ext_system"]:
+                pinfo['ext_system'][source] = {'name': None, 'external_ids':None, 'email': None}
     except KeyError:
         pinfo = dict()
         session['personinfo'] = pinfo
         pinfo["ticket"] = []
-        pinfo["ext_system"] = []
-        for source in logged_in_sources:
-            pinfo["ext_system"][source] = { 'name': None, 'external_ids':None}
+        pinfo['ext_system'] = []
+        for source in CFG_BIBAUTHORID_SOURCES:
+            pinfo["ext_system"][source] = { 'name': None, 'external_ids':None, 'email': None}
     # this can be optimized so it's not set dirty if not necessary!
     session.dirty = True
 
@@ -936,20 +934,21 @@ def get_arXiv_info(req, uinfo):
     arXiv_info = dict()
 
     try:
-        name = uinfo[source + '_firstname']
+        name = uinfo['external_firstname']
     except KeyError:
         name = ''
     try:
-        surname = uinfo[source + '_familyname']
+        surname = uinfo['external_familyname']
     except KeyError:
         surname = ''
 
     if surname:
-        session['personinfo']['ext_system'][source]['name'] = nameapi.create_normalized_name(
+        session['personinfo']['ext_system']['arXiv']['name'] = nameapi.create_normalized_name(
                                           nameapi.split_name_parts(surname + ', ' + name))
     else:
-        session['personinfo']['ext_system'][source]['name'] = ''
-    arXiv_info['name'] = session['personinfo']['ext_system'][source]['name']
+        session['personinfo']['ext_system']['arXiv']['name'] = ''
+    session['personinfo']['ext_system']['arXiv']['email'] = ''
+    arXiv_info['name'] = session['personinfo']['ext_system']['arXiv']['name']
     arXiv_info['email'] = ''
     session.dirty = True
 
@@ -988,22 +987,31 @@ def get_arXiv_recids(req, old_external_ids):
     session = get_session(req)
     uinfo = collect_user_info(req)
     pinfo = session['personinfo']
-    current_external_ids = uinfo['external_arxivids'].split(';')
+    current_external_ids = []
+
+    if 'external_arxivids' in uinfo.keys() and uinfo['external_arxivids']:
+        current_external_ids = uinfo['external_arxivids'].split(';')
+
     recids_from_arxivids = []
     cached_ids_assocciation = dict()
+
     if current_external_ids and not old_external_ids:
         for arxiv_id in current_external_ids:
-            recid = perform_request_search(p='037:' + str(arxiv_id), of='id', rg=0)[0]
-            recids_from_arxivids.append(recid)
-            cached_ids_assocciation[arxiv_id] = recid
+            recid_list = perform_request_search(p='037:' + str(arxiv_id), of='id', rg=0)
+            if recid_list:
+                recid = recid_list[0]
+                recids_from_arxivids.append(recid)
+                cached_ids_assocciation[arxiv_id] = recid
     elif current_external_ids:
         for arxivid in current_external_ids:
             if arxivid in old_external_ids.keys():
-                recid = old_external_ids[[arxiv_id]]
+                recid = old_external_ids[arxiv_id]
                 recids_from_arxivids[arxiv_id] = recid
             else:
-                recid = perform_request_search(p='037:' + str(arxiv_id), of='id', rg=0)[0]
-                recids_from_arxivids.append(recid)
+                recid_list = perform_request_search(p='037:' + str(arxiv_id), of='id', rg=0)
+                if recid_list:
+                    recid = recid_list[0]
+                    recids_from_arxivids.append(recid)
             cached_ids_assocciation[arxiv_id] = recid
 
     pinfo['ext_system']['arXiv']['external_ids'] = cached_ids_assocciation
@@ -1022,7 +1030,7 @@ def get_ext_sources_recids(req, logged_in_sources):
     for source in logged_in_sources:
         old_external_ids = pinfo['ext_system'][source]['external_ids'];
         source_recids = ext_sources_recids_functions[source](req, old_external_ids)
-        external_sources_recids.append(source_recids)
+        external_sources_recids += source_recids
 
     return list(set(external_sources_recids))
 
@@ -1610,5 +1618,5 @@ def sign_assertion(robotname, assertion):
 CFG_BIBAUTHORID_SOURCES = ['arXiv', 'orcid']
 ext_recid_types = {'arXiv': "arxiv_id", "orcid": "doi" }
 ext_sources_info_functions = {'arXiv': get_arXiv_info, 'orcid': get_orcid_info}
-ext_sources_recids_functions = {'arXiv': is_logged_in_through_arXiv, 'orcid': is_logged_in_through_orcid}
-is_logged_in_through = {'arXiv': get_arXiv_recids, 'orcid': get_orcid_recids}
+is_logged_in_through = {'arXiv': is_logged_in_through_arXiv, 'orcid': is_logged_in_through_orcid}
+ext_sources_recids_functions = {'arXiv': get_arXiv_recids, 'orcid': get_orcid_recids}
