@@ -607,10 +607,10 @@ class Template:
     def tmpl_orcid_info_box(self, orcid_info, ln, add_box=True, loading=False):
         """ ORCID info """
         _ = gettext_set_language(ln)
-        html_head = _("<strong> ORCID info: </strong>")
-        html_orcid = _("No Info Available")
-        # if orcid_info:
-            # compute html_orcid
+        html_head = _("<strong> ORCID profile: </strong>")
+        html_orcid = _("No profile available")
+        if orcid_info:
+            html_orcid = "<a href='http://orcid.org/%s' target='_blank'> %s </a>" % (orcid_info, orcid_info)
         if loading:
             html_orcid = self.loading_html()
         if add_box:
@@ -690,12 +690,13 @@ class Template:
         html_coauthors = self.tmpl_coauthor_box(bibauthorid_data, authors, ln, loading=not beval[5])
         if CFG_INSPIRE_SITE:
             html_hepnames = self.tmpl_hepnames(hepdict, ln, loading=not beval[11])
+            html_orcid = self.tmpl_orcid_info_box(orcid_info, ln, loading=not beval[14])
         else:
             html_hepnames = ''
+            html_orcid = ''
         html_citations = self.tmpl_citations_box(summarize_records, ln, loading=not beval[8])
         html_graph = self.tmpl_graph_box(pubs_per_year, ln, loading=not beval[10])
         html_collabs = self.tmpl_collab_box(collabs, bibauthorid_data, ln, loading=not beval[13])
-        html_orcid = self.tmpl_orcid_info_box(orcid_info, ln, loading=not beval[14])
 
         g = self._grid
 
@@ -711,9 +712,9 @@ class Template:
                                      )
                               ),
                       g(4, 1)(g(1, 1, cell_padding=5)(html_citations),
+                              g(1, 1, cell_padding=5)(html_orcid),
                               g(1, 1, cell_padding=5)(html_graph),
-                              g(1, 1, cell_padding=5)(html_hepnames),
-                              g(1, 1, cell_padding=5)(html_orcid))
+                              g(1, 1, cell_padding=5)(html_hepnames))
                       )
         html.append(page)
         if oldest_cache_date:

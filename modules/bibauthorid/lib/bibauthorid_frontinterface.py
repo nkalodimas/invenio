@@ -22,16 +22,20 @@
     bibauthorid_bdinterface in order to make it usable by the
     frontend so to keep it as clean as possible.
 '''
+import re
 
 from invenio.bibauthorid_name_utils import split_name_parts #emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_name_utils import soft_compare_names
 from invenio.bibauthorid_name_utils import create_normalized_name #emitting #pylint: disable-msg=W0611
+from invenio.bibauthorid_search_engine import find_personids_by_name
 import bibauthorid_dbinterface as dbinter
 from cgi import escape
 
 #Well this is bad, BUT otherwise there must 100+ lines
 #of the form from dbinterface import ...  # emitting
 from invenio.bibauthorid_dbinterface import * #pylint:  disable-msg=W0614
+
+canonical_name_format = re.compile("\S*[.](\d)+$")
 
 
 def set_person_data(person_id, tag, value, user_level=None):
@@ -164,7 +168,7 @@ def get_all_personids_recs(pid, claimed_only=False):
     return dbinter.get_all_paper_records(pid, claimed_only)
 
 
-def find_personIDs_by_name_string(target):
+def fallback_find_personids_by_name_string(target):
     '''
     Search engine to find persons matching the given string
     The matching is done on the surname first, and names if present.
@@ -208,6 +212,37 @@ def find_personIDs_by_name_string(target):
     names = sorted(names, key=lambda x: (x[1][0][2], x[1][0][0], x[1][0][1]), reverse=True)
 
     return names
+
+
+def person_search_engine_query(query_string):
+    '''
+    docstring
+
+    @param query_string:
+    @type query_string:
+
+    @return:
+    @rtype:
+    '''
+    search_engine_status = dbinter.check_search_engine_status()
+
+    personid_name_list = list()
+    if search_engine_status:
+        personid_name_list = find_personids_by_name(query_string)
+
+    if canonical_name_format.match(query_string):
+        canonical_name_matches = list(get_personids_by_canonical_name(query_string))
+        if canonical_name_matches:
+            personid_name_list = canonical_name_matches + personid_name_list
+
+    if personid_name_list:
+        return personid_name_list
+
+    return fallback_find_personids_by_name_string(query_string)
+
+
+def find_personIDs_by_name_string(query_string):
+    return fallback_find_personids_by_name_string(query_string)
 
 def find_top5_personid_for_new_arXiv_user(bibrecs, name):
 

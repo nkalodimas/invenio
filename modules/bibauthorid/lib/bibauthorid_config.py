@@ -198,5 +198,14 @@ TICKET_SENDING_FROM_USER_EMAIL = True
 NAMES_SEPARATOR_CHARACTER_LIST = ",;.=\-\(\)"
 SURNAMES_SEPARATOR_CHARACTER_LIST = ",;"
 
-# Dict which maps an external system with the name of the tag with which an external id is stored in the db
-EXTERNAL_SYSTEMS_LIST = {'Inspire': 'INSPIREID', 'Orcid': 'ORCID'}
+#Dict which lists which external identifiers  can be stored on a person profile page, and maps them
+#with their representation in aidPERSONIDDATA
+PERSONID_EXTERNAL_IDENTIFIER_MAP = {'Inspire': 'INSPIREID', 'Orcid': 'ORCID'}
+
+QGRAM_LEN = 2
+MATCHING_QGRAMS_PERCENTAGE = 0.8
+MAX_T_OCCURANCE_RESULT_LIST_CARDINALITY = 35
+MIN_T_OCCURANCE_RESULT_LIST_CARDINALITY = 10
+MAX_NOT_MATCHING_NAME_CHARS = 0.33
+PREFIX_SCORE_COEFFICIENT = 0.7
+NAME_SCORE_COEFFICIENT = 0.5

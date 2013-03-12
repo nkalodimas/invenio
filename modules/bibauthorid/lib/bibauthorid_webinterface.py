@@ -2446,6 +2446,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         '''
         uid = getUid(req)
         self._session_bareinit(req)
+
         argd = wash_urlargd(
             form,
             {'ln': (str, CFG_SITE_LANG),

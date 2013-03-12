@@ -124,13 +124,17 @@ def split_name_parts(name_string, delete_name_additions=True,
         if name_string.count(sep) >= 1:
             found_sep = sep
             surname, rest_of_name = string_partition(name_string, sep)[0::2]
-            surname = surname.strip().title()
+            surname = surname.strip().capitalize()
+            # Fix for dashes
+            surname = re.sub('-([a-z])', lambda n:'-' + n.group(1).upper(), surname)
             break
 
     if not found_sep:
         if name_string.count(" ") > 0:
             rest_of_name, surname = string_partition(name_string, ' ', direc='r')[0::2]
-            surname = surname.strip().title()
+            surname = surname.strip().capitalize()
+            # Fix for dashes
+            surname = re.sub('-([a-z])', lambda n:'-' + n.group(1).upper(), surname)
         else:
             if not return_all_lower:
                 return [name_string.strip().capitalize(), [], [], []]
@@ -209,15 +213,14 @@ def create_indexable_name(name_string):
     @rtype: string
     '''
 
-    artifact_removal = re.compile("[^a-zA-Z,\s]")
-    name_string = artifact_removal.sub(' ',name_string)
-    print name_string
+    artifact_removal_re = re.compile("[^a-zA-Z,\s]")
+    name_string = artifact_removal_re.sub(' ',name_string)
     splitted_name = split_name_parts(name_string)
 
     name = splitted_name[0]
 
     if not splitted_name[1] and not splitted_name[2]:
-        return name
+        return name.lower()
 
     for i in range(len(splitted_name[1])):
         try:
@@ -225,7 +228,7 @@ def create_indexable_name(name_string):
             name = name + ' ' + fname
         except (IndexError, ValueError):
             name = name + ' ' + splitted_name[1][i]
-    return name
+    return name.lower()
 
 def create_unified_name(name, reverse=False):
     '''
