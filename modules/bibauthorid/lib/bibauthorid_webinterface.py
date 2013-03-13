@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-# #
-# # This file is part of Invenio.
-# # Copyright (C) 2011, 2012 CERN.
-# #
-# # Invenio is free software; you can redistribute it and/or
-# # modify it under the terms of the GNU General Public License as
-# # published by the Free Software Foundation; either version 2 of the
-# # License, or (at your option) any later version.
-# #
-# # Invenio is distributed in the hope that it will be useful, but
-# # WITHOUT ANY WARRANTY; without even the implied warranty of
-# # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# # General Public License for more details.
-# #
-# # You should have received a copy of the GNU General Public License
-# # along with Invenio; if not, write to the Free Software Foundation, Inc.,
-# # 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+##
+## This file is part of Invenio.
+## Copyright (C) 2011, 2012 CERN.
+##
+## Invenio is free software; you can redistribute it and/or
+## modify it under the terms of the GNU General Public License as
+## published by the Free Software Foundation; either version 2 of the
+## License, or (at your option) any later version.
+##
+## Invenio is distributed in the hope that it will be useful, but
+## WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+## General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with Invenio; if not, write to the Free Software Foundation, Inc.,
+## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
 """ Bibauthorid Web Interface Logic and URL handler. """
 
@@ -2578,7 +2578,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # login_status checks if the user is logged in and return his uid and external systems that he is logged in through.
         # return a dictionary of the following form: {'logged_in': True, 'uid': 2, 'logged_in_sources':['Arxiv', ...]}
         login_status = webapi.login_status(req)
-	    # # Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
+	    ## Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
         # aka can we arrive here with two distinct uids? I hope not!
 
         if not login_status['logged_in']:
