@@ -2617,34 +2617,36 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         sources_recids = webapi.get_ext_sources_recids(req, login_status['logged_in_sources'])
 
         req.write(body)
-        req.write("USERID: %s " % str(login_status['uid']))
 
-        return self._error_page(req, ln, "%s" % str(get_session(req)))
-	# warmly suggest the user to log in through all the others available sources if possible so we gather all papers for him for free!
-        req.write(TEMPLATE.tmpl_suggest_not_logged_in_sources(login_status['logged_in_sources']))  # implement
+	    # warmly suggest the user to log in through all the others available sources if possible so we gather all papers for him for free!
 
+        CFG_BIBAUTHORID_SOURCES = ['arXiv', 'orcid']  # moooove
+        suggested_sources = list(set(CFG_BIBAUTHORID_SOURCES) - set(login_status['logged_in_sources']))
+
+        if suggested_sources:
+            req.write(TEMPLATE.tmpl_suggest_not_logged_in_sources(suggested_sources))  # implement
 
         # check if a profile is already associated
         pid = webapi.get_user_pid(login_status['uid'])
 
         if pid != -1:
-	    # we already have a profile! let's claim papers!
+            # we already have a profile! let's claim papers!
             paper_dict = webabi.auto_claim_papers(pid, sources_recids)  # implement
-	    # explain the user which one is his profile
+            # explain the user which one is his profile
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))  # review
-            # show the user the list of papers we got for each system (info box)
-	    req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
-
+            # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
         else:
     	    # show: this is who we think you are, if you lije this profile click here and you'll become him!
     	    # this is the profile with the biggest intersection of papers
             propable_pid = webapi.match_profile(sources_recids, sources_info)  # impelement
-            req.write(TEMPLATE.tmpl_welcome_propable_profile_suggestion(propable_pid))  # review
+            return self._error_page(req, ln, "%s" % str(propable_pid))
+            if propable_pid > -1:
+                req.write(TEMPLATE.tmpl_welcome_propable_profile_suggestion(propable_pid))  # review
             # search_results = search...
     	    # if the one we suggested is not the one you think, please search for the one you like most
     	    # this show the search box prefilled with one of the names we got
     	    # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
-            req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
+            # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
 	        # plus the create a new empty one button!
         req.write(TEMPLATE.tmpl_welcome_end())
         req.write(pagefooteronly(req=req))

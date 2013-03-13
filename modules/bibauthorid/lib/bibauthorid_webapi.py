@@ -947,9 +947,9 @@ def get_arXiv_info(req, uinfo):
                                           nameapi.split_name_parts(surname + ', ' + name))
     else:
         session['personinfo']['ext_system']['arXiv']['name'] = ''
-    session['personinfo']['ext_system']['arXiv']['email'] = ''
+    session['personinfo']['ext_system']['arXiv']['email'] = uinfo['email']
     arXiv_info['name'] = session['personinfo']['ext_system']['arXiv']['name']
-    arXiv_info['email'] = ''
+    arXiv_info['email'] = uinfo['email']
     session.dirty = True
 
     return arXiv_info

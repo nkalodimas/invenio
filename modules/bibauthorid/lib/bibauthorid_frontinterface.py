@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-##
-## This file is part of Invenio.
-## Copyright (C) 2011, 2012 CERN.
-##
-## Invenio is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 2 of the
-## License, or (at your option) any later version.
-##
-## Invenio is distributed in the hope that it will be useful, but
-## WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-## General Public License for more details.
-##
-## You should have received a copy of the GNU General Public License
-## along with Invenio; if not, write to the Free Software Foundation, Inc.,
-## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+# #
+# # This file is part of Invenio.
+# # Copyright (C) 2011, 2012 CERN.
+# #
+# # Invenio is free software; you can redistribute it and/or
+# # modify it under the terms of the GNU General Public License as
+# # published by the Free Software Foundation; either version 2 of the
+# # License, or (at your option) any later version.
+# #
+# # Invenio is distributed in the hope that it will be useful, but
+# # WITHOUT ANY WARRANTY; without even the implied warranty of
+# # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# # General Public License for more details.
+# #
+# # You should have received a copy of the GNU General Public License
+# # along with Invenio; if not, write to the Free Software Foundation, Inc.,
+# # 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 '''
     bibauthorid_frontinterface
     This file aims to filter and modify the interface given by
@@ -24,16 +24,16 @@
 '''
 import re
 
-from invenio.bibauthorid_name_utils import split_name_parts #emitting #pylint: disable-msg=W0611
+from invenio.bibauthorid_name_utils import split_name_parts  # emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_name_utils import soft_compare_names
-from invenio.bibauthorid_name_utils import create_normalized_name #emitting #pylint: disable-msg=W0611
+from invenio.bibauthorid_name_utils import create_normalized_name  # emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_search_engine import find_personids_by_name
 import bibauthorid_dbinterface as dbinter
 from cgi import escape
 
-#Well this is bad, BUT otherwise there must 100+ lines
-#of the form from dbinterface import ...  # emitting
-from invenio.bibauthorid_dbinterface import * #pylint:  disable-msg=W0614
+# Well this is bad, BUT otherwise there must 100+ lines
+# of the form from dbinterface import ...  # emitting
+from invenio.bibauthorid_dbinterface import *  # pylint:  disable-msg=W0614
 
 canonical_name_format = re.compile("\S*[.](\d)+$")
 
@@ -184,7 +184,7 @@ def fallback_find_personids_by_name_string(target):
     splitted_name = split_name_parts(target)
     family = splitted_name[0]
 
-    levels = (#target + '%', #this introduces a weird problem: different results for mele, salvatore and salvatore mele
+    levels = (# target + '%', #this introduces a weird problem: different results for mele, salvatore and salvatore mele
               family + ',%',
               family[:-2] + '%',
               '%' + family + ',%',
@@ -285,14 +285,12 @@ def check_personids_availability(picked_profile, uid):
         else:
             return create_new_person(uid, uid_is_owner=True)
 
-def find_most_compatible_person( bibrecs, name_variants ):
-    pidlist = get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=name)
-    
-    for p in pidlist:
-        if not get_uid_from_personid(p[0]):
-            return p[0]
+def find_most_compatible_person(bibrecs, name_variants):
+    for name in name_variants:
+        pidlist = get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=name)
+
+        for p in pidlist:
+            if not get_uid_from_personid(p[0]):
+                return p[0]
     return -1
 
-
-def person_search( param1, param2):
-    pass

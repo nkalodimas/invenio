@@ -1754,7 +1754,8 @@ class Template:
         '''
         html = []
         h = html.append
-        h('<p><b>Congratulations! you have now successfully connected to INSPIRE as user %s via %s!</b></p>' % (str(uid), (', ').join(sources_info.keys())))
+        h('<p><b>Congratulations! you have now successfully connected to INSPIRE as a user with userid: %s via %s!</b></p>'
+                                                                            % (str(uid), (', ').join(sources_info.keys())))
 
         h('<p>Right now, you can verify your'
         ' publication records, which will help us to produce better publication lists and'
@@ -1804,6 +1805,15 @@ class Template:
 
         return "\n".join(html)
 
+    def tmpl_suggest_not_logged_in_sources(self, suggested_sources):
+        '''
+        suggest external systems that the user is currently not logged in through
+        '''
+
+        html = []
+        h = html.append
+        h('<p><b>It is recommended to log in via as many external systems as possible. You can also log in via the following sources: %s</b></p>' % (', ').join(suggested_sources))
+        return "\n".join(html)
 
     def tmpl_welcome(self):
         '''
@@ -1894,6 +1904,39 @@ class Template:
 
         return "\n".join(html)
 
+    def tmpl_welcome_propable_profile_suggestion(pid):
+        '''
+        Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through. 
+        '''
+        html = []
+        h = html.append
+        h('<table border="0"> <tr>')
+        canonical_id = get_canonical_id_from_personid(pid)
+        name_variants = get_person_names_from_id(pid)
+        most_common_name = find_authors_most_common_name(name_variants)
+        name_string = "[No name available]  "
+
+        if most_common_name != None:
+            name_string = most_common_name
+
+        if len(canonical_id) > 0:
+            canonical_name_string = "(" + canonical_id[0][0] + ")"
+            canonical_id = canonical_id[0][0]
+        else:
+            canonical_name_string = "(" + str(pid) + ")"
+            canonical_id = pid
+
+        h('<td>')
+        h('%s ' % (name_string))
+        h('<a href="%s/author/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, canonical_id, canonical_name_string))
+        h('</td>')
+        h('<td>')
+        h('<INPUT TYPE="BUTTON" VALUE="This is my profile" ONCLICK="window.location.href=\'welcome?pid=%s\'">' % (str(pid)))
+        h('</td>')
+        h('</tr>')
+        h('</table>')
+        h('</br>')
+
     def tmpl_profile_not_available(self):
         '''
         show profile option
@@ -1947,7 +1990,7 @@ class Template:
         canon_name = get_canonical_id_from_personid(pid)
         head = "<br>"
         if canon_name:
-            body = ("Your arXiv.org account is associated "
+            body = ("Your external_systems accounts are associated "
                     "with person %s." % canon_name[0][0])
         else:
             body = ("Warning: your arXiv.org account is associated with an empty profile. "
