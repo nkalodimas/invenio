@@ -355,12 +355,16 @@ function initAjax(){
 }
 
 
-function createReq(data, onSuccess, asynchronous) {
+function createReq(data, onSuccess, asynchronous, onError) {
   /*
    * Create Ajax request.
    */
   if (typeof asynchronous === "undefined") {
     asynchronous = true;
+  }
+
+  if (typeof onError === "undefined") {
+    onError = onAjaxError;
   }
 
   // Include and increment transaction ID.
@@ -378,6 +382,7 @@ function createReq(data, onSuccess, asynchronous) {
            success: function(json){
                       onAjaxSuccess(json, onSuccess);
                     },
+           error: onError,
            async: asynchronous
   });
 }
@@ -1292,7 +1297,7 @@ function onGetRecordSuccess(json){
   updateStatus('report', gRESULT_CODES[json['resultCode']]);
   updateRevisionsHistory();
   adjustGeneralHPControlsVisibility();
-
+  //$("#loadingTickets").show();
   createReq({recID: gRecID, requestType: 'getTickets'}, onGetTicketsSuccess);
 
   // Refresh top toolbar
