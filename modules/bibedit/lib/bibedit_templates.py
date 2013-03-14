@@ -66,9 +66,6 @@ class Template:
             '            <td colspan="2">%(btnSubmit)s</td>\n' \
             '            <td colspan="2">%(btnCancel)s</td>\n' \
             '          </tr>\n' \
-            '          <tr>\n' \
-            '            <td id="tickets" colspan="4"><!--filled by bibedit_menu.js--></td>\n' \
-            '          </tr>\n' \
             '          <tr class="bibEditMenuMore">\n' \
             '            <td>%(imgDeleteRecord)s</td>\n' \
             '            <td colspan="3">%(btnDeleteRecord)s</td>\n' \
@@ -107,6 +104,26 @@ class Template:
                 id='btnDeleteRecord', disabled='disabled'),
             'btnSwitchReadOnly' : button('button', 'Read-only',
                                          id='btnSwitchReadOnly')
+            }
+
+        ticketsmenu = '<div class="bibEditMenuSectionHeader">\n' \
+            '          %(imgCompressMenuSection)sTickets\n' \
+            '          </div>\n' \
+            '          <div id="loadingTickets">\n' \
+            '          %(imgTicketsLoader)s\n<span>loading...</span>' \
+            '          </div>\n' \
+            '          <div class="bibEditTicketsMenuSection">\n' \
+            '          <table class="bibEditMenuMore">\n' \
+            '            <col width="136px">\n' \
+            '            <tr class="bibEditMenuMore">\n' \
+            '              <td id="tickets"></td>'\
+            '            </tr>\n' \
+            '          </table>\n' \
+            '        </div>\n' % {
+            'imgCompressMenuSection': img('/img/bullet_toggle_minus.png',
+                    'bibEditImgCompressMenuSection', id='ImgTicketsMenu'),
+            'imgTicketsLoader': img('/img/indicator.gif',
+                            'bibEditImgTicketsLoader', id='ImgTicketsLoader')
             }
 
         fieldmenu = '<div class="bibEditMenuSectionHeader">\n' \
@@ -199,11 +216,10 @@ class Template:
 
         holdingpenpanel = '<div class="bibEditMenuSectionHeader">\n' \
             '          %(imgCompressMenuSection)sHolding Pen\n' \
-            '<table class="bibEditMenuMore">\n<tr><td>' \
+            '</div><table class="bibEditMenuMore">\n<tr><td>' \
             '   <div id="bibEditHoldingPenToolbar"> '  \
             '      <div id="bibeditHPChanges"></div>' \
-            ' </div> </td></tr></table>' \
-            '        </div>\n'  % \
+            ' </div> </td></tr></table>' % \
             { 'imgCompressMenuSection': img('/img/bullet_toggle_minus.png',
                             'bibEditImgCompressMenuSection', id='ImgHoldingPenMenu') }
 
@@ -236,6 +252,9 @@ class Template:
             '      <div class="bibEditMenuSection">\n' \
             '        %(recordmenu)s\n' \
             '      </div>\n' \
+            '       <div class="bibEditMenuSection">\n' \
+            '         %(ticketsmenu)s\n' \
+            '       </div>\n' \
             '      <div class="bibEditMenuSection">\n' \
             '        %(fieldmenu)s\n' \
             '      </div>\n' \
@@ -260,6 +279,7 @@ class Template:
             '      </div>\n' \
             '    </div>\n' % {
                 'recordmenu': recordmenu,
+                'ticketsmenu': ticketsmenu,
                 'viewmenu': viewmenu,
                 'fieldmenu': fieldmenu,
                 'statusarea': statusarea,
