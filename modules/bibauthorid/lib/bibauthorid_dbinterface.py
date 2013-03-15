@@ -876,7 +876,8 @@ def get_validated_request_ticket(person_id, ticket_id=None):
     tickets = get_request_ticket(person_id, ticket_id)
     for ticket in list(tickets):
         for entry in list(ticket[0]):
-            if entry[0] == 'repeal' or entry[0] == 'confirm':  # those should be the only possible actions in a ticket!
+            # those should be the only possible actions in a ticket!
+            if entry[0] == 'repeal' or entry[0] == 'confirm':
                 try:
                     bibref, bibrec = entry[1].split(',')
                     tab, val = bibref.split(':')
@@ -884,7 +885,8 @@ def get_validated_request_ticket(person_id, ticket_id=None):
                     present = bool(run_sql("select * from aidPERSONIDPAPERS where bibref_table like %s and bibref_value = %s and bibrec = %s ", sig))
                     if not present:
                         ticket[0].remove(entry)
-                except:  # No matter what goes wrong, that's an invalid entry in the ticket. let's discard it.
+                # No matter what goes wrong, that's an invalid entry in the ticket. let's discard it.
+                except:
                     ticket[0].remove(entry)
 
     for ticket in list(tickets):
@@ -1578,8 +1580,8 @@ def personid_get_recids_affected_since(last_timestamp):
         vset |= set(int(b[0]) for b in run_sql(
                     "select bibrec from aidPERSONIDPAPERS "
                     "where personid in %s" % pids_s))
-
-    return list(vset)  # I'm not sure about this cast. It might work without it.
+    # I'm not sure about this cast. It might work without it.
+    return list(vset)
 
 
 def get_all_paper_records(pid, claimed_only=False):
@@ -2058,8 +2060,9 @@ class Bib_matrix(object):
                 bibmap_v = cPickle.load(open(Bib_matrix.get_map_path(files_dir, name), 'r'))
                 rec_v, self.creation_time, self._bibmap = bibmap_v
                 if (rec_v != Bib_matrix.current_comparison_version or
-                    Bib_matrix.current_comparison_version < 0):  # you can use negative
-                                                                # version to recalculate
+                    # you can use negative version to recalculate
+                    Bib_matrix.current_comparison_version < 0):
+       
                     self._bibmap = dict()
                     return False
 

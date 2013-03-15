@@ -173,7 +173,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # ln = wash_language(argd['ln'])
 
         rt_ticket_id = argd['ticketid']
-        req.argd = argd  # needed for perform_req_search
+        # needed for perform_req_search
+        req.argd = argd
         session = get_session(req)
         ulevel = self.__get_user_role(req)
         uid = getUid(req)
@@ -642,7 +643,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @type ln: string
         '''
         session = get_session(req)
-#        uid = getUid(req)
+        # uid = getUid(req)
         pinfo = session["personinfo"]
         if 'ln' in pinfo:
             ln = pinfo["ln"]
@@ -993,7 +994,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         session = get_session(req)
         uid = getUid(req)
         pinfo = session["personinfo"]
-#        ulevel = pinfo["ulevel"]
+        # ulevel = pinfo["ulevel"]
         ticket = pinfo["ticket"]
         bibref_check_required = self._ticket_review_bibref_check(req)
 
@@ -1077,13 +1078,11 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             bibrefs_to_confirm = {}
             needs_review = []
 
-#            if ("bibrefs_auto_assigned" in pinfo
-#                 and pinfo["bibrefs_auto_assigned"]):
-#                bibrefs_auto_assigned = pinfo["bibrefs_auto_assigned"]
-#
-#            if ("bibrefs_to_confirm" in pinfo
-#                 and pinfo["bibrefs_to_confirm"]):
-#                bibrefs_to_confirm = pinfo["bibrefs_to_confirm"]
+            # if ("bibrefs_auto_assigned" in pinfo and pinfo["bibrefs_auto_assigned"]):
+            #     bibrefs_auto_assigned = pinfo["bibrefs_auto_assigned"]
+            #
+            # if ("bibrefs_to_confirm" in pinfo and pinfo["bibrefs_to_confirm"]):
+            #     bibrefs_to_confirm = pinfo["bibrefs_to_confirm"]
 
             for transaction in ticket:
                 if not webapi.is_valid_bibref(transaction['bibref']):
@@ -1099,7 +1098,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 recid = webapi.wash_integer_id(transaction['bibref'])
 
                 if recid < 0:
-                    continue  # this doesn't look like a recid--discard!
+                    # this doesn't look like a recid--discard!
+                    continue 
 
                 pid = transaction['pid']
 
@@ -1110,7 +1110,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     (pid in bibrefs_to_confirm
                      and 'bibrecs' in bibrefs_to_confirm[pid]
                      and recid in bibrefs_to_confirm[pid]['bibrecs'])):
-                    continue  # we already assessed those bibrefs.
+                    # we already assessed those bibrefs.
+                    continue
 
                 fctptr = webapi.get_possible_bibrefs_from_pid_bibrec
                 bibrec_refs = fctptr(pid, [recid], additional_names=arxiv_name)
@@ -1138,7 +1139,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                             try:
                                 brr[1] = tmp[0][1]
                             except IndexError:
-                                continue  # No bibrefs on record--discard
+                                # No bibrefs on record--discard
+                                continue
 
                         if not pid in bibrefs_to_confirm:
                             bibrefs_to_confirm[pid] = {
@@ -1172,7 +1174,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 del(pinfo["external_first_entry"])
                 pinfo['external_first_entry_skip_review'] = True
                 session.dirty = True
-                return ""  # don't bother the user the first time
+                # don't bother the user the first time
+                return ""
 
             body = TEMPLATE.tmpl_bibref_check(bibrefs_auto_assigned,
                                           bibrefs_to_confirm)
@@ -1287,8 +1290,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if "bibref_check_required" in pinfo:
                 del(pinfo["bibref_check_required"])
 
-#            if "user_ticket_comments" in pinfo:
-#                del(pinfo["user_ticket_comments"])
+            # if "user_ticket_comments" in pinfo:
+            #     del(pinfo["user_ticket_comments"])
 
             session.dirty = True
             return self._ticket_dispatch_end(req)
@@ -1893,13 +1896,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             pinfo["claimpaper_admin_last_viewed_pid"] = pid
             session.dirty = True
             return self.adf['ticket_dispatch'][ulevel](req)
-#            return self.perform(req, form)
+            # return self.perform(req, form)
 
         elif action in ['cancel']:
             self.__session_cleanup(req)
-#            return self._error_page(req, ln,
-#                                    "Not an error! Session cleaned! but "
-#                                    "redirect to be implemented")
+            # return self._error_page(req, ln,
+            # "Not an error! Session cleaned! but "
+            # "redirect to be implemented")
             return self._ticket_dispatch_end(req)
 
         elif action in ['cancel_search_ticket']:
@@ -2234,7 +2237,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             del(pinfo["checkout_faulty_fields"])
 
         # pinfo['ulevel'] = ulevel
-#        pinfo["claimpaper_admin_last_viewed_pid"] = -1
+        # pinfo["claimpaper_admin_last_viewed_pid"] = -1
         pinfo["admin_requested_ticket_id"] = -1
         session.dirty = True
 
@@ -2348,17 +2351,17 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             for index, results in enumerate(sorted_results):
                 pid = results[0]
-#                authorpapers = webapi.get_papers_by_person_id(pid, -1)
-#                authorpapers = sorted(authorpapers, key=itemgetter(0),
-#                                      reverse=True)
+                # authorpapers = webapi.get_papers_by_person_id(pid, -1)
+                # authorpapers = sorted(authorpapers, key=itemgetter(0),
+                #                       reverse=True)
                 if index < PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
                     # We are no longer sorting by date because of the huge impact this have
                     # on the system.
                     # The sorting is now done per recordid
-#                    authorpapers = [[paper] for paper in
-#                                    sort_records(None, [i[0] for i in
-#                                                 webapi.get_papers_by_person_id(pid, -1)],
-#                                                 sort_field="year", sort_order="a")]
+                    # authorpapers = [[paper] for paper in
+                    # sort_records(None, [i[0] for i in
+                    #                    webapi.get_papers_by_person_id(pid, -1)],
+                    #                    sort_field="year", sort_order="a")]
                     authorpapers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(pid, -1)],
                                           key=itemgetter(0))
                 else:
@@ -2478,7 +2481,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         body = ""
 
         if CFG_INSPIRE_SITE:
-            body = TEMPLATE.tmpl_welcome_arxiv()  ###### edw allaxe ta welcoming messages
+            body = TEMPLATE.tmpl_welcome_arxiv()  ###### TODO here change welcoming messages
         else:
             body = TEMPLATE.tmpl_welcome()
 
@@ -2502,7 +2505,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         # req.write("ARXIV USER INFO: %s" % str(archive_user_info))
 
-        if archive_user_info[0] == "pid":  ##### differentiate the two cases
+        if archive_user_info[0] == "pid":
             pid = archive_user_info[1]
         elif archive_user_info[0] == "chosen pid not available":
             pid = archive_user_info[1]
@@ -2604,11 +2607,12 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         sources_info = webapi.get_ext_sources_info(req, login_status['logged_in_sources'])
 
         # here must read parameters and take according action:
-        # if search parameter: show search page with search results                                                                                                                                             	# if confirmation of pid associaton, corresponding page
+        # if search parameter: show search page with search results
+        # if confirmation of pid associaton, corresponding page
 
         if CFG_INSPIRE_SITE:
 		# sho info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
-            body = TEMPLATE.tmpl_welcome_source(sources_info, login_status["uid"])  # impelement
+            body = TEMPLATE.tmpl_welcome_source(sources_info, login_status["uid"])
         else:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
 
@@ -2624,24 +2628,24 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         suggested_sources = list(set(CFG_BIBAUTHORID_SOURCES) - set(login_status['logged_in_sources']))
 
         if suggested_sources:
-            req.write(TEMPLATE.tmpl_suggest_not_logged_in_sources(suggested_sources))  # implement
+            req.write(TEMPLATE.tmpl_suggest_not_logged_in_sources(suggested_sources))
 
         # check if a profile is already associated
         pid = webapi.get_user_pid(login_status['uid'])
 
         if pid != -1:
             # we already have a profile! let's claim papers!
-            paper_dict = webabi.auto_claim_papers(pid, sources_recids)  # implement
+            paper_dict = webabi.auto_claim_papers(pid, sources_recids)
             # explain the user which one is his profile
-            req.write(TEMPLATE.tmpl_welcome_personid_association(pid))  # review
+            req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
             # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
         else:
     	    # show: this is who we think you are, if you lije this profile click here and you'll become him!
     	    # this is the profile with the biggest intersection of papers
-            propable_pid = webapi.match_profile(sources_recids, sources_info)  # impelement
+            propable_pid = webapi.match_profile(sources_recids, sources_info)
             return self._error_page(req, ln, "%s" % str(propable_pid))
             if propable_pid > -1:
-                req.write(TEMPLATE.tmpl_welcome_propable_profile_suggestion(propable_pid))  # review
+                req.write(TEMPLATE.tmpl_welcome_propable_profile_suggestion(propable_pid))
             # search_results = search...
     	    # if the one we suggested is not the one you think, please search for the one you like most
     	    # this show the search box prefilled with one of the names we got

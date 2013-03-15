@@ -589,8 +589,9 @@ class Template:
 
         h('<form id="%s" action="/person/action" method="post">'
                    % (form_id))
-
-        h('<div class="aid_reclist_selector">')  # +self._(' On all pages: '))
+        
+        # +self._(' On all pages: '))
+        h('<div class="aid_reclist_selector">')
         h('<a rel="nofollow" rel="group_1" href="#select_all">' + self._('Select All') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#select_none">' + self._('Select None') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#invert_selection">' + self._('Invert Selection') + '</a> | ')
@@ -683,8 +684,9 @@ class Template:
 
         h("  </tbody>")
         h("</table>")
-
-        h('<div class="aid_reclist_selector">')  # +self._(' On all pages: '))
+        
+        # +self._(' On all pages: '))
+        h('<div class="aid_reclist_selector">')
         h('<a rel="nofollow" rel="group_1" href="#select_all">' + self._('Select All') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#select_none">' + self._('Select None') + '</a> | ')
         h('<a rel="nofollow" rel="group_1" href="#invert_selection">' + self._('Invert Selection') + '</a> | ')
@@ -1016,7 +1018,7 @@ class Template:
                     h(' - <a rel="nofollow" id="show_paper" target="_blank" href="%(url)s/record/%(record)s"> View record <br>' % ({'url':CFG_SITE_URL, 'record':str(bibrec)}))
                 h('</dd>')
                 h('</dd><br>')
-#            h(str(open_rt_tickets))
+                # h(str(open_rt_tickets))
             h("  </div>")
 
         if 'data' in show_tabs:
@@ -1186,8 +1188,8 @@ class Template:
                           % (pid, bibref[0], selector, bibref[1]))
 
                     h('</select>')
-#                    h('<input type="hidden" name="bibrecgroup%s" value="%s" />'
-#                      % (recid, asbibref))
+                    # h('<input type="hidden" name="bibrecgroup%s" value="%s" />'
+                    #          % (recid, asbibref))
                     h('</div>')
 
         h('<div style="text-align:center;">')
@@ -1321,7 +1323,7 @@ class Template:
             html = []
             h = html.append
 
-#            h("Debug: " + str(ticket) + "<br />")
+            # h("Debug: " + str(ticket) + "<br />")
             h('<td width="25">&nbsp;</td>')
             h('<td>')
             h(rectitle)
@@ -1361,7 +1363,7 @@ class Template:
         html = []
         h = html.append
 
-#        h(html_icon_legend())
+        # h(html_icon_legend())
 
         if "checkout_faulty_fields" in pinfo and pinfo["checkout_faulty_fields"]:
             h(self.tmpl_error_box('sorry', 'check_entries'))
@@ -1371,10 +1373,10 @@ class Template:
             and "tickets" in pinfo["checkout_faulty_fields"]):
             h(self.tmpl_error_box('error', 'provide_transaction'))
 
-#        h('<div id="aid_checkout_teaser">' +
-#          self._('Almost done! Please use the button "Confirm these changes" '
-#                 'at the end of the page to send this request to an operator '
-#                 'for review!') + '</div>')
+        # h('<div id="aid_checkout_teaser">' +
+        #          self._('Almost done! Please use the button "Confirm these changes" '
+        #                 'at the end of the page to send this request to an operator '
+        #                 'for review!') + '</div>')
 
         h('<div id="aid_person_names" '
           'class="ui-tabs ui-widget ui-widget-content ui-corner-all"'
@@ -1599,15 +1601,15 @@ class Template:
                 h('</div>')
             return "\n".join(html)
 
-#        base_color = 100
-#        row_color = 0
+        # base_color = 100
+        # row_color = 0
 
         for index, result in enumerate(results):
-#            if len(results) > base_color:
-#                row_color += 1
-#            else:
-#                row_color = base_color - (base_color - index *
-#                                          (base_color / len(results)))
+            # if len(results) > base_color:
+                # row_color += 1
+            # else:
+            #     row_color = base_color - (base_color - index *
+            #                 base_color / len(results)))
 
             pid = result[0]
             names = result[1]
@@ -1630,8 +1632,8 @@ class Template:
 
             h('<div id="aid_result%s">' % (index % 2))
             h('<div style="padding-bottom:5px;">')
-#            h('<span style="color:rgb(%d,%d,%d);">%s. </span>'
-#                         % (row_color, row_color, row_color, index + 1))
+            # h('<span style="color:rgb(%d,%d,%d);">%s. </span>'
+            #     % (row_color, row_color, row_color, index + 1))
             h('<span>%s. </span>' % (index + 1))
 
 #            for nindex, name in enumerate(names):

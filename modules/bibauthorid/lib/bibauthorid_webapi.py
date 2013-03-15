@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-# #
-# # This file is part of Invenio.
-# # Copyright (C) 2011, 2012 CERN.
-# #
-# # Invenio is free software; you can redistribute it and/or
-# # modify it under the terms of the GNU General Public License as
-# # published by the Free Software Foundation; either version 2 of the
-# # License, or (at your option) any later version.
-# #
-# # Invenio is distributed in the hope that it will be useful, but
-# # WITHOUT ANY WARRANTY; without even the implied warranty of
-# # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# # General Public License for more details.
-# #
-# # You should have received a copy of the GNU General Public License
-# # along with Invenio; if not, write to the Free Software Foundation, Inc.,
-# # 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+##
+## This file is part of Invenio.
+## Copyright (C) 2011, 2012 CERN.
+##
+## Invenio is free software; you can redistribute it and/or
+## modify it under the terms of the GNU General Public License as
+## published by the Free Software Foundation; either version 2 of the
+## License, or (at your option) any later version.
+##
+## Invenio is distributed in the hope that it will be useful, but
+## WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+## General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with Invenio; if not, write to the Free Software Foundation, Inc.,
+## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 '''
 Bibauthorid_webapi
 Point of access to the documents clustering facility.
@@ -88,14 +88,17 @@ def swap_person_canonical_name(person_id, desired_cname, userinfo=''):
 
     current_cname = get_canonical_id_from_person_id(person_id)
     create_log_personid_with_desired_cname = False
-
-    if personid_with_desired_cname == -1:  # nobody withholds the desired canonical name
+    
+    # nobody withholds the desired canonical name
+    if personid_with_desired_cname == -1:  
         dbapi.change_personID_canonical_names([(person_id, desired_cname)])
-    elif not isinstance(current_cname, str):  # person_id doesn't own a canonical name
+    # person_id doesn't own a canonical name
+    elif not isinstance(current_cname, str):  
         dbapi.change_personID_canonical_names([(person_id, desired_cname)])
         dbapi.update_personID_canonical_names([personid_with_desired_cname], overwrite=True)
         create_log_personid_with_desired_cname = True
-    else:  # both person_id and personid_with_desired_cname own a canonical name
+    # both person_id and personid_with_desired_cname own a canonical name
+    else:
         dbapi.change_personID_canonical_names([(person_id, desired_cname), (personid_with_desired_cname, current_cname)])
         create_log_personid_with_desired_cname = True
 
@@ -390,7 +393,7 @@ def get_person_names_from_id(person_id= -1):
     @return: name and number of occurrences of the name
     @rtype: tuple of tuple
     '''
-#    #retrieve all rows for the person
+    ##retrieve all rows for the person
     if (not person_id > -1) or (not isinstance(person_id, (int, long))):
         return []
 
@@ -409,7 +412,7 @@ def get_person_db_names_from_id(person_id= -1):
     @return: name and number of occurrences of the name
     @rtype: tuple of tuple
     '''
-#    #retrieve all rows for the person
+    ##retrieve all rows for the person
     if (not person_id > -1) or (not isinstance(person_id, (int, long))):
         return []
 
@@ -901,7 +904,7 @@ def login_status(req):
     login_status['logged_in'] = True
 
     # for every source available
-    for source in CFG_BIBAUTHORID_SOURCES:  # move
+    for source in CFG_BIBAUTHORID_SOURCES:
        if is_logged_in_through[source](req):
            login_status['logged_in_sources'].append(source)
 
