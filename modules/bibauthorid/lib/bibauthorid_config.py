@@ -209,3 +209,8 @@ MIN_T_OCCURANCE_RESULT_LIST_CARDINALITY = 10
 MAX_NOT_MATCHING_NAME_CHARS = 0.33
 PREFIX_SCORE_COEFFICIENT = 0.7
 NAME_SCORE_COEFFICIENT = 0.5
+
+# List that contains the existing remote systems that a user can logged in via them in Inspire 
+CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS = ['arXiv', 'orcid']
+
+CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS = {'arXiv': "arxiv_id", "orcid": "doi" }
