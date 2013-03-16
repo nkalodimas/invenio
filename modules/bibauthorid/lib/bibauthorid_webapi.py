@@ -863,7 +863,7 @@ def set_processed_external_recids(pid, recid_list):
 
     dbapi.set_processed_external_recids(pid, recid_list_str)
 
-def is_logged_in_through_arXiv(req):
+def is_logged_in_through_arxiv(req):
     '''
     Checks if the user is logged in through the arXiv.
 
@@ -883,7 +883,7 @@ def is_logged_in_through_orcid(req):
     @param req: Apache request object
     @type req: Apache request object
     '''
-    pass
+    return False
 
 def login_status(req):
     '''
@@ -932,7 +932,7 @@ def session_bareinit(req):
     session.dirty = True
 
 # all teh get_info methods should standardize the content:
-def get_arXiv_info(req, uinfo):
+def get_arxiv_info(req, uinfo):
     session = get_session(req)
     arXiv_info = dict()
 
@@ -986,7 +986,7 @@ def get_ext_sources_info(req, logged_in_sources):
 
     return user_sources_info
 
-def get_arXiv_recids(req, old_external_ids):
+def get_arxiv_recids(req, old_external_ids):
     session = get_session(req)
     uinfo = collect_user_info(req)
     pinfo = session['personinfo']
@@ -1169,7 +1169,7 @@ def arxiv_login(req, picked_profile=None):
         pid = pid[0]
     else:
         if picked_profile == None:
-            top5_list = dbapi.find_top5_personid_for_new_arXiv_user(found_bibrecs,
+            top5_list = dbapi.find_top5_personid_for_new_arxiv_user(found_bibrecs,
                 nameapi.create_normalized_name(nameapi.split_name_parts(surname + ', ' + name)))
             return ("top5_list", top5_list)
         else:
@@ -1620,6 +1620,6 @@ def sign_assertion(robotname, assertion):
 
 CFG_BIBAUTHORID_SOURCES = ['arXiv', 'orcid']
 ext_recid_types = {'arXiv': "arxiv_id", "orcid": "doi" }
-ext_sources_info_functions = {'arXiv': get_arXiv_info, 'orcid': get_orcid_info}
-is_logged_in_through = {'arXiv': is_logged_in_through_arXiv, 'orcid': is_logged_in_through_orcid}
-ext_sources_recids_functions = {'arXiv': get_arXiv_recids, 'orcid': get_orcid_recids}
+ext_sources_info_functions = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
+is_logged_in_through = {'arXiv': is_logged_in_through_arxiv, 'orcid': is_logged_in_through_orcid}
+ext_sources_recids_functions = {'arXiv': get_arxiv_recids, 'orcid': get_orcid_recids}

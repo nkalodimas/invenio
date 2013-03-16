@@ -1722,59 +1722,30 @@ class Template:
         return '<div class="pagebody"><div class="pagebodystripemiddle">'
 
 
-    def tmpl_welcome_unique_source(self, source):
-        '''
-        SSO landing/welcome page.
-        '''
-        html = []
-        h = html.append
-        h('<p><b>Congratulations! you have now successfully connected to INSPIRE via %s!</b></p>' % source)
-
-        h('<p>Right now, you can verify your'
-        ' publication records, which will help us to produce better publication lists and'
-        ' citation statistics.'
-        '</p>')
-
-        h('<p>We are currently importing your publication list from %s .'
-        'When we\'re done, you\'ll see a link to verify your'
-        ' publications below; please claim the papers that are yours '
-        ' and remove the ones that are not. This information will be automatically processed'
-        ' or be sent to our operator for approval if needed, usually within 24'
-        ' hours.'
-        '</p>' % source)
-        h('If you have '
-          'any questions or encounter any problems please contact us here: '
-          '<a rel="nofollow" href="mailto:%s">%s</a></p>'
-          % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
-             CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
-
-        return "\n".join(html)
-
     def tmpl_welcome_source(self, sources_info, uid):
         '''
         SSO landing/welcome page.
         '''
         html = []
         h = html.append
-        h('<p><b>Congratulations! you have now successfully connected to INSPIRE as a user with userid: %s via %s!</b></p>'
-                                                                            % (str(uid), (', ').join(sources_info.keys())))
-
-        h('<p>Right now, you can verify your'
+        message = self._('Congratulations! you have now successfully connected to INSPIRE as a user with userid: %s via %s!'% (str(uid), (', ').join(sources_info.keys())))
+        h('<p><b>%s</b></p>' % (message,))
+        message = self._('Right now, you can verify your'
         ' publication records, which will help us to produce better publication lists and'
-        ' citation statistics.'
-        '</p>')
+        ' citation statistics.')
+        h('<p>%s</p>' % (message,))
 
-        h('<p>We are currently importing your publication list from %s .'
+        message = self._('We are currently importing your publication list from %s .'
         'When we\'re done, you\'ll see a link to verify your'
         ' publications below; please claim the papers that are yours '
         ' and remove the ones that are not. This information will be automatically processed'
         ' or be sent to our operator for approval if needed, usually within 24'
-        ' hours.'
-        '</p>' % (', ').join(sources_info.keys()))
-        h('If you have '
-          'any questions or encounter any problems please contact us here: '
-          '<a rel="nofollow" href="mailto:%s">%s</a></p>'
-          % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+        ' hours.' % ((', ').join(sources_info.keys()),))
+        h('<p>%s</p>' % (message,))
+        message = self._('If you have '
+          'any questions or encounter any problems please contact us here: ')
+        h('%s <a rel="nofollow" href="mailto:%s">%s</a></p>'
+          % (message, CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
              CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
 
         return "\n".join(html)
@@ -1814,7 +1785,9 @@ class Template:
 
         html = []
         h = html.append
-        h('<p><b>It is recommended to log in via as many external systems as possible. You can also log in via the following sources: %s</b></p>' % (', ').join(suggested_sources))
+        message = self._('It is recommended to log in via as many external systems as possible. You can also log in via the following sources: %s'
+                                                                                                                % (', ').join(suggested_sources))
+        h('<p><b>%s</b></p>' % (message,))
         return "\n".join(html)
 
     def tmpl_welcome(self):
@@ -1823,16 +1796,18 @@ class Template:
         '''
         html = []
         h = html.append
-        h('<p><b>Congratulations! you have successfully logged in!</b></p>')
+        message = self._('Congratulations! you have successfully logged in!')
+        h('<p><b>%s</b></p>'% (message,))
 
-        h('<p>We are currently creating your publication list. When we\'re done, you\'ll see a link to correct your '
-          'publications below.</p>')
+        message = self._('We are currently creating your publication list. When we\'re done, you\'ll see a link to correct your publications below.')
+        h('<p>%s</p>' % (message,))
 
-        h('<p>When the link appears we invite you to confirm the papers that are '
+        message = self._('When the link appears we invite you to confirm the papers that are '
           'yours and to reject the ones that you are not author of. If you have '
-          'any questions or encounter any problems please contact us here: '
+          'any questions or encounter any problems please contact us here: ')
+        h('<p>%s'
           '<a rel="nofollow" href="mailto:%s">%s</a></p>'
-          % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+          % (message, CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
              CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
 
         return "\n".join(html)
@@ -1844,12 +1819,12 @@ class Template:
         '''
         html = []
         h = html.append
-
-        h('<p>Unfortunately it was not possible to automatically match your arXiv account to an INSPIRE person profile. Please choose the correct person profile from the list below.')
-
-        h('If your profile is not in the list or none of them represents you correctly, please select the one which fits you best or choose '
-          'to create a new one; keep in mind that no matter what your choice is, you will be able to correct your publication list until it contains all of your publications.'
-          ' In case of any question please do not hesitate to contact us at <a rel="nofollow" href="mailto:%s">%s</a></p>' % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+        message = self._('Unfortunately it was not possible to automatically match your arXiv account to an INSPIRE person profile.'
+                         'Please choose the correct person profile from the list below.'
+                         ' If your profile is not in the list or none of them represents you correctly, please select the one which fits you best or choose '
+                         'to create a new one; keep in mind that no matter what your choice is, you will be able to correct your publication list until it contains all of your publications.'
+                         ' In case of any question please do not hesitate to contact us at ')
+        h('<p>%s <a rel="nofollow" href="mailto:%s">%s</a></p>' % (message, CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
              CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
 
         return "\n".join(html)
@@ -1906,7 +1881,7 @@ class Template:
 
         return "\n".join(html)
 
-    def tmpl_welcome_propable_profile_suggestion(pid):
+    def tmpl_welcome_probable_profile_suggestion(pid):
         '''
         Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through. 
         '''
@@ -1922,11 +1897,11 @@ class Template:
             name_string = most_common_name
 
         if len(canonical_id) > 0:
-            canonical_name_string = "(" + canonical_id[0][0] + ")"
-            canonical_id = canonical_id[0][0]
+            canonical_name_string = self._("(" + canonical_id[0][0] + ")")
+            canonical_id = self._(str(canonical_id[0][0]))
         else:
-            canonical_name_string = "(" + str(pid) + ")"
-            canonical_id = pid
+            canonical_name_string = self._("(" + str(pid) + ")")
+            canonical_id = self._(str(pid))
 
         h('<td>')
         h('%s ' % (name_string))
@@ -1946,16 +1921,16 @@ class Template:
         '''
         html = []
         h = html.append
-
-        h('<p> Unfortunately the profile that you previously chose is no longer available. A new empty profile has been created. You will be able to correct '
-          'your publication list until it contains all of your publications.</p>')
+        message = self._('Unfortunately the profile that you previously chose is no longer available. A new empty profile has been created. You will be able to correct '
+          'your publication list until it contains all of your publications.')
+        h('<p>%s</p>' % (message,))
         return "\n".join(html)
 
     def tmpl_profile_assigned_by_user  (self):
         html = []
         h = html.append
-
-        h('<p> Congratulations you have successfully claimed the chosen profile.</p>')
+        message = self._(' Congratulations you have successfully claimed the chosen profile.')
+        h('<p>%s</p>',(message,))
         return "\n".join(html)
 
 
@@ -1993,24 +1968,38 @@ class Template:
         canon_name = get_canonical_id_from_personid(pid)
         head = "<br>"
         if canon_name:
-            body = ("Your external_systems accounts are associated "
-                    "with person %s." % canon_name[0][0])
+            message = self._("Your external_systems accounts are associated "
+                    "with person %s." % (canon_name[0][0],))
         else:
-            body = ("Warning: your arXiv.org account is associated with an empty profile. "
+            message = self._("Warning: your arXiv.org account is associated with an empty profile. "
                     "This can happen if it is the first time you log in and you do not have any "
                     "paper directly claimed in arXiv.org."
                     " In this case, you are welcome to search and claim your papers to your"
                     " new profile manually, or please contact us to get help.")
-
-        body += ("<br>You are very welcome to contact us shall you need any help or explanation"
+        body = (message)
+        message = self._("You are very welcome to contact us shall you need any help or explanation"
                  " about the management of"
                  " your profile page"
-                 " in INSPIRE and it's connections with arXiv.org: "
-                 '''<a href="mailto:authors@inspirehep.net?subject=Help on arXiv.org SSO login and paper claiming"> authors@inspirehep.net </a>''')
+                 " in INSPIRE and it's connections with arXiv.org: ")
+        body += ("<br>%s" % (message,))
+        body += ('''<a href="mailto:authors@inspirehep.net?subject=Help on arXiv.org SSO login and paper claiming"> authors@inspirehep.net </a>''')
         tail = "<br>"
 
         return head + body + tail
 
+    def tmpl_welcome_remote_login_systems_papers(self, paps):
+        '''
+        Creates the list of remote login systems papers
+        '''
+        plist = "<br><br>"
+        if paps:
+            plist = plist + self._("We have got and we are about to automatically claim for "
+                                    "You the following papers from the remote login sources you are logged in through: <br>")
+            for p in paps:
+                plist = plist + "  " + str(p) + "<br>"
+        else:
+            plist = self._("We have got no papers from the remote login sources that you are currently logged in through, which we could claim automatically for You. <br>")
+        return plist
 
     def tmpl_welcome_arXiv_papers(self, paps):
         '''

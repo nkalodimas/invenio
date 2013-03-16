@@ -2642,10 +2642,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         else:
     	    # show: this is who we think you are, if you lije this profile click here and you'll become him!
     	    # this is the profile with the biggest intersection of papers
-            propable_pid = webapi.match_profile(sources_recids, sources_info)
-            return self._error_page(req, ln, "%s" % str(propable_pid))
-            if propable_pid > -1:
-                req.write(TEMPLATE.tmpl_welcome_propable_profile_suggestion(propable_pid))
+            probable_pid = webapi.match_profile(sources_recids, sources_info)
+            return self._error_page(req, ln, "%s" % str(probable_pid))
+            if probable_pid > -1:
+                req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(probable_pid))
             # search_results = search...
     	    # if the one we suggested is not the one you think, please search for the one you like most
     	    # this show the search box prefilled with one of the names we got
