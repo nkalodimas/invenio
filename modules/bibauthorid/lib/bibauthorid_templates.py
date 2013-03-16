@@ -1722,13 +1722,13 @@ class Template:
         return '<div class="pagebody"><div class="pagebodystripemiddle">'
 
 
-    def tmpl_welcome_source(self, sources_info, uid):
+    def tmpl_welcome_remote_login_systems(self, remote_login_systems_info, uid):
         '''
         SSO landing/welcome page.
         '''
         html = []
         h = html.append
-        message = self._('Congratulations! you have now successfully connected to INSPIRE as a user with userid: %s via %s!'% (str(uid), (', ').join(sources_info.keys())))
+        message = self._('Congratulations! you have now successfully connected to INSPIRE as a user with userid: %s via %s!'% (str(uid), (', ').join(remote_login_systems_info.keys())))
         h('<p><b>%s</b></p>' % (message,))
         message = self._('Right now, you can verify your'
         ' publication records, which will help us to produce better publication lists and'
@@ -1740,7 +1740,7 @@ class Template:
         ' publications below; please claim the papers that are yours '
         ' and remove the ones that are not. This information will be automatically processed'
         ' or be sent to our operator for approval if needed, usually within 24'
-        ' hours.' % ((', ').join(sources_info.keys()),))
+        ' hours.' % ((', ').join(remote_login_systems_info.keys()),))
         h('<p>%s</p>' % (message,))
         message = self._('If you have '
           'any questions or encounter any problems please contact us here: ')
@@ -1778,15 +1778,15 @@ class Template:
 
         return "\n".join(html)
 
-    def tmpl_suggest_not_logged_in_sources(self, suggested_sources):
+    def tmpl_suggest_not_remote_logged_in_systems(self, suggested_remote_login_systems):
         '''
         suggest external systems that the user is currently not logged in through
         '''
 
         html = []
         h = html.append
-        message = self._('It is recommended to log in via as many external systems as possible. You can also log in via the following sources: %s'
-                                                                                                                % (', ').join(suggested_sources))
+        message = self._('It is recommended to log in via as many external systems as possible. You can also log in via the following remote login systems: %s'
+                                                                                                                % (', ').join(suggested_remote_login_systems))
         h('<p><b>%s</b></p>' % (message,))
         return "\n".join(html)
 
@@ -1887,6 +1887,8 @@ class Template:
         '''
         html = []
         h = html.append
+        message = self._("We highily believe that your profile is the profile below. If you agree please claim this profile.")
+        h('<p>%s</p>' % message)
         h('<table border="0"> <tr>')
         canonical_id = get_canonical_id_from_personid(pid)
         name_variants = get_person_names_from_id(pid)
@@ -1908,7 +1910,7 @@ class Template:
         h('<a href="%s/author/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, canonical_id, canonical_name_string))
         h('</td>')
         h('<td>')
-        h('<INPUT TYPE="BUTTON" VALUE="This is my profile" ONCLICK="window.location.href=\'welcome?pid=%s\'">' % (str(pid)))
+        h('<INPUT TYPE="BUTTON" VALUE="This is my profile" ONCLICK="window.location.href=\'welcome?action=%s&pid=%s\'">' % ('select', str(pid)))
         h('</td>')
         h('</tr>')
         h('</table>')
@@ -1994,11 +1996,11 @@ class Template:
         plist = "<br><br>"
         if paps:
             plist = plist + self._("We have got and we are about to automatically claim for "
-                                    "You the following papers from the remote login sources you are logged in through: <br>")
+                                    "You the following papers from the remote login systems you are logged in through: <br>")
             for p in paps:
                 plist = plist + "  " + str(p) + "<br>"
         else:
-            plist = self._("We have got no papers from the remote login sources that you are currently logged in through, which we could claim automatically for You. <br>")
+            plist = self._("We have got no papers from the remote login systems that you are currently logged in through, which we could claim automatically for You. <br>")
         return plist
 
     def tmpl_welcome_arXiv_papers(self, paps):

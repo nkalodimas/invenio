@@ -895,7 +895,7 @@ def login_status(req):
     login_status = dict()
     # are we sure that we can get only one? ask SamK
     login_status['uid'] = getUid(req)
-    login_status['logged_in_sources'] = []
+    login_status['remote_logged_in_systems'] = []
 
     if login_status['uid'] == 0:
         login_status['logged_in'] = False
@@ -903,10 +903,10 @@ def login_status(req):
 
     login_status['logged_in'] = True
 
-    # for every source available
-    for source in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
-       if IS_LOGGED_IN_THROUGH[source](req):
-           login_status['logged_in_sources'].append(source)
+    # for every system available
+    for system in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
+       if IS_LOGGED_IN_THROUGH[system](req):
+           login_status['logged_inremote_logged_in_systems(system)
 
     return login_status
 
@@ -918,16 +918,16 @@ def session_bareinit(req):
             pinfo["ticket"] = []
         if 'ext_system' not in pinfo:
             pinfo["ext_system"] = dict()
-        for source in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
-            if source not in pinfo["ext_system"]:
-                pinfo['ext_system'][source] = {'name': None, 'external_ids':None, 'email': None}
+        for system in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
+            if system not in pinfo["ext_system"]:
+                pinfo['ext_system'][system] = {'name': None, 'external_ids':None, 'email': None}
     except KeyError:
         pinfo = dict()
         session['personinfo'] = pinfo
         pinfo["ticket"] = []
         pinfo['ext_system'] = []
-        for source in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
-            pinfo["ext_system"][source] = { 'name': None, 'external_ids':None, 'email': None}
+        for system in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
+            pinfo["ext_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
     # this can be optimized so it's not set dirty if not necessary!
     session.dirty = True
 
@@ -964,27 +964,27 @@ def get_orcid_info(req, uinfo):
     pass
     # {the dictionary we define in _webinterface}
 
-def get_ext_sources_info(req, logged_in_sources):
+def get_remote_login_systems_info(req, remote_logged_in_systems):
     '''
-    For every external source get all of their info but for records and store them into a session dictionary
+    For every remote_login_system get all of their info but for records and store them into a session dictionary
 
     @param req: Apache request object
     @type req: Apache request object
     
-    @param logged_in_sources: contains all external sources tha the user is logged in through
-    @type logged_in_sources: dict    
+    @param remote_logged_in_systems: contains all remote_logged_in_systems tha the user is logged in through
+    @type remote_logged_in_systems: dict    
     '''
     session_bareinit(req)
     session = get_session(req)
-    user_sources_info = dict()
+    user_remote_logged_in_systems_info = dict()
 
     uinfo = collect_user_info(req)
     session['personinfo']['external_first_entry'] = False
 
-    for source in logged_in_sources:
-        user_sources_info[source] = REMOTE_LOGIN_SYSTEMS_FUNCTIONS[source](req, uinfo)
+    for system in remote_logged_in_systems:
+        user_remote_logged_in_systems_info[system] = REMOTE_LOGIN_SYSTEMS_FUNCTIONS[system](req, uinfo)
 
-    return user_sources_info
+    return user_remote_logged_in_systems_info
 
 def get_arxiv_recids(req, old_external_ids):
     session = get_session(req)
@@ -1024,21 +1024,19 @@ def get_arxiv_recids(req, old_external_ids):
 def get_orcid_recids(req, current_external_ids):
     pass
 
-def get_ext_sources_recids(req, logged_in_sources):
+def get_remote_login_systems_recids(req, remote_logged_in_systems):
     session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
-    external_sources_recids = []
+    remote_login_systems_recids = []
 
-    for source in logged_in_sources:
-        old_external_ids = pinfo['ext_system'][source]['external_ids'];
-        source_recids = REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS[source](req, old_external_ids)
-        external_sources_recids += source_recids
+    for system in remote_logged_in_systems:
+        old_external_ids = pinfo['ext_system'][system]['external_ids'];
+        system_recids = REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS[system](req, old_external_ids)
+        remote_login_systems_recids += system_recids
 
-    return list(set(external_sources_recids))
+    return list(set(remote_login_systems_recids))
 
-def collect_info(source):
-    pass
 
 def get_user_pid(uid):
 
@@ -1082,10 +1080,10 @@ def auto_claim_papers(pid, recids):
     session.dirty = True
 
 
-def match_profile(recids, sources_info):
+def match_profile(recids, remote_logged_in_systems_info):
     name_variants = []
-    for source in sources_info.keys():
-        name = sources_info[source]['name']
+    for system in remote_logged_in_systems_info.keys():
+        name = remote_logged_in_systems_info[system]['name']
 
         if name not in name_variants:
             name_variants.append(name)
