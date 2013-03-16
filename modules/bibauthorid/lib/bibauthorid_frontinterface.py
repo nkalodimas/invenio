@@ -286,7 +286,10 @@ def check_personids_availability(picked_profile, uid):
             return create_new_person(uid, uid_is_owner=True)
 
 def find_most_compatible_person(bibrecs, name_variants):
-    for name in name_variants:
+    most_relevant_name = most_relevant_name(name_variants)
+    sorted_name_variants = sort_names_by_relevance(most_relevant_name, name_variants)
+    
+    for name in sorted_name_variants:
         pidlist = get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=name)
 
         for p in pidlist:
@@ -294,3 +297,17 @@ def find_most_compatible_person(bibrecs, name_variants):
                 return p[0]
     return -1
 
+def most_relevant_name(name_variants):
+    # temporary I return the first
+    return name_variants[0]
+
+def sort_names_by_relevance(most_relevant_name, name_variants):
+    name_score_list = []
+    sorted_by_relevance_name_list = []
+    
+    for name in name_variants:
+        score = soft_compare_names(most_relevant_name, name)
+        name_score_list.append((score,name))
+        
+    sorted_by_relevance_name_list = [name for score,name in sorted( name_score_list, reverse=True)]
+    return sorted_by_relevance_name_list
