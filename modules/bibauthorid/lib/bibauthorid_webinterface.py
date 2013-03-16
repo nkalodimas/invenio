@@ -39,7 +39,7 @@ from invenio.bibauthorid_config import AID_ENABLED, CLAIMPAPER_ADMIN_ROLE, CLAIM
                             PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT, \
                             BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS
 
-from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE  # , CFG_SITE_SECURE_URL
+from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE, CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS  # , CFG_SITE_SECURE_URL
 
 from invenio.webpage import page, pageheaderonly, pagefooteronly
 from invenio.messages import gettext_set_language  # , wash_language
@@ -2539,7 +2539,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 pass
 
         req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
-        req.write(TEMPLATE.tmpl_welcome_arXiv_papers(arxivp))
+        req.write(TEMPLATE.tmpl_welcome_arxiv_papers(arxivp))
         if CFG_INSPIRE_SITE:
             # logs arXive logins, for debug purposes.
             dbg = ('uinfo= ' + str(uinfo) + '\npinfo= ' + str(pinfo) + '\nreq= ' + str(req)
@@ -2618,14 +2618,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
 
         # get union of recids from all external sources: set(inspire_recids_list)
-        sources_recids = webapi.get_ext_sources_recids(req, login_status['logged_in_sources'])
+        recids = webapi.get_ext_sources_recids(req, login_status['logged_in_sources'])
 
         req.write(body)
 
 	    # warmly suggest the user to log in through all the others available sources if possible so we gather all papers for him for free!
 
-        CFG_BIBAUTHORID_SOURCES = ['arXiv', 'orcid']  # moooove
-        suggested_sources = list(set(CFG_BIBAUTHORID_SOURCES) - set(login_status['logged_in_sources']))
+        suggested_sources = list(set(CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS) - set(login_status['logged_in_sources']))
 
         if suggested_sources:
             req.write(TEMPLATE.tmpl_suggest_not_logged_in_sources(suggested_sources))
@@ -2635,14 +2634,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         if pid != -1:
             # we already have a profile! let's claim papers!
-            paper_dict = webabi.auto_claim_papers(pid, sources_recids)
+            paper_dict = webabi.auto_claim_papers(pid, recids)
             # explain the user which one is his profile
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
             # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
         else:
     	    # show: this is who we think you are, if you lije this profile click here and you'll become him!
     	    # this is the profile with the biggest intersection of papers
-            probable_pid = webapi.match_profile(sources_recids, sources_info)
+            probable_pid = webapi.match_profile(recids, sources_info)
             return self._error_page(req, ln, "%s" % str(probable_pid))
             if probable_pid > -1:
                 req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(probable_pid))

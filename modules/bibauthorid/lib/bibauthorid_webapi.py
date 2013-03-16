@@ -904,8 +904,8 @@ def login_status(req):
     login_status['logged_in'] = True
 
     # for every source available
-    for source in CFG_BIBAUTHORID_SOURCES:
-       if is_logged_in_through[source](req):
+    for source in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
+       if IS_LOGGED_IN_THROUGH[source](req):
            login_status['logged_in_sources'].append(source)
 
     return login_status
@@ -918,7 +918,7 @@ def session_bareinit(req):
             pinfo["ticket"] = []
         if 'ext_system' not in pinfo:
             pinfo["ext_system"] = dict()
-        for source in CFG_BIBAUTHORID_SOURCES:
+        for source in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
             if source not in pinfo["ext_system"]:
                 pinfo['ext_system'][source] = {'name': None, 'external_ids':None, 'email': None}
     except KeyError:
@@ -926,7 +926,7 @@ def session_bareinit(req):
         session['personinfo'] = pinfo
         pinfo["ticket"] = []
         pinfo['ext_system'] = []
-        for source in CFG_BIBAUTHORID_SOURCES:
+        for source in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
             pinfo["ext_system"][source] = { 'name': None, 'external_ids':None, 'email': None}
     # this can be optimized so it's not set dirty if not necessary!
     session.dirty = True
@@ -982,7 +982,7 @@ def get_ext_sources_info(req, logged_in_sources):
     session['personinfo']['external_first_entry'] = False
 
     for source in logged_in_sources:
-        user_sources_info[source] = ext_sources_info_functions[source](req, uinfo)
+        user_sources_info[source] = REMOTE_LOGIN_SYSTEMS_FUNCTIONS[source](req, uinfo)
 
     return user_sources_info
 
@@ -1032,7 +1032,7 @@ def get_ext_sources_recids(req, logged_in_sources):
 
     for source in logged_in_sources:
         old_external_ids = pinfo['ext_system'][source]['external_ids'];
-        source_recids = ext_sources_recids_functions[source](req, old_external_ids)
+        source_recids = REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS[source](req, old_external_ids)
         external_sources_recids += source_recids
 
     return list(set(external_sources_recids))
@@ -1050,7 +1050,7 @@ def get_user_pid(uid):
     return pid[0]
 
 
-def auto_claim_papers(pid, sources_recids):
+def auto_claim_papers(pid, recids):
 
     session_bareinit(req)
     session = get_session(req)
@@ -1059,7 +1059,7 @@ def auto_claim_papers(pid, sources_recids):
     ticket = session['personinfo']['ticket']
 
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
-    missing_bibrecs = sources_recids - pid_bibrecs
+    missing_bibrecs = recids - pid_bibrecs
     # present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
 
     # assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
@@ -1082,7 +1082,7 @@ def auto_claim_papers(pid, sources_recids):
     session.dirty = True
 
 
-def match_profile(sources_recids, sources_info):
+def match_profile(recids, sources_info):
     name_variants = []
     for source in sources_info.keys():
         name = sources_info[source]['name']
@@ -1090,7 +1090,7 @@ def match_profile(sources_recids, sources_info):
         if name not in name_variants:
             name_variants.append(name)
 
-    return dbapi.find_most_compatible_person(sources_recids, name_variants)
+    return dbapi.find_most_compatible_person(recids, name_variants)
 
 
 def arxiv_login(req, picked_profile=None):
@@ -1617,9 +1617,6 @@ def sign_assertion(robotname, assertion):
 
     return robot.sign(secr, assertion)
 
-
-CFG_BIBAUTHORID_SOURCES = ['arXiv', 'orcid']
-ext_recid_types = {'arXiv': "arxiv_id", "orcid": "doi" }
-ext_sources_info_functions = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
-is_logged_in_through = {'arXiv': is_logged_in_through_arxiv, 'orcid': is_logged_in_through_orcid}
-ext_sources_recids_functions = {'arXiv': get_arxiv_recids, 'orcid': get_orcid_recids}
+REMOTE_LOGIN_SYSTEMS_FUNCTIONS = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
+IS_LOGGED_IN_THROUGH = {'arXiv': is_logged_in_through_arxiv, 'orcid': is_logged_in_through_orcid}
+REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS = {'arXiv': get_arxiv_recids, 'orcid': get_orcid_recids}
