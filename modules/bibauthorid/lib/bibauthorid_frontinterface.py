@@ -244,7 +244,7 @@ def person_search_engine_query(query_string):
 def find_personIDs_by_name_string(query_string):
     return fallback_find_personids_by_name_string(query_string)
 
-def find_top5_personid_for_new_arXiv_user(bibrecs, name):
+def find_top5_personid_for_new_arxiv_user(bibrecs, name):
 
     top5_list = []
 
