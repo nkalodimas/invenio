@@ -2578,56 +2578,51 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
 
+        # login_status checks if the user is logged in and return his uid and external systems that he is logged in through.
+        # return a dictionary of the following form: {'logged_in': True, 'uid': 2, 'remote_logged_in_systems':['Arxiv', ...]}
+        login_status = webapi.login_status(req)
+	    ## Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
+        # aka can we arrive here with two distinct uids? I hope not!
+
+        if not login_status['logged_in']:
+            # here will have to display please log in through whatever is available (/youraccount/login to be included? probably not Salvatore says)
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
+
+        title_message = _('Welcome!')
+
+        # start continuous writing to the browser...
+        req.content_type = "text/html"
+        req.send_http_header()
+        ssl_param = 0
+
+        if req.is_https():
+            ssl_param = 1
+
+        req.write(pageheaderonly(req=req, title=title_message, uid=login_status["uid"],
+                               language=ln, secure_page_p=ssl_param))
+        req.write(TEMPLATE.tmpl_welcome_start())
+        body = ""
+
+	    # get name strings and email addresses from SSO/Oauth logins: {'system':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
+        remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_status['remote_logged_in_systems'])
+
+        if CFG_INSPIRE_SITE:
+            # show info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
+            body = TEMPLATE.tmpl_welcome_remote_login_systems(remote_login_systems_info, login_status["uid"])
+        else:
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
+
+        # get union of recids from all external systems: set(inspire_recids_list)
+        recids = webapi.get_remote_login_systems_recids(req, login_status['remote_logged_in_systems'])
+        req.write(body)
+
         if ( action == None ):
-            # login_status checks if the user is logged in and return his uid and external systems that he is logged in through.
-            # return a dictionary of the following form: {'logged_in': True, 'uid': 2, 'remote_logged_in_systems':['Arxiv', ...]}
-            login_status = webapi.login_status(req)
-    	    ## Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
-            # aka can we arrive here with two distinct uids? I hope not!
-    
-            if not login_status['logged_in']:
-    	    # here will have to display please log in through whatever is available (/youraccount/login to be included? probably not Salvatore says)
-                return page_not_authorized(req, text=_("This page in not accessible directly."))
-    
-            title_message = _('Welcome!')
-    
-            # start continuous writing to the browser...
-            req.content_type = "text/html"
-            req.send_http_header()
-            ssl_param = 0
-    
-            if req.is_https():
-                ssl_param = 1
-    
-            req.write(pageheaderonly(req=req, title=title_message, uid=login_status["uid"],
-                                   language=ln, secure_page_p=ssl_param))
-            req.write(TEMPLATE.tmpl_welcome_start())
-            body = ""
-    
-    	    # get name strings and email addresses from SSO/Oauth logins: {'system':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
-            remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_status['remote_logged_in_systems'])
-    
-            # here must read parameters and take according action:
-            # if search parameter: show search page with search results
-            # if confirmation of pid associaton, corresponding page
-    
-            if CFG_INSPIRE_SITE:
-    		# sho info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
-                body = TEMPLATE.tmpl_welcome_remote_login_systems(remote_login_systems_info, login_status["uid"])
-            else:
-                return page_not_authorized(req, text=_("This page in not accessible directly."))
-    
-            # get union of recids from all external systems: set(inspire_recids_list)
-            recids = webapi.get_remote_login_systems_recids(req, login_status['remote_logged_in_systems'])
-            req.write(body)
-    
-    	    # warmly suggest the user to log in through all the others available systems if possible so we gather all papers for him for free!
-    
+            # warmly suggest the user to log in through all the others available systems if possible so we gather all papers for him for free!
             suggested_systems = list(set(CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS) - set(login_status['remote_logged_in_systems']))
     
             if suggested_systems:
                 req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
-    
+
             # check if a profile is already associated
             pid = webapi.get_user_pid(login_status['uid'])
     
@@ -2651,8 +2646,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         	    # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
                 # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
     	        # plus the create a new empty one button!
-            req.write(TEMPLATE.tmpl_welcome_end())
-            req.write(pagefooteronly(req=req))
         elif action == 'search':
             # search_results = search...
             # if the one we suggested is not the one you think, please search for the one you like most
@@ -2663,14 +2656,23 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             # plus the create a new empty one button!
         elif action == 'select':
             #############check_personids_availability
-            recids = webapi.get_remote_login_systems_recids(req, login_status['remote_logged_in_systems'])
+            if selected_pid == -1:
+                pid = webapi.create_new_person(login_status["uid"])
+                req.write(TEMPLATE.tmpl_profile_assigned_by_user)
+            elif  webapi.claim_profile(uid, selected_pid):
+                pid = selected_pid
+                req.write(TEMPLATE.tmpl_profile_assigned_by_user)
+            else:
+                pid = webapi.create_new_person(login_status["uid"])
+                req.write(TEMPLATE.tmpl_profile_not_available(self))
             req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(self, recids))
             # we already have a profile! let's claim papers!
-            paper_dict = webabi.auto_claim_papers(selected_pid, recids)
+            paper_dict = webabi.auto_claim_papers(pid, recids)
             # explain the user which one is his profile
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
             # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))            
-
+        req.write(TEMPLATE.tmpl_welcome_end())
+        req.write(pagefooteronly(req=req))
 
     def tickets_admin(self, req, form):
         '''
