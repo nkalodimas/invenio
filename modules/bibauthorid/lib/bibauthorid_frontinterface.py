@@ -27,7 +27,7 @@ import re
 from invenio.bibauthorid_name_utils import split_name_parts  # emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_name_utils import soft_compare_names
 from invenio.bibauthorid_name_utils import create_normalized_name  # emitting #pylint: disable-msg=W0611
-from invenio.bibauthorid_search_engine import find_personids_by_name
+#from invenio.bibauthorid_search_engine import find_personids_by_name
 import bibauthorid_dbinterface as dbinter
 from cgi import escape
 
@@ -295,6 +295,22 @@ def check_personids_availability(picked_profile, uid):
         else:
             return create_new_person(uid, uid_is_owner=True)
 
+def most_relevant_name(name_variants):
+    # temporary I return the first
+    return name_variants[0]
+
+def sort_names_by_relevance(name_origin, name_variants):
+    name_score_list = []
+    sorted_by_relevance_name_list = []
+    
+    for name in name_variants:
+        score = soft_compare_names(name_origin, name)
+        name_score_list.append((score,name))
+        
+    sorted_by_relevance_name_list = [name for score,name in sorted( name_score_list, reverse=True)]
+    return sorted_by_relevance_name_list
+
+
 def find_most_compatible_person(bibrecs, name_variants):
     if not name_variants:
         pidlist = get_personids_and_papers_from_bibrecs(bibrecs)
@@ -303,8 +319,8 @@ def find_most_compatible_person(bibrecs, name_variants):
             if not get_uid_from_personid(p[0]):
                 return p[0]
     else:
-        most_relevant_name = most_relevant_name(name_variants)
-        sorted_name_variants = sort_names_by_relevance(most_relevant_name, name_variants)
+        relevant_name = most_relevant_name(name_variants)
+        sorted_name_variants = sort_names_by_relevance(relevant_name, name_variants)
 
         for name in sorted_name_variants:
             pidlist = get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=name)
@@ -313,18 +329,3 @@ def find_most_compatible_person(bibrecs, name_variants):
                 if not get_uid_from_personid(p[0]):
                     return p[0]
     return -1
-
-def most_relevant_name(name_variants):
-    # temporary I return the first
-    return name_variants[0]
-
-def sort_names_by_relevance(most_relevant_name, name_variants):
-    name_score_list = []
-    sorted_by_relevance_name_list = []
-    
-    for name in name_variants:
-        score = soft_compare_names(most_relevant_name, name)
-        name_score_list.append((score,name))
-        
-    sorted_by_relevance_name_list = [name for score,name in sorted( name_score_list, reverse=True)]
-    return sorted_by_relevance_name_list

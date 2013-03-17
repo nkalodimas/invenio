@@ -1882,6 +1882,23 @@ class Template:
 
         return "\n".join(html)
 
+    def tmpl_welcome_select_empty_profile():
+        html = []
+        h = html.append
+        message = self._("If none of the above is your profile it seems that you cannot match any of the existing accounts.'")
+        h('<p>%s</p>' % message)
+        h('<table border="0"> <tr>')
+        h('<td>')
+        h('%s ' % (self._('Would you like to create a new one?')))
+        h('</td>')
+        h('<td>')
+        h('<INPUT TYPE="BUTTON" VALUE="Create a profile" ONCLICK="window.location.href=\'welcome?action=%s&pid=%s\'">' % ('select', str(-1)))
+        h('</td>')
+        h('</tr>')
+        h('</table>')
+        h('</br>')
+        return "\n".join(html)
+    
     def tmpl_welcome_probable_profile_suggestion(pid):
         '''
         Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through. 
