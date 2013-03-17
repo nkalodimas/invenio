@@ -872,7 +872,7 @@ def is_logged_in_through_arxiv(req):
     '''
     session = get_session(req)
 
-    if 'user_info' in session.keys() and 'external_firstname' in session['user_info'].keys() and session['user_info']['external_firstname']:
+    if 'user_info' in session.keys() and 'external_firstname' in session['user_info'].keys() and session['user_info']['email']:
         return True
     return False
 
@@ -895,10 +895,10 @@ def login_status(req):
     login_status = dict()
     # are we sure that we can get only one? ask SamK
     login_status['uid'] = getUid(req)
+    login_status['logged_in'] = False
     login_status['remote_logged_in_systems'] = []
 
     if login_status['uid'] == 0:
-        login_status['logged_in'] = False
         return login_status
 
     login_status['logged_in'] = True
@@ -906,7 +906,7 @@ def login_status(req):
     # for every system available
     for system in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
        if IS_LOGGED_IN_THROUGH[system](req):
-           login_status['logged_inremote_logged_in_systems(system)
+           login_status['remote_logged_in_systems'].append(system)
 
     return login_status
 
@@ -916,18 +916,18 @@ def session_bareinit(req):
         pinfo = session["personinfo"]
         if 'ticket' not in pinfo:
             pinfo["ticket"] = []
-        if 'ext_system' not in pinfo:
-            pinfo["ext_system"] = dict()
+        if 'remote_login_system' not in pinfo:
+            pinfo["remote_login_system"] = dict()
         for system in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
-            if system not in pinfo["ext_system"]:
-                pinfo['ext_system'][system] = {'name': None, 'external_ids':None, 'email': None}
+            if system not in pinfo["remote_login_system"]:
+                pinfo['remote_login_system'][system] = {'name': None, 'external_ids':None, 'email': None}
     except KeyError:
         pinfo = dict()
         session['personinfo'] = pinfo
         pinfo["ticket"] = []
-        pinfo['ext_system'] = []
+        pinfo['remote_login_system'] = []
         for system in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
-            pinfo["ext_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
+            pinfo["remote_login_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
     # this can be optimized so it's not set dirty if not necessary!
     session.dirty = True
 
@@ -946,12 +946,13 @@ def get_arxiv_info(req, uinfo):
         surname = ''
 
     if surname:
-        session['personinfo']['ext_system']['arXiv']['name'] = nameapi.create_normalized_name(
+        session['personinfo']['remote_login_system']['arXiv']['name'] = nameapi.create_normalized_name(
                                           nameapi.split_name_parts(surname + ', ' + name))
     else:
-        session['personinfo']['ext_system']['arXiv']['name'] = ''
-    session['personinfo']['ext_system']['arXiv']['email'] = uinfo['email']
-    arXiv_info['name'] = session['personinfo']['ext_system']['arXiv']['name']
+        session['personinfo']['remote_login_system']['arXiv']['name'] = ''
+
+    session['personinfo']['remote_login_system']['arXiv']['email'] = uinfo['email']
+    arXiv_info['name'] = session['personinfo']['remote_login_system']['arXiv']['name']
     arXiv_info['email'] = uinfo['email']
     session.dirty = True
 
@@ -961,7 +962,7 @@ def get_arxiv_info(req, uinfo):
 
 # all teh get_info methods should standardize the content:
 def get_orcid_info(req, uinfo):
-    pass
+    return dict()
     # {the dictionary we define in _webinterface}
 
 def get_remote_login_systems_info(req, remote_logged_in_systems):
@@ -1017,12 +1018,12 @@ def get_arxiv_recids(req, old_external_ids):
                     recids_from_arxivids.append(recid)
             cached_ids_assocciation[arxiv_id] = recid
 
-    pinfo['ext_system']['arXiv']['external_ids'] = cached_ids_assocciation
+    pinfo['remote_login_system']['arXiv']['external_ids'] = cached_ids_assocciation
     session.dirty = True
     return recids_from_arxivids
 
 def get_orcid_recids(req, current_external_ids):
-    pass
+    return []
 
 def get_remote_login_systems_recids(req, remote_logged_in_systems):
     session_bareinit(req)
@@ -1031,7 +1032,7 @@ def get_remote_login_systems_recids(req, remote_logged_in_systems):
     remote_login_systems_recids = []
 
     for system in remote_logged_in_systems:
-        old_external_ids = pinfo['ext_system'][system]['external_ids'];
+        old_external_ids = pinfo['remote_login_system'][system]['external_ids']
         system_recids = REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS[system](req, old_external_ids)
         remote_login_systems_recids += system_recids
 
@@ -1089,6 +1090,10 @@ def match_profile(recids, remote_logged_in_systems_info):
             name_variants.append(name)
 
     return dbapi.find_most_compatible_person(recids, name_variants)
+
+
+def claim_profile(uid, pid):
+    return dbapi.claim_profile(uid, pid)
 
 
 def arxiv_login(req, picked_profile=None):

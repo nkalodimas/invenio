@@ -273,6 +273,16 @@ def find_top5_personid_for_new_arxiv_user(bibrecs, name):
 
     return top5_list
 
+def is_profile_availabe(pid):
+    if get_uid_from_personid(pid):
+        return False
+    return True
+
+def claim_profile(uid, pid):
+    if is_profile_availabe:
+        dbinter.set_personid_row(pid, 'uid', uid)
+        return True
+    return False
 
 def check_personids_availability(picked_profile, uid):
 
@@ -286,15 +296,22 @@ def check_personids_availability(picked_profile, uid):
             return create_new_person(uid, uid_is_owner=True)
 
 def find_most_compatible_person(bibrecs, name_variants):
-    most_relevant_name = most_relevant_name(name_variants)
-    sorted_name_variants = sort_names_by_relevance(most_relevant_name, name_variants)
-    
-    for name in sorted_name_variants:
-        pidlist = get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=name)
+    if not name_variants:
+        pidlist = get_personids_and_papers_from_bibrecs(bibrecs)
 
         for p in pidlist:
             if not get_uid_from_personid(p[0]):
                 return p[0]
+    else:
+        most_relevant_name = most_relevant_name(name_variants)
+        sorted_name_variants = sort_names_by_relevance(most_relevant_name, name_variants)
+
+        for name in sorted_name_variants:
+            pidlist = get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=name)
+
+            for p in pidlist:
+                if not get_uid_from_personid(p[0]):
+                    return p[0]
     return -1
 
 def most_relevant_name(name_variants):

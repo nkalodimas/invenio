@@ -39,6 +39,7 @@ from invenio.bibauthorid_webapi import get_personiID_external_ids
 from invenio.bibauthorid_frontinterface import get_uid_from_personid
 from invenio.bibauthorid_frontinterface import get_bibrefrec_name_string
 from invenio.bibauthorid_frontinterface import get_canonical_id_from_personid
+from invenio.bibauthorid_frontinterface import most_relevant_name
 from invenio.messages import gettext_set_language, wash_language
 from invenio.webuser import get_email
 from invenio.htmlutils import escape_html
@@ -1785,8 +1786,8 @@ class Template:
 
         html = []
         h = html.append
-        message = self._('It is recommended to log in via as many external systems as possible. You can also log in via the following remote login systems: %s'
-                                                                                                                % (', ').join(suggested_remote_login_systems))
+        message = self._('It is recommended to log in via as many remote login systems as possible. You can also log in via the following: %s'
+                                                                                                            % (', ').join(suggested_remote_login_systems))
         h('<p><b>%s</b></p>' % (message,))
         return "\n".join(html)
 
@@ -1892,7 +1893,7 @@ class Template:
         h('<table border="0"> <tr>')
         canonical_id = get_canonical_id_from_personid(pid)
         name_variants = get_person_names_from_id(pid)
-        most_common_name = find_authors_most_common_name(name_variants)
+        most_common_name = most_relevant_name(name_variants)
         name_string = "[No name available]  "
 
         if most_common_name != None:
@@ -1928,7 +1929,7 @@ class Template:
         h('<p>%s</p>' % (message,))
         return "\n".join(html)
 
-    def tmpl_profile_assigned_by_user  (self):
+    def tmpl_profile_assigned_by_user(self):
         html = []
         h = html.append
         message = self._(' Congratulations you have successfully claimed the chosen profile.')
@@ -1973,9 +1974,9 @@ class Template:
             message = self._("Your external_systems accounts are associated "
                     "with person %s." % (canon_name[0][0],))
         else:
-            message = self._("Warning: your arXiv.org account is associated with an empty profile. "
+            message = self._("Warning: your external_systems accounts account are associated with an empty profile. "
                     "This can happen if it is the first time you log in and you do not have any "
-                    "paper directly claimed in arXiv.org."
+                    "paper directly claimed from your external_systems accounts"
                     " In this case, you are welcome to search and claim your papers to your"
                     " new profile manually, or please contact us to get help.")
         body = (message)
@@ -1996,11 +1997,11 @@ class Template:
         plist = "<br><br>"
         if paps:
             plist = plist + self._("We have got and we are about to automatically claim for "
-                                    "You the following papers from the remote login systems you are logged in through: <br>")
+                                    "you the following papers from the remote login systems you are logged in through: <br>")
             for p in paps:
                 plist = plist + "  " + str(p) + "<br>"
         else:
-            plist = self._("We have got no papers from the remote login systems that you are currently logged in through, which we could claim automatically for You. <br>")
+            plist = self._("We have got no papers from the remote login systems that you are currently logged in through, which we could claim automatically for you. <br>")
         return plist
 
     def tmpl_welcome_arXiv_papers(self, paps):
