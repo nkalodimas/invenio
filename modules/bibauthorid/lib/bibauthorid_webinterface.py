@@ -37,9 +37,9 @@ except:
 
 from invenio.bibauthorid_config import AID_ENABLED, CLAIMPAPER_ADMIN_ROLE, CLAIMPAPER_USER_ROLE, \
                             PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT, \
-                            BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS
+                            BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS, CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS
 
-from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE, CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS  # , CFG_SITE_SECURE_URL
+from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE  # , CFG_SITE_SECURE_URL
 
 from invenio.webpage import page, pageheaderonly, pagefooteronly
 from invenio.messages import gettext_set_language  # , wash_language
@@ -2637,9 +2637,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         	    # show: this is who we think you are, if you lije this profile click here and you'll become him!
         	    # this is the profile with the biggest intersection of papers
                 probable_pid = webapi.match_profile(recids, remote_login_systems_info)
-                return self._error_page(req, ln, "%s" % str(probable_pid))
+                
                 if probable_pid > -1:
                     req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(probable_pid))
+                return self._error_page(req, ln, "%s" % str(probable_pid))
                 # search_results = search...
         	    # if the one we suggested is not the one you think, please search for the one you like most
         	    # this show the search box prefilled with one of the names we got
