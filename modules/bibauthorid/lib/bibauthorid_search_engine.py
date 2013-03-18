@@ -41,15 +41,16 @@ from bibauthorid_dbinterface import get_name_string_to_pid_dictionary, get_index
 
 def get_qgrams_from_string(string, q):
     '''
-    docstring
+    It decomposes the given string to its qgrams. The qgrams of a string are its substrings of length q.
+    For example the 2-grams (q=2) of string cathey are (ca,at,th,he,ey).
 
-    @param string:
-    @type string:
-    @param q:
-    @type q:
+    @param string: the string to be decomposed
+    @type string: str
+    @param q: the length of the grams
+    @type q: int
 
-    @return:
-    @rtype:
+    @return: the string qgrams ordered accordingly to the position they withhold in the string
+    @rtype: list
     '''
     qgrams = list()
 
@@ -63,16 +64,16 @@ def populate_table_with_limit(table_name, column_names, args, args_tuple_size, \
     '''
     docstring
 
-    @param table_name:
-    @type table_name:
-    @param column_names:
-    @type column_names:
+    @param table_name: the name of the table which we want to populate
+    @type table_name: str
+    @param column_names: the column names of the table
+    @type column_names: list
     @param args:
-    @type args:
+    @type args: list
     @param args_tuple_size:
-    @type args_tuple_size:
+    @type args_tuple_size: list
     @param max_insert_size:
-    @type max_insert_size:
+    @type max_insert_size: int
     '''
     column_num = len(column_names)
     summ = 0
@@ -118,12 +119,13 @@ def populate_table(table_name, column_names, args, empty_table_first=True):
 
 def create_dense_index(name_pids_dict, names_list):
     '''
-    docstring
+    It builds the dense index which maps a name to the set of personids whi withhold that name.
+    Each entry in the dense index is identified by a unique id called name id.
 
-    @param name_pids_dict:
-    @type name_pids_dict:
-    @param names_list:
-    @type names_list:
+    @param name_pids_dict: 
+    @type name_pids_dict: dict
+    @param names_list: the names to be indexed
+    @type names_list: list
     '''
     name_id = 0
     args = list()
@@ -136,14 +138,14 @@ def create_dense_index(name_pids_dict, names_list):
     populate_table('denseINDEX', ['name_id','person_name','personids'], args)
     set_dense_index_ready()
 
-def create_inverted_lists(name_pids_dict, names_list):
+def create_inverted_lists(names_list):
     '''
-    docstring
+    It builds the inverted index which maps a qgram to the set of name ids that share that qgram.
+    To construct the index it decomposes each name string into its qgrams and adds its id to the
+    corresponding inverted list.
 
-    @param name_pids_dict:
-    @type name_pids_dict:
-    @param names_list:
-    @type names_list:
+    @param names_list: the names to be indexed
+    @type names_list: list
     '''
     name_id = 0
     inverted_lists = dict()
@@ -170,7 +172,9 @@ def create_inverted_lists(name_pids_dict, names_list):
 
 def create_bibauthorid_indexer():
     '''
-    docstring
+    It constructs the disk-based indexer. It consists of the dense index (which maps a name
+    to the set of personids who withhold that name) and the inverted lists (which map a qgram
+    to the set of name ids that share that qgram).
     '''
     name_pids_dict = get_name_string_to_pid_dictionary()
     indexable_name_pids_dict = dict()
@@ -184,7 +188,7 @@ def create_bibauthorid_indexer():
 
     threads = list()
     threads.append(Thread(target=create_dense_index, args=(indexable_name_pids_dict, indexable_names_list)))
-    threads.append(Thread(target=create_inverted_lists, args=(indexable_name_pids_dict, indexable_names_list)))
+    threads.append(Thread(target=create_inverted_lists, args=(indexable_names_list)))
 
     for t in threads:
         t.start()
@@ -194,13 +198,15 @@ def create_bibauthorid_indexer():
 
 def solve_T_occurence_problem(query_string):
     '''
-    docstring
+    It solves a 'T-occurence problem' which is defined as follows: find the string ids
+    that apper at least T times on the inverted lists of the query string qgrams. If the
+    result dataset is bigger than a threshold it tries to limit it further.
 
     @param query_string:
-    @type query_string:
+    @type query_string: str
 
-    @return:
-    @rtype:
+    @return: T_occurence_problem answers
+    @rtype: list
     '''
     query_string_qgrams = get_qgrams_from_string(query_string, QGRAM_LEN)
     query_string_qgrams_set = set(query_string_qgrams)
@@ -296,13 +302,16 @@ def calculate_pid_score(names_score_list):
 
 def find_personids_by_name(query_string):
     '''
-    docstring
+    It finds a collection of personids who own a signature that is similar to the given query string.
+    Its approach is by solving a 'T-occurance problem' and then it applies some filters to the candidate
+    answers so it can remove the false positives. In the end it sorts the result set based on the score
+    they obtained.
 
     @param query_string:
-    @type query_string:
+    @type query_string: str
 
-    @return:
-    @rtype:
+    @return: personids which own a signature similar to the query string
+    @rtype: list
     '''
     query_string = create_indexable_name(translate_to_ascii(query_string)[0])
     if not query_string:
