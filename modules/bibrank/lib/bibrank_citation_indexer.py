@@ -320,42 +320,41 @@ def get_tags_config(config):
 def get_journal_info(recid, tags):
     record_info = []
 
-    tmp = get_fieldvalues(recid, tags['publication']['journal'])
     record = get_record(recid)
-    journals_fields = record.find_fields(tags['publication']['journal'][:4])
+    journals_fields = record.find_fields(tags['publication']['journal'][:5])
     for field in journals_fields:
         # we store the tags and their values here
         # like c->444 y->1999 p->"journal of foo",
         # v->20
         tagsvalues = {}
         try:
-            tmp = field.get_subfield_values(tags['publication']['journal'][4])[0]
+            tmp = field.get_subfield_values(tags['publication']['journal'][5])[0]
         except IndexError:
             pass
         else:
             tagsvalues["p"] = tmp
 
         try:
-            tmp = field.get_subfield_values(tags['publication']['volume'][4])[0]
+            tmp = field.get_subfield_values(tags['publication']['volume'][5])[0]
         except IndexError:
             pass
         else:
             tagsvalues["v"] = tmp
 
         try:
-            tmp = field.get_subfield_values(tags['publication']['year'][4])[0]
+            tmp = field.get_subfield_values(tags['publication']['year'][5])[0]
         except IndexError:
             pass
         else:
             tagsvalues["y"] = tmp
 
         try:
-            tmp = field.get_subfield_values(tags['publication']['pages'][4])[0]
+            tmp = field.get_subfield_values(tags['publication']['pages'][5])[0]
         except IndexError:
             pass
         else:
             # if the page numbers have "x-y" take just x
-            tagsvalues["c"] = tmp.lsplit('-', 1)[0]
+            tagsvalues["c"] = tmp.split('-', 1)[0]
 
         # check if we have the required data
         ok = True
