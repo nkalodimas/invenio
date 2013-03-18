@@ -173,7 +173,7 @@ def replace_references(recid):
     """
     # Parse references
     references_xml = extract_references_from_record_xml(recid)
-    references = create_record(references_xml.encode('utf-8'))
+    references = create_record(references_xml)
     # Record marc xml
     record = get_record(recid)
 
@@ -208,7 +208,7 @@ def update_references(recid, overwrite=True):
         # Check for references in record
         record = get_record(recid)
         if record and record_has_field(record, '999'):
-            raise RecordHasReferences('Record has references and overwrite ' \
+            raise RecordHasReferences('Record has references and overwrite '
                                       'mode is disabled: %s' % recid)
 
     if get_fieldvalues(recid, '999C59'):
@@ -221,7 +221,7 @@ def update_references(recid, overwrite=True):
     (temp_fd, temp_path) = mkstemp(prefix=CFG_REFEXTRACT_FILENAME,
                                    dir=CFG_TMPSHAREDDIR)
     temp_file = os.fdopen(temp_fd, 'w')
-    temp_file.write(references_xml.encode('utf-8'))
+    temp_file.write(references_xml)
     temp_file.close()
 
     # Update record
