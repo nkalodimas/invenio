@@ -5619,7 +5619,7 @@ function isSubjectSubfield(tag_ind, subfield_code) {
 function sanitize_value(value) {
   value = value.replace(/\n/g, ' '); // Replace newlines with spaces.
   value = value.replace(/^\s+|\s+$/g,""); // Remove whitespace from the ends of strings
-  return escapeHTML(value);
+  return value;
 }
 
 
@@ -5933,7 +5933,7 @@ function onEditableCellChange(value, th) {
 
     highlight_change(cell, value);
 
-    return value;
+    return escapeHTML(value);
 }
 
 
