@@ -27,7 +27,7 @@ import re
 from invenio.bibauthorid_name_utils import split_name_parts  # emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_name_utils import soft_compare_names
 from invenio.bibauthorid_name_utils import create_normalized_name  # emitting #pylint: disable-msg=W0611
-#from invenio.bibauthorid_search_engine import find_personids_by_name
+from invenio.bibauthorid_search_engine import find_personids_by_name
 import bibauthorid_dbinterface as dbinter
 from cgi import escape
 
@@ -132,22 +132,22 @@ def set_processed_external_recids(pid, recid_list_str):
 def assign_person_to_uid(uid, pid):
     '''
     Assigns a person to a userid. If person already assigned to someone else, create new person.
-    Returns the peron id assigned.
+    Returns the person id assigned and if the user was assigned to the pid given.
     @param uid: user id, int
     @param pid: person id, int, if -1 creates new person.
-    @return: pid int
+    @return: pid int, bool
     '''
     if pid == -1:
         pid = dbinter.create_new_person_from_uid(uid)
-        return pid
+        return pid, True
     else:
         current_uid = get_person_data(pid, 'uid')
         if len(current_uid) == 0:
             set_person_data(pid, 'uid', str(uid))
-            return pid
+            return pid, True
         else:
             pid = dbinter.create_new_person_from_uid(uid)
-            return pid
+            return pid, False
 
 def get_processed_external_recids(pid):
     '''
@@ -273,16 +273,6 @@ def find_top5_personid_for_new_arxiv_user(bibrecs, name):
 
     return top5_list
 
-def is_profile_availabe(pid):
-    if get_uid_from_personid(pid):
-        return False
-    return True
-
-def claim_profile(uid, pid):
-    if is_profile_availabe:
-        dbinter.set_personid_row(pid, 'uid', uid)
-        return True
-    return False
 
 def check_personids_availability(picked_profile, uid):
 
@@ -296,36 +286,24 @@ def check_personids_availability(picked_profile, uid):
             return create_new_person(uid, uid_is_owner=True)
 
 def most_relevant_name(name_variants):
-    # temporary I return the first
-    return name_variants[0]
-
-def sort_names_by_relevance(name_origin, name_variants):
-    name_score_list = []
-    sorted_by_relevance_name_list = []
+    if not name_variants:
+        return None
+    name_parts_list = []
     
     for name in name_variants:
-        score = soft_compare_names(name_origin, name)
-        name_score_list.append((score,name))
-        
-    sorted_by_relevance_name_list = [name for score,name in sorted( name_score_list, reverse=True)]
-    return sorted_by_relevance_name_list
+        name_parts_list.append(split_name_parts(name))
+    sorted_by_relevance_name_list = sorted(sorted(name_parts_list, key=lambda k : len(k[1]), reverse=True), key = lambda k:len(k[2]), reverse=True)
+    # temporary I return the first
+    return create_normalized_name(sorted_by_relevance_name_list[0])
 
 
 def find_most_compatible_person(bibrecs, name_variants):
-    if not name_variants:
-        pidlist = get_personids_and_papers_from_bibrecs(bibrecs)
+    if name_variants:
+        relevant_name = most_relevant_name(name_variants)
+
+        pidlist = get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=relevant_name)
 
         for p in pidlist:
             if not get_uid_from_personid(p[0]):
                 return p[0]
-    else:
-        relevant_name = most_relevant_name(name_variants)
-        sorted_name_variants = sort_names_by_relevance(relevant_name, name_variants)
-
-        for name in sorted_name_variants:
-            pidlist = get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=name)
-
-            for p in pidlist:
-                if not get_uid_from_personid(p[0]):
-                    return p[0]
     return -1

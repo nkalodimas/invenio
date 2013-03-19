@@ -35,9 +35,10 @@ except:
     CFG_JSON_AVAILABLE = False
     json = None
 
+from invenio.config import CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
 from invenio.bibauthorid_config import AID_ENABLED, CLAIMPAPER_ADMIN_ROLE, CLAIMPAPER_USER_ROLE, \
                             PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT, \
-                            BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS, CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS
+                            BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS
 
 from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE  # , CFG_SITE_SECURE_URL
 
@@ -2567,14 +2568,12 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             {'ln': (str, CFG_SITE_LANG),
              'action': (str, None),
              'pid': (int, None),
-             'name_search_param': (str, None),
-             'surname_search_param':(str, None)})
+             'search_param': (str, None)})
 
         ln = argd['ln']
         action = argd['action']
         selected_pid = argd['pid']
-        name_search_param = argd['name_search_param']
-        surname_search_param = argd['surname_search_param']
+        search_param = argd['search_param']
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
 
@@ -2586,8 +2585,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         if not login_status['logged_in']:
             # here will have to display please log in through whatever is available (/youraccount/login to be included? probably not Salvatore says)
+            if CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
+                message = 'It is recommended to log in via as many remote login systems as possible.' \
+                          ' You can log in via the following: %s' % (', ').join(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS)
+            return page_not_authorized(req, text=_("This page in not accessible directly.\n"+message))
+        
+        if not CFG_INSPIRE_SITE:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
-
+        
         title_message = _('Welcome!')
 
         # start continuous writing to the browser...
@@ -2606,30 +2611,28 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 	    # get name strings and email addresses from SSO/Oauth logins: {'system':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
         remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_status['remote_logged_in_systems'])
 
-        if CFG_INSPIRE_SITE:
-            # show info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
-            body = TEMPLATE.tmpl_welcome_remote_login_systems(remote_login_systems_info, login_status["uid"])
-        else:
-            return page_not_authorized(req, text=_("This page in not accessible directly."))
+        # show info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
+        body = TEMPLATE.tmpl_welcome_remote_login_systems(remote_login_systems_info, login_status["uid"])
 
         # get union of recids from all external systems: set(inspire_recids_list)
         recids = webapi.get_remote_login_systems_recids(req, login_status['remote_logged_in_systems'])
         req.write(body)
 
+        # warmly suggest the user to log in through all the others available systems if possible so we gather all papers for him for free!
+        suggested_systems = list(set(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS) - set(login_status['remote_logged_in_systems']))
+
+        if suggested_systems:
+            req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
+
         if ( action == None ):
-            # warmly suggest the user to log in through all the others available systems if possible so we gather all papers for him for free!
-            suggested_systems = list(set(CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS) - set(login_status['remote_logged_in_systems']))
-    
-            if suggested_systems:
-                req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
 
             # check if a profile is already associated
             pid = webapi.get_user_pid(login_status['uid'])
     
             if pid != -1:
-                req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(self, recids))
+                req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(recids))
                 # we already have a profile! let's claim papers!
-                paper_dict = webabi.auto_claim_papers(pid, recids)
+                paper_dict = webapi.auto_claim_papers(req, pid, recids)
                 # explain the user which one is his profile
                 req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
                 # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
@@ -2640,35 +2643,35 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 
                 if probable_pid > -1:
                     req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(probable_pid))
-                return self._error_page(req, ln, "%s" % str(probable_pid))
+                #return self._error_page(req, ln, "%s" % str(probable_pid))
                 # search_results = search...
         	    # if the one we suggested is not the one you think, please search for the one you like most
         	    # this show the search box prefilled with one of the names we got
         	    # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
                 # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
-    	        # plus the create a new empty one button!
+    	        req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
         elif action == 'search':
             # search_results = search...
             # if the one we suggested is not the one you think, please search for the one you like most
             # this show the search box prefilled with one of the names we got
             # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
             # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
+            req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
             pass
             # plus the create a new empty one button!
         elif action == 'select':
             #############check_personids_availability
-            if selected_pid == -1:
-                pid = webapi.create_new_person(login_status["uid"])
-                req.write(TEMPLATE.tmpl_profile_assigned_by_user)
-            elif  webapi.claim_profile(uid, selected_pid):
-                pid = selected_pid
-                req.write(TEMPLATE.tmpl_profile_assigned_by_user)
+
+            pid, profile_claimed = webapi.claim_profile(login_status['uid'], selected_pid)
+            
+            if  profile_claimed:
+                req.write(TEMPLATE.tmpl_profile_assigned_by_user())
             else:
-                pid = webapi.create_new_person(login_status["uid"])
-                req.write(TEMPLATE.tmpl_profile_not_available(self))
-            req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(self, recids))
+                req.write(TEMPLATE.tmpl_profile_not_available())
+                    
+            req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(recids))
             # we already have a profile! let's claim papers!
-            paper_dict = webabi.auto_claim_papers(pid, recids)
+            paper_dict = webapi.auto_claim_papers(req, pid, recids)
             # explain the user which one is his profile
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
             # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))            
