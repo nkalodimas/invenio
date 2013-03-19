@@ -4289,6 +4289,21 @@ CREATE TABLE IF NOT EXISTS `wapCACHE` (
   INDEX `status-b` (`object_status`)
 ) ENGINE=MyISAM;
 
+-- tables for search engine
+CREATE TABLE IF NOT EXISTS `denseINDEX` (
+ `name_id` INT( 10 ) NOT NULL,
+ `person_name` VARCHAR( 256 ) NOT NULL,
+ `personids` LONGBLOB NOT NULL,
+ PRIMARY KEY (`name_id`)
+) ENGINE=MyISAM;
+
+CREATE TABLE IF NOT EXISTS `invertedLISTS` (
+ `qgram` VARCHAR( 4 ) NOT NULL,
+ `inverted_list` LONGBLOB NOT NULL,
+ `list_cardinality` INT( 10 ) NOT NULL,
+ PRIMARY KEY (`qgram`)
+) ENGINE=MyISAM;
+
 -- tables for goto:
 CREATE TABLE IF NOT EXISTS goto (
   label varchar(150) NOT NULL,
