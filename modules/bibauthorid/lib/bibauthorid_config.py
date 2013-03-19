@@ -211,10 +211,10 @@ MAX_NOT_MATCHING_NAME_CHARS = 0.33
 PREFIX_SCORE_COEFFICIENT = 0.7
 NAME_SCORE_COEFFICIENT = 0.5
 
-# List that contains the existing remote systems that a user can logged in via them in Inspire 
+# List that contains the existing remote systems that a user can logged in via them in Inspire
 CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS = ['arXiv', 'orcid']
 
 if GLOBAL_CONFIG and not set(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS ) <= set(CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS):
     raise Exception("Wrong configuration!!! CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS must be a subset of %s"%str(CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS))
 
-CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS = {'arXiv': '037:', 'orcid': 'doi' }
+CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS = {'arXiv': '037:', 'orcid': 'doi:' }

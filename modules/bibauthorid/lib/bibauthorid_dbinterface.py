@@ -687,6 +687,10 @@ def get_most_compatible_pids_from_bibrecs_and_names(bibrecs, limit_by_name=None)
         data = run_sql(("select personid,bibrec from aidPERSONIDPAPERS where bibrec in %s "
                        "and name like " % bibrecs) + ' %s ', (surname + '%',))
 
+#THOMAS: really this should not return anything? the data should be returned somehow
+#THOMAS: this function should be tested properly. We have to start thinking about how to unittest this stuff
+
+
 def get_personids_and_papers_from_bibrecs(bibrecs, limit_by_name=None):
     '''
     Gives back a list of tuples (personid, set_of_papers_owned_by) limited to the given list of bibrecs.
@@ -2062,7 +2066,7 @@ class Bib_matrix(object):
                 if (rec_v != Bib_matrix.current_comparison_version or
                     # you can use negative version to recalculate
                     Bib_matrix.current_comparison_version < 0):
-       
+
                     self._bibmap = dict()
                     return False
 

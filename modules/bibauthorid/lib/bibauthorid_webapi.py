@@ -88,12 +88,12 @@ def swap_person_canonical_name(person_id, desired_cname, userinfo=''):
 
     current_cname = get_canonical_id_from_person_id(person_id)
     create_log_personid_with_desired_cname = False
-    
+
     # nobody withholds the desired canonical name
-    if personid_with_desired_cname == -1:  
+    if personid_with_desired_cname == -1:
         dbapi.change_personID_canonical_names([(person_id, desired_cname)])
     # person_id doesn't own a canonical name
-    elif not isinstance(current_cname, str):  
+    elif not isinstance(current_cname, str):
         dbapi.change_personID_canonical_names([(person_id, desired_cname)])
         dbapi.update_personID_canonical_names([personid_with_desired_cname], overwrite=True)
         create_log_personid_with_desired_cname = True
@@ -871,6 +871,8 @@ def is_logged_in_through_arxiv(req):
     @type req: Apache request object
     '''
     session = get_session(req)
+    #THOMAS: ask samK about this variables: probably it would be better to rename them in the session as arxiv_sso_blabla
+    #THOMAS: ask samK if this is correct, what other way there is to discover is we are SSOed through arxiv?
 
     if 'user_info' in session.keys() and 'external_firstname' in session['user_info'].keys() and session['user_info']['email']:
         return True
@@ -883,6 +885,7 @@ def is_logged_in_through_orcid(req):
     @param req: Apache request object
     @type req: Apache request object
     '''
+    #THOMAS: right!
     return False
 
 def login_status(req):
@@ -928,7 +931,7 @@ def session_bareinit(req):
         pinfo['remote_login_system'] = []
         for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
             pinfo["remote_login_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
-    # this can be optimized so it's not set dirty if not necessary!
+    #THOMAS: this can be optimized so it's not set dirty if not necessary!
     session.dirty = True
 
 # all teh get_info methods should standardize the content:
@@ -971,15 +974,16 @@ def get_remote_login_systems_info(req, remote_logged_in_systems):
 
     @param req: Apache request object
     @type req: Apache request object
-    
+
     @param remote_logged_in_systems: contains all remote_logged_in_systems tha the user is logged in through
-    @type remote_logged_in_systems: dict    
+    @type remote_logged_in_systems: dict
     '''
     session_bareinit(req)
     session = get_session(req)
     user_remote_logged_in_systems_info = dict()
 
     uinfo = collect_user_info(req)
+    #THOMAS: whe should get rid of this external_first_entry from everywhere. it stinks.
     session['personinfo']['external_first_entry'] = False
 
     for system in remote_logged_in_systems:
@@ -998,6 +1002,9 @@ def get_arxiv_recids(req, old_external_ids):
 
     recids_from_arxivids = []
     cached_ids_assocciation = dict()
+
+    #THOMAS: investigate with annette/skaplun what's the best way of using perform_request_search for this.
+    #Alternatives: p='doi', p='doiID:doi', others? aka: is 037:arxiv really needed, only arxiv identifier is better or worse?
 
     if current_external_ids and not old_external_ids:
         for arxiv_id in current_external_ids:
@@ -1032,6 +1039,7 @@ def get_remote_login_systems_recids(req, remote_logged_in_systems):
     remote_login_systems_recids = []
 
     for system in remote_logged_in_systems:
+        #THOMAS: rename old_external_ids to something like external_ids_to_recid_map_cache (this i don't like but think about something)
         old_external_ids = pinfo['remote_login_system'][system]['external_ids']
         system_recids = REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS[system](req, old_external_ids)
         remote_login_systems_recids += system_recids
@@ -1082,6 +1090,7 @@ def auto_claim_papers(req, pid, recids):
 
 
 def match_profile(recids, remote_logged_in_systems_info):
+    #THOMAS: name varias shall be a set, 'not in' is really expensive!
     name_variants = []
     for system in remote_logged_in_systems_info.keys():
         name = remote_logged_in_systems_info[system]['name']

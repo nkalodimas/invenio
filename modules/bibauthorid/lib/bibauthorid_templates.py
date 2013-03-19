@@ -590,7 +590,7 @@ class Template:
 
         h('<form id="%s" action="/person/action" method="post">'
                    % (form_id))
-        
+
         # +self._(' On all pages: '))
         h('<div class="aid_reclist_selector">')
         h('<a rel="nofollow" rel="group_1" href="#select_all">' + self._('Select All') + '</a> | ')
@@ -685,7 +685,7 @@ class Template:
 
         h("  </tbody>")
         h("</table>")
-        
+
         # +self._(' On all pages: '))
         h('<div class="aid_reclist_selector">')
         h('<a rel="nofollow" rel="group_1" href="#select_all">' + self._('Select All') + '</a> | ')
@@ -1898,16 +1898,19 @@ class Template:
         h('</table>')
         h('</br>')
         return "\n".join(html)
-    
+
     def tmpl_welcome_probable_profile_suggestion(self, pid):
         '''
-        Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through. 
+        Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through.
         '''
         html = []
         h = html.append
         message = self._("We highily believe that your profile is the profile below. If you agree please claim this profile.")
         h('<p>%s</p>' % message)
         h('<table border="0"> <tr>')
+
+        #THOMAS: all of this computations should be done somewhere else. Template should just do the bare minimum to spit out html code, ideally should
+        # not need to import anything from outside
         canonical_id = get_canonical_id_from_personid(pid)
         name_variants = get_person_names_from_id(pid)
         most_relevant_name = most_relevant_name(name_variants)
