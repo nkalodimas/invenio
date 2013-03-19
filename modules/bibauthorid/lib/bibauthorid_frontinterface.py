@@ -137,6 +137,8 @@ def assign_person_to_uid(uid, pid):
     @param pid: person id, int, if -1 creates new person.
     @return: pid int, bool
     '''
+    #THOMAS: should return false if pid = -1: by definition, you cannot assign uid to person -1
+    #THOMAS: shall find some better way to explain the meaning in the pydoc string
     if pid == -1:
         pid = dbinter.create_new_person_from_uid(uid)
         return pid, True
@@ -285,11 +287,14 @@ def check_personids_availability(picked_profile, uid):
         else:
             return create_new_person(uid, uid_is_owner=True)
 
+
+#THOMAS: this should be moved to bibauthorid_name_utils so others can use it as well (webauthorprofile needs it)
+#THOMAS: docscrings!
 def most_relevant_name(name_variants):
     if not name_variants:
         return None
     name_parts_list = []
-    
+
     for name in name_variants:
         name_parts_list.append(split_name_parts(name))
     sorted_by_relevance_name_list = sorted(sorted(name_parts_list, key=lambda k : len(k[1]), reverse=True), key = lambda k:len(k[2]), reverse=True)

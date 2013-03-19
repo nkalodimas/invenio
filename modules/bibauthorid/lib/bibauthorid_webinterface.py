@@ -1100,7 +1100,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
                 if recid < 0:
                     # this doesn't look like a recid--discard!
-                    continue 
+                    continue
 
                 pid = transaction['pid']
 
@@ -2552,6 +2552,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         req.write(pagefooteronly(req=req))
 
 
+    def _welcome_print_header(self, blabla):
+        pass
+
     def welcome(self, req, form):
         '''
         Generate SSO landing/welcome page
@@ -2561,6 +2564,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @param form: GET/POST request params
         @type form: dict
         '''
+
+        #THOMAS: let's subdivide this functions using private-ish methods. So the logic il better visible
+                 #and modules can be reused
         self._session_bareinit(req)
 
         argd = wash_urlargd(
@@ -2589,10 +2595,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 message = 'It is recommended to log in via as many remote login systems as possible.' \
                           ' You can log in via the following: %s' % (', ').join(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS)
             return page_not_authorized(req, text=_("This page in not accessible directly.\n"+message))
-        
+
         if not CFG_INSPIRE_SITE:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
-        
+
         title_message = _('Welcome!')
 
         # start continuous writing to the browser...
@@ -2628,7 +2634,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             # check if a profile is already associated
             pid = webapi.get_user_pid(login_status['uid'])
-    
+
             if pid != -1:
                 req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(recids))
                 # we already have a profile! let's claim papers!
@@ -2640,7 +2646,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         	    # show: this is who we think you are, if you lije this profile click here and you'll become him!
         	    # this is the profile with the biggest intersection of papers
                 probable_pid = webapi.match_profile(recids, remote_login_systems_info)
-                
+
                 if probable_pid > -1:
                     req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(probable_pid))
                 #return self._error_page(req, ln, "%s" % str(probable_pid))
@@ -2663,18 +2669,18 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             #############check_personids_availability
 
             pid, profile_claimed = webapi.claim_profile(login_status['uid'], selected_pid)
-            
+
             if  profile_claimed:
                 req.write(TEMPLATE.tmpl_profile_assigned_by_user())
             else:
                 req.write(TEMPLATE.tmpl_profile_not_available())
-                    
+
             req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(recids))
             # we already have a profile! let's claim papers!
             paper_dict = webapi.auto_claim_papers(req, pid, recids)
             # explain the user which one is his profile
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
-            # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))            
+            # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
         req.write(TEMPLATE.tmpl_welcome_end())
         req.write(pagefooteronly(req=req))
 
