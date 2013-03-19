@@ -42,7 +42,8 @@ try:
         CFG_BIBAUTHORID_ON_AUTHORPAGES, \
         CFG_BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, \
         CFG_INSPIRE_SITE, \
-        CFG_ADS_SITE
+        CFG_ADS_SITE, \
+        CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
 
 except ImportError:
     GLOBAL_CONFIG = False
@@ -213,4 +214,7 @@ NAME_SCORE_COEFFICIENT = 0.5
 # List that contains the existing remote systems that a user can logged in via them in Inspire 
 CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS = ['arXiv', 'orcid']
 
-CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS = {'arXiv': "arxiv_id", "orcid": "doi" }
+if GLOBAL_CONFIG and not set(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS ) <= set(CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS):
+    raise Exception("Wrong configuration!!! CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS must be a subset of %s"%str(CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS))
+
+CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS = {'arXiv': '037:', 'orcid': 'doi' }

@@ -39,7 +39,7 @@ from invenio.access_control_engine import acc_authorize_action
 from invenio.access_control_admin import acc_get_role_id, acc_get_user_roles
 from invenio.external_authentication_robot import ExternalAuthRobot
 from invenio.external_authentication_robot import load_robot_keys
-from invenio.config import CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL
+from invenio.config import CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL, CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
 from invenio.config import CFG_SITE_URL
 from invenio.mailutils import send_email
 
@@ -904,7 +904,7 @@ def login_status(req):
     login_status['logged_in'] = True
 
     # for every system available
-    for system in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
+    for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
        if IS_LOGGED_IN_THROUGH[system](req):
            login_status['remote_logged_in_systems'].append(system)
 
@@ -918,7 +918,7 @@ def session_bareinit(req):
             pinfo["ticket"] = []
         if 'remote_login_system' not in pinfo:
             pinfo["remote_login_system"] = dict()
-        for system in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
+        for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
             if system not in pinfo["remote_login_system"]:
                 pinfo['remote_login_system'][system] = {'name': None, 'external_ids':None, 'email': None}
     except KeyError:
@@ -926,7 +926,7 @@ def session_bareinit(req):
         session['personinfo'] = pinfo
         pinfo["ticket"] = []
         pinfo['remote_login_system'] = []
-        for system in bconfig.CFG_BIBAUTHORID_EXISTING_REMOTE_LOGIN_SYSTEMS:
+        for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
             pinfo["remote_login_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
     # this can be optimized so it's not set dirty if not necessary!
     session.dirty = True
@@ -1001,7 +1001,7 @@ def get_arxiv_recids(req, old_external_ids):
 
     if current_external_ids and not old_external_ids:
         for arxiv_id in current_external_ids:
-            recid_list = perform_request_search(p='037:' + str(arxiv_id), of='id', rg=0)
+            recid_list = perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxiv_id), of='id', rg=0)
             if recid_list:
                 recid = recid_list[0]
                 recids_from_arxivids.append(recid)
@@ -1012,7 +1012,7 @@ def get_arxiv_recids(req, old_external_ids):
                 recid = old_external_ids[arxiv_id]
                 recids_from_arxivids[arxiv_id] = recid
             else:
-                recid_list = perform_request_search(p='037:' + str(arxiv_id), of='id', rg=0)
+                recid_list = perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] +  str(arxiv_id), of='id', rg=0)
                 if recid_list:
                     recid = recid_list[0]
                     recids_from_arxivids.append(recid)
@@ -1049,7 +1049,7 @@ def get_user_pid(uid):
     return pid[0]
 
 
-def auto_claim_papers(pid, recids):
+def auto_claim_papers(req, pid, recids):
 
     session_bareinit(req)
     session = get_session(req)
@@ -1058,7 +1058,7 @@ def auto_claim_papers(pid, recids):
     ticket = session['personinfo']['ticket']
 
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
-    missing_bibrecs = recids - pid_bibrecs
+    missing_bibrecs = list(set(recids) - pid_bibrecs)
     # present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
 
     # assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
@@ -1093,7 +1093,7 @@ def match_profile(recids, remote_logged_in_systems_info):
 
 
 def claim_profile(uid, pid):
-    return dbapi.claim_profile(uid, pid)
+    return dbapi.assign_person_to_uid(uid, pid)
 
 
 def arxiv_login(req, picked_profile=None):

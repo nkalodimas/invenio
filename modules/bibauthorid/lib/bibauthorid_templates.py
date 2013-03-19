@@ -1882,10 +1882,10 @@ class Template:
 
         return "\n".join(html)
 
-    def tmpl_welcome_select_empty_profile():
+    def tmpl_welcome_select_empty_profile(self):
         html = []
         h = html.append
-        message = self._("If none of the above is your profile it seems that you cannot match any of the existing accounts.'")
+        message = self._("If your profile is has not been presented, it seems that you cannot match any of the existing accounts.")
         h('<p>%s</p>' % message)
         h('<table border="0"> <tr>')
         h('<td>')
@@ -1899,7 +1899,7 @@ class Template:
         h('</br>')
         return "\n".join(html)
     
-    def tmpl_welcome_probable_profile_suggestion(pid):
+    def tmpl_welcome_probable_profile_suggestion(self, pid):
         '''
         Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through. 
         '''
@@ -1910,11 +1910,11 @@ class Template:
         h('<table border="0"> <tr>')
         canonical_id = get_canonical_id_from_personid(pid)
         name_variants = get_person_names_from_id(pid)
-        most_common_name = most_relevant_name(name_variants)
+        most_relevant_name = most_relevant_name(name_variants)
         name_string = "[No name available]  "
 
-        if most_common_name != None:
-            name_string = most_common_name
+        if most_relevant_name != None:
+            name_string = most_relevant_name
 
         if len(canonical_id) > 0:
             canonical_name_string = self._("(" + canonical_id[0][0] + ")")
