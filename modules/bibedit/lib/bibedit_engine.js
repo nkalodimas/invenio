@@ -1668,8 +1668,16 @@ function onPreviewClick() {
       }
       var html_preview = json['html_preview'];
       var preview_window = openCenteredPopup('', 'Record preview', 768, 768);
-      preview_window.document.write(html_preview);
-      preview_window.document.close(); // needed for chrome and safari
+      if ( preview_window === null ) {
+        var msg = "<strong> The preview window cannot be opened.</strong><br />\
+                  Your browser might be blocking popups. Check the options and\
+                  enable popups for this page.";
+        displayMessage(undefined, true, [msg]);
+      }
+      else {
+        preview_window.document.write(html_preview);
+        preview_window.document.close(); // needed for chrome and safari
+      }
     });
   });
 }
@@ -1807,7 +1815,15 @@ function onOpenPDFClick() {
         // Preview was successful.
         var pdf_url = json['pdf_url'];
         var preview_window = openCenteredPopup(pdf_url);
-        preview_window.document.close(); // needed for chrome and safari
+        if ( preview_window === null ) {
+          var msg = "<strong> The preview window cannot be opened.</strong><br />\
+                    Your browser might be blocking popups. Check the options and\
+                    enable popups for this page.";
+          displayMessage(undefined, true, [msg]);
+        }
+        else {
+          preview_window.document.close(); // needed for chrome and safari
+        }
        });
 
 }
