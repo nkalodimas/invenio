@@ -122,7 +122,7 @@ def create_dense_index(name_pids_dict, names_list):
     It builds the dense index which maps a name to the set of personids whi withhold that name.
     Each entry in the dense index is identified by a unique id called name id.
 
-    @param name_pids_dict: 
+    @param name_pids_dict:
     @type name_pids_dict: dict
     @param names_list: the names to be indexed
     @type names_list: list

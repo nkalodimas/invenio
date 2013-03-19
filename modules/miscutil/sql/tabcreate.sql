@@ -4076,6 +4076,7 @@ CREATE TABLE IF NOT EXISTS `aidPERSONIDPAPERS` (
   INDEX `pn-b` (`personid`, `name`) ,
   INDEX `timestamp-b` (`last_updated`) ,
   INDEX `flag-b` (`flag`) ,
+  INDEX `personid-flag-b` (`personid`,`flag`),
   INDEX `ptvrf-b` (`personid`, `bibref_table`, `bibref_value`, `bibrec`, `flag`)
 ) ENGINE=MYISAM;
 
@@ -4097,10 +4098,12 @@ CREATE TABLE IF NOT EXISTS `aidPERSONIDDATA` (
   `opt1` MEDIUMINT( 8 ) NULL DEFAULT NULL ,
   `opt2` MEDIUMINT( 8 ) NULL DEFAULT NULL ,
   `opt3` VARCHAR( 256 ) NULL DEFAULT NULL ,
+  `last_updated` TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ,
   INDEX `personid-b` (`personid`) ,
   INDEX `tag-b` (`tag`) ,
   INDEX `data-b` (`data`) ,
-  INDEX `opt1` (`opt1`)
+  INDEX `opt1` (`opt1`) ,
+  INDEX `timestamp-b` (`last_updated`)
 ) ENGINE=MYISAM;
 
 CREATE TABLE IF NOT EXISTS `aidUSERINPUTLOG` (
