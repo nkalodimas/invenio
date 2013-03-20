@@ -42,6 +42,7 @@ from invenio.external_authentication_robot import load_robot_keys
 from invenio.config import CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL, CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
 from invenio.config import CFG_SITE_URL
 from invenio.mailutils import send_email
+from invenio.bibauthorid_name_utils import most_relevant_name
 
 from operator import add
 
@@ -895,23 +896,23 @@ def login_status(req):
     @param req: Apache request object
     @type req: Apache request object
     '''
-    login_status = dict()
+    status = dict()
     # are we sure that we can get only one? ask SamK
-    login_status['uid'] = getUid(req)
-    login_status['logged_in'] = False
-    login_status['remote_logged_in_systems'] = []
+    status['uid'] = getUid(req)
+    status['logged_in'] = False
+    status['remote_logged_in_systems'] = []
 
-    if login_status['uid'] == 0:
+    if status['uid'] == 0:
         return login_status
 
-    login_status['logged_in'] = True
+    status['logged_in'] = True
 
     # for every system available
     for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
-       if IS_LOGGED_IN_THROUGH[system](req):
-           login_status['remote_logged_in_systems'].append(system)
+        if IS_LOGGED_IN_THROUGH[system](req):
+            status['remote_logged_in_systems'].append(system)
 
-    return login_status
+    return status
 
 def session_bareinit(req):
     session = get_session(req)
@@ -919,11 +920,14 @@ def session_bareinit(req):
         pinfo = session["personinfo"]
         if 'ticket' not in pinfo:
             pinfo["ticket"] = []
+            session.dirty = True
         if 'remote_login_system' not in pinfo:
             pinfo["remote_login_system"] = dict()
+            session.dirty = True
         for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
             if system not in pinfo["remote_login_system"]:
                 pinfo['remote_login_system'][system] = {'name': None, 'external_ids':None, 'email': None}
+                session.dirty = True
     except KeyError:
         pinfo = dict()
         session['personinfo'] = pinfo
@@ -931,8 +935,7 @@ def session_bareinit(req):
         pinfo['remote_login_system'] = []
         for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
             pinfo["remote_login_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
-    #THOMAS: this can be optimized so it's not set dirty if not necessary!
-    session.dirty = True
+        session.dirty = True
 
 # all teh get_info methods should standardize the content:
 def get_arxiv_info(req, uinfo):
@@ -991,7 +994,7 @@ def get_remote_login_systems_info(req, remote_logged_in_systems):
 
     return user_remote_logged_in_systems_info
 
-def get_arxiv_recids(req, old_external_ids):
+def get_arxiv_recids(req, cached_recids_external_ids_association):
     session = get_session(req)
     uinfo = collect_user_info(req)
     pinfo = session['personinfo']
@@ -1006,7 +1009,7 @@ def get_arxiv_recids(req, old_external_ids):
     #THOMAS: investigate with annette/skaplun what's the best way of using perform_request_search for this.
     #Alternatives: p='doi', p='doiID:doi', others? aka: is 037:arxiv really needed, only arxiv identifier is better or worse?
 
-    if current_external_ids and not old_external_ids:
+    if current_external_ids and not cached_recids_external_ids_association:
         for arxiv_id in current_external_ids:
             recid_list = perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxiv_id), of='id', rg=0)
             if recid_list:
@@ -1015,8 +1018,8 @@ def get_arxiv_recids(req, old_external_ids):
                 cached_ids_assocciation[arxiv_id] = recid
     elif current_external_ids:
         for arxivid in current_external_ids:
-            if arxivid in old_external_ids.keys():
-                recid = old_external_ids[arxiv_id]
+            if arxivid in cached_recids_external_ids_association.keys():
+                recid = cached_recids_external_ids_association[arxiv_id]
                 recids_from_arxivids[arxiv_id] = recid
             else:
                 recid_list = perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] +  str(arxiv_id), of='id', rg=0)
@@ -1039,9 +1042,8 @@ def get_remote_login_systems_recids(req, remote_logged_in_systems):
     remote_login_systems_recids = []
 
     for system in remote_logged_in_systems:
-        #THOMAS: rename old_external_ids to something like external_ids_to_recid_map_cache (this i don't like but think about something)
-        old_external_ids = pinfo['remote_login_system'][system]['external_ids']
-        system_recids = REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS[system](req, old_external_ids)
+        cached_recids_external_ids_association = pinfo['remote_login_system'][system]['external_ids']
+        system_recids = REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS[system](req, cached_recids_external_ids_association)
         remote_login_systems_recids += system_recids
 
     return list(set(remote_login_systems_recids))
@@ -1087,18 +1089,41 @@ def auto_claim_papers(req, pid, recids):
         ticket.append(t)
 
     session.dirty = True
+    return tempticket
 
-
-def match_profile(recids, remote_logged_in_systems_info):
-    #THOMAS: name varias shall be a set, 'not in' is really expensive!
+def get_name_variants_list_from_remote_systems_names(remote_login_systems_info):
     name_variants = []
-    for system in remote_logged_in_systems_info.keys():
-        name = remote_logged_in_systems_info[system]['name']
 
-        if name not in name_variants:
-            name_variants.append(name)
+    for system in remote_login_systems_info.keys():
+        name = remote_login_systems_info[system]['name']
+        name_variants.append(name)
 
+    return list(set(name_variants))
+
+def match_profile(recids, remote_login_systems_info):
+    name_variants = get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
     return dbapi.find_most_compatible_person(recids, name_variants)
+
+
+def get_profile_suggestion_info(pid):
+    profile_suggestion_info = dict()
+    profile_suggestion_info['canonical_id'] = dbapi.get_canonical_id_from_personid(pid)
+    name_variants = get_person_names_from_id(pid)
+    name = most_relevant_name(name_variants)
+    profile_suggestion_info['name_string'] = "[No name available]  "
+
+    if name != None:
+        profile_suggestion_info['name_string'] = name
+
+    if len(profile_suggestion_info['canonical_id']) > 0:
+        profile_suggestion_info['canonical_name_string'] = "(" + profile_suggestion_info['canonical_id'][0][0] + ")"
+        profile_suggestion_info['canonical_id'] = str(profile_suggestion_info['canonical_id'][0][0])
+    else:
+        profile_suggestion_info['canonical_name_string'] = "(" + str(pid) + ")"
+        profile_suggestion_info['canonical_id'] = str(pid)
+    
+    profile_suggestion_info['pid'] = pid
+    return profile_suggestion_info
 
 
 def claim_profile(uid, pid):

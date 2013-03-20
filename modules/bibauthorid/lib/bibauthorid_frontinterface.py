@@ -23,7 +23,7 @@
     frontend so to keep it as clean as possible.
 '''
 import re
-
+from invenio.bibauthorid_name_utils import most_relevant_name
 from invenio.bibauthorid_name_utils import split_name_parts  # emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_name_utils import soft_compare_names
 from invenio.bibauthorid_name_utils import create_normalized_name  # emitting #pylint: disable-msg=W0611
@@ -132,16 +132,14 @@ def set_processed_external_recids(pid, recid_list_str):
 def assign_person_to_uid(uid, pid):
     '''
     Assigns a person to a userid. If person already assigned to someone else, create new person.
-    Returns the person id assigned and if the user was assigned to the pid given.
+    Returns two value. Firstly the person id assigned and secondly if uid was succesfully assigned to given pid.
     @param uid: user id, int
     @param pid: person id, int, if -1 creates new person.
     @return: pid int, bool
     '''
-    #THOMAS: should return false if pid = -1: by definition, you cannot assign uid to person -1
-    #THOMAS: shall find some better way to explain the meaning in the pydoc string
     if pid == -1:
         pid = dbinter.create_new_person_from_uid(uid)
-        return pid, True
+        return pid, False
     else:
         current_uid = get_person_data(pid, 'uid')
         if len(current_uid) == 0:
@@ -286,20 +284,6 @@ def check_personids_availability(picked_profile, uid):
             return picked_profile
         else:
             return create_new_person(uid, uid_is_owner=True)
-
-
-#THOMAS: this should be moved to bibauthorid_name_utils so others can use it as well (webauthorprofile needs it)
-#THOMAS: docscrings!
-def most_relevant_name(name_variants):
-    if not name_variants:
-        return None
-    name_parts_list = []
-
-    for name in name_variants:
-        name_parts_list.append(split_name_parts(name))
-    sorted_by_relevance_name_list = sorted(sorted(name_parts_list, key=lambda k : len(k[1]), reverse=True), key = lambda k:len(k[2]), reverse=True)
-    # temporary I return the first
-    return create_normalized_name(sorted_by_relevance_name_list[0])
 
 
 def find_most_compatible_person(bibrecs, name_variants):

@@ -39,7 +39,6 @@ from invenio.bibauthorid_webapi import get_personiID_external_ids
 from invenio.bibauthorid_frontinterface import get_uid_from_personid
 from invenio.bibauthorid_frontinterface import get_bibrefrec_name_string
 from invenio.bibauthorid_frontinterface import get_canonical_id_from_personid
-from invenio.bibauthorid_frontinterface import most_relevant_name
 from invenio.messages import gettext_set_language, wash_language
 from invenio.webuser import get_email
 from invenio.htmlutils import escape_html
@@ -1885,7 +1884,7 @@ class Template:
     def tmpl_welcome_select_empty_profile(self):
         html = []
         h = html.append
-        message = self._("If your profile is has not been presented, it seems that you cannot match any of the existing accounts.")
+        message = self._("If your profile has not been presented, it seems that you cannot match any of the existing accounts.")
         h('<p>%s</p>' % message)
         h('<table border="0"> <tr>')
         h('<td>')
@@ -1899,39 +1898,22 @@ class Template:
         h('</br>')
         return "\n".join(html)
 
-    def tmpl_welcome_probable_profile_suggestion(self, pid):
+    def tmpl_welcome_probable_profile_suggestion(self, profile_suggestion_info):
         '''
         Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through.
         '''
         html = []
         h = html.append
-        message = self._("We highily believe that your profile is the profile below. If you agree please claim this profile.")
+        message = self._("We strongly believe that your profile is the profile below. If you agree please claim this profile.")
         h('<p>%s</p>' % message)
         h('<table border="0"> <tr>')
 
-        #THOMAS: all of this computations should be done somewhere else. Template should just do the bare minimum to spit out html code, ideally should
-        # not need to import anything from outside
-        canonical_id = get_canonical_id_from_personid(pid)
-        name_variants = get_person_names_from_id(pid)
-        most_relevant_name = most_relevant_name(name_variants)
-        name_string = "[No name available]  "
-
-        if most_relevant_name != None:
-            name_string = most_relevant_name
-
-        if len(canonical_id) > 0:
-            canonical_name_string = self._("(" + canonical_id[0][0] + ")")
-            canonical_id = self._(str(canonical_id[0][0]))
-        else:
-            canonical_name_string = self._("(" + str(pid) + ")")
-            canonical_id = self._(str(pid))
-
         h('<td>')
-        h('%s ' % (name_string))
-        h('<a href="%s/author/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, canonical_id, canonical_name_string))
+        h('%s ' % (profile_suggestion_info['name_string']))
+        h('<a href="%s/author/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, profile_suggestion_info['canonical_id'], profile_suggestion_info['canonical_name_string']))
         h('</td>')
         h('<td>')
-        h('<INPUT TYPE="BUTTON" VALUE="This is my profile" ONCLICK="window.location.href=\'welcome?action=%s&pid=%s\'">' % ('select', str(pid)))
+        h('<INPUT TYPE="BUTTON" VALUE="This is my profile" ONCLICK="window.location.href=\'welcome?action=%s&pid=%s\'">' % ('select', str(profile_suggestion_info['pid'])))
         h('</td>')
         h('</tr>')
         h('</table>')
@@ -1953,7 +1935,7 @@ class Template:
         html = []
         h = html.append
         message = self._(' Congratulations you have successfully claimed the chosen profile.')
-        h('<p>%s</p>',(message,))
+        h('<p>%s</p>'%(message,))
         return "\n".join(html)
 
 
@@ -1994,7 +1976,7 @@ class Template:
             message = self._("Your external_systems accounts are associated "
                     "with person %s." % (canon_name[0][0],))
         else:
-            message = self._("Warning: your external_systems accounts account are associated with an empty profile. "
+            message = self._("Warning: your external systems accounts account are associated with an empty profile. "
                     "This can happen if it is the first time you log in and you do not have any "
                     "paper directly claimed from your external_systems accounts"
                     " In this case, you are welcome to search and claim your papers to your"
