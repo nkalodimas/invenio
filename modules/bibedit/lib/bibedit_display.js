@@ -189,7 +189,7 @@ function createRow(tag, ind1, ind2, subfieldCode, subfieldValue, fieldID,
     // If first subfield, add tag and selection box, remove up arrow.
     if (subfieldIndex == 0) {
         boxField = input('checkbox', 'boxField_' + fieldID, 'bibEditBoxField', {
-            onclick: 'onFieldBoxClick(this)',
+            onclick: 'onFieldBoxClick(event, this)',
             tabindex: -1
         });
         cellFieldTagAttrs = 'id="fieldTag_' + fieldID +

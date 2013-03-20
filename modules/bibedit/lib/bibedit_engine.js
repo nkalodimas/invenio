@@ -179,6 +179,8 @@ var gReqQueue = [];
 // count number of requests since last save
 var gReqCounter = 0;
 
+// last checkbox checked
+var gLastChecked = null;
 
 /*
  * **************************** 2. Initialization ******************************
@@ -2079,6 +2081,7 @@ function cleanUp(disableRecBrowser, searchPattern, searchType,
   $('#btnSwitchReadOnly').html("Read-only");
   gHoldingPenLoadedChanges = null;
   gHoldingPenChanges = null;
+  gLastChecked = null;
   gUndoList = [];
   gRedoList = [];
   gBibCircUrl = null;
@@ -2222,10 +2225,34 @@ function updateTags(){
 }
 
 
-function onFieldBoxClick(box){
+function onFieldBoxClick(e, box){
   /*
    * Handle field select boxes.
    */
+   if ( !jQuery.contains(document.documentElement, gLastChecked)) {
+       gLastChecked = box;
+       clickBox(box);
+       return;
+   }
+   if (e.shiftKey) {
+   // If shift key is pressed check/uncheck all the select boxes from
+   // current clicked select box till the previous clicked select box
+     var checkboxes = $('.bibEditBoxField');
+     var checked = box.checked;
+     var start = checkboxes.index(box);
+     var end = checkboxes.index(gLastChecked);
+     checkboxes.slice(Math.min(start,end), Math.max(start,end)+ 1).each( function(){
+       $(this).prop("checked", checked);
+       clickBox(this);
+     });
+   }
+   else {
+     clickBox(box);
+   }
+   gLastChecked = box;
+}
+
+function clickBox(box) {
   // Check/uncheck all subfield boxes, add/remove selected class.
   var rowGroup = $('#rowGroup_' + box.id.slice(box.id.indexOf('_')+1));
   if (box.checked){
