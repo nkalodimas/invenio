@@ -202,7 +202,7 @@ class SelfCitesTaskTests(unittest.TestCase):
         tags = get_authors_tags()
         for algorithm in ALL_ALGORITHMS:
             citation_fun = get_citations_fun(algorithm=algorithm)
-        compute_and_store_self_citations(1, tags, citation_fun)
+        compute_and_store_self_citations(1, tags, citation_fun, {})
 
     def test_rebuild_tables(self):
         from invenio.bibrank_selfcites_task import rebuild_tables
@@ -262,7 +262,7 @@ class SelfCitesTaskTests(unittest.TestCase):
         tags = get_authors_tags()
         for algorithm in ALL_ALGORITHMS:
             citation_fun = get_citations_fun(algorithm=algorithm)
-            process_one(1, tags, citation_fun)
+            process_one(1, tags, citation_fun, {})
 
     def test_empty_self_cites_tables(self):
         from invenio.bibrank_selfcites_task import empty_self_cites_tables
