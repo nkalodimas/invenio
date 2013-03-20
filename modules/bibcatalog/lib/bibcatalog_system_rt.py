@@ -23,6 +23,7 @@ This is a subclass of BibCatalogSystem
 """
 
 import os
+import re
 import invenio.webuser
 from invenio.shellutils import run_shell_command, escape_shell_arg
 from invenio.bibcatalog_system import BibCatalogSystem, get_bibcat_from_prefs
@@ -328,10 +329,10 @@ class BibCatalogSystemRT(BibCatalogSystem):
             return 0
 
         attachments = []
+        regex = re.compile("[0-9]*:\s{2}[(]")  # attachment's format: 557408:  (text/plain / 131b)
         for line in command_out.split("\n"):
-            if line.count(": ") > 1: #there is a line Attachments: 40: xxx
-                aline = line.split(": ")
-                attachments.append(aline[1])
+            for match in regex.findall(line):
+                attachments.append(match.split(":")[0])
 
         #query again for each attachment
         for att in attachments:
