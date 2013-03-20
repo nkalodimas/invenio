@@ -92,7 +92,7 @@ function createControlField(tag, field, fieldPosition) {
         '<tr id="row_' + fieldID + '" >' +
             '<td class="bibEditCellField">' +
                 input('checkbox', 'boxField_' + fieldID, 'bibEditBoxField', {
-                onclick: 'onFieldBoxClick(this)', tabindex: -1}) + '</td>' +
+                onclick: 'onFieldBoxClick(event, this)', tabindex: -1}) + '</td>' +
             '<td id="fieldTag_' + fieldID +
                 '" class="bibEditCellFieldTag">' + getFieldTag(tag) + '</td>' +
             '<td></td>' + '<td></td>' +
@@ -185,7 +185,7 @@ function createRow(tag, ind1, ind2, subfieldCode, subfieldValue, fieldID,
     // If first subfield, add tag and selection box, remove up arrow.
     if (subfieldIndex == 0) {
         boxField = input('checkbox', 'boxField_' + fieldID, 'bibEditBoxField', {
-            onclick: 'onFieldBoxClick(this)',
+            onclick: 'onFieldBoxClick(event, this)',
             tabindex: -1
         });
         cellFieldTagAttrs = 'id="fieldTag_' + fieldID +
