@@ -42,6 +42,8 @@ from invenio.bibauthorid_config import AID_ENABLED, CLAIMPAPER_ADMIN_ROLE, CLAIM
 
 from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE  # , CFG_SITE_SECURE_URL
 
+from invenio.bibauthorid_name_utils import most_relevant_name
+
 from invenio.webpage import page, pageheaderonly, pagefooteronly
 from invenio.messages import gettext_set_language  # , wash_language
 from invenio.template import load
@@ -2489,12 +2491,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         req.write(body)
 
         req.write("USERID: %s " % str(uid))
-        return self._error_page(req, ln, "%s" % str(get_session(req)))
-
-        if action == None:
-            pid = webapi.get_user_pid(req)
-
-
 
         if chosen_profile == None:
             archive_user_info = webapi.arxiv_login(req)
@@ -2552,9 +2548,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         req.write(pagefooteronly(req=req))
 
 
-    def _welcome_print_header(self, blabla):
-        pass
-
     def welcome(self, req, form):
         '''
         Generate SSO landing/welcome page
@@ -2567,6 +2560,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         #THOMAS: let's subdivide this functions using private-ish methods. So the logic il better visible
                  #and modules can be reused
+        
         self._session_bareinit(req)
 
         argd = wash_urlargd(
@@ -2583,10 +2577,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
 
+        if not CFG_INSPIRE_SITE:
+            return False,page_not_authorized(req, text=_("This page in not accessible directly."))
+
         # login_status checks if the user is logged in and return his uid and external systems that he is logged in through.
         # return a dictionary of the following form: {'logged_in': True, 'uid': 2, 'remote_logged_in_systems':['Arxiv', ...]}
         login_status = webapi.login_status(req)
-	    ## Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
+        ## Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
         # aka can we arrive here with two distinct uids? I hope not!
 
         if not login_status['logged_in']:
@@ -2594,11 +2591,27 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
                 message = 'It is recommended to log in via as many remote login systems as possible.' \
                           ' You can log in via the following: %s' % (', ').join(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS)
-            return page_not_authorized(req, text=_("This page in not accessible directly.\n"+message))
+            return False, page_not_authorized(req, text=_("This page in not accessible directly.\n"+message))
+        
+        # get name strings and email addresses from SSO/Oauth logins: {'system':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
+        remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_status['remote_logged_in_systems'])
 
-        if not CFG_INSPIRE_SITE:
-            return page_not_authorized(req, text=_("This page in not accessible directly."))
+        # get union of recids from all external systems: set(inspire_recids_list)
+        recids = webapi.get_remote_login_systems_recids(req, login_status['remote_logged_in_systems'])
 
+        if ( action == None ):
+            self._welcome_user_profile_association(req, login_status, recids, remote_login_systems_info)
+        elif action == 'search':
+            self._welcome_profile_search(req, search_param)
+        elif action == 'select':
+            self._welcome_profile_selection(req, login_status, selected_pid, recids)
+
+        req.write(TEMPLATE.tmpl_welcome_end())
+        req.write(pagefooteronly(req=req))
+
+
+    def _welcome_general_initial_text(self, req, login_status, remote_login_systems_info, ln): 
+        _ = gettext_set_language(ln)
         title_message = _('Welcome!')
 
         # start continuous writing to the browser...
@@ -2614,14 +2627,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         req.write(TEMPLATE.tmpl_welcome_start())
         body = ""
 
-	    # get name strings and email addresses from SSO/Oauth logins: {'system':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
-        remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_status['remote_logged_in_systems'])
-
         # show info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
         body = TEMPLATE.tmpl_welcome_remote_login_systems(remote_login_systems_info, login_status["uid"])
 
-        # get union of recids from all external systems: set(inspire_recids_list)
-        recids = webapi.get_remote_login_systems_recids(req, login_status['remote_logged_in_systems'])
         req.write(body)
 
         # warmly suggest the user to log in through all the others available systems if possible so we gather all papers for him for free!
@@ -2630,59 +2638,58 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if suggested_systems:
             req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
 
-        if ( action == None ):
 
-            # check if a profile is already associated
-            pid = webapi.get_user_pid(login_status['uid'])
+    def _welcome_user_profile_association(self, req, login_status, recids, remote_login_systems_info):
+        # check if a profile is already associated
+        pid = webapi.get_user_pid(login_status['uid'])
 
-            if pid != -1:
-                req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(recids))
-                # we already have a profile! let's claim papers!
-                paper_dict = webapi.auto_claim_papers(req, pid, recids)
-                # explain the user which one is his profile
-                req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
-                # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
-            else:
-        	    # show: this is who we think you are, if you lije this profile click here and you'll become him!
-        	    # this is the profile with the biggest intersection of papers
-                probable_pid = webapi.match_profile(recids, remote_login_systems_info)
-
-                if probable_pid > -1:
-                    req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(probable_pid))
-                #return self._error_page(req, ln, "%s" % str(probable_pid))
-                # search_results = search...
-        	    # if the one we suggested is not the one you think, please search for the one you like most
-        	    # this show the search box prefilled with one of the names we got
-        	    # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
-                # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
-    	        req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
-        elif action == 'search':
-            # search_results = search...
-            # if the one we suggested is not the one you think, please search for the one you like most
-            # this show the search box prefilled with one of the names we got
-            # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
-            # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
-            req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
-            pass
-            # plus the create a new empty one button!
-        elif action == 'select':
-            #############check_personids_availability
-
-            pid, profile_claimed = webapi.claim_profile(login_status['uid'], selected_pid)
-
-            if  profile_claimed:
-                req.write(TEMPLATE.tmpl_profile_assigned_by_user())
-            else:
-                req.write(TEMPLATE.tmpl_profile_not_available())
-
+        if pid != -1:
             req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(recids))
             # we already have a profile! let's claim papers!
-            paper_dict = webapi.auto_claim_papers(req, pid, recids)
+            auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
+            req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(auto_claim_paper_list))
             # explain the user which one is his profile
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
             # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
-        req.write(TEMPLATE.tmpl_welcome_end())
-        req.write(pagefooteronly(req=req))
+        else:
+            # show: this is who we think you are, if you lije this profile click here and you'll become him!
+            # this is the profile with the biggest intersection of papers
+            probable_pid = webapi.match_profile(recids, remote_login_systems_info)
+
+            if probable_pid > -1:
+                profile_suggestion_info = webapi.get_profile_suggestion_info(probable_pid)
+                req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(profile_suggestion_info))
+            #return self._error_page(req, ln, "%s" % str(probable_pid))
+            name_variants = webapi.get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
+            search_param = most_relevant_name(name_variants)
+            self._welcome_profile_search(req, search_param)    
+
+
+    def _welcome_profile_search(self, req, search_param):
+        # search_results = search...
+        # if the one we suggested is not the one you think, please search for the one you like most
+        # this show the search box prefilled with one of the names we got
+        # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
+        # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
+        req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
+        # plus the create a new empty one button!
+
+
+    def _welcome_profile_selection(self, req, login_status, selected_pid, recids):
+        pid, profile_claimed = webapi.claim_profile(login_status['uid'], selected_pid)
+
+        if  profile_claimed or selected_pid == -1 :
+            req.write(TEMPLATE.tmpl_profile_assigned_by_user())
+        else:
+            req.write(TEMPLATE.tmpl_profile_not_available())
+
+        # we already have a profile! let's claim papers!
+        auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
+        req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(auto_claim_paper_list))
+        # explain the user which one is his profile
+        req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
+        # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
+
 
     def tickets_admin(self, req, form):
         '''
