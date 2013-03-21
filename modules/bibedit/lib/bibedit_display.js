@@ -96,8 +96,7 @@ function createControlField(tag, field, fieldPosition) {
     return '<tbody id="rowGroup_' + fieldID + '">' +
         '<tr id="row_' + fieldID + '" >' +
             '<td class="bibEditCellField">' +
-                input('checkbox', 'boxField_' + fieldID, 'bibEditBoxField', {
-                onclick: 'onFieldBoxClick(this)', tabindex: -1}) + '</td>' +
+            '</td>' +
             '<td id="fieldTag_' + fieldID +
                 '" class="bibEditCellFieldTag">' + getFieldTag(tag) + '</td>' +
             '<td></td>' + '<td></td>' +
