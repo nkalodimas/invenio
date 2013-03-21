@@ -119,9 +119,9 @@ class Template:
             '              <td id="tickets"></td>'\
             '            </tr>\n' \
             '          </table>\n' \
-            '        </div>\n'% {
+            '        </div>\n' % {
             'imgCompressMenuSection': img('/img/bullet_toggle_minus.png',
-                            'bibEditImgCompressMenuSection', id='ImgTicketsMenu'),
+                    'bibEditImgCompressMenuSection', id='ImgTicketsMenu'),
             'imgTicketsLoader': img('/img/indicator.gif',
                             'bibEditImgTicketsLoader', id='ImgTicketsLoader')
             }

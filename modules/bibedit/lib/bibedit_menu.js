@@ -64,7 +64,6 @@ function initMenu(){
   $('#lnkSpecSymbols').bind('click', onLnkSpecialSymbolsClick);
   $('#btnSwitchReadOnly').bind('click', onSwitchReadOnlyMode);
   collapseMenuSections();
-  $("#loadingTickets").show();
 }
 
 function toggleMenuSection() {
@@ -484,7 +483,7 @@ function onCloseTicketError(ticketid) {
       removeTicketError(ticketID);
       $("#ticket" + ticketID).children(":not(.ajaxLoader)").show();
         addErrorMsg(ticketID, 'Error occured.Try again');
-    }
+    };
 }
 
 function onOpenTicketSuccess(json) {
@@ -524,7 +523,7 @@ function onOpenTicketError(ticketid) {
       removeTicketError(ticketID);
       $("#ticket" + ticketID).children(":not(.ajaxLoader)").show();
       addErrorMsg(ticketID, 'Error occured.Try again');
-    }
+    };
 }
 
 function updateStatus(statusType, reporttext, enableToolbar){

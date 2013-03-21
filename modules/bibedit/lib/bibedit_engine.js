@@ -1226,7 +1226,6 @@ function onGetRecordSuccess(json){
   gPhysCopiesNum = json['numberOfCopies'];
   gBibCircUrl = json['bibCirculationUrl'];
   gDisplayBibCircPanel = json['canRecordHavePhysicalCopies'];
-
   // Get KB information
   gKBSubject = json['KBSubject'];
   gKBInstitution = json['KBInstitution'];
@@ -1297,7 +1296,7 @@ function onGetRecordSuccess(json){
   updateStatus('report', gRESULT_CODES[json['resultCode']]);
   updateRevisionsHistory();
   adjustGeneralHPControlsVisibility();
-  //$("#loadingTickets").show();
+  $("#loadingTickets").show();
   createReq({recID: gRecID, requestType: 'getTickets'}, onGetTicketsSuccess);
 
   // Refresh top toolbar
@@ -1869,6 +1868,8 @@ function cleanUp(disableRecBrowser, searchPattern, searchType,
     $('#txtSearchPattern').focus();
   // Clear tickets.
   $('#tickets').empty();
+  $('#newTicketDiv').remove();
+  $('#rtError').remove();
   // Clear data.
   gRecID = null;
   gRecord = null;
