@@ -874,8 +874,10 @@ def is_logged_in_through_arxiv(req):
     session = get_session(req)
     #THOMAS: ask samK about this variables: probably it would be better to rename them in the session as arxiv_sso_blabla
     #THOMAS: ask samK if this is correct, what other way there is to discover is we are SSOed through arxiv?
-
-    if 'user_info' in session.keys() and 'external_firstname' in session['user_info'].keys() and session['user_info']['email']:
+    #user_info = collect_user_info(req)
+    #isGuestUser(req)
+    
+    if 'user_info' in session.keys() and 'email' in session['user_info'].keys() and session['user_info']['email']:
         return True
     return False
 
@@ -903,7 +905,7 @@ def login_status(req):
     status['remote_logged_in_systems'] = []
 
     if status['uid'] == 0:
-        return login_status
+        return status
 
     status['logged_in'] = True
 
@@ -918,6 +920,12 @@ def session_bareinit(req):
     session = get_session(req)
     try:
         pinfo = session["personinfo"]
+        if "most_compatible_person" not in pinfo:
+            pinfo["most_compatible_person"] = -2
+            session.dirty = True
+        if 'profile_suggestion_info' not in pinfo:
+            pinfo["profile_suggestion_info"] = None
+            session.dirty = True
         if 'ticket' not in pinfo:
             pinfo["ticket"] = []
             session.dirty = True
@@ -1011,6 +1019,7 @@ def get_arxiv_recids(req, cached_recids_external_ids_association):
 
     if current_external_ids and not cached_recids_external_ids_association:
         for arxiv_id in current_external_ids:
+            #perform_request_search(p=arxiv_id, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m='e', cc='HEP')
             recid_list = perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxiv_id), of='id', rg=0)
             if recid_list:
                 recid = recid_list[0]
@@ -1100,12 +1109,27 @@ def get_name_variants_list_from_remote_systems_names(remote_login_systems_info):
 
     return list(set(name_variants))
 
-def match_profile(recids, remote_login_systems_info):
+def match_profile(req, recids, remote_login_systems_info):
+    session_bareinit(req)
+    session = get_session(req)
+    most_compatible_person = session['most_compatible_person']
+    if most_compatible_person != -2:
+        return most_compatible_person
+    
     name_variants = get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
-    return dbapi.find_most_compatible_person(recids, name_variants)
+    most_compatible_person = dbapi.find_most_compatible_person(recids, name_variants)
+    session['most_compatible_person'] = most_compatible_person
+    return most_compatible_person
 
 
-def get_profile_suggestion_info(pid):
+def get_profile_suggestion_info(req, pid):
+    session_bareinit(req)
+    session = get_session(req)
+    profile_suggestion_info = session['profile_suggestion_info']
+
+    if profile_suggestion_info != None:
+        return profile_suggestion_info
+    
     profile_suggestion_info = dict()
     profile_suggestion_info['canonical_id'] = dbapi.get_canonical_id_from_personid(pid)
     name_variants = get_person_names_from_id(pid)
@@ -1121,8 +1145,9 @@ def get_profile_suggestion_info(pid):
     else:
         profile_suggestion_info['canonical_name_string'] = "(" + str(pid) + ")"
         profile_suggestion_info['canonical_id'] = str(pid)
-    
+
     profile_suggestion_info['pid'] = pid
+    session['profile_suggestion_info'] = profile_suggestion_info
     return profile_suggestion_info
 
 

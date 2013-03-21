@@ -1778,6 +1778,19 @@ class Template:
 
         return "\n".join(html)
 
+
+    def tmpl_welcome_not_logged_in(self):
+        '''
+        Inform user that is not logged in
+        '''
+
+        html = []
+        h = html.append
+
+        message = self._('Unfortunately you cannot continue as it is seems that you are not logged in. Please login and try again.')
+        h('<p>%s</p>' % (message,))
+        return "\n".join(html)
+
     def tmpl_suggest_not_remote_logged_in_systems(self, suggested_remote_login_systems):
         '''
         suggest external systems that the user is currently not logged in through
@@ -1785,9 +1798,14 @@ class Template:
 
         html = []
         h = html.append
-        message = self._('It is recommended to log in via as many remote login systems as possible. You can also log in via the following: %s'
-                                                                                                            % (', ').join(suggested_remote_login_systems))
-        h('<p><b>%s</b></p>' % (message,))
+        links = []
+        
+        for system in suggested_remote_login_systems:
+            links.append('<a href=%s>%s</a>' % (bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_LINKS[system], system))
+
+        message = self._('It is recommended to log in via as many remote login systems as possible. You can log in via the following: %s'
+                                                                                                            % (', ').join(links))
+        h('<p>%s</p>' % (message,))
         return "\n".join(html)
 
     def tmpl_welcome(self):

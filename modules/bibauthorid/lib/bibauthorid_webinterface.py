@@ -2558,9 +2558,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @type form: dict
         '''
 
-        #THOMAS: let's subdivide this functions using private-ish methods. So the logic il better visible
-                 #and modules can be reused
-        
         self._session_bareinit(req)
 
         argd = wash_urlargd(
@@ -2578,39 +2575,36 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         _ = gettext_set_language(ln)
 
         if not CFG_INSPIRE_SITE:
-            return False,page_not_authorized(req, text=_("This page in not accessible directly."))
-
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
+        
+        if action != None and action != 'select' and action != 'search':
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
         # login_status checks if the user is logged in and return his uid and external systems that he is logged in through.
         # return a dictionary of the following form: {'logged_in': True, 'uid': 2, 'remote_logged_in_systems':['Arxiv', ...]}
-        login_status = webapi.login_status(req)
+        login_info = webapi.login_status(req)
         ## Speak with SamK to understand what happens if loging screws up and we need to merge userids or if this already happens before
         # aka can we arrive here with two distinct uids? I hope not!
-
-        if not login_status['logged_in']:
-            # here will have to display please log in through whatever is available (/youraccount/login to be included? probably not Salvatore says)
-            if CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
-                message = 'It is recommended to log in via as many remote login systems as possible.' \
-                          ' You can log in via the following: %s' % (', ').join(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS)
-            return False, page_not_authorized(req, text=_("This page in not accessible directly.\n"+message))
-        
         # get name strings and email addresses from SSO/Oauth logins: {'system':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
-        remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_status['remote_logged_in_systems'])
 
-        # get union of recids from all external systems: set(inspire_recids_list)
-        recids = webapi.get_remote_login_systems_recids(req, login_status['remote_logged_in_systems'])
-
-        if ( action == None ):
-            self._welcome_user_profile_association(req, login_status, recids, remote_login_systems_info)
-        elif action == 'search':
-            self._welcome_profile_search(req, search_param)
-        elif action == 'select':
-            self._welcome_profile_selection(req, login_status, selected_pid, recids)
-
+        remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_info['remote_logged_in_systems'])
+        self._welcome_general_initial_text(req, login_info, remote_login_systems_info, ln)
+        
+        if login_info['logged_in']:
+            # get union of recids from all external systems: set(inspire_recids_list)
+            recids = webapi.get_remote_login_systems_recids(req, login_info['remote_logged_in_systems'])
+            pid = webapi.get_user_pid(login_info['uid'])
+    
+            if action == None or pid >= 0:
+                self._welcome_main_functionality(req, login_info, recids, remote_login_systems_info, pid, '')
+            elif action == 'search':
+                self._welcome_main_functionality(req, login_info, recids, remote_login_systems_info, pid, search_param)
+            elif action == 'select':
+                self._welcome_profile_selection(req, login_info, selected_pid, recids)
         req.write(TEMPLATE.tmpl_welcome_end())
         req.write(pagefooteronly(req=req))
 
 
-    def _welcome_general_initial_text(self, req, login_status, remote_login_systems_info, ln): 
+    def _welcome_general_initial_text(self, req, login_info, remote_login_systems_info, ln):
         _ = gettext_set_language(ln)
         title_message = _('Welcome!')
 
@@ -2622,29 +2616,33 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if req.is_https():
             ssl_param = 1
 
-        req.write(pageheaderonly(req=req, title=title_message, uid=login_status["uid"],
+        req.write(pageheaderonly(req=req, title=title_message, uid=login_info["uid"],
                                language=ln, secure_page_p=ssl_param))
         req.write(TEMPLATE.tmpl_welcome_start())
-        body = ""
-
-        # show info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
-        body = TEMPLATE.tmpl_welcome_remote_login_systems(remote_login_systems_info, login_status["uid"])
-
-        req.write(body)
-
-        # warmly suggest the user to log in through all the others available systems if possible so we gather all papers for him for free!
-        suggested_systems = list(set(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS) - set(login_status['remote_logged_in_systems']))
+        
+        if not login_info['logged_in']:
+            # here will have to display please log in through whatever is available (/youraccount/login to be included? probably not Salvatore says)
+            req.write(TEMPLATE.tmpl_welcome_not_logged_in())
+            suggested_systems = CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
+        else:
+            body = ""
+    
+            # show info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
+            body = TEMPLATE.tmpl_welcome_remote_login_systems(remote_login_systems_info, login_info["uid"])
+    
+            req.write(body)
+    
+            # warmly suggest the user to log in through all the others available systems if possible so we gather all papers for him for free!
+            suggested_systems = list(set(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS) - set(login_info['remote_logged_in_systems']))
 
         if suggested_systems:
             req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
 
 
-    def _welcome_user_profile_association(self, req, login_status, recids, remote_login_systems_info):
+    def _welcome_main_functionality(self, req, login_status, recids, remote_login_systems_info, pid, search_param ):
         # check if a profile is already associated
-        pid = webapi.get_user_pid(login_status['uid'])
 
         if pid != -1:
-            req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(recids))
             # we already have a profile! let's claim papers!
             auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
             req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(auto_claim_paper_list))
@@ -2654,15 +2652,17 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         else:
             # show: this is who we think you are, if you lije this profile click here and you'll become him!
             # this is the profile with the biggest intersection of papers
-            probable_pid = webapi.match_profile(recids, remote_login_systems_info)
+            probable_pid = webapi.match_profile(req, recids, remote_login_systems_info)
 
             if probable_pid > -1:
-                profile_suggestion_info = webapi.get_profile_suggestion_info(probable_pid)
+                profile_suggestion_info = webapi.get_profile_suggestion_info(req, probable_pid)
                 req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(profile_suggestion_info))
             #return self._error_page(req, ln, "%s" % str(probable_pid))
-            name_variants = webapi.get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
-            search_param = most_relevant_name(name_variants)
-            self._welcome_profile_search(req, search_param)    
+            if not search_param:
+                name_variants = webapi.get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
+                search_param = most_relevant_name(name_variants)
+
+            self._welcome_profile_search(req, search_param)
 
 
     def _welcome_profile_search(self, req, search_param):

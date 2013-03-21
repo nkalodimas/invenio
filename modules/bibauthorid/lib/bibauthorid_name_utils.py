@@ -855,7 +855,7 @@ def most_relevant_name(name_variants):
     for name in name_variants:
         name_parts_list.append(split_name_parts(name))
     sorted_by_relevance_name_list = sorted(sorted(name_parts_list, key=lambda k : len(k[1]), reverse=True), key = lambda k:len(k[2]), reverse=True)
-    
+
     return create_normalized_name(sorted_by_relevance_name_list[0])
 
 GLOBAL_gendernames = _load_gender_firstnames_dict()
