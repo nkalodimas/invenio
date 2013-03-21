@@ -72,14 +72,17 @@ def update_cache(cached, name, key, target, *args):
     as someone surely precached it and is computing the results already. If not present in cache it
     precaches it, computes its value and stores it in cache returning its value.
     '''
+    #print '--Updating cache: ', name,' ',key
     if cached['present']:
         delay = datetime.now() - cached['last_updated']
         if delay < RECOMPUTE_PRECACHED_ELEMENT_DELAY and cached['precached']:
-            return
+            #print '--!!!Udating cache skip precached!'
+            return [False, None]
     precache_element(name, key)
     el = target(*args)
     cache_element(name, key, serialize(el))
-    return el
+    #print '--Updating cache: ', name,' ',key, ' returning! ', str(el)[0:10]
+    return [True, el]
 
 def retrieve_update_cache(name, key, target, *args):
     '''
@@ -87,6 +90,7 @@ def retrieve_update_cache(name, key, target, *args):
     If element present and UpToDate it returns [value, True]. If element present and Precached it returns [None, False]
     because it is currently computed. If element is not present it computes its value, updates the cache and returns [value, True].
     '''
+    #print '--Getting ', name, ' ', key
     cached = get_cached_element(name, str(key))
     if cached['present']:
         if cached['upToDate']:
@@ -95,8 +99,8 @@ def retrieve_update_cache(name, key, target, *args):
                 return [deserialize(cached['value']), True, cached['last_updated']]
     val = update_cache(cached, name, str(key), target, *args)
     last_updated = datetime.now()
-    if val:
-        return [val, True, last_updated]
+    if val[0]:
+        return [val[1], True, last_updated]
     else:
         return [None, False, last_updated]
 
@@ -312,22 +316,23 @@ def _compute_cache_for_person(person_id):
     expire_all_cache_for_person(person_id)
     f_to_call = [
                (get_pubs,),
-               (get_self_pubs,),
-               (get_institute_pubs,),
-               (get_pubs_per_year,),
                (get_person_names_dicts,),
-               (get_total_downloads,),
                (get_veryfy_my_pubs_list_link,),
-               (get_kwtuples,),
-               (get_fieldtuples,),
+               (get_rec_query,),
                (get_collabtuples,),
                (get_coauthors,),
-               (get_rec_query,),
-               (get_hepnames_data,),
+               (get_institute_pubs,),
                (get_pubs_per_year,),
+               (get_total_downloads,),
+               (get_kwtuples,),
+               (get_fieldtuples,),
+               (get_hepnames_data,),
                (get_summarize_records, ('hcs', 'en')),
+               (get_self_pubs,),
                (get_info_from_orcid,),
                 ]
+
+    waited = 0
     for f in f_to_call:
         r = [None, False]
         failures_delay = 0.01
@@ -336,9 +341,13 @@ def _compute_cache_for_person(person_id):
                 r = f[0](person_id)
             else:
                 r = f[0](person_id, *f[1])
+            print str(f), r[1]
             if not r[1]:
                 sleep(failures_delay)
-                failures_delay *= 1.2
+                failures_delay *= 1.05
+                waited += 1
+                print 'Waiting for ', str(f)
+    print 'Waited ', waited, ' ', failures_delay
 
     print person_id, ',' , str(time() - start)
 
@@ -657,9 +666,10 @@ def _get_info_from_orcid_bai(person_id):
     @return
     '''
     external_ids = get_personiID_external_ids(person_id)
-    if not external_ids:
+    if not external_ids or 'ORCID' not in external_ids:
         return None
     assert len(external_ids['ORCID']) <= 1, "A person cannot have more than one orcid id"
+
     orcid_id = external_ids['ORCID'][0]
 
     # for now it just returns the orcid id which is used in the construction of the orcid profile link (which appears in the orcid box)
