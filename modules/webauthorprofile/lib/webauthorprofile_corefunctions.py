@@ -341,13 +341,13 @@ def _compute_cache_for_person(person_id):
                 r = f[0](person_id)
             else:
                 r = f[0](person_id, *f[1])
-            print str(f), r[1]
+            #print str(f), r[1]
             if not r[1]:
                 sleep(failures_delay)
                 failures_delay *= 1.05
                 waited += 1
                 print 'Waiting for ', str(f)
-    print 'Waited ', waited, ' ', failures_delay
+    #print 'Waited ', waited, ' ', failures_delay
 
     print person_id, ',' , str(time() - start)
 
@@ -362,10 +362,10 @@ def precompute_cache_for_person(person_ids=None, all_persons=False, only_expired
 
     for i, p in enumerate(pids):
         start = time()
-        print
-        print 'STARTED: ', p, ' ', i
+        #print
+        #print 'STARTED: ', p, ' ', i
         _compute_cache_for_person(p)
-        print 'DONE: ', p , ',' , str(time() - start)
+        #print 'DONE: ', p , ',' , str(time() - start)
 
 def multiprocessing_precompute_cache_for_person(person_ids=None, all_persons=False, only_expired=False):
     pids = []
