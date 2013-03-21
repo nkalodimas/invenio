@@ -68,6 +68,8 @@ Examples:
       --merge               Updates the personid tables with the results from
                             the --disambiguate algorithm.
 
+      --update-search-index Updates the search engine index.
+
   OPTIONS
     Options for update personid
       (default)             Will update only the modified records since last
@@ -95,6 +97,7 @@ Examples:
              "record-ids=",
              "disambiguate",
              "merge",
+             "update-search-index",
              "all-records",
              "update-personid",
              "from-scratch"
@@ -125,6 +128,8 @@ def _task_submit_elaborate_specific_parameter(key, value, opts, args):
         bibtask.task_set_option("disambiguate", True)
     elif key in ("--merge",):
         bibtask.task_set_option("merge", True)
+    elif key in ("--update-search-index",):
+        bibtask.task_set_option("update_search_index", True)
     elif key in ("--from-scratch",):
         bibtask.task_set_option("from_scratch", True)
     else:
@@ -157,6 +162,11 @@ def _task_run_core():
         run_merge()
         bibtask.task_update_progress('Merging finished!')
 
+    if bibtask.task_get_option("update_search_index"):
+        bibtask.task_update_progress('Indexing...')
+        update_index()
+        bibtask.task_update_progress('Indexing finished!')
+
     return 1
 
 
@@ -167,12 +177,14 @@ def _task_submit_check_options():
     update_personid = bibtask.task_get_option("update_personid")
     disambiguate = bibtask.task_get_option("disambiguate")
     merge = bibtask.task_get_option("merge")
+    update_search_index = bibtask.task_get_option("update_search_index")
 
     record_ids = bibtask.task_get_option("record_ids")
     all_records = bibtask.task_get_option("all_records")
     from_scratch = bibtask.task_get_option("from_scratch")
 
-    commands = bool(update_personid) + bool(disambiguate) + bool(merge)
+    commands =( bool(update_personid) + bool(disambiguate) +
+                bool(merge) + bool(update_search_index) )
 
     if commands == 0:
         bibtask.write_message("ERROR: At least one command should be specified!"
@@ -310,3 +322,7 @@ def run_tortoise(from_scratch):
 def run_merge():
     from bibauthorid_merge import merge_dynamic
     merge_dynamic()
+
+def update_index():
+    from bibauthorid_search_engine import create_bibauthorid_indexer
+    create_bibauthorid_indexer()

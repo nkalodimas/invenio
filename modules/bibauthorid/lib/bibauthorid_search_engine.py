@@ -17,12 +17,12 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
+""" Author search engine. """
+
 from invenio.config import CFG_BIBAUTHORID_SEARCH_ENGINE_MAX_DATACHUNK_PER_INSERT_DB_QUERY
 from invenio.bibauthorid_config import QGRAM_LEN, MATCHING_QGRAMS_PERCENTAGE, \
         MAX_T_OCCURANCE_RESULT_LIST_CARDINALITY, MIN_T_OCCURANCE_RESULT_LIST_CARDINALITY, \
         MAX_NOT_MATCHING_NAME_CHARS, PREFIX_SCORE_COEFFICIENT, NAME_SCORE_COEFFICIENT
-
-""" Author search engine. """
 
 from threading import Thread
 from operator import itemgetter
@@ -35,7 +35,7 @@ from invenio.intbitset import intbitset
 from invenio.bibauthorid_name_utils import create_indexable_name, distance
 from bibauthorid_dbinterface import get_name_string_to_pid_dictionary, get_indexable_name_personids, get_inverted_lists, \
                                     set_inverted_lists_ready, set_dense_index_ready, trancate_table, \
-                                    insert_multiple_values
+                                    flush_data
 
 
 
@@ -84,10 +84,10 @@ def populate_table_with_limit(table_name, column_names, args, args_tuple_size, \
             summ += args_tuple_size[i]
             continue
         summ = args_tuple_size[i]
-        insert_multiple_values(table_name, column_names, args[start:(i-1)*column_num])
+        flush_data(table_name, column_names, args[start:(i-1)*column_num])
         start = (i-1)*column_num
 
-    insert_multiple_values(table_name, column_names, args[start:])
+    flush_data(table_name, column_names, args[start:])
 
 
 def populate_table(table_name, column_names, args, empty_table_first=True):
@@ -177,6 +177,9 @@ def create_bibauthorid_indexer():
     to the set of name ids that share that qgram).
     '''
     name_pids_dict = get_name_string_to_pid_dictionary()
+    if not name_pids_dict:
+        return
+
     indexable_name_pids_dict = dict()
 
     for name in name_pids_dict.keys():
@@ -188,7 +191,7 @@ def create_bibauthorid_indexer():
 
     threads = list()
     threads.append(Thread(target=create_dense_index, args=(indexable_name_pids_dict, indexable_names_list)))
-    threads.append(Thread(target=create_inverted_lists, args=(indexable_names_list)))
+    threads.append(Thread(target=create_inverted_lists, args=(indexable_names_list, )))
 
     for t in threads:
         t.start()

@@ -35,7 +35,7 @@ import gc
 #python2.4 compatibility
 from invenio.bibauthorid_general_utils import bai_all as all
 
-from itertools import groupby, count, ifilter, chain, imap
+from itertools import groupby, count, ifilter, chain, imap, repeat
 from operator import itemgetter
 
 from invenio.search_engine import perform_request_search
@@ -3120,7 +3120,7 @@ def export_person_to_foaf(person_id):
 
     return X['person'](body=export(infodict, indent=1))
 
-def insert_multiple_values(table_name, column_names, args):
+def flush_data(table_name, column_names, args):
     '''
     docstring
 
@@ -3132,10 +3132,13 @@ def insert_multiple_values(table_name, column_names, args):
     @type args:
     '''
     column_num = len(column_names)
-    strs = ("%s" for i in range(column_num))
-    values_list_str = "(%s)" % ", ".join(strs)
-    strs2 = (values_list_str for i in range(len(args)/column_num))
-    insert_query = 'insert into %s (%s) values %s' % (table_name, ", ".join(column_names), ", ".join(strs2))
+
+    assert len(args) % column_num == 0, 'Trying to flush data in table %s. Wrong number of arguments passed.' % table_name
+
+    values_tuple = "(%s)" % ", ".join(repeat("%s", column_num))
+    multiple_values_tuple = ", ".join(repeat(values_tuple, len(args)/column_num))
+    insert_query = 'insert into %s (%s) values %s' % (table_name, ", ".join(column_names), multiple_values_tuple)
+
     run_sql(insert_query, args)
 
 def trancate_table(table_name):
@@ -3193,6 +3196,8 @@ def check_search_engine_status():
     '''
     denseINDEX_exists = run_sql("select * from denseINDEX where name_id=%s", (-1,))
     invertedLISTS_exists = run_sql("select * from invertedLISTS where qgram=%s", ('!'*QGRAM_LEN,) )
+
     if denseINDEX_exists and invertedLISTS_exists:
         return True
+
     return False
