@@ -919,9 +919,9 @@ def login_status(req):
 def session_bareinit(req):
     session = get_session(req)
     try:
-        pinfo = session["personinfo"]
-        if "most_compatible_person" not in pinfo:
-            pinfo["most_compatible_person"] = -2
+        pinfo = session['personinfo']
+        if 'most_compatible_person' not in pinfo:
+            pinfo['most_compatible_person'] = None
             session.dirty = True
         if 'profile_suggestion_info' not in pinfo:
             pinfo["profile_suggestion_info"] = None
@@ -932,9 +932,12 @@ def session_bareinit(req):
         if 'remote_login_system' not in pinfo:
             pinfo["remote_login_system"] = dict()
             session.dirty = True
+        if 'external_ids' not in pinfo:
+            pinfo["external_ids"] = dict()
+            session.dirty = True
         for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
             if system not in pinfo["remote_login_system"]:
-                pinfo['remote_login_system'][system] = {'name': None, 'external_ids':None, 'email': None}
+                pinfo['remote_login_system'][system] = {'name': None, 'email': None}
                 session.dirty = True
     except KeyError:
         pinfo = dict()
@@ -994,15 +997,13 @@ def get_remote_login_systems_info(req, remote_logged_in_systems):
     user_remote_logged_in_systems_info = dict()
 
     uinfo = collect_user_info(req)
-    #THOMAS: whe should get rid of this external_first_entry from everywhere. it stinks.
-    session['personinfo']['external_first_entry'] = False
 
     for system in remote_logged_in_systems:
         user_remote_logged_in_systems_info[system] = REMOTE_LOGIN_SYSTEMS_FUNCTIONS[system](req, uinfo)
 
     return user_remote_logged_in_systems_info
 
-def get_arxiv_recids(req, cached_recids_external_ids_association):
+def get_arxiv_recids(req, ):
     session = get_session(req)
     uinfo = collect_user_info(req)
     pinfo = session['personinfo']
@@ -1012,47 +1013,45 @@ def get_arxiv_recids(req, cached_recids_external_ids_association):
         current_external_ids = uinfo['external_arxivids'].split(';')
 
     recids_from_arxivids = []
-    cached_ids_assocciation = dict()
+    cached_ids_association = pinfo['external_ids']
 
     #THOMAS: investigate with annette/skaplun what's the best way of using perform_request_search for this.
     #Alternatives: p='doi', p='doiID:doi', others? aka: is 037:arxiv really needed, only arxiv identifier is better or worse?
 
-    if current_external_ids and not cached_recids_external_ids_association:
-        for arxiv_id in current_external_ids:
-            #perform_request_search(p=arxiv_id, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m='e', cc='HEP')
-            recid_list = perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxiv_id), of='id', rg=0)
+    if current_external_ids and not cached_ids_association:
+        for arxivid in current_external_ids:
+            #perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxiv_id), of='id', rg=0)
+            recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m='e', cc='HEP')
             if recid_list:
                 recid = recid_list[0]
                 recids_from_arxivids.append(recid)
-                cached_ids_assocciation[arxiv_id] = recid
+                cached_ids_association[('arxivid', arxivid)] = recid
     elif current_external_ids:
         for arxivid in current_external_ids:
-            if arxivid in cached_recids_external_ids_association.keys():
-                recid = cached_recids_external_ids_association[arxiv_id]
-                recids_from_arxivids[arxiv_id] = recid
+            if ('arxivid', arxivid) in cached_ids_association.keys():
+                recid = cached_ids_association[('arxivid', arxivid)]
+                recids_from_arxivids.append(recid)
             else:
-                recid_list = perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] +  str(arxiv_id), of='id', rg=0)
+                recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m='e', cc='HEP')
                 if recid_list:
                     recid = recid_list[0]
                     recids_from_arxivids.append(recid)
-            cached_ids_assocciation[arxiv_id] = recid
+                    cached_ids_association[('arxivid', arxivid)] = recid
 
-    pinfo['remote_login_system']['arXiv']['external_ids'] = cached_ids_assocciation
+    pinfo['external_ids'] = cached_ids_association
     session.dirty = True
     return recids_from_arxivids
 
-def get_orcid_recids(req, current_external_ids):
+def get_orcid_recids(req):
     return []
 
 def get_remote_login_systems_recids(req, remote_logged_in_systems):
     session_bareinit(req)
     session = get_session(req)
-    pinfo = session['personinfo']
     remote_login_systems_recids = []
 
     for system in remote_logged_in_systems:
-        cached_recids_external_ids_association = pinfo['remote_login_system'][system]['external_ids']
-        system_recids = REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS[system](req, cached_recids_external_ids_association)
+        system_recids = REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS[system](req)
         remote_login_systems_recids += system_recids
 
     return list(set(remote_login_systems_recids))
@@ -1112,20 +1111,23 @@ def get_name_variants_list_from_remote_systems_names(remote_login_systems_info):
 def match_profile(req, recids, remote_login_systems_info):
     session_bareinit(req)
     session = get_session(req)
-    most_compatible_person = session['most_compatible_person']
-    if most_compatible_person != -2:
+    pinfo = session['personinfo']
+    most_compatible_person = pinfo['most_compatible_person']
+
+    if most_compatible_person != None:
         return most_compatible_person
     
     name_variants = get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
     most_compatible_person = dbapi.find_most_compatible_person(recids, name_variants)
-    session['most_compatible_person'] = most_compatible_person
+    pinfo['most_compatible_person'] = most_compatible_person
     return most_compatible_person
 
 
 def get_profile_suggestion_info(req, pid):
     session_bareinit(req)
     session = get_session(req)
-    profile_suggestion_info = session['profile_suggestion_info']
+    pinfo = session['personinfo']
+    profile_suggestion_info = pinfo['profile_suggestion_info']
 
     if profile_suggestion_info != None:
         return profile_suggestion_info
@@ -1147,7 +1149,7 @@ def get_profile_suggestion_info(req, pid):
         profile_suggestion_info['canonical_id'] = str(pid)
 
     profile_suggestion_info['pid'] = pid
-    session['profile_suggestion_info'] = profile_suggestion_info
+    pinfo['profile_suggestion_info'] = profile_suggestion_info
     return profile_suggestion_info
 
 
@@ -1189,7 +1191,6 @@ def arxiv_login(req, picked_profile=None):
     ticket = session['personinfo']['ticket']
 
     uinfo = collect_user_info(req)
-    pinfo['external_first_entry'] = False
 
     try:
         name = uinfo['external_firstname']

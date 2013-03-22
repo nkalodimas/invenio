@@ -1173,13 +1173,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             session.dirty = True
 
-            if 'external_first_entry' in pinfo and pinfo['external_first_entry']:
-                del(pinfo["external_first_entry"])
-                pinfo['external_first_entry_skip_review'] = True
-                session.dirty = True
-                # don't bother the user the first time
-                return ""
-
             body = TEMPLATE.tmpl_bibref_check(bibrefs_auto_assigned,
                                           bibrefs_to_confirm)
             body = TEMPLATE.tmpl_person_detail_layout(body)
