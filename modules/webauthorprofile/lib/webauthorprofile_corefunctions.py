@@ -367,9 +367,10 @@ def precompute_cache_for_person(person_ids=None, all_persons=False, only_expired
     if person_ids:
         pids += person_ids
 
+    last = len(pids)
     for i, p in enumerate(pids):
         start = time()
-        #print
+        print 'Doing ', i,' of ', last
         #print 'STARTED: ', p, ' ', i
         _compute_cache_for_person(p)
         #print 'DONE: ', p , ',' , str(time() - start)
@@ -585,7 +586,10 @@ def _get_coauthors_bai(collabs, person_id):
     coauthors = []
     for p in personids:
         cn = canonical_name(p[0])
-        ln = max_key(gathered_names_by_personid(p[0]), key=len)
+        #ln is used only for exact search in case canonical name is not available. Never happens
+        # with bibauthorid, let's print there the canonical name.
+        #ln = max_key(gathered_names_by_personid(p[0]), key=len)
+        ln = cn
         # exact number of papers based on query. Not activated for performance reasons.
         # paps = len(perform_request_search(rg=0, p="author:%s author:%s" % (cid, cn)))
         paps = p[1]
