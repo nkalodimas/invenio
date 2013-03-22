@@ -149,7 +149,7 @@ def get_emergency_recipients(recipient_cfg=CFG_SITE_EMERGENCY_EMAIL_ADDRESSES):
     for time_condition, address_str in recipient_cfg.items():
         if time_condition and time_condition is not '*':
             (current_range, future_range) = parse_runtime_limit(time_condition)
-            time_now = time.mktime(datetime.datetime.today().timetuple())
+            time_now = datetime.datetime.now()
 
             if not current_range[0] <= time_now <= current_range[1]:
                 continue

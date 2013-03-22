@@ -26,7 +26,7 @@ import datetime
 import calendar
 import os
 
-from time import mktime, strptime, tzset
+from time import strptime, tzset
 from invenio import dateutils
 from invenio.config import CFG_SITE_LANGS
 from invenio.testutils import make_test_suite, run_test_suite
@@ -40,6 +40,17 @@ if 'sk' in CFG_SITE_LANGS:
     lang_slovak_configured = True
 else:
     lang_slovak_configured = False
+
+
+def format_timestamp(t):
+    return t.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def format_timestamp_tuples(t):
+    return (
+        format_timestamp(t[0][0]), format_timestamp(t[0][1]),
+        format_timestamp(t[1][0]), format_timestamp(t[1][1])
+    )
 
 
 class ConvertFromDateCVSTest(unittest.TestCase):
@@ -127,15 +138,15 @@ class ParseRuntimeLimitTest(unittest.TestCase):
         day = datetime.date.today()
         now = datetime.time()
         while day.weekday() != calendar.SUNDAY:
-            day -= datetime.timedelta(1)
+            day += datetime.timedelta(1)
         present_from = datetime.datetime.combine(day, now.replace(hour=8))
         present_to = datetime.datetime.combine(day, now.replace(hour=16))
         future_from = present_from + datetime.timedelta(days=7)
         future_to = present_to + datetime.timedelta(days=7)
         expected = (
-            (mktime(present_from.timetuple()), mktime(present_to.timetuple())),
-            (mktime(future_from.timetuple()), mktime(future_to.timetuple())),
-            )
+            (present_from, present_to),
+            (future_from, future_to),
+        )
         result = dateutils.parse_runtime_limit(limit)
         self.assertEqual(expected, result)
 
@@ -145,15 +156,15 @@ class ParseRuntimeLimitTest(unittest.TestCase):
         day = datetime.date.today()
         now = datetime.time()
         while day.weekday() != calendar.THURSDAY:
-            day -= datetime.timedelta(1)
+            day += datetime.timedelta(1)
         present_from = datetime.datetime.combine(day, now.replace(hour=18))
         present_to = datetime.datetime.combine(day, now.replace(hour=22))
         future_from = present_from + datetime.timedelta(days=7)
         future_to = present_to + datetime.timedelta(days=7)
         expected = (
-            (mktime(present_from.timetuple()), mktime(present_to.timetuple())),
-            (mktime(future_from.timetuple()), mktime(future_to.timetuple())),
-            )
+            (present_from, present_to),
+            (future_from, future_to),
+        )
         result = dateutils.parse_runtime_limit(limit)
         self.assertEqual(expected, result)
 
@@ -163,15 +174,15 @@ class ParseRuntimeLimitTest(unittest.TestCase):
         day = datetime.date.today()
         now = datetime.time()
         while day.weekday() != calendar.TUESDAY:
-            day -= datetime.timedelta(1)
+            day += datetime.timedelta(1)
         present_from = datetime.datetime.combine(day, now.replace(hour=0))
         present_to = present_from + datetime.timedelta(days=1)
         future_from = present_from + datetime.timedelta(days=7)
         future_to = present_to + datetime.timedelta(days=7)
         expected = (
-            (mktime(present_from.timetuple()), mktime(present_to.timetuple())),
-            (mktime(future_from.timetuple()), mktime(future_to.timetuple())),
-            )
+            (present_from, present_to),
+            (future_from, future_to),
+        )
         result = dateutils.parse_runtime_limit(limit)
         self.assertEqual(expected, result)
 
@@ -182,12 +193,15 @@ class ParseRuntimeLimitTest(unittest.TestCase):
         now = datetime.time()
         present_from = datetime.datetime.combine(day, now.replace(hour=6))
         present_to = datetime.datetime.combine(day, now.replace(hour=18))
+        if present_to < datetime.datetime.now():
+            present_from += datetime.timedelta(days=1)
+            present_to += datetime.timedelta(days=1)
         future_from = present_from + datetime.timedelta(days=1)
         future_to = present_to + datetime.timedelta(days=1)
         expected = (
-            (mktime(present_from.timetuple()), mktime(present_to.timetuple())),
-            (mktime(future_from.timetuple()), mktime(future_to.timetuple())),
-            )
+            (present_from, present_to),
+            (future_from, future_to),
+        )
         result = dateutils.parse_runtime_limit(limit)
         self.assertEqual(expected, result)
 
