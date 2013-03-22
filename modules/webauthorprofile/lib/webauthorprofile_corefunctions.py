@@ -61,6 +61,12 @@ RECOMPUTE_PRECACHED_ELEMENT_DELAY = timedelta(minutes=30)
 # After this timeout we silently recompute the cache in the background,
 # so that next refresh will be up-to-date
 CACHE_IS_OUTDATED_DELAY = timedelta(days=CFG_WEBAUTHORPROFILE_CACHE_EXPIRED_DELAY_LIVE)
+FORCE_CACHE_IS_EXPIRED = False
+
+def set_force_expired_cache(val=True):
+    global FORCE_CACHE_IS_EXPIRED
+    FORCE_CACHE_IS_EXPIRED = val
+
 
 year_pattern = re_compile(r'(\d{4})')
 
@@ -93,7 +99,7 @@ def retrieve_update_cache(name, key, target, *args):
     #print '--Getting ', name, ' ', key
     cached = get_cached_element(name, str(key))
     if cached['present']:
-        if cached['upToDate']:
+        if cached['upToDate'] and not FORCE_CACHE_IS_EXPIRED:
             delay = datetime.now() - cached['last_updated']
             if delay < CACHE_IS_OUTDATED_DELAY:
                 return [deserialize(cached['value']), True, cached['last_updated']]
@@ -313,7 +319,8 @@ def _get_summarize_records(pubs, tag, ln, rec_query, person_id):
 
 def _compute_cache_for_person(person_id):
     start = time()
-    expire_all_cache_for_person(person_id)
+    if not FORCE_CACHE_IS_EXPIRED:
+        expire_all_cache_for_person(person_id)
     f_to_call = [
                (get_pubs,),
                (get_person_names_dicts,),
@@ -346,7 +353,7 @@ def _compute_cache_for_person(person_id):
                 sleep(failures_delay)
                 failures_delay *= 1.05
                 waited += 1
-                print 'Waiting for ', str(f)
+                #print 'Waiting for ', str(f)
     #print 'Waited ', waited, ' ', failures_delay
 
     print person_id, ',' , str(time() - start)

@@ -627,7 +627,6 @@ def get_person_names_count(pid):
     res = run_sql("select name from aidPERSONIDPAPERS where "
                   "personid=%s and flag > -2", (pid,))
     reslist = [x[0] for x in res]
-    reslist.sort()
     names_count = defaultdict(int)
     for name in reslist:
         names_count[name]+=1
