@@ -827,11 +827,16 @@ def replace_refs(recid, new_refs):
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         run_sql("""INSERT INTO rnkCITATIONDICT (citer, citee, last_updated)
                    VALUES (%s, %s, %s)""", (recid, ref, now))
+        run_sql("""INSERT INTO rnkCITATIONLOG (citer, citee, type, action_date)
+                   VALUES (%s, %s, %s, %s)""", (recid, ref, 'added', now))
 
     for ref in refs_to_delete:
         write_message('deleting ref %s %s' % (recid, ref), verbose=1)
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         run_sql("""DELETE FROM rnkCITATIONDICT
                    WHERE citer = %s and citee = %s""", (recid, ref))
+        run_sql("""INSERT INTO rnkCITATIONLOG (citer, citee, type, action_date)
+                   VALUES (%s, %s, %s, %s)""", (recid, ref, 'removed', now))
 
 
 def replace_cites(recid, new_cites):
