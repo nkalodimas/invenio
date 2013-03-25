@@ -39,6 +39,8 @@ from invenio.docextract_task import split_ids, \
 from invenio.search_engine import perform_request_search
 from invenio.bibcatalog import bibcatalog_system
 from invenio.bibcatalog_utils import record_id_from_record
+from invenio.bibcatalog_dblayer import get_all_new_records, \
+                                       get_all_modified_records
 from invenio.bibedit_utils import get_bibrecord
 from invenio.bibrecord import record_get_field_instances, \
                               field_get_subfield_values
@@ -49,7 +51,7 @@ class BibCatalogTicket(object):
     """
     Represents a Ticket to create using BibCatalog API.
     """
-    def __init__(self, subject="", text="", queue="", ticketid=None, recid=""):
+    def __init__(self, subject="", text="", queue="", ticketid=None, recid=-1):
         self.subject = subject
         self.queue = queue
         self.text = text
@@ -57,11 +59,38 @@ class BibCatalogTicket(object):
         self.recid = recid
 
     def submit(self):
-        self.ticketid = bibcatalog_system.ticket_submit(subject=self.subject,
-                                                        queue=self.queue,
-                                                        text=self.text,
-                                                        recordid=self.recid)
-        return self.ticketid
+        """
+        Submits the ticket using BibCatalog API.
+
+        @raise Exception: if ticket creation is not successful.
+        @return bool: True if created, False if not.
+        """
+        if not self.exists():
+            res = bibcatalog_system.ticket_submit(subject=self.subject,
+                                                  queue=self.queue,
+                                                  text=self.text,
+                                                  recordid=self.recid)
+            try:
+                self.ticketid = int(res)
+            except ValueError:
+                # Not a number. Must be an error string
+                raise Exception(res)
+            return True
+        return False
+
+    def exists(self):
+        """
+        Does the ticket already exist in the RT system?
+
+        @return bool: True if it exists, False if not.
+        """
+        results = bibcatalog_system.ticket_submit(None,
+                                                  recordid=self.recid,
+                                                  queue=self.queue,
+                                                  subject=self.subject)
+        if results:
+            return True
+        return False
 
 
 def task_check_options():
@@ -84,7 +113,7 @@ def task_check_options():
         print >>sys.stderr, "\n".join(error_messages)
 
     if task_get_option('tickets'):
-        # specified
+        # Tickets specified
         for ticket in task_get_option('tickets'):
             if ticket not in all_plugins.get_enabled_plugins():
                 print >>sys.stderr, 'Error: plugin %s is broken or does not exist'
@@ -92,6 +121,7 @@ def task_check_options():
             ticket_plugins[ticket] = all_plugins[ticket]
     else:
         ticket_plugins = all_plugins.get_enabled_plugins()
+    # Set the parameter. Dictionary of "plugin_name" -> func
     task_set_option('tickets', ticket_plugins)
 
     if not bibcatalog_system:
@@ -151,21 +181,20 @@ def task_run_core():
 
     Returns True when run successfully. False otherwise.
     """
+    # Dictionary of "plugin_name" -> func
     tickets_to_apply = task_get_option('tickets')
     write_message("Ticket plugins found: %s" %
                   (str(tickets_to_apply),), verbose=9)
 
-    records_concerned = load_records()
+    records_concerned = get_recids_to_load()
     write_message("Number of records found: %i" %
                   (len(records_concerned),), verbose=9)
 
-
     # CHECK IF TICKET CREATED. recid Y in custom field in queue X
-
     records_processed = []
-    for record in records_concerned:
-        task_update_progress("Processing records %s/%s (%i %%)" \
-                             % (len(records_processed), len(records_concerned), \
+    for record in load_records(records_concerned):
+        task_update_progress("Processing records %s/%s (%i%%)"
+                             % (len(records_processed), len(records_concerned),
                                 int(float(len(records_processed)) / len(records_concerned) * 100)))
         task_sleep_now_if_required(can_stop_too=False)
         for ticket_name, plugin in tickets_to_apply.items():
@@ -176,12 +205,14 @@ def task_run_core():
                     ticket = BibCatalogTicket(subject=subject,
                                               text=text,
                                               queue=queue,
-                                              recid=recid)
-                    if ticket.submit():
+                                              recid=int(recid))
+                    try:
+                        ticket.submit()
                         write_message("Ticket #%s created for %i" %
                                       (ticket.ticketid, recid))
-                    else:
-                        write_message("Error submitting ticket for record %s" %
+                    except Exception:
+                        write_message("Error submitting ticket for record %s. "
+                                      "Perhaps it already exists." %
                                       (recid,))
                 else:
                     write_message("Record NOT OK")
@@ -215,50 +246,46 @@ def load_ticket_plugins():
     return plugins, error_messages
 
 
-def load_records():
+def get_recids_to_load():
     """
-    Will load the records given.
+    Generates the final list of record IDs to load.
+
+    Returns a list of tuples like: (recid, date)
     """
-    recids_given = task_get_option("recids")
-    loaded_records = []
-    for recid in recids_given:
+    recids_given = task_get_option("recids", default=[])
+    query_given = task_get_option("query")
+    if query_given:
+        write_message("Performing given search query: %s" % (query_given,))
+        result = perform_request_search(p=query_given,
+                                        of='id',
+                                        rg=0,
+                                        wl=0)
+        recids_given.extend(result)
+
+    recids_given = [(recid, None) for recid in recids_given]
+
+    last_id, last_date = fetch_last_updated(name="bibcatalog")
+    records_found = []
+    if task_get_option("new", default=False):
+        records_found.extend(get_all_new_records(since=last_date, last_id=last_id))
+    if task_get_option("modified", default=False):
+        records_found.extend(get_all_modified_records(since=last_date, last_id=last_id))
+
+    for recid, date in records_found:
+        recids_given.append((recid, date))
+    return recids_given
+
+
+def load_records(recids):
+    """
+    Given a list of recids, this function will yield record structures iterativly.
+    """
+    for recid in recids:
         record = get_bibrecord(recid)
         if not record:
             write_message("Error: could not load record %s" % (recid,))
             continue
-        loaded_records.append(record)
-
-    query_given = task_get_option("query")
-    if query_given:
-        write_message("Performing a search query")
-
-        # We are doing a search query, rg=0 allows the return of all results.
-        result = perform_request_search(p=query, \
-                                        cc=CFG_APSHARVEST_SEARCH_COLLECTION, \
-                                        of='id', \
-                                        rg=0, \
-                                        wl=0)
-        for recid in result:
-            final_record_list.append(APSRecord(recid))
-
-    last_id, last_date = fetch_last_updated(name="apsharvest")
-    if records in ("new", "modified", "both"):
-        # We fetch records from the database
-        records_found = []
-        if records == "new":
-            records_found = get_all_new_records(since=last_date, last_id=last_id)
-        elif records == "modified":
-            records_found = get_all_modified_records(since=last_date, last_id=last_id)
-        elif records == "both":
-            records_found.extend(get_all_new_records(since=last_date, last_id=last_id))
-            records_found.extend(get_all_modified_records(since=last_date, last_id=last_id))
-
-        for recid, date in records_found:
-            final_record_list.append(APSRecord(recid, date=date))
-
-
-
-    return loaded_records
+        yield record
 
 
 def _bibcatalog_plugin_builder(plugin_name, plugin_code):
@@ -289,12 +316,18 @@ def main():
               help_specific_usage="""
 
   Scheduled (daemon) options:
+
+  Selection of records:
+
   -a, --new          Run on all newly inserted records.
   -m, --modified     Run on all newly modified records.
   -r, --recids       Record id for extraction.
-  -c, --collections  Entire Collection for extraction.
-  -t, --tickets=     All arxiv modified records within last week
-  -q, --query=       Specify a search query to fetch records.
+  -c, --collections  Run on all records in a specific collection.
+  -q, --query=       Specify a search query to fetch records to run on.
+
+  Selection of tickets:
+
+  -t, --tickets=     Specify which tickets to run. Runs on all by default.
 
   Examples:
    (run a periodical daemon job on a given ticket template)
@@ -304,18 +337,18 @@ def main():
    (run on a collection)
       bibcatalog --collections "Articles"
 
-""",
-        version="Invenio v%s" % CFG_VERSION,
-        specific_params=("hVv:r:c:t:q:am",
-                            ["help",
-                             "version",
-                             "verbose=",
-                             "recids=",
-                             "collections=",
-                             "tickets=",
-                             "query=",
-                             "new",
-                             "modified"]),
-        task_submit_elaborate_specific_parameter_fnc=task_parse_options,
-        task_submit_check_options_fnc=task_check_options,
-        task_run_fnc=task_run_core)
+    """,
+              version="Invenio v%s" % CFG_VERSION,
+              specific_params=("hVv:r:c:t:q:am",
+                                ["help",
+                                 "version",
+                                 "verbose=",
+                                 "recids=",
+                                 "collections=",
+                                 "tickets=",
+                                 "query=",
+                                 "new",
+                                 "modified"]),
+              task_submit_elaborate_specific_parameter_fnc=task_parse_options,
+              task_submit_check_options_fnc=task_check_options,
+              task_run_fnc=task_run_core)

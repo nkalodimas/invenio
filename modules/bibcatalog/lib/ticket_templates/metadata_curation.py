@@ -21,7 +21,9 @@
 BibCatalog template
 """
 from invenio.bibrecord import record_get_field_instances, \
-                              field_get_subfield_values
+                              field_get_subfield_values, \
+                              record_get_field_values, \
+                              record_get_field_value
 from invenio.bibcatalog_utils import record_in_collection, \
                                      record_get_value_with_provenence, \
                                      record_id_from_record
@@ -31,7 +33,7 @@ def check_record(record):
     """
     Expects a record object.
 
-    Returns True if record is a CORE record.
+    Returns True if record is a CORE record amd it does not exist.
     """
     return record_in_collection(record, "CORE")
 
@@ -46,7 +48,7 @@ def generate_ticket(record):
     pdfurl = "http://arxiv.org/pdf/%s" % (arxiv_id,)
     abstracturl = "http://arxiv.org/abs/%s" % (arxiv_id,)
 
-    categories = record_get_value_with_provenence(record=record, 
+    categories = record_get_value_with_provenence(record=record,
                                                   provenence_code="2",
                                                   provenence_value="arXiv",
                                                   tag="650",
@@ -59,13 +61,12 @@ def generate_ticket(record):
                                                 tag="500",
                                                 code="a")
 
-    authors = record_get_field_values(record, tag="100", code="a")
-              + record_get_field_values(record, tag="700", code="a")
+    authors = record_get_field_values(record, tag="100", code="a") + \
+              record_get_field_values(record, tag="700", code="a")
     recid = record_id_from_record(record)
 
     subject = "ARXIV:" + arxiv_id
-    text = \
-"""
+    text = """
 %(submitdate)s
 
 ABSTRACT: %(abstracturl)s
@@ -80,7 +81,7 @@ Comments: %(comments)s
 Authors: %(authors)s
 
 Categories: %(categories)s
-    
+
 %(abstract)s
 
 Edit the record on INSPIRE: %(inspireurl)s

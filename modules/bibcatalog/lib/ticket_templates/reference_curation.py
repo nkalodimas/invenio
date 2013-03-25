@@ -20,11 +20,16 @@
 """
 BibCatalog template
 """
+import datetime
+
 from invenio.bibrecord import record_get_field_instances, \
                               field_get_subfield_values
 from invenio.config import CFG_REFEXTRACT_TICKET_QUEUE, \
                            CFG_SITE_SECURE_URL
 from invenio.dbquery import run_sql
+from invenio.bibcatalog_utils import record_in_collection, \
+                                     record_id_from_record
+
 
 def check_record(record):
     """
@@ -35,11 +40,11 @@ def check_record(record):
     # Is it HEP?
     if not record_in_collection(record, "HEP"):
         return
-
+    recid = record_id_from_record(record)
     # Do not create tickets for old records
     creation_date = run_sql("""SELECT creation_date FROM bibrec
                                WHERE id = %s""", [recid])[0][0]
-    if creation_date < datetime.now() - timedelta(days=365*2):
+    if creation_date < datetime.now() - datetime.timedelta(days=365*2):
         return
 
     for report_tag in record_get_field_instances(record, "037"):
@@ -48,7 +53,7 @@ def check_record(record):
                 # We do not curate astro-ph
                 return
 
-    return 
+    return True
 
 
 def generate_ticket(record):
@@ -67,8 +72,7 @@ def generate_ticket(record):
             subject += " " + report_number
             break
 
-    text = '%s/record/edit/#state=edit&recid=%s' % (CFG_SITE_SECURE_URL, \
+    text = '%s/record/edit/#state=edit&recid=%s' % (CFG_SITE_SECURE_URL,
                                                     recid)
 
     return subject, text.replace('%', '%%'), CFG_REFEXTRACT_TICKET_QUEUE
-
