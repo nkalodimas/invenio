@@ -1295,7 +1295,7 @@ def get_recently_modified_record_ids(date):
     '''
     touched_papers = frozenset(p[0] for p in run_sql(
             "select id from bibrec "
-            "where modification_date > %s"
+            "where modification_date >= %s"
             , (date,)))
     return touched_papers & frozenset(get_all_valid_bibrecs())
 
