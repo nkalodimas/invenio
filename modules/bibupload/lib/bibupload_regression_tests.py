@@ -479,7 +479,7 @@ class BibUploadAppendModeTest(GenericBibUploadTest):
         # Retrieve current localtime
         now = time.localtime()
         # We update the modification date
-        bibupload.update_bibrec_modif_date(convert_datestruct_to_datetext(now), rec_id)
+        bibupload.update_bibrec_date(convert_datestruct_to_datetext(now), rec_id, False)
         # We retrieve the modification date from the database
         query = """SELECT DATE_FORMAT(modification_date,'%%Y-%%m-%%d %%H:%%i:%%s') FROM bibrec where id = %s"""
         res = run_sql(query % rec_id)
