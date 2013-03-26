@@ -20,8 +20,14 @@
 """
 BibCatalog utility functions
 """
-from invenio.bibrecord import record_get_field_instances, \
-                              field_get_subfield_values
+from invenio.bibrecord import \
+    record_get_field_instances, \
+    field_get_subfield_values
+from invenio.bibformat_dblayer import get_tag_from_name
+
+
+class BibCatalogTagNotFound(Exception):
+    pass
 
 
 def record_in_collection(record, collection):
@@ -77,3 +83,25 @@ def record_get_value_with_provenence(record, provenence_value, provenence_code,
                 # This is the value we are looking for with the correct provenence
                 final_values.append(value)
     return final_values
+
+
+def split_tag_code(code):
+    """
+    Splits a tag code in the form of "035__a" into a dictionary with
+    tag, indicators and subfield code separated.
+    """
+    return {"tag": code[:3],
+            "ind1": code[3],
+            "ind1": code[4],
+            "code": code[5]}
+
+
+def load_tag_code_from_name(name):
+    """
+    Uses BibFormat DB layer API to load a tag code (035__a) from its
+    name (ext system ID). Raises an exception if name does not exist.
+    """
+    tag = get_tag_from_name(name)
+    if not tag:
+        raise BibCatalogTagNotFound("Tag not found for %s" % (name,))
+    return tag

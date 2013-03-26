@@ -20,13 +20,17 @@
 """
 BibCatalog template
 """
-from invenio.bibrecord import record_get_field_instances, \
-                              field_get_subfield_values, \
-                              record_get_field_values, \
-                              record_get_field_value
-from invenio.bibcatalog_utils import record_in_collection, \
-                                     record_get_value_with_provenence, \
-                                     record_id_from_record
+from invenio.config import CFG_SITE_URL
+from invenio.bibrecord import \
+    record_get_field_values, \
+    record_get_field_value
+from invenio.bibcatalog_utils import \
+    record_in_collection, \
+    record_get_value_with_provenence, \
+    record_id_from_record, \
+    split_tag_code, \
+    load_tag_code_from_name, \
+    BibCatalogTagNotFound
 
 
 def check_record(record):
@@ -44,71 +48,106 @@ def generate_ticket(record):
 
     Returns subject, body and queue of the ticket.
     """
-    arxiv_id = _get_minimal_arxiv_id(record)
-    pdfurl = "http://arxiv.org/pdf/%s" % (arxiv_id,)
-    abstracturl = "http://arxiv.org/abs/%s" % (arxiv_id,)
+    title_code = load_tag_code_from_name("title")
+    abstract_code = load_tag_code_from_name("abstract")
 
-    categories = record_get_value_with_provenence(record=record,
-                                                  provenence_code="2",
-                                                  provenence_value="arXiv",
-                                                  tag="650",
-                                                  ind1="1",
-                                                  ind2="7",
-                                                  code="a")
-    comments = record_get_value_with_provenence(record=record,
-                                                provenence_code="9",
-                                                provenence_value="arXiv",
-                                                tag="500",
-                                                code="a")
+    try:
+        date_code = load_tag_code_from_name("date")
+    except BibCatalogTagNotFound:
+        date_code = load_tag_code_from_name("year")
 
-    authors = record_get_field_values(record, tag="100", code="a") + \
-              record_get_field_values(record, tag="700", code="a")
+    category_code = load_tag_code_from_name("subject")
+
+    try:
+        notes_code = load_tag_code_from_name("note")
+    except BibCatalogTagNotFound:
+        notes_code = load_tag_code_from_name("comment")
+
+    first_author_code = load_tag_code_from_name("first author name")
+    additional_author_code = load_tag_code_from_name("additional author name")
+
+    try:
+        external_id_code = load_tag_code_from_name("ext system ID")
+    except BibCatalogTagNotFound:
+        external_id_code = load_tag_code_from_name("primary report number")
+
+    # List of extra info to print in the ticket.
+    extra_info = []
     recid = record_id_from_record(record)
 
-    subject = "ARXIV:" + arxiv_id
+    arxiv_id = _get_minimal_arxiv_id(record, external_id_code)
+    if arxiv_id:
+        # We have an arxiv id - we can add special info:
+        extra_info.append("ABSTRACT: http://arxiv.org/abs/%s" % (arxiv_id,))
+        extra_info.append("PDF: http://arxiv.org/pdf/%s" % (arxiv_id,))
+
+        categories = record_get_value_with_provenence(record=record,
+                                                      provenence_code="2",
+                                                      provenence_value="arXiv",
+                                                      **split_tag_code(category_code))
+        comments = record_get_value_with_provenence(record=record,
+                                                    provenence_code="9",
+                                                    provenence_value="arXiv",
+                                                    **split_tag_code(notes_code))
+        external_ids = arxiv_id
+        subject = "ARXIV:" + arxiv_id
+    else:
+        # Not an arxiv record - Lets get generic info
+        categories = record_get_value_with_provenence(record=record,
+                                                      provenence_code="2",
+                                                      provenence_value="INSPIRE",
+                                                      **split_tag_code(category_code))
+        comments = record_get_field_values(record=record,
+                                           **split_tag_code(notes_code))
+        external_id_list = record_get_field_values(record=record,
+                                                   **split_tag_code(external_id_code))
+        external_ids = ", ".join(external_id_list)
+        subject = "Record #%s %s" % (recid, external_ids)
+
+    authors = record_get_field_values(record, **split_tag_code(first_author_code)) + \
+              record_get_field_values(record, **split_tag_code(additional_author_code))
+
     text = """
 %(submitdate)s
 
-ABSTRACT: %(abstracturl)s
-PDF: %(pdfurl)s
-
-Paper: %(arxiv_id)s
+External IDs: %(external_ids)s
 
 Title: %(title)s
-
-Comments: %(comments)s
 
 Authors: %(authors)s
 
 Categories: %(categories)s
 
+Comments: %(comments)s
+
 %(abstract)s
 
-Edit the record on INSPIRE: %(inspireurl)s
+%(extra_info)s
+
+Edit the record now: %(editurl)s
 
 """ \
     % {
-        'submitdate': record_get_field_value(record, tag="269", code="c"),
-        'pdfurl': pdfurl,
-        'abstracturl': abstracturl,
-        'arxiv_id': arxiv_id,
-        'title': record_get_field_value(record, tag="245", code="a"),
+        'submitdate': record_get_field_value(record, **split_tag_code(date_code)),
+        'extra_info': "\n".join(extra_info),
+        'title': record_get_field_value(record, **split_tag_code(title_code)),
         'comments': "; ".join(comments),
         'categories': " ".join(categories),
         'authors': " / ".join(authors[:10]),
-        'abstract': record_get_field_value(record, tag="520", code="a"),
-        'inspireurl': "http://inspirehep.net/record/edit/%s" % (recid,),
+        'abstract': record_get_field_value(record, **split_tag_code(abstract_code)),
+        'editurl': "%s/record/edit/%s" % (CFG_SITE_URL, recid),
     }
     return subject, text.replace('%', '%%'), "Test"
 
 
-def _get_minimal_arxiv_id(record):
+def _get_minimal_arxiv_id(record, tag_code):
     """
     Returns the OAI arXiv id in the given record skipping the prefixes.
     I.e. oai:arxiv.org:1234.1234 becomes 1234.1234 and oai:arxiv.org:hep-ex/2134123
     becomes hep-ex/2134123. Used for searching.
     """
-    values = record_get_field_values(record, tag="035", code="a")
+    values = record_get_field_values(record,
+                                     **split_tag_code(tag_code))
     for value in values:
         if 'arXiv' in value:
             return value.split(':')[-1]

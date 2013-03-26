@@ -22,13 +22,16 @@ BibCatalog template
 """
 import datetime
 
-from invenio.bibrecord import record_get_field_instances, \
-                              field_get_subfield_values
-from invenio.config import CFG_REFEXTRACT_TICKET_QUEUE, \
-                           CFG_SITE_SECURE_URL
+from invenio.bibrecord import \
+    record_get_field_instances, \
+    field_get_subfield_values
+from invenio.config import \
+    CFG_REFEXTRACT_TICKET_QUEUE, \
+    CFG_SITE_SECURE_URL
 from invenio.dbquery import run_sql
-from invenio.bibcatalog_utils import record_in_collection, \
-                                     record_id_from_record
+from invenio.bibcatalog_utils import \
+    record_in_collection, \
+    record_id_from_record
 
 
 def check_record(record):
@@ -75,4 +78,5 @@ def generate_ticket(record):
     text = '%s/record/edit/#state=edit&recid=%s' % (CFG_SITE_SECURE_URL,
                                                     recid)
 
-    return subject, text.replace('%', '%%'), CFG_REFEXTRACT_TICKET_QUEUE
+    #return subject, text.replace('%', '%%'), CFG_REFEXTRACT_TICKET_QUEUE
+    return subject, text.replace('%', '%%'), "Test"

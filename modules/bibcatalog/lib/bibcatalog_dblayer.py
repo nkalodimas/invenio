@@ -20,7 +20,6 @@
 """BibCatalog db layer."""
 
 from invenio.dbquery import run_sql
-from datetime import datetime
 
 
 def get_all_new_records(since, last_id):

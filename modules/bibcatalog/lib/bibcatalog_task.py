@@ -25,25 +25,26 @@ Based on configured plug-ins this task will create tickets for records.
 import sys
 import os
 
-from invenio.bibtask import task_init, task_set_option, \
-                            task_get_option, write_message, \
-                            task_update_progress, \
-                            task_sleep_now_if_required
-from invenio.config import CFG_VERSION, \
-                           CFG_SITE_SECURE_URL, \
-                           CFG_BIBCATALOG_SYSTEM, \
-                           CFG_PYLIBDIR
-from invenio.docextract_task import split_ids, \
-                                    fetch_last_updated, \
-                                    store_last_updated
+from invenio.bibtask import \
+    task_init, \
+    task_set_option, \
+    task_get_option, write_message, \
+    task_update_progress, \
+    task_sleep_now_if_required
+from invenio.config import \
+    CFG_VERSION, \
+    CFG_PYLIBDIR
+from invenio.docextract_task import \
+    split_ids, \
+    fetch_last_updated, \
+    store_last_updated
 from invenio.search_engine import perform_request_search
 from invenio.bibcatalog import bibcatalog_system
 from invenio.bibcatalog_utils import record_id_from_record
-from invenio.bibcatalog_dblayer import get_all_new_records, \
-                                       get_all_modified_records
+from invenio.bibcatalog_dblayer import \
+    get_all_new_records, \
+    get_all_modified_records
 from invenio.bibedit_utils import get_bibrecord
-from invenio.bibrecord import record_get_field_instances, \
-                              field_get_subfield_values
 from invenio.pluginutils import PluginContainer
 
 
@@ -66,15 +67,27 @@ class BibCatalogTicket(object):
         @return bool: True if created, False if not.
         """
         if not self.exists():
-            res = bibcatalog_system.ticket_submit(subject=self.subject,
-                                                  queue=self.queue,
-                                                  text=self.text,
-                                                  recordid=self.recid)
+            comment = False
+            if "\n" in self.text:
+                # The RT client does not support newlines in the initial text
+                # We need to add the ticket then add a comment.
+                comment = True
+                res = bibcatalog_system.ticket_submit(subject=self.subject,
+                                                      queue=self.queue,
+                                                      recordid=self.recid)
+            else:
+                res = bibcatalog_system.ticket_submit(subject=self.subject,
+                                                      queue=self.queue,
+                                                      text=self.text,
+                                                      recordid=self.recid)
             try:
                 self.ticketid = int(res)
             except ValueError:
                 # Not a number. Must be an error string
                 raise Exception(res)
+            if comment:
+                bibcatalog_system.ticket_comment(ticketid=self.ticketid,
+                                                 comment=self.text)
             return True
         return False
 
@@ -190,9 +203,9 @@ def task_run_core():
     write_message("Number of records found: %i" %
                   (len(records_concerned),), verbose=9)
 
-    # CHECK IF TICKET CREATED. recid Y in custom field in queue X
     records_processed = []
-    for record in load_records(records_concerned):
+    for record, last_date in load_records_from_id(records_concerned):
+        recid = record_id_from_record(record)
         task_update_progress("Processing records %s/%s (%i%%)"
                              % (len(records_processed), len(records_concerned),
                                 int(float(len(records_processed)) / len(records_concerned) * 100)))
@@ -201,7 +214,6 @@ def task_run_core():
             if plugin:
                 if plugin['check_record'](record):
                     subject, text, queue = plugin['generate_ticket'](record)
-                    recid = record_id_from_record(record)
                     ticket = BibCatalogTicket(subject=subject,
                                               text=text,
                                               queue=queue,
@@ -216,6 +228,9 @@ def task_run_core():
                                       (recid,))
                 else:
                     write_message("Record NOT OK")
+
+        if last_date:
+            store_last_updated(recid, last_date, name="bibcatalog")
     return True
 
 
@@ -276,16 +291,23 @@ def get_recids_to_load():
     return recids_given
 
 
-def load_records(recids):
+def load_records_from_id(records):
     """
-    Given a list of recids, this function will yield record structures iterativly.
+    Given a record tuple of record id and last updated/created date,
+    this function will yield a tuple with the record id replaced with
+    a record structure iterativly.
+
+    @param record: tuple of (recid, date-string) Ex: (1, 2012-12-12 12:12:12)
+    @type record: tuple
+
+    @yield: tuple of (record structure (dict), date-string)
     """
-    for recid in recids:
-        record = get_bibrecord(recid)
+    for recid, date in records:
+        record = get_bibrecord(int(recid))
         if not record:
             write_message("Error: could not load record %s" % (recid,))
             continue
-        yield record
+        yield record, date
 
 
 def _bibcatalog_plugin_builder(plugin_name, plugin_code):
@@ -303,7 +325,7 @@ def _bibcatalog_plugin_builder(plugin_name, plugin_code):
         return
     final_plugin = {}
     final_plugin["check_record"] = getattr(plugin_code, "check_record", None)
-    final_plugin["process_ticket"] = getattr(plugin_code, "process_ticket", None)
+    final_plugin["generate_ticket"] = getattr(plugin_code, "generate_ticket", None)
     return final_plugin
 
 
