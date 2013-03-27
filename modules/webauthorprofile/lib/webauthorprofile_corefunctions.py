@@ -72,11 +72,11 @@ def update_cache(cached, name, key, target, *args):
     if cached['present']:
         delay = datetime.now() - cached['last_updated']
         if delay < RECOMPUTE_PRECACHED_ELEMENT_DELAY and cached['precached']:
-            return
+            return [False, None]
     precache_element(name, key)
     el = target(*args)
     cache_element(name, key, serialize(el))
-    return el
+    return [True, el]
 
 def retrieve_update_cache(name, key, target, *args):
     '''
@@ -92,8 +92,8 @@ def retrieve_update_cache(name, key, target, *args):
                 return [deserialize(cached['value']), True, cached['last_updated']]
     val = update_cache(cached, name, str(key), target, *args)
     last_updated = datetime.now()
-    if val:
-        return [val, True, last_updated]
+    if val[0]:
+        return [val[1], True, last_updated]
     else:
         return [None, False, last_updated]
 
@@ -301,20 +301,20 @@ def _compute_cache_for_person(person_id):
     expire_all_cache_for_person(person_id)
     f_to_call = [
                (get_pubs,),
-               (get_self_pubs,),
-               (get_institute_pubs,),
-               (get_pubs_per_year,),
                (get_person_names_dicts,),
-               (get_total_downloads,),
                (get_veryfy_my_pubs_list_link,),
-               (get_kwtuples,),
-               (get_fieldtuples,),
+               (get_rec_query,),
                (get_collabtuples,),
                (get_coauthors,),
-               (get_rec_query,),
+               (get_institute_pubs,),
+               (get_pubs_per_year,),
+               (get_total_downloads,),
+               (get_kwtuples,),
+               (get_fieldtuples,),
                (get_hepnames_data,),
                (get_pubs_per_year,),
                (get_summarize_records, ('hcs', 'en')),
+               (get_self_pubs,),
                 ]
     for f in f_to_call:
         r = [None, False]
@@ -341,10 +341,10 @@ def precompute_cache_for_person(person_ids=None, all_persons=False, only_expired
 
     for i, p in enumerate(pids):
         start = time()
-        print
-        print 'STARTED: ', p, ' ', i
+        #print
+        #print 'STARTED: ', p, ' ', i
         _compute_cache_for_person(p)
-        print 'DONE: ', p , ',' , str(time() - start)
+        #print 'DONE: ', p , ',' , str(time() - start)
 
 def multiprocessing_precompute_cache_for_person(person_ids=None, all_persons=False, only_expired=False):
     pids = []
@@ -552,7 +552,9 @@ def _get_coauthors_bai(collabs, person_id):
     coauthors = []
     for p in personids:
         cn = canonical_name(p[0])
-        ln = max_key(gathered_names_by_personid(p[0]), key=len)
+        # Display of coauthors names disabled to boost performances. May come back in the future.
+        # ln = max_key(gathered_names_by_personid(p[0]), key=len)
+        ln = str(cn)
         # exact number of papers based on query. Not activated for performance reasons.
         # paps = len(perform_request_search(rg=0, p="author:%s author:%s" % (cid, cn)))
         paps = p[1]
