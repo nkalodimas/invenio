@@ -589,7 +589,7 @@ def _get_coauthors_bai(collabs, person_id):
         #ln is used only for exact search in case canonical name is not available. Never happens
         # with bibauthorid, let's print there the canonical name.
         #ln = max_key(gathered_names_by_personid(p[0]), key=len)
-        ln = cn
+        ln = str(cn)
         # exact number of papers based on query. Not activated for performance reasons.
         # paps = len(perform_request_search(rg=0, p="author:%s author:%s" % (cid, cn)))
         paps = p[1]
@@ -851,7 +851,7 @@ def _get_kwtuples_fallback(pubs, person_id):
     '''
 
     tup = get_most_popular_field_values(pubs,
-                            (CFG_WEBAUTHORPROFILE_KEYWORD_TAG, CFG_WEBAUTHORPROFILE_FKEYWORD_TAG), count_repetitive_values=False)
+                            (CFG_WEBAUTHORPROFILE_KEYWORD_TAG, CFG_WEBAUTHORPROFILE_FKEYWORD_TAG), count_repetitive_values=True)
     return tup
 
 def _get_fieldtuples_fallback(pubs, person_id):
@@ -863,7 +863,7 @@ def _get_collabtuples_fallback(pubs, person_id):
     @param person_id: int person id
     '''
     tup = get_most_popular_field_values(pubs,
-                            CFG_WEBAUTHORPROFILE_COLLABORATION_TAG, count_repetitive_values=False)
+                            CFG_WEBAUTHORPROFILE_COLLABORATION_TAG, count_repetitive_values=True)
     return tup
 
 def _get_coauthors_fallback(collabs, person_id):
