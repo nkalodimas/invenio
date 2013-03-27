@@ -500,7 +500,7 @@ def _get_kwtuples_bai(pubs, person_id):
     @param person_id: int person id
     '''
     tup = get_most_popular_field_values(pubs,
-                            (CFG_WEBAUTHORPROFILE_KEYWORD_TAG, CFG_WEBAUTHORPROFILE_FKEYWORD_TAG), count_repetitive_values=False)
+                            (CFG_WEBAUTHORPROFILE_KEYWORD_TAG, CFG_WEBAUTHORPROFILE_FKEYWORD_TAG), count_repetitive_values=True)
     return tup
 
 def _get_fieldtuples_bai(pubs, person_id):
@@ -512,7 +512,7 @@ def _get_fieldtuples_bai_tup(pubs, person_id):
     @param person_id: int person id
     '''
     tup = get_most_popular_field_values(pubs,
-                            CFG_WEBAUTHORPROFILE_FIELDCODE_TAG, count_repetitive_values=False)
+                            CFG_WEBAUTHORPROFILE_FIELDCODE_TAG, count_repetitive_values=True)
     if CFG_WEBAUTHORPROFILE_USE_ALLOWED_FIELDCODES and CFG_WEBAUTHORPROFILE_ALLOWED_FIELDCODES:
         return tuple([x for x in tup if x[0] in CFG_WEBAUTHORPROFILE_ALLOWED_FIELDCODES])
     return tup
@@ -523,7 +523,7 @@ def _get_collabtuples_bai(pubs, person_id):
     @param person_id: int person id
     '''
     tup = get_most_popular_field_values(pubs,
-                            CFG_WEBAUTHORPROFILE_COLLABORATION_TAG, count_repetitive_values=False)
+                            CFG_WEBAUTHORPROFILE_COLLABORATION_TAG, count_repetitive_values=True)
     return tup
 
 # python 2.4 does not supprt max() with key argument.
