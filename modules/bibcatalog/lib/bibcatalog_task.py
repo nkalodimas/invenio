@@ -38,7 +38,9 @@ from invenio.docextract_task import \
     split_ids, \
     fetch_last_updated, \
     store_last_updated
-from invenio.search_engine import perform_request_search
+from invenio.search_engine import \
+    get_collection_reclist, \
+    perform_request_search
 from invenio.bibcatalog import bibcatalog_system
 from invenio.bibcatalog_utils import record_id_from_record
 from invenio.bibcatalog_dblayer import \
@@ -81,6 +83,8 @@ class BibCatalogTicket(object):
                                                       text=self.text,
                                                       recordid=self.recid)
             try:
+                # The BibCatalog API returns int if successful or
+                # a string explaining the error if unsuccessful.
                 self.ticketid = int(res)
             except ValueError:
                 # Not a number. Must be an error string
@@ -97,7 +101,7 @@ class BibCatalogTicket(object):
 
         @return bool: True if it exists, False if not.
         """
-        results = bibcatalog_system.ticket_submit(None,
+        results = bibcatalog_system.ticket_search(None,
                                                   recordid=self.recid,
                                                   queue=self.queue,
                                                   subject=self.subject)
@@ -165,8 +169,8 @@ def task_parse_options(key, value, opts, args):
             collections = set()
             task_set_option('collections', collections)
         for v in value.split(","):
-            collections.update(perform_request_search(c=v))
-    elif key in ('-r', '--recids'):
+            collections.update(get_collection_reclist(v))
+    elif key in ('-i', '--recids'):
         recids = task_get_option('recids')
         if not recids:
             recids = set()
@@ -343,8 +347,8 @@ def main():
 
   -a, --new          Run on all newly inserted records.
   -m, --modified     Run on all newly modified records.
-  -r, --recids       Record id for extraction.
-  -c, --collections  Run on all records in a specific collection.
+  -i, --recids=      Record id for extraction.
+  -c, --collections= Run on all records in a specific collection.
   -q, --query=       Specify a search query to fetch records to run on.
 
   Selection of tickets:
@@ -355,13 +359,13 @@ def main():
    (run a periodical daemon job on a given ticket template)
       bibcatalog -a -t metadata_curation -s1h
    (run on a set of records)
-      bibcatalog --recids 1,2 -r 3
+      bibcatalog --recids 1,2 -i 3
    (run on a collection)
       bibcatalog --collections "Articles"
 
     """,
               version="Invenio v%s" % CFG_VERSION,
-              specific_params=("hVv:r:c:t:q:am",
+              specific_params=("hVv:i:c:t:q:am",
                                 ["help",
                                  "version",
                                  "verbose=",

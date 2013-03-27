@@ -32,7 +32,7 @@ class BibCatalogTagNotFound(Exception):
 
 def record_in_collection(record, collection):
     """
-    Returns True/False if given record is a core record.
+    Returns True/False if given record is in a given collection.
     """
     for collection_tag in record_get_field_instances(record, "980"):
         for coll in field_get_subfield_values(collection_tag, 'a'):
@@ -71,8 +71,8 @@ def record_get_value_with_provenence(record, provenence_value, provenence_code,
     fields = record_get_field_instances(record, tag, ind1, ind2)
     final_values = []
     for subfields, dummy1, dummy2, dummy3, dummy4 in fields:
-        for code, value in subfields:
-            if code == provenence_code and value == provenence_value:
+        for subfield_code, value in subfields:
+            if subfield_code == provenence_code and value == provenence_value:
                 # We have a hit. Stop to look for right value
                 break
         else:
