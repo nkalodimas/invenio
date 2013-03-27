@@ -90,9 +90,11 @@ def split_tag_code(code):
     Splits a tag code in the form of "035__a" into a dictionary with
     tag, indicators and subfield code separated.
     """
+    while len(code) < 6:
+        code += "%"
     return {"tag": code[:3],
             "ind1": code[3],
-            "ind1": code[4],
+            "ind2": code[4],
             "code": code[5]}
 
 
