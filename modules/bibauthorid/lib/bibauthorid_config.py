@@ -158,8 +158,8 @@ DEBUG_TIMESTAMPS = True
 # Print timestamps even in update_status
 DEBUG_TIMESTAMPS_UPDATE_STATUS = True
 
-DEBUG_UPDATE_STATUS_THREAD_SAFE = True
-DEBUG_LOG_TO_PIDFILE = True
+DEBUG_UPDATE_STATUS_THREAD_SAFE = False
+DEBUG_LOG_TO_PIDFILE = False
 
 # The following options trigger the output for parts of
 # bibauthorid which normally generate too much output

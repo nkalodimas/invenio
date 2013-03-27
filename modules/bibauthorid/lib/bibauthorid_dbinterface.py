@@ -1603,9 +1603,9 @@ def populate_partial_marc_caches():
         for i, v in enumerate(groupby(maptable, itemgetter(0))):
             if i % 1000 == 0:
                 update_status(float(i) / maxiters, 'br_dictionarizing...')
-            if i % 1000000 == 0:
-                update_status(float(i) / maxiters, 'br_dictionarizing...GC')
-                gc.collect()
+#            if i % 1000000 == 0:
+#                update_status(float(i) / maxiters, 'br_dictionarizing...GC')
+#                gc.collect()
             idx = defaultdict(list)
             fn = defaultdict(list)
             for _, k, z in v[1]:
@@ -1613,7 +1613,7 @@ def populate_partial_marc_caches():
                 fn[z].append(k)
             md[v[0]]['id'] = idx
             md[v[0]]['fn'] = fn
-        update_status_final('br_dictionarizieng done')
+        update_status_final('br_dictionarizing done')
         gc.enable()
         return md
 

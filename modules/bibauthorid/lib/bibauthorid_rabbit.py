@@ -115,7 +115,8 @@ def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None)
     deleted = frozenset(p[0] for p in get_deleted_papers())
 
     for idx, rec in enumerate(bibrecs):
-        task_sleep_now_if_required(True)
+        if idx%100 == 0:
+            task_sleep_now_if_required(True)
         update_status(float(idx) / len(bibrecs), "%d/%d current: %d" % (idx, len(bibrecs), rec))
         if rec in deleted:
             delete_paper_from_personid(rec)
