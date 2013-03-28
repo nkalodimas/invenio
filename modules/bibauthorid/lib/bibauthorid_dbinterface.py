@@ -2999,7 +2999,7 @@ def get_coauthor_pids(pid, exclude_bibrecs=None):
                    "where bibrec in %s and flag > -2" % papers_s)
 
 
-    pids = set((int(p[0]), int(p[1])) for p in pids)
+    pids = set((int(p[0]), int(p[1])) for p in pids if p[0] != pid)
     pids = sorted([p[0] for p in pids])
     pids = groupby(pids)
     pids = [(key, len(list(val))) for key, val in pids if key != pid]
