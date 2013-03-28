@@ -48,7 +48,8 @@ from invenio.config import CFG_OAI_ID_FIELD, \
      CFG_BIBUPLOAD_SERIALIZE_RECORD_STRUCTURE, \
      CFG_BIBUPLOAD_DELETE_FORMATS, \
      CFG_SITE_URL, CFG_SITE_RECORD, \
-     CFG_OAI_PROVENANCE_ALTERED_SUBFIELD
+     CFG_OAI_PROVENANCE_ALTERED_SUBFIELD, \
+     CFG_CERN_SITE
 
 from invenio.jsonutils import json, CFG_JSON_AVAILABLE
 from invenio.bibupload_config import CFG_BIBUPLOAD_CONTROLFIELD_TAGS, \
@@ -71,7 +72,7 @@ from invenio.bibrecord import create_records, \
                               record_find_field, \
                               record_extract_oai_id, \
                               record_extract_dois
-from invenio.search_engine import get_record
+from invenio.search_engine import get_record, record_exists, search_pattern
 from invenio.dateutils import convert_datestruct_to_datetext
 from invenio.errorlib import register_exception
 from invenio.intbitset import intbitset
@@ -84,8 +85,6 @@ from invenio.bibdocfile import BibRecDocs, file_strip_ext, normalize_format, \
     get_docname_from_url, check_valid_url, download_url, \
     KEEP_OLD_VALUE, decompose_bibdocfile_url, InvenioBibDocFileError, \
     bibdocfile_url_p, CFG_BIBDOCFILE_AVAILABLE_FLAGS, guess_format_from_url
-
-from invenio.search_engine import search_pattern
 
 #Statistic variables
 stat = {}
@@ -471,7 +470,7 @@ def find_record_ids_by_oai_id(oaiId):
         recids = search_pattern(p=oaiId, f=CFG_BIBUPLOAD_EXTERNAL_OAIID_TAG, m='e')
 
         # Is this record already in invenio (matching by reportnumber i.e.
-        # particularly 037. Idea: to avoid doubbles insertions)
+        # particularly 037. Idea: to avoid double insertions)
         repnumber = oaiId.split(":")[-1]
         if repnumber:
             recids |= search_pattern(p = repnumber,
@@ -485,7 +484,10 @@ def find_record_ids_by_oai_id(oaiId):
                                 f = "reportnumber",
                                 m = 'e' )
 
-        return recids
+        if CFG_CERN_SITE:
+            return recids - (search_pattern(p='DELETED', f='980__%', m='e') | search_pattern(p='DUMMY', f='980__%', m='e'))
+        else:
+            return recids - search_pattern(p='DELETED', f='980__%', m='e')
     else:
         return intbitset()
 
@@ -611,10 +613,10 @@ def find_record_from_sysno(sysno):
     except Error, error:
         write_message("   Error during find_record_from_sysno(): %s " % error,
                       verbose=1, stream=sys.stderr)
-    if res:
-        return res[0][0]
-    else:
-        return None
+    for recid in res:
+        if record_exists(recid[0]) > 0: ## Only non deleted records
+            return recid[0]
+    return None
 
 def find_records_from_extoaiid(extoaiid, extoaisrc=None):
     """
@@ -635,6 +637,9 @@ def find_records_from_extoaiid(extoaiid, extoaisrc=None):
         write_message('   Partially found %s for extoaiid="%s"' % (id_bibrecs, extoaiid), verbose=9)
         ret = intbitset()
         for id_bibrec in id_bibrecs:
+            if record_exists(id_bibrec) < 1:
+                ## We don't match not existing records
+                continue
             record = get_record(id_bibrec)
             instances = record_get_field_instances(record, CFG_BIBUPLOAD_EXTERNAL_OAIID_TAG[0:3], CFG_BIBUPLOAD_EXTERNAL_OAIID_TAG[3], CFG_BIBUPLOAD_EXTERNAL_OAIID_TAG[4])
             write_message('   recid %s -> instances "%s"' % (id_bibrec, instances), verbose=9)
@@ -678,10 +683,10 @@ def find_record_from_oaiid(oaiid):
     except Error, error:
         write_message("   Error during find_record_from_oaiid(): %s " % error,
                       verbose=1, stream=sys.stderr)
-    if res:
-        return res[0][0]
-    else:
-        return None
+    for recid in res:
+        if record_exists(recid[0]) > 0: ## Only non deleted records
+            return recid[0]
+    return None
 
 def find_record_from_doi(doi):
     """
@@ -702,6 +707,9 @@ def find_record_from_doi(doi):
 
         # For each of the result, make sure that it is really tagged as doi
         for (id_bibrec, field_number) in res:
+            if record_exists(id_bibrec) < 1:
+                ## We don't match not existing records
+                continue
             res = run_sql("""SELECT bb.id_bibrec
             FROM %(bibrec_bibxxx)s AS bb, %(bibxxx)s AS b
             WHERE b.tag=%%s AND b.value=%%s
