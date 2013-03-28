@@ -283,7 +283,8 @@ def get_summarize_records(person_id, tag, ln):
     if not rcstatus:
         last_updated = datetime.now()
         return [None, False, last_updated]
-    return retrieve_update_cache('summarize_records' + '-' + str(ln), 'pid:' + str(person_id),
+    #Temporary patch: ignoring the language, default to english!
+    return retrieve_update_cache('summarize_records' + '-' + 'en', 'pid:' + str(person_id),
                           _get_summarize_records, pubs, tag, ln, rec_query, person_id)
 
 def _get_summarize_records(pubs, tag, ln, rec_query, person_id):
