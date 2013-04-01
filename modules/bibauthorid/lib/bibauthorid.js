@@ -110,7 +110,7 @@ $(document).ready(function() {
 	$(this).click(function() {
             $(this).parents(".ui-alert").fadeOut("slow");
             return false;
-        } )
+        } );
     });
 
     // Set Focus on last input field w/ class 'focus'
@@ -137,8 +137,55 @@ $(document).ready(function() {
     });
 
 //    update_action_links();
+    // person/search pagination
+    // can pass gResultsperpage at #pagination and read it here
+    if ( $('.pagination').length ) {
+        $("#searchform :input").attr("disabled",true);
+        gResultsPerPage = 3;
+        gCurPage = 1;
+        showPage(gCurPage);
+    }
 });
 
+function showPage(pageNum) {
+    $(".aid_result:visible").hide();
+    var results = $(".aid_result");
+    var resultsNum = results.length;
+    var start = (pageNum-1) * gResultsPerPage;
+    results.slice( start, start+gResultsPerPage).show();
+    var pagesNum = Math.floor(resultsNum/gResultsPerPage) + 1;
+    $(".paginationInfo").text("Page " + pageNum + " of " + pagesNum);
+    generateNextPage(pageNum, pagesNum);
+    generatePreviousPage(pageNum, pagesNum);
+}
+
+function generateNextPage(pageNum, pagesNum) {
+    if (pageNum < pagesNum ) {
+        $(".nextPage").attr("disabled", false);
+        $(".nextPage").off("click");
+        $(".nextPage").on("click", function(event) {
+            gCurPage = pageNum+1;
+            showPage(gCurPage);
+        });
+    }
+    else {
+        $(".nextPage").attr("disabled", true);
+    }
+}
+
+function generatePreviousPage(pageNum, pagesNum) {
+    if (pageNum > 1 ) {
+        $(".previousPage").attr("disabled", false);
+        $(".previousPage").off("click");
+        $(".previousPage").on("click", function(event) {
+            gCurPage = pageNum-1;
+            showPage(gCurPage);
+        });
+    }
+    else {
+        $(".previousPage").attr("disabled", true);
+    }
+}
 
 function toggle_claimed_rows() {
     $('img[alt^="Confirmed."]').parents("tr").toggle()

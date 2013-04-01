@@ -1603,7 +1603,24 @@ class Template:
 
         # base_color = 100
         # row_color = 0
-
+        # #pagination_div
+        h('<div class="pagination" >\
+                <div class="paginationInfo">Page </div>\
+                <div class="paginationSelection">\
+                <button class="previousPage" >Previous</button>\
+                <button class="nextPage" >Next</button>\
+                </div>\
+           </div>')
+        # headers div
+        h('<div id="personHeaders" >\
+            <div style="width: 150px;"><span >Identifier</span></div>\
+            <div style="width: 150px;"><span >Names</span></div>\
+            <div style="width: 150px;"><span >IDs</span></div>\
+            <div style="width: 150px;"><span >Papers</span></div>\
+            <div style="width: 150px;"><span >Link</span></div>\
+            <div style="width: 150px;"><span >Action</span></div>\
+           </div>')
+        h('<div style="clear:both"></div>')
         for index, result in enumerate(results):
             # if len(results) > base_color:
                 # row_color += 1
@@ -1630,8 +1647,10 @@ class Template:
             except IndexError:
                 papers_string = ''
 
-            h('<div id="aid_result%s">' % (index % 2))
-            h('<div style="padding-bottom:5px;">')
+            # person div
+            h('<div id="aid_result%s" class="aid_result" >' % (index % 2))
+            # name div
+            h('<div style="padding-bottom:5px;float:left;width:200px;">')
             # h('<span style="color:rgb(%d,%d,%d);">%s. </span>'
             #     % (row_color, row_color, row_color, index + 1))
             h('<span>%s. </span>' % (index + 1))
@@ -1645,17 +1664,18 @@ class Template:
                 h('<span style="margin-right:20px;">%s </span>'
                             % (name[0]))
             h('</div>')
-            h('<em style="padding-left:1.5em;">')
+            # recent papers
+            h('<div style="padding-left:1.5em;float:left;width:220px;">')
             if index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
                 h(('<a rel="nofollow" href="#" id="aid_moreinfolink" class="mpid%s">'
                             '<img src="../img/aid_plus_16.png" '
                             'alt = "toggle additional information." '
                             'width="11" height="11"/> '
                             + self._('Recent Papers') +
-                            '</a></em>')
+                            '</a></div>')
                             % (pid))
             else:
-                h("</em>")
+                h("</div>")
 
             if search_ticket:
                 link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, pid)
@@ -1663,7 +1683,7 @@ class Template:
                 for r in search_ticket['bibrefs']:
                     link = link + '&selection=%s' % str(r)
 
-                h(('<span style="margin-left: 120px;">'
+                h(('<span style="margin-left: 120px;float:left;">'
                             '<em><a rel="nofollow" href="%s" id="confirmlink">'
                             '<strong>' + self._('YES!') + '</strong>'
                             + self._(' Attribute Papers To ') +
@@ -1711,6 +1731,15 @@ class Template:
             h(self._("Create a new Person for your search"))
             h('</a>')
             h('</div>')
+
+        # #pagination_div
+        h('</br><div class="pagination" >\
+                <div class="paginationInfo">Page </div>\
+                <div class="paginationSelection">\
+                <button class="previousPage" >Previous</button>\
+                <button class="nextPage" >Next</button>\
+                </div>\
+           </div>')
 
         return "\n".join(html)
 
