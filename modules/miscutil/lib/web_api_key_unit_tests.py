@@ -19,3 +19,11 @@
 """Unit tests for REST like authentication API.
 
 moved to web_api_key_regression_tests.py"""
+
+from invenio.testutils import make_test_suite, run_test_suite
+
+
+TEST_SUITE = make_test_suite()
+
+if __name__ == '__main__':
+    run_test_suite(TEST_SUITE)

@@ -23,3 +23,11 @@
 # self-cite commit 1fcbed0ec34a9c31f8a727e21890c529d8222256.  Keeping
 # this file here in order to overwrite any previously installed file
 # (with tests that would now fail).
+
+from invenio.testutils import make_test_suite, run_test_suite
+
+
+TEST_SUITE = make_test_suite()
+
+if __name__ == '__main__':
+    run_test_suite(TEST_SUITE)

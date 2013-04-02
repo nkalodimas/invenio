@@ -31,29 +31,21 @@ import sys
 import unittest
 import tempfile
 import cStringIO
-import random
-import copy
 import os
-import glob
 import time
 import stat
 import shutil
 
-import bibclassify_config as bconfig
+from invenio import bibclassify_config as bconfig
 from testutils import make_test_suite, run_test_suite, nottest
 import config
-import bibclassify_engine
-import bibclassify_cli
-import bibclassify_ontology_reader
+from invenio import bibclassify_ontology_reader
 
 log = bconfig.get_logger("bibclassify.tests")
 
 # do this only if not in STANDALONE mode
-bibclassify_daemon = dbquery = None
 if not bconfig.STANDALONE:
-    import dbquery
-    import bibclassify_daemon
-    import bibdocfile
+    from invenio import bibdocfile
 
 
 class BibClassifyTestCase(unittest.TestCase):
@@ -297,10 +289,10 @@ def suite(cls=BibClassifyTest):
 
     return unittest.TestSuite(map(cls, tests))
 
+
+TEST_SUITE = make_test_suite(BibClassifyTest)
 if 'custom' in sys.argv:
     TEST_SUITE = suite(BibClassifyTest)
-else:
-    TEST_SUITE = make_test_suite(BibClassifyTest)
 
 
 if __name__ == '__main__':

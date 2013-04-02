@@ -298,10 +298,12 @@ class RebuildReferencesTest(unittest.TestCase):
         print 'rebuilt_refs', repr(rebuilt_refs)
 
 
+TEST_SUITE = make_test_suite(ReTest,
+                             IbidTest,
+                             FindNumerationTest,
+                             SearchTest,
+                             RebuildReferencesTest)
+
+
 if __name__ == '__main__':
-    test_suite = make_test_suite(ReTest,
-                                 IbidTest,
-                                 FindNumerationTest,
-                                 SearchTest,
-                                 RebuildReferencesTest)
     run_test_suite(test_suite)
