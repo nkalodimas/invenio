@@ -2612,7 +2612,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             ssl_param = 1
 
         req.write(pageheaderonly(req=req, title=title_message, uid=login_info["uid"],
-                               language=ln, secure_page_p=ssl_param))
+                               language=ln, secure_page_p=ssl_param, metaheaderadd=self._scripts(kill_browser_cache=True)))
         req.write(TEMPLATE.tmpl_welcome_start())
         
         if not login_info['logged_in']:
