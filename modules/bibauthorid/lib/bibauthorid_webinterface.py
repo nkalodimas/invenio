@@ -2264,7 +2264,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return TEMPLATE.tmpl_search_ticket_box('person_search', 'assign_papers', search_ticket['bibrefs'])
 
 
-    def search(self, req, form, is_fallback=False, fallback_query='', fallback_title='', fallback_message=''):
+    def search(self, req, form, welcome_mode = False, welcome_query=""):
         '''
         Function used for searching a person based on a name with which the
         function is queried.
@@ -2317,8 +2317,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if argd['q']:
                 query = escape(argd['q'])
 
-        if is_fallback and fallback_query:
-            query = fallback_query
+        if welcome_mode:
+            query = escape(welcome_query)
 
         if query:
             authors = []
@@ -2371,16 +2371,17 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                 authorpapers[0:max_num_show_papers], len(authorpapers)])
 
             search_results = authors
-
-        if recid and (len(search_results) == 1) and not is_fallback:
+        
+        if recid and (len(search_results) == 1):
             return redirect_to_url(req, "/person/%s" % search_results[0][0])
+        
+        body = body + TEMPLATE.tmpl_author_search(query, search_results, search_ticket, author_pages_mode=True,
+                                                  new_person_link=new_person_link, welcome_mode = welcome_mode)
 
-        body = body + TEMPLATE.tmpl_author_search(query, search_results, search_ticket, author_pages_mode=True, fallback_mode=is_fallback,
-                                                  fallback_title=fallback_title, fallback_message=fallback_message, new_person_link=new_person_link)
+        body = TEMPLATE.tmpl_person_detail_layout(body)
 
-        if not is_fallback:
-            body = TEMPLATE.tmpl_person_detail_layout(body)
-
+        if welcome_mode:
+            return body
         return page(title=title,
                     metaheaderadd=self._scripts(kill_browser_cache=True),
                     body=body,
@@ -2564,6 +2565,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         action = argd['action']
         selected_pid = argd['pid']
         search_param = argd['search_param']
+        
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
 
@@ -2586,11 +2588,11 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             # get union of recids from all external systems: set(inspire_recids_list)
             recids = webapi.get_remote_login_systems_recids(req, login_info['remote_logged_in_systems'])
             pid = webapi.get_user_pid(login_info['uid'])
-    
+
             if action == None or pid >= 0:
-                self._welcome_main_functionality(req, login_info, recids, remote_login_systems_info, pid, '')
+                self._welcome_main_functionality(req, form, login_info, recids, remote_login_systems_info, pid, '')
             elif action == 'search':
-                self._welcome_main_functionality(req, login_info, recids, remote_login_systems_info, pid, search_param)
+                self._welcome_main_functionality(req, form, login_info, recids, remote_login_systems_info, pid, search_param)
             elif action == 'select':
                 self._welcome_profile_selection(req, login_info, selected_pid, recids)
         req.write(TEMPLATE.tmpl_welcome_end())
@@ -2632,7 +2634,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
 
 
-    def _welcome_main_functionality(self, req, login_status, recids, remote_login_systems_info, pid, search_param ):
+    def _welcome_main_functionality(self, req, form, login_status, recids, remote_login_systems_info, pid, search_param ):
         # check if a profile is already associated
 
         if pid != -1:
@@ -2650,22 +2652,18 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if probable_pid > -1:
                 profile_suggestion_info = webapi.get_profile_suggestion_info(req, probable_pid)
                 req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(profile_suggestion_info))
-            #return self._error_page(req, ln, "%s" % str(probable_pid))
+            
             if not search_param:
                 name_variants = webapi.get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
                 search_param = most_relevant_name(name_variants)
 
-            self._welcome_profile_search(req, search_param)
-
-
-    def _welcome_profile_search(self, req, search_param):
-        # search_results = search...
-        # if the one we suggested is not the one you think, please search for the one you like most
-        # this show the search box prefilled with one of the names we got
-        # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
-        # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
-        req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
-        # plus the create a new empty one button!
+            req.write(self.search(req, form, welcome_mode = True, welcome_query = search_param))
+            # search_results = search...
+            # if the one we suggested is not the one you think, please search for the one you like most
+            # this show the search box prefilled with one of the names we got
+            # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
+            # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
+            req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
 
 
     def _welcome_profile_selection(self, req, login_status, selected_pid, recids):

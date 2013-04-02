@@ -1533,8 +1533,7 @@ class Template:
 
     def tmpl_author_search(self, query, results,
                            search_ticket=None, author_pages_mode=True,
-                           fallback_mode=False, fallback_title='',
-                           fallback_message='', new_person_link=False):
+                           new_person_link=False, welcome_mode = False):
         '''
         Generates the search for Person entities.
 
@@ -1557,18 +1556,21 @@ class Template:
         html = []
         h = html.append
 
-        h('<form id="searchform" action="/person/search" method="GET">')
-        h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
-        h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="q" style="border:1px solid #333; width:500px;" '
-                    'maxlength="250" value="%s" class="focus" />' % query)
-        h('<input type="submit" value="Search" />')
-        h('</form>')
-
-        if fallback_mode:
-            if fallback_title:
-                h('<div id="header">%s</div>' % fallback_title)
-            if fallback_message:
-                h('%s' % fallback_message)
+        if welcome_mode:
+            h('<form id="searchform" action="/person/welcome" method="GET">' )
+            h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
+            h('<input type="hidden" name="action" value="search">')
+            h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="search_param" style="border:1px solid #333; width:500px;" '
+                        'maxlength="250" value="%s" class="focus" />' % query)
+            h('<input type="submit" value="Search" />')
+            h('</form>')
+        else:
+            h('<form id="searchform" action="/person/search" method="GET">')
+            h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
+            h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="q" style="border:1px solid #333; width:500px;" '
+                        'maxlength="250" value="%s" class="focus" />' % query)
+            h('<input type="submit" value="Search" />')
+            h('</form>')
 
         if not results and not query:
             h('</div>')
@@ -1665,12 +1667,20 @@ class Template:
                             '%s %s </a></em></span>')
                             % (link, get_person_redirect_link(pid), papers_string))
             else:
-                h(('<span style="margin-left: 40px;">'
-                            '<em><a rel="nofollow" href="%s/%s/%s" id="aid_moreinfolink">'
-                            + self._('Publication List ') + '(%s) %s </a></em></span>')
-                            % (CFG_SITE_URL, linktarget,
-                               get_person_redirect_link(pid),
-                               get_person_redirect_link(pid), papers_string))
+                if welcome_mode:
+                    link =  "%s/person/welcome?action=select&pid=%s" % (CFG_SITE_URL, pid)
+                    h(('<span style="margin-left: 120px;">'
+                                '<em><a rel="nofollow" href="%s" id="confirmlink">'
+                                '<strong>' + self._('Claim this profile!') + '</strong>'
+                                +'</a></em></span>')
+                                % (link))                    
+                else:
+                    h(('<span style="margin-left: 40px;">'
+                                '<em><a rel="nofollow" href="%s/%s/%s" id="aid_moreinfolink">'
+                                + self._('Publication List ') + '(%s) %s </a></em></span>')
+                                % (CFG_SITE_URL, linktarget,
+                                   get_person_redirect_link(pid),
+                                   get_person_redirect_link(pid), papers_string))
             h('<div class="more-mpid%s" id="aid_moreinfo">' % (pid))
 
             if papers and index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
