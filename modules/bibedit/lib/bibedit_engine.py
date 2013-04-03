@@ -707,6 +707,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 if merged_record:
                     record = merged_record
                     create_cache_file(recid, uid, record, True)
+                    mtime = get_cache_mtime(recid, uid)
 
             if record_status == -1:
                 # The record was deleted
