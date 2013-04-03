@@ -25,11 +25,12 @@ Checks arxiv records for missing pdfs and downloads them from arXiv
 
 import os
 import time
-from tempfile import mkstemp
+from tempfile import NamedTemporaryFile
 from datetime import datetime
 import urllib2
 import socket
 
+from invenio.bibdocfilecli import bibupload_ffts
 from invenio.docextract_task import store_last_updated, \
                                     fetch_last_updated
 from invenio.shellutils import split_cli_ids_arg
@@ -89,12 +90,12 @@ def build_arxiv_url(arxiv_id):
 
 def extract_arxiv_ids_from_recid(recid):
     for report_number in get_fieldvalues(recid, '037__a'):
-        if not report_number.startswith('arXiv'):
-            continue
+        if report_number.startswith('arXiv'):
+            report_number = report_number.split(':')[1]
 
         # Extract arxiv id
         try:
-            yield report_number.split(':')[1]
+            yield report_number
         except IndexError:
             raise InvalidReportNumber(report_number)
 
@@ -202,40 +203,46 @@ def download_external_url(url, download_to_file, content_type=None,
     @raise StandardError: if the download failed
     """
     # 1. Attempt to download the external file
-    attempts = 0
     error_str = ""
     error_code = None
-    while attempts < retry_count:
+    for attempts in range(retry_count):
         try:
             request = open_url(url)
         except urllib2.HTTPError, e:
             error_code = e.code
             error_str = str(e)
-            attempts += 1
-            if e.code == 503:
-                retry_after = int(e.headers.get("Retry-After", (timeout * timeout)))
-            else:
-                retry_after = timeout
+            retry_after = timeout
+            if e.code == 503 and "Retry-After" in e.headers:
+                # PDF is being generated, they ask us to wait for n seconds
+                try:
+                    retry_after = int(e.headers["Retry-After"])
+                except ValueError:
+                    pass
             time.sleep(retry_after)
-            continue
         except (urllib2.URLError, socket.timeout, socket.gaierror, socket.error), e:
             error_str = str(e)
-            attempts += 1
             time.sleep(timeout)
-            continue
-        # When we get here, it means that the download was a success.
-        try:
-            finalize_download(url, download_to_file, content_type, request)
-        finally:
-            request.close()
-        return download_to_file
+        else:
+            # When we get here, it means that the download was a success.
+            try:
+                finalize_download(url, download_to_file, content_type, request)
+            finally:
+                request.close()
+            break
     else:
         # All the attempts were used, but no successfull download - so raise error
         raise InvenioFileDownloadError('URL could not be opened: %s' % (error_str,), code=error_code)
 
+    return download_to_file
+
 
 def finalize_download(url, download_to_file, content_type, request):
-    # 3. Save the downloaded file to desired or generated location.
+    # If format is given, a format check is performed.
+    if content_type and content_type not in request.headers['content-type']:
+        msg = 'The downloaded file is not of the desired format'
+        raise InvenioFileDownloadError(msg)
+
+    # Save the downloaded file to desired or generated location.
     to_file = open(download_to_file, 'w')
     try:
         try:
@@ -245,25 +252,25 @@ def finalize_download(url, download_to_file, content_type, request):
                     break
                 to_file.write(block)
         except Exception, e:
-            raise InvenioFileDownloadError("Error when downloading %s into %s: %s" % \
+            raise InvenioFileDownloadError("Error when downloading %s into %s: %s" %
                     (url, download_to_file, e))
     finally:
         to_file.close()
 
-    if os.path.getsize(download_to_file) == 0:
+    # Check Size
+    filesize = os.path.getsize(download_to_file)
+    if filesize == 0:
         raise InvenioFileDownloadError("%s seems to be empty" % (url,))
 
-    f = open(download_to_file)
-    try:
-        for line in f:
-            if 'PDF unavailable' in line:
-                raise PdfNotAvailable()
-    finally:
-        f.close()
-
-    # 4. If format is given, a format check is performed.
-    if content_type and content_type not in request.headers['content-type']:
-        raise InvenioFileDownloadError('The downloaded file is not of the desired format')
+    # Check if it is not an html not found page
+    if filesize < 25000:
+        f = open(download_to_file)
+        try:
+            for line in f:
+                if 'PDF unavailable' in line:
+                    raise PdfNotAvailable()
+        finally:
+            f.close()
 
     # download successful, return the new path
     return download_to_file
@@ -276,26 +283,23 @@ def download_one(recid):
     write_message('fetching %s' % recid)
     for count, arxiv_id in enumerate(extract_arxiv_ids_from_recid(recid)):
         if count != 0:
-            time.sleep(60)
+            write_message("Warning: %s has multiple arxiv #" % recid)
+            continue
         url_for_pdf = build_arxiv_url(arxiv_id)
         filename_arxiv_id = arxiv_id.replace('/', '_')
-        temp_fd, temp_path = mkstemp(prefix="arxiv-pdf-checker",
-                                     dir=CFG_TMPSHAREDDIR,
-                                     suffix="%s.pdf" % filename_arxiv_id)
-        try:
-            os.close(temp_fd)
-            write_message('downloading pdf from %s' % url_for_pdf)
-            path = download_external_url(url_for_pdf,
-                                         temp_path,
-                                         content_type='pdf')
-            docs = BibRecDocs(recid)
-            docs.add_new_file(path,
-                              doctype="arXiv",
-                              docname="arXiv:%s" % filename_arxiv_id)
-        except:
-            if os.path.isfile(temp_path):
-                os.unlink(temp_path)
-            raise
+        temp_file = NamedTemporaryFile(prefix="arxiv-pdf-checker",
+                                       dir=CFG_TMPSHAREDDIR,
+                                       suffix="%s.pdf" % filename_arxiv_id)
+        write_message('downloading pdf from %s' % url_for_pdf)
+        path = download_external_url(url_for_pdf,
+                                     temp_file.name,
+                                     content_type='pdf')
+        docs = BibRecDocs(recid)
+        docs.add_new_file(path,
+                          doctype="arXiv",
+                          docname="arXiv:%s" % filename_arxiv_id)
+        ffts = {recid: [{'doctype' : 'FIX-MARC'}]}
+        bibupload_ffts(ffts, append=False, interactive=False)
 
 
 def process_one(recid):

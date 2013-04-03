@@ -48,9 +48,15 @@ class TestTask(unittest.TestCase):
     def clean_bibtask(self):
         from invenio.arxiv_pdf_checker import NAME
         run_sql("""DELETE FROM schTASK
-           WHERE user = %s
-           ORDER BY id DESC LIMIT 1
+                   WHERE user = %s
+                   ORDER BY id DESC LIMIT 1
         """, [NAME])
+
+    def clean_bibupload_fft(self):
+        run_sql("""DELETE FROM schTASK
+                   WHERE proc = 'bibupload:FFT'
+                   ORDER BY id DESC LIMIT 1""")
+
 
     def test_fetch_records(self):
         from invenio.arxiv_pdf_checker import fetch_updated_arxiv_records
@@ -62,6 +68,7 @@ class TestTask(unittest.TestCase):
         from invenio.arxiv_pdf_checker import task_run_core
         self.assert_(task_run_core())
         self.clean_bibtask()
+        self.clean_bibupload_fft()
 
     def test_shellquote(self):
         from invenio.arxiv_pdf_checker import shellquote
@@ -165,6 +172,8 @@ class TestTask(unittest.TestCase):
             doc.delete_file(docfile.get_format(), docfile.get_version())
             if not doc.list_all_files():
                 doc.expunge()
+
+        self.clean_bibupload_fft()
 
 
 TEST_SUITE = make_test_suite(TestTask)
