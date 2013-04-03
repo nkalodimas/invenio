@@ -364,6 +364,11 @@ function onGetTicketsSuccess(json) {
 /*
  * Handle successfull 'getTickets' requests.
  */
+  // clean tickets area
+  $('#tickets').empty();
+  $('#newTicketDiv').remove();
+  $('#rtError').remove();
+
   $("#loadingTickets").hide();
   var tickets = json['tickets'];
   if (json['resultCode'] == 31 && json['tickets'] && gRecID) {
