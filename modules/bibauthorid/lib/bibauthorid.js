@@ -94,6 +94,15 @@ $(document).ready(function() {
                 }
     });
 
+    $('#personsTable').dataTable({
+            "bJQueryUI": true,
+            "sPaginationType": "full_numbers",
+            "aoColumnDefs": [
+                { "bSortable": false, "aTargets": [ 3, 4, 5, 6 ] }
+                ],
+            "iDisplayLength": 5,
+            "aLengthMenu": [5, 10, 20],
+    });
 
     // Activate Tabs
     $("#aid_tabbing").tabs();
@@ -139,12 +148,12 @@ $(document).ready(function() {
 //    update_action_links();
     // person/search pagination
     // can pass gResultsperpage at #pagination and read it here
-    if ( $('.pagination').length ) {
-        $("#searchform :input").attr("disabled",true);
-        gResultsPerPage = 3;
-        gCurPage = 1;
-        showPage(gCurPage);
-    }
+    // if ( $('.pagination').length ) {
+    //     $("#searchform :input").attr("disabled",true);
+    //     gResultsPerPage = 3;
+    //     gCurPage = 1;
+    //     showPage(gCurPage);
+    // }
 });
 
 function showPage(pageNum) {
