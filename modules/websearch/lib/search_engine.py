@@ -2195,7 +2195,7 @@ def search_unit(p, f=None, m=None, wl=0, synonyms=True):
     elif f == 'citedby':
         # we are doing search by the citation count
         hitset = search_unit_citedby(p)
-    elif m == 'a' or m == 'r':
+    elif m == 'a' or m == 'r' or f == 'subject':
         # we are doing either phrase search or regexp search
         if f == 'fulltext':
             # FIXME: workaround for not having phrase index yet
