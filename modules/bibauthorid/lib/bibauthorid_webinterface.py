@@ -2339,7 +2339,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 except ValueError:
                     recid = None
                     nquery = query
-
             else:
                 nquery = query
 
