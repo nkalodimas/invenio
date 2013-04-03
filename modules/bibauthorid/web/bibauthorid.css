@@ -75,8 +75,9 @@
 
 #aid_moreinfo {
     background: inherit;/*#F0F0F6;*/
-    margin: 10px;
-    padding: 10px;
+    margin: 0px;
+    padding: 0px;
+    text-align: left;
 }
 
 #aid_moreinfo .record_body {
@@ -92,7 +93,7 @@
 }
 
 #aid_moreinfo ul li {
-    margin-top: 10px;
+    margin-top: 0px;
 }
 
 #aid_result0 {
@@ -242,9 +243,9 @@
 }
 
 .aid_result {
-    position: relative;
+    /*position: relative;
     display: inline-block;
-    width:1760px;
+    width:1760px;*/
 }
 
 /* Hack for some UI Themes since not always are these 2 classes included */
@@ -292,7 +293,7 @@
     width: 100% !Important;
 }
 
-#personHeaders {
+/*#personHeaders {
     min-height: 20px;
     margin: 5px;
     padding: 5px 15px;
@@ -306,9 +307,55 @@
     font-size: 1.2em;
     font-weight: bold;
     color: #3366CC;
+}*/
+
+/*
+ * Persons table
+ */
+
+#personsTable {
+    margin-top: 10px;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+
 }
 
-.pagination {
+#personsTable th {
+    /*text-align: center;*/
+    line-height: 40px;
+}
+
+#personsTable tr {
+    height: 45px;
+    text-align: center;
+}
+
+#personsTable tbody tr.even:hover, #personsTable tr.even td.highlighted {
+    background-color: lightblue;
+}
+
+#personsTable tbody tr.odd:hover, #personsTable tr.odd td.highlighted {
+    background-color: lightblue;
+}
+
+#personsTable tr.even:hover td.sorting_1 {
+    background-color: lightblue;
+}
+
+#personsTable tr.odd:hover td.sorting_1 {
+    background-color: lightblue;
+}
+
+/*.even {
+    background: #fff!important;
+}
+
+.odd {
+    background: #F0F0F6!important;
+}*/
+
+/*.pagination {
     position: relative;
     background-color: #D0D0D0;
     border-color: #AAAAAA;
@@ -329,11 +376,11 @@
     position: absolute;
     right: 950px;
     /*margin-right: 950px;*/
-    margin-top: 3px;
+/*    margin-top: 3px;
     font-size: 1.1em;
 }
 
 .paginationSelection button {
     width:70px;
 
-}
+}*/

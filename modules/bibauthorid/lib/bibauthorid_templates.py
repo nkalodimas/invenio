@@ -1557,7 +1557,7 @@ class Template:
         h = html.append
 
         if welcome_mode:
-            h('<form id="searchform" action="/person/welcome" method="GET">' )
+            h('<form id="searchform" action="/person/welcome" method="GET">')
             h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
             h('<input type="hidden" name="action" value="search">')
             h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="search_param" style="border:1px solid #333; width:500px;" '
@@ -1600,24 +1600,28 @@ class Template:
 
         # base_color = 100
         # row_color = 0
-        # #pagination_div
-        h('<div class="pagination" >\
-                <div class="paginationInfo">Page </div>\
-                <div class="paginationSelection">\
-                <button class="previousPage" >Previous</button>\
-                <button class="nextPage" >Next</button>\
-                </div>\
-           </div>')
-        # headers div
-        h('<div id="personHeaders" >\
-            <div style="width: 150px;"><span >Identifier</span></div>\
-            <div style="width: 150px;"><span >Names</span></div>\
-            <div style="width: 150px;"><span >IDs</span></div>\
-            <div style="width: 150px;"><span >Papers</span></div>\
-            <div style="width: 150px;"><span >Link</span></div>\
-            <div style="width: 150px;"><span >Action</span></div>\
-           </div>')
-        h('<div style="clear:both"></div>')
+        # html table
+        h('<table id="personsTable">')
+        h('<!-- Table header -->\
+                <thead>\
+                    <tr>\
+                        <th scope="col" id="" style="width:85px;">Number</th>\
+                        <th scope="col" id="">Identifiers</th>\
+                        <th scope="col" id="">Names</th>\
+                        <th scope="col" id="">IDs</th>\
+                        <th scope="col" id="" style="width:350px">Papers</th>\
+                        <th scope="col" id="">Link</th>\
+                        <th scope="col" id="">Action</th>\
+                    </tr>\
+                </thead>\
+           <!-- Table footer -->\
+                <tfoot>\
+                    <tr>\
+                        <td>Footer</td>\
+                    </tr>\
+                </tfoot>\
+           <!-- Table body -->\
+                <tbody>')
         for index, result in enumerate(results):
             # if len(results) > base_color:
                 # row_color += 1
@@ -1644,36 +1648,64 @@ class Template:
             except IndexError:
                 papers_string = ''
 
-            # person div
-            h('<div id="aid_result%s" class="aid_result" >' % (index % 2))
-            # name div
-            h('<div style="padding-bottom:5px;float:left;width:200px;">')
-            # h('<span style="color:rgb(%d,%d,%d);">%s. </span>'
-            #     % (row_color, row_color, row_color, index + 1))
-            h('<span>%s. </span>' % (index + 1))
+            # person row
+            h('<tr>')
+            h('<td><span>%s</span></td>' % (index + 1))
 
 #            for nindex, name in enumerate(names):
 #                color = row_color + nindex * 35
 #                color = min(color, base_color)
 #                h('<span style="color:rgb(%d,%d,%d);">%s; </span>'
 #                            % (color, color, color, name[0]))
+            #Identifiers
+            h('<td>Sample identifier</td>')
+            #Names
+            h('<td>')
             for name in names:
                 h('<span style="margin-right:20px;">%s </span>'
                             % (name[0]))
-            h('</div>')
+            h('</td>')
+            # IDs
+            h('<td>Sample Id</td>') # TODO: get id
             # recent papers
-            h('<div style="padding-left:1.5em;float:left;width:220px;">')
+            h('<td>')
             if index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
                 h(('<a rel="nofollow" href="#" id="aid_moreinfolink" class="mpid%s">'
                             '<img src="../img/aid_plus_16.png" '
                             'alt = "toggle additional information." '
                             'width="11" height="11"/> '
                             + self._('Recent Papers') +
-                            '</a></div>')
+                            '</a>')
                             % (pid))
-            else:
-                h("</div>")
+                h('<div class="more-mpid%s" id="aid_moreinfo">' % (pid))
 
+                if papers and index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
+                    h((self._('Showing the') + ' %d ' + self._('most recent documents:')) % len(papers))
+                    h("<ul>")
+
+                    for paper in papers:
+                        h("<li>%s</li>"
+                               % (format_record(int(paper[0]), "ha")))
+
+                    h("</ul>")
+                elif not papers:
+                    h("<p>" + self._('Sorry, there are no documents known for this person') + "</p>")
+                elif index >= bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
+                    h("<p>" + self._('Information not shown to increase performances. Please refine your search.') + "</p>")
+
+                h(('<span style="margin-left: 40px;">'
+                            '<em><a rel="nofollow" href="%s/%s/%s" target="_blank" id="aid_moreinfolink">'
+                            + self._('Publication List ') + '(%s)</a> (in a new window or tab)</em></span>')
+                            % (CFG_SITE_URL, linktarget,
+                               get_person_redirect_link(pid),
+                               get_person_redirect_link(pid)))
+                h('</div>')
+                h('</td>')
+            else:
+                h('</td>')
+
+            #Link
+            h('<td>')
             if search_ticket:
                 link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, pid)
 
@@ -1695,36 +1727,20 @@ class Template:
                                 +'</a></em></span>')
                                 % (link))                    
                 else:
-                    h(('<span style="margin-left: 40px;">'
+                    h(('<span>'
                                 '<em><a rel="nofollow" href="%s/%s/%s" id="aid_moreinfolink">'
                                 + self._('Publication List ') + '(%s) %s </a></em></span>')
                                 % (CFG_SITE_URL, linktarget,
                                    get_person_redirect_link(pid),
                                    get_person_redirect_link(pid), papers_string))
-            h('<div class="more-mpid%s" id="aid_moreinfo">' % (pid))
 
-            if papers and index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
-                h((self._('Showing the') + ' %d ' + self._('most recent documents:')) % len(papers))
-                h("<ul>")
+            #Link
+            h('<td>Sample action</td>')
 
-                for paper in papers:
-                    h("<li>%s</li>"
-                           % (format_record(int(paper[0]), "ha")))
-
-                h("</ul>")
-            elif not papers:
-                h("<p>" + self._('Sorry, there are no documents known for this person') + "</p>")
-            elif index >= bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
-                h("<p>" + self._('Information not shown to increase performances. Please refine your search.') + "</p>")
-
-            h(('<span style="margin-left: 40px;">'
-                        '<em><a rel="nofollow" href="%s/%s/%s" target="_blank" id="aid_moreinfolink">'
-                        + self._('Publication List ') + '(%s)</a> (in a new window or tab)</em></span>')
-                        % (CFG_SITE_URL, linktarget,
-                           get_person_redirect_link(pid),
-                           get_person_redirect_link(pid)))
-            h('</div>')
-            h('</div>')
+            h('</td>')
+            h('</tr>')
+        h('</tbody>')
+        h('</table>')
 
         if new_person_link:
             link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, '-3')
@@ -1736,15 +1752,6 @@ class Template:
             h(self._("Create a new Person for your search"))
             h('</a>')
             h('</div>')
-
-        # #pagination_div
-        h('</br><div class="pagination" >\
-                <div class="paginationInfo">Page </div>\
-                <div class="paginationSelection">\
-                <button class="previousPage" >Previous</button>\
-                <button class="nextPage" >Next</button>\
-                </div>\
-           </div>')
 
         return "\n".join(html)
 
