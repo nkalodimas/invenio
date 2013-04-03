@@ -201,7 +201,7 @@ def metadata_upload(req, metafile=None, filetype=None, mode=None, exec_date=None
             return (error_codes['not_authorized'], allow[1])
 
     # run upload command:
-    task_arguments = ('bibupload', user_info['nickname'], mode, "--name=" + metafilename, "--priority=" + priority)
+    task_arguments = ('bibupload', user_info['nickname'], mode, "--priority=" + priority)
     if exec_date:
         date = exec_date
         if exec_time:
@@ -330,7 +330,7 @@ def document_upload(req=None, folder="", matching="", mode="", exec_date="", exe
                 user = "batchupload"
             # Execute bibupload with the appropiate mode
 
-            task_arguments = ('bibupload', user, "--" + mode, "--name=" + docfile, "--priority=" + priority)
+            task_arguments = ('bibupload', user, "--" + mode, "--priority=" + priority)
 
             if exec_date:
                 date = '--runtime=' + "\'" + exec_date + ' ' + exec_time + "\'"
