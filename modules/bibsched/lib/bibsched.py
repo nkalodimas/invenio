@@ -51,7 +51,8 @@ from invenio.config import \
      CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS, \
      CFG_SITE_URL, \
      CFG_BIBSCHED_NODE_TASKS, \
-     CFG_BIBSCHED_MAX_ARCHIVED_ROWS_DISPLAY
+     CFG_BIBSCHED_MAX_ARCHIVED_ROWS_DISPLAY, \
+     CFG_INSPIRE_SITE
 from invenio.dbquery import run_sql, real_escape_string
 from invenio.textutils import wrap_text_in_a_box
 from invenio.errorlib import register_exception, register_emergency
@@ -1072,44 +1073,58 @@ class BibSched(object):
         self.node_relevant_waiting_tasks = filter_tasks(self.node_relevant_waiting_tasks)
         self.node_relevant_sleeping_tasks = filter_tasks(self.node_relevant_sleeping_tasks)
 
-    def is_task_safe_to_execute(self, proc1, proc2):
-        """Return True when the two tasks can run concurrently."""
-        return proc1 != proc2  # and not proc1.startswith('bibupload') and not proc2.startswith('bibupload')
+    def is_task_compatible(self, proc1, proc2):
+        """Return True when the two tasks can run concurrently or can run when
+        the other task is sleeping"""
+        return proc1 != proc2 or proc1.startswith('bibupload') and proc2.startswith('bibupload')
 
     def get_tasks_to_sleep_and_stop(self, proc, task_set):
         """Among the task_set, return the list of tasks to stop and the list
         of tasks to sleep.
         """
-        if proc in CFG_BIBTASK_MONOTASKS:
-            return [], [t for t in task_set
-                                if t[3] not in ('SLEEPING', 'ABOUT TO SLEEP')]
+        def minimum_priority_task(task_set):
+            min_prio = None
+            min_task_id = None
+            min_proc = None
+            min_status = None
+            min_sequenceid = None
 
-        min_prio = None
-        min_task_id = None
-        min_proc = None
-        min_status = None
-        min_sequenceid = None
+            ## For all the lower priority tasks...
+            for (this_task_id, this_proc, dummy, this_status, this_priority, dummy, this_sequenceid) in task_set:
+                if (min_prio is None or this_priority < min_prio) and this_status != 'SLEEPING':
+                    ## We don't put to sleep already sleeping task :-)
+                    min_prio = this_priority
+                    min_task_id = this_task_id
+                    min_proc = this_proc
+                    min_status = this_status
+                    min_sequenceid = this_sequenceid
+
+            return min_prio, min_task_id, min_proc, min_status, min_sequenceid
+
         to_stop = []
+        to_sleep = []
 
-        ## For all the lower priority tasks...
-        for (this_task_id, this_proc, this_priority, this_status, this_sequenceid) in task_set:
-            if not self.is_task_safe_to_execute(this_proc, proc):
+        for (this_task_id, this_proc, dummy, this_status, this_priority, dummy, this_sequenceid) in task_set:
+            if not self.is_task_compatible(this_proc, proc):
                 to_stop.append((this_task_id, this_proc, this_priority, this_status, this_sequenceid))
-            elif (min_prio is None or this_priority < min_prio) and \
-                            this_status not in ('SLEEPING', 'ABOUT TO SLEEP'):
-                ## We don't put to sleep already sleeping task :-)
-                min_prio = this_priority
-                min_task_id = this_task_id
-                min_proc = this_proc
-                min_status = this_status
-                min_sequenceid = this_sequenceid
 
-        if to_stop:
-            return to_stop, []
-        elif min_task_id:
-            return [], [(min_task_id, min_proc, min_prio, min_status, min_sequenceid)]
-        else:
-            return [], []
+        if proc in CFG_BIBTASK_MONOTASKS:
+            to_sleep = [t for t in task_set if t[3] != 'SLEEPING']
+        elif proc.startswith('bibupload'):
+            for t in task_set:
+                if t[1].startswith('bibupload') and t[3] != 'SLEEPING':
+                    to_sleep.append(t)
+
+        # Only needed if we are not freeing a spot already
+        # So to_stop and to_sleep should be empty
+        if not to_stop and not to_sleep and \
+                len(self.node_relevant_active_tasks) == \
+                                      CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS:
+            min_task = minimum_priority_task(task_set)
+            if min_task[0]:
+                to_sleep = [min_task]
+
+        return to_stop, to_sleep
 
     def split_active_tasks_by_priority(self, task_id, priority):
         """Return two lists: the list of task_ids with lower priority and
@@ -1166,7 +1181,7 @@ class BibSched(object):
                     self.node_relevant_sleeping_tasks,
                     self.active_tasks_all_nodes):
                 if task_id != other_task_id and \
-                            not self.is_task_safe_to_execute(proc, other_proc):
+                            not self.is_task_compatible(proc, other_proc):
                     ### !!! WE NEED TO CHECK FOR TASKS THAT CAN ONLY BE EXECUTED ON ONE MACHINE AT ONE TIME
                     ### !!! FOR EXAMPLE BIBUPLOADS WHICH NEED TO BE EXECUTED SEQUENTIALLY AND NEVER CONCURRENTLY
                     ## There's at least a higher priority task running that
@@ -1237,7 +1252,7 @@ class BibSched(object):
 
             ## We check if it is necessary to stop/put to sleep some lower priority
             ## task.
-            tasks_to_stop, tasks_to_sleep = self.get_tasks_to_sleep_and_stop(proc, lower)
+            tasks_to_stop, tasks_to_sleep = self.get_tasks_to_sleep_and_stop(proc, self.node_relevant_active_tasks)
             if debug:
                 Log('tasks_to_stop: %s' % tasks_to_stop)
                 Log('tasks_to_sleep: %s' % tasks_to_sleep)
@@ -1250,7 +1265,7 @@ class BibSched(object):
                 return False
 
             procname = proc.split(':')[0]
-            if not tasks_to_stop and (not tasks_to_sleep or (proc not in CFG_BIBTASK_MONOTASKS and len(self.node_relevant_active_tasks) < CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS)):
+            if not tasks_to_stop and not tasks_to_sleep and len(self.node_relevant_active_tasks) < CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS:
                 if proc in CFG_BIBTASK_MONOTASKS and self.active_tasks_all_nodes:
                     if debug:
                         Log("Cannot run because this is a monotask and there are other tasks running: %s" % (self.node_relevant_active_tasks, ))
@@ -1313,15 +1328,25 @@ class BibSched(object):
                     raise StandardError("%s is not in the allowed modules" % procname)
             else:
                 ## It's not still safe to run the task.
-                ## We first need to stop tasks that should be stopped
-                ## and to put to sleep tasks that should be put to sleep
-                for t in tasks_to_stop:
-                    stop_task(*t)
-                for t in tasks_to_sleep:
-                    sleep_task(*t)
+                ## We first need to stop task that should be stopped
+                ## and to put to sleep task that should be put to sleep
+                changes = False
+                for other_task_id, other_proc, dummy_other_runtime, other_status, other_priority, dummy_other_host, other_sequenceid in tasks_to_stop:
+                    if other_status != 'ABOUT TO STOP':
+                        changes = True
+                        stop_task(other_task_id, other_proc, other_priority, other_status, other_sequenceid)
+                    elif debug:
+                        Log("Cannot run because we are waiting for #%s to stop" % other_task_id)
+                for other_task_id, other_proc, dummy_other_runtime, other_status, other_priority, dummy_other_host, other_sequenceid in tasks_to_sleep:
+                    if other_status != 'ABOUT TO SLEEP':
+                        changes = True
+                        sleep_task(other_task_id, other_proc, other_priority, other_status, other_sequenceid)
+                    elif debug:
+                        Log("Cannot run because we are waiting for #%s to sleep" % other_task_id)
 
-                time.sleep(CFG_BIBSCHED_REFRESHTIME)
-                return True
+                if changes:
+                    time.sleep(CFG_BIBSCHED_REFRESHTIME)
+                return changes
 
     def check_errors(self):
         errors = run_sql("""SELECT id,proc,status FROM schTASK
@@ -1349,7 +1374,8 @@ class BibSched(object):
         except RecoverableError, msg:
             register_emergency('Light emergency from %s: BibTask failed: %s' % (CFG_SITE_URL, msg))
 
-        max_bibupload_priority, min_bibupload_priority = run_sql(
+        if not CFG_INSPIRE_SITE:
+            max_bibupload_priority, min_bibupload_priority = run_sql(
                     """SELECT MAX(priority), MIN(priority)
                         FROM schTASK
                         WHERE status IN ('WAITING', 'RUNNING', 'SLEEPING',
@@ -1357,16 +1383,16 @@ class BibSched(object):
                                 'SCHEDULED', 'CONTINUING')
                         AND proc = 'bibupload'
                         AND runtime <= NOW()""")[0]
-        if max_bibupload_priority > min_bibupload_priority:
-            run_sql(
-                """UPDATE schTASK SET priority = %s
-                   WHERE status IN ('WAITING', 'RUNNING', 'SLEEPING',
-                                    'ABOUT TO STOP', 'ABOUT TO SLEEP',
-                                    'SCHEDULED', 'CONTINUING')
-                   AND proc = 'bibupload'
-                   AND runtime <= NOW()
-                   AND priority < %s""", (max_bibupload_priority,
-                                          max_bibupload_priority))
+            if max_bibupload_priority > min_bibupload_priority:
+                run_sql(
+                    """UPDATE schTASK SET priority = %s
+                       WHERE status IN ('WAITING', 'RUNNING', 'SLEEPING',
+                                        'ABOUT TO STOP', 'ABOUT TO SLEEP',
+                                        'SCHEDULED', 'CONTINUING')
+                       AND proc = 'bibupload'
+                       AND runtime <= NOW()
+                       AND priority < %s""", (max_bibupload_priority,
+                                              max_bibupload_priority))
         ## The bibupload tasks are sorted by id, which means by the order they were scheduled
         self.node_relevant_bibupload_tasks = run_sql(
             """SELECT id, proc, runtime, status, priority, host, sequenceid

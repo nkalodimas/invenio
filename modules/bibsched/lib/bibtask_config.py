@@ -22,7 +22,7 @@
 __revision__ = "$Id$"
 
 import os
-from invenio.config import CFG_LOGDIR, CFG_PYLIBDIR
+from invenio.config import CFG_LOGDIR, CFG_PYLIBDIR, CFG_INSPIRE_SITE
 
 # Which tasks are recognized as valid?
 CFG_BIBTASK_VALID_TASKS = ("bibindex", "bibupload", "bibreformat",
@@ -35,7 +35,10 @@ CFG_BIBTASK_VALID_TASKS = ("bibindex", "bibupload", "bibreformat",
                            "hepdataharvest", "bibtex")
 
 # Tasks that should be run as standalone task
-CFG_BIBTASK_MONOTASKS = ("dbdump", "inveniogc")
+if CFG_INSPIRE_SITE:
+    CFG_BIBTASK_MONOTASKS = ("dbdump", "inveniogc")
+else:
+    CFG_BIBTASK_MONOTASKS = ("bibupload", "dbdump", "inveniogc")
 
 # Tasks that should be run during fixed times
 CFG_BIBTASK_FIXEDTIMETASKS = ("oaiharvest", )
