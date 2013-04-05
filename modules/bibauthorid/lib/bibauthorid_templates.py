@@ -1530,7 +1530,48 @@ class Template:
 
         return "\n".join(html)
 
+    def tmpl_welcome_search_new_person_generator(self):
+        def stub():
+            text = self._("Create new profile")
+            link = "person/welcome?action=%s&pid=%s" % ('select', str(-1))
+            return text, link
 
+        return stub
+
+    def tmpl_assigning_search_new_person_generator(self, bibrefs):
+        def stub():
+            text = self._("Create a new Person for your search")
+            link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, '-3')
+            
+            for r in bibrefs:
+                link = link + '&selection=%s' % str(r)
+                
+            return text, link
+
+        return stub
+
+
+    def tmpl_welcome_search_button_generator(self):
+        def stub(pid):
+            text = self._("This is my profile")
+            link = "person/welcome?action=%s&pid=%s" % ('select', str(pid))
+            return text, link
+
+        return stub
+            
+    def tmpl_assigning_search_button_generator(self, bibrefs):
+        def stub(pid):
+            text = self._("Attribute paper")
+            link = "person/welcome?action=%s&pid=%s" % ('select', str(pid))
+            
+            for r in bibrefs:
+                link = link + '&selection=%s' % str(r)
+                
+            return text, link
+
+        return stub
+
+    
     def tmpl_author_search(self, query, results,
                            search_ticket=None, author_pages_mode=True,
                            new_person_link=False, welcome_mode = False):

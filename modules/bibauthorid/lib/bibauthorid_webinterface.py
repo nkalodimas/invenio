@@ -38,7 +38,7 @@ except:
 from invenio.config import CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
 from invenio.bibauthorid_config import AID_ENABLED, CLAIMPAPER_ADMIN_ROLE, CLAIMPAPER_USER_ROLE, \
                             PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT, \
-                            BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS
+                            BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS, PERSONS_PER_PAGE
 
 from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE  # , CFG_SITE_SECURE_URL
 
@@ -2264,6 +2264,123 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return TEMPLATE.tmpl_search_ticket_box('person_search', 'assign_papers', search_ticket['bibrefs'])
 
 
+    def search_box(self, pid_list, query, button_gen, new_person_gen, show_search_bar = False):
+
+        search_results = []
+        for index, pid in enumerate(pid_list):
+            result = dict()
+            result['pid'] = pid
+            
+            if index < PERSONS_PER_PAGE:
+                result['canonical_id'] = webapi.get_canonical_id_from_person_id(pid)
+                result['name_variants'] = webapi.get_person_names_from_id(pid)
+                result['external_ids'] = webapi.get_external_ids_from_person_id(pid)
+            
+            search_results.append(result)
+
+        body = TEMPLATE.tmpl_author_search(query, search_results, author_pages_mode=True,
+                                                  button_gen = button_gen, new_person_gen = new_person_gen, show_search_bar = show_search_bar)
+
+        body = TEMPLATE.tmpl_person_detail_layout(body)
+        
+        return body
+
+    def new_search(self, req, form):
+        '''
+        Function used for searching a person based on a name with which the
+        function is queried.
+
+        @param req: Apache Request Object
+        @type form: dict
+
+        @return: a full page formatted in HTML
+        @return: string
+        '''
+        self._session_bareinit(req)
+        session = get_session(req)
+        no_access = self._page_access_permission_wall(req)
+        show_search_bar = True
+
+        if no_access:
+            return no_access
+
+        pinfo = session["personinfo"]
+        search_ticket = None
+        new_person_gen = None
+        bibrefs = []
+        
+        if 'search_ticket' in pinfo:
+            search_ticket = pinfo['search_ticket']
+            for r in search_ticket['bibrefs']:
+                bibrefs.append(r)
+
+        if search_ticket and "ulevel" in pinfo:
+            if pinfo["ulevel"] == "admin":
+                new_person_gen = TEMPLATE.tmpl_assigning_search_new_person_generator(bibrefs)
+                
+        body = ''
+        button_gen = None
+
+        if search_ticket:
+            button_gen = TEMPLATE.tmpl_assigning_search_button_generator(bibrefs)
+            body = body + self._generate_search_ticket_box(req)
+
+        argd = wash_urlargd(
+            form,
+            {'ln': (str, CFG_SITE_LANG),
+             'verbose': (int, 0),
+             'q': (str, None)})
+
+        ln = argd['ln']
+        # ln = wash_language(argd['ln'])
+        query = None
+        recid = None
+        nquery = None
+        search_results = None
+        title = "Person Search"
+
+        if 'q' in argd:
+            if argd['q']:
+                query = escape(argd['q'])
+
+        if query:
+            pid_canditates_list = []
+
+            if query.count(":"):
+                try:
+                    left, right = query.split(":")
+                    try:
+                        recid = int(left)
+                        nquery = str(right)
+                    except (ValueError, TypeError):
+                        try:
+                            recid = int(right)
+                            nquery = str(left)
+                        except (ValueError, TypeError):
+                            recid = None
+                            nquery = query
+                except ValueError:
+                    recid = None
+                    nquery = query
+            else:
+                nquery = query
+
+            sorted_results = webapi.search_person_ids_by_name(nquery)
+
+            for result in sorted_results:
+                pid_canditates_list.append(result[0])
+
+        if recid and (len(pid_canditates_list) == 1):
+            return redirect_to_url(req, "/person/%s" % search_results[0])
+        
+        body  = body + self.search_box(pid_canditates_list, query, button_gen, new_person_gen, show_search_bar)
+
+        return page(title=title,
+                    metaheaderadd=self._scripts(kill_browser_cache=True),
+                    body=body,
+                    req=req,
+                    language=ln)
+
     def search(self, req, form, welcome_mode = False, welcome_query=""):
         '''
         Function used for searching a person based on a name with which the
@@ -2374,7 +2491,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if recid and (len(search_results) == 1):
             return redirect_to_url(req, "/person/%s" % search_results[0][0])
         
-        body = body + TEMPLATE.tmpl_author_search(query, search_results, search_ticket, author_pages_mode=True,
+        body = body + TEMPLATE.tmpl_author_search(query, search_results, search_ticket,
                                                   new_person_link=new_person_link, welcome_mode = welcome_mode)
 
         body = TEMPLATE.tmpl_person_detail_layout(body)
@@ -2656,13 +2773,39 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 name_variants = webapi.get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
                 search_param = most_relevant_name(name_variants)
 
-            req.write(self.search(req, form, welcome_mode = True, welcome_query = search_param))
+            pid_canditates_list = []
+
+            if search_param.count(":"):
+                try:
+                    left, right = search_param.split(":")
+                    try:
+                        nsearch_param = str(right)
+                    except (ValueError, TypeError):
+                        try:
+                            nsearch_param = str(left)
+                        except (ValueError, TypeError):
+                            nsearch_param = search_param
+                except ValueError:
+                    nsearch_param = search_param
+            else:
+                nsearch_param = search_param
+
+            sorted_results = webapi.search_person_ids_by_name(nsearch_param)
+
+            for result in sorted_results:
+                pid_canditates_list.append(result[0])
+            
+            button_func = TEMPLATE.tmpl_welcome_search_button_generator()
+            new_person_func = TEMPLATE.tmpl_welcome_search_new_person_generator()
+            
+            req.write(self.search_box(pid_canditates_list, search_param, button_func, new_person_func, show_search_bar = True))
+
             # search_results = search...
             # if the one we suggested is not the one you think, please search for the one you like most
             # this show the search box prefilled with one of the names we got
             # paginated results showing canonical_name,info(names,expandable most recent papers, external ids),status(if already assigned),get it button
             # req.write(TEMPLATE.tmpl_welcome_search_results(search_results))
-            req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
+            # req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
 
 
     def _welcome_profile_selection(self, req, login_status, selected_pid, recids):

@@ -153,12 +153,32 @@ def add_person_external_id(person_id, ext_sys, ext_id, userinfo=''):
     log_value = '%s %s %s' % (person_id, tag, ext_id)
     dbapi.insert_user_log(userinfo, person_id, 'data_insertion', 'CMPUI_addexternalid', log_value, 'External id manually added.', userid=uid)
 
+
+def get_external_ids_from_person_id(pid):
+    '''
+    Finds the person  external ids (doi, arxivids, ..) from personid (e.g. 1)
+
+    @param person_id: person id
+    @type person_id: int
+
+    @return: dictionary of external ids
+    @rtype: dict()
+    '''
+    if not pid or not (isinstance(pid, str) or isinstance(pid, (int, long))):
+        return dict()
+
+    if isinstance(pid, str):
+        return None
+    
+    external_ids = dbapi.get_personiID_external_ids(pid)
+    return external_ids
+    
 def get_canonical_id_from_person_id(person_id):
     '''
     Finds the person  canonical name from personid (e.g. 1)
 
-    @param person_id: the canonical ID
-    @type person_id: string
+    @param person_id: person id
+    @type person_id: int
 
     @return: result from the request or person_id on failure
     @rtype: int
@@ -875,7 +895,7 @@ def is_logged_in_through_arxiv(req):
     #THOMAS: ask samK if this is correct, what other way there is to discover is we are SSOed through arxiv?
     #user_info = collect_user_info(req)
     #isGuestUser(req)
-    
+    # TO DO THIS SHOULD BE CHANGED
     if 'user_info' in session.keys() and 'email' in session['user_info'].keys() and session['user_info']['email']:
         return True
     return False
@@ -992,7 +1012,6 @@ def get_remote_login_systems_info(req, remote_logged_in_systems):
     @type remote_logged_in_systems: dict
     '''
     session_bareinit(req)
-    session = get_session(req)
     user_remote_logged_in_systems_info = dict()
 
     uinfo = collect_user_info(req)
@@ -1046,7 +1065,6 @@ def get_orcid_recids(req):
 
 def get_remote_login_systems_recids(req, remote_logged_in_systems):
     session_bareinit(req)
-    session = get_session(req)
     remote_login_systems_recids = []
 
     for system in remote_logged_in_systems:

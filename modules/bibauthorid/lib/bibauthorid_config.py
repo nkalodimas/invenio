@@ -78,6 +78,9 @@ CMPROLESLCUL = {'guest': 0,
                 CLAIMPAPER_ADMIN_ROLE: 50,
                 SUPERADMINROLE: 50}
 
+# Number of persons that will be shown per page in search results.
+PERSONS_PER_PAGE = 5
+
 # Globally enable AuthorID Interfaces.
 #     If False: No guest, user or operator will have access to the system.
 if GLOBAL_CONFIG:
