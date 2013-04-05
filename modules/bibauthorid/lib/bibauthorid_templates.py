@@ -1695,7 +1695,7 @@ class Template:
                 papers_string = ''
 
             # person row
-            h('<tr>')
+            h('<tr id="pid'+ str(pid) + '">')
             h('<td><span>%s</span></td>' % (index + 1))
 
 #            for nindex, name in enumerate(names):
@@ -1724,27 +1724,27 @@ class Template:
                             '</a>')
                             % (pid))
                 h('<div class="more-mpid%s" id="aid_moreinfo">' % (pid))
+                #html.extend(self.tmpl_gen_papers(pid, papers))
+                # if papers and index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
+                #     h((self._('Showing the') + ' %d ' + self._('most recent documents:')) % len(papers))
+                #     h("<ul>")
 
-                if papers and index < bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
-                    h((self._('Showing the') + ' %d ' + self._('most recent documents:')) % len(papers))
-                    h("<ul>")
+                #     for paper in papers:
+                #         h("<li>%s</li>"
+                #                % (format_record(int(paper[0]), "ha")))
 
-                    for paper in papers:
-                        h("<li>%s</li>"
-                               % (format_record(int(paper[0]), "ha")))
+                #     h("</ul>")
+                # elif not papers:
+                #     h("<p>" + self._('Sorry, there are no documents known for this person') + "</p>")
+                # elif index >= bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
+                #     h("<p>" + self._('Information not shown to increase performances. Please refine your search.') + "</p>")
 
-                    h("</ul>")
-                elif not papers:
-                    h("<p>" + self._('Sorry, there are no documents known for this person') + "</p>")
-                elif index >= bconfig.PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT:
-                    h("<p>" + self._('Information not shown to increase performances. Please refine your search.') + "</p>")
-
-                h(('<span style="margin-left: 40px;">'
-                            '<em><a rel="nofollow" href="%s/%s/%s" target="_blank" id="aid_moreinfolink">'
-                            + self._('Publication List ') + '(%s)</a> (in a new window or tab)</em></span>')
-                            % (CFG_SITE_URL, linktarget,
-                               get_person_redirect_link(pid),
-                               get_person_redirect_link(pid)))
+                # h(('<span style="margin-left: 40px;">'
+                #             '<em><a rel="nofollow" href="%s/%s/%s" target="_blank" id="aid_moreinfolink">'
+                #             + self._('Publication List ') + '(%s)</a> (in a new window or tab)</em></span>')
+                #             % (CFG_SITE_URL, linktarget,
+                #                get_person_redirect_link(pid),
+                #                get_person_redirect_link(pid)))
                 h('</div>')
                 h('</td>')
             else:
@@ -1780,8 +1780,8 @@ class Template:
                                    get_person_redirect_link(pid),
                                    get_person_redirect_link(pid), papers_string))
 
-            #Link
-            h('<td>Sample action</td>')
+            #Action link
+            h('<td><a class="actionLink" href="">Sample action</a></td>')
 
             h('</td>')
             h('</tr>')
@@ -1800,6 +1800,28 @@ class Template:
             h('</div>')
 
         return "\n".join(html)
+
+
+    def tmpl_gen_papers(self, pid, papers):
+        """
+            Generates the recent papers html code.
+            Returns a list of strings
+        """
+        html = []
+        h = html.append
+
+        if papers:
+            h((self._('Showing the') + ' %d ' + self._('most recent documents:')) % len(papers))
+            h("<ul>")
+
+            for paper in papers:
+                h("<li>%s</li>"
+                       % (format_record(int(paper[0]), "ha")))
+
+            h("</ul>")
+        elif not papers:
+            h("<p>" + self._('Sorry, there are no documents known for this person') + "</p>")
+        return html
 
 
     def tmpl_welcome_start(self):

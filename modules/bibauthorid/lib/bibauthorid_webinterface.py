@@ -30,7 +30,7 @@ from operator import itemgetter
 import re
 
 try:
-    from invenio.jsonutils import json, CFG_JSON_AVAILABLE
+    from invenio.jsonutils import json, json_unicode_to_utf8, CFG_JSON_AVAILABLE
 except:
     CFG_JSON_AVAILABLE = False
     json = None
@@ -77,8 +77,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         /person/you -> /person/<string>
         /person/export
         /person/claimstub
+        /person/search_box_ajax
     """
-    _exports = ['', 'action', 'welcome', 'search', 'you', 'export', 'tickets_admin', 'claimstub']
+    _exports = ['', 'action', 'welcome', 'search', 'you', 'export', 'tickets_admin', 'claimstub', 'search_box_ajax']
 
 
     def __init__(self, person_id=None):
@@ -2503,6 +2504,53 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     body=body,
                     req=req,
                     language=ln)
+
+
+    def search_box_ajax(self, req, form):
+        '''
+        Function used for handling Ajax requests used in the search box.
+
+        @param req: Apache Request Object
+        @type req: Apache Request Object
+        @param form: Parameters sent via Ajax request
+        @type form: dict
+
+        @return: json data
+        '''
+        # Abort if the simplejson module isn't available
+        if not CFG_JSON_AVAILABLE:
+            print "Json not configurable"
+
+        # If it is an Ajax request, extract any JSON data.
+        ajax_request = False
+        # REcent papers request
+        if form.has_key('jsondata'):
+            json_data = json.loads(str(form['jsondata']))
+            # Deunicode all strings (Invenio doesn't have unicode
+            # support).
+            json_data = json_unicode_to_utf8(json_data)
+            ajax_request = True
+            json_response = {'resultCode': 0}
+
+        # Handle request.
+        if ajax_request:
+            if json_data['requestType'] == 'getPapers':
+                if json_data.has_key('personId'):
+                    pId = json_data['personId']
+                    max_num_show_papers = 5
+                    papers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(pId, -1)],
+                                          key=itemgetter(0))
+                    papers_html = TEMPLATE.tmpl_gen_papers(pId, papers[0:max_num_show_papers])
+                    json_response.update({'result': "\n".join(papers_html)})
+                    json_response.update({'resultCode': 1})
+                    json_response.update({'pid': str(pId)})
+                else:
+                    json_response.update({'result': 'Error: Missing person id'})
+            # json_response.update(perform_request_ajax(req, recid, uid,
+            #                                           json_data))
+            else:
+                json_response.update({'result': 'Error: Wrong request type'})
+            return json.dumps(json_response)
 
 
     def claimstub(self, req, form):
