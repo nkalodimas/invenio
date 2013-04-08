@@ -219,14 +219,22 @@ class Template:
 
         # perform_request_search function is not case sensitive, so we should agglomerate names which differ only in case
         new_names_dict = {}
-        for tup in names_dict.iteritems():
-            ln = tup[0].lower()
-            caps = len(findall("[A-Z]", tup[0]))
+        for name, papers_num in names_dict.iteritems():
+            ln = name.lower()
+            caps = len(findall("[A-Z]", name))
             try:
+                prev_papers_num = new_names_dict[ln][1][1]
+                new_papers_num = prev_papers_num + papers_num
+
+                new_caps = new_names_dict[ln][0]
+                new_name = new_names_dict[ln][1][0]
                 if new_names_dict[ln][0] < caps:
-                    new_names_dict[ln] = [caps, tup]
+                    new_name = name
+                    new_caps = caps
+
+                new_names_dict[ln] = [new_caps, (new_name, new_papers_num)]
             except KeyError:
-                new_names_dict[ln] = [caps, tup]
+                new_names_dict[ln] = [caps, (name, papers_num)]
 
         filtered_list = [name[1] for name in new_names_dict.values()]
         sorted_names_list = sorted(filtered_list, key=itemgetter(0), reverse=True)
@@ -629,13 +637,43 @@ class Template:
 
         return  '(%s papers)' % pubs_to_papers_link
 
-    def tmpl_authornametitle(self, names_dict):
-        sorted_names_list = sorted(names_dict.iteritems(), key=itemgetter(1),
-                                   reverse=True)
-        try:
-            return sorted_names_list[0][0]
-        except IndexError:
-            return ''
+
+    def tmpl_authornametitle(self, authorname, bibauthorid_data, pubs, person_link, ln, loading=False):
+        _ = gettext_set_language(ln)
+
+        display_name = authorname
+        if not display_name:
+            if bibauthorid_data["cid"]:
+                display_name = bibauthorid_data["cid"]
+            else:
+                display_name = bibauthorid_data["pid"]
+
+        if bibauthorid_data["cid"]:
+            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
+        else:
+            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
+
+        pubs_to_papers_link = create_html_link(websearch_templates.build_search_url(p=baid_query), {}, str(len(pubs)))
+
+        addition = ''
+        if CFG_INSPIRE_SITE:
+            addition = ' relevant to High Energy Physics'
+
+        headernumpapers = ''
+        if pubs:
+            headernumpapers = '(%s papers%s)' % (pubs_to_papers_link, addition)
+
+        html_header = ('<h1><span id="authornametitle">%s</span> <span id="numpaperstitle" style="font-size:50%%;">%s</span></h1>'
+                      % (display_name, headernumpapers))
+
+        if person_link or person_link == 'None':
+            html_header += ('<div><a href="%s/person/claimstub?person=%s">%s</a></div>'
+                           % (CFG_SITE_URL, person_link, _("This is me.  Verify my publication list.")))
+        if loading:
+            html_header = self.loading_html()
+
+        return html_header
+
 
     def tmpl_author_page(self, pubs, selfpubs, authorname, num_downloads,
                         aff_pubdict, kwtuples, fieldtuples, authors,
@@ -645,42 +683,11 @@ class Template:
         '''
         '''
         _ = gettext_set_language(ln)
-        if bibauthorid_data["cid"]:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["cid"])
-        else:
-            baid_query = 'exactauthor:%s' % wrap_author_name_in_quotes_if_needed(bibauthorid_data["pid"])
-        sorted_names_list = sorted(names_dict.iteritems(), key=lambda item: len(item[0]), reverse=True)
-        pubs_to_papers_link = create_html_link(websearch_templates.build_search_url(p=baid_query), {}, str(len(pubs)))
-        display_name = ""
 
-        try:
-            display_name = sorted_names_list[0][0]
-        except IndexError:
-            if bibauthorid_data["cid"]:
-                display_name = bibauthorid_data["cid"]
-            else:
-                display_name = bibauthorid_data["pid"]
+        html = list()
 
-        if CFG_INSPIRE_SITE:
-            addition = ' relevant to High Energy Physics'
-        else:
-            addition = ''
-
-        if pubs:
-            headernumpapers = '(%s papers%s)' % (pubs_to_papers_link, addition)
-        else:
-            headernumpapers = ''
-        headertext = ('<h1><span id="authornametitle">%s</span> <span id="numpaperstitle" style="font-size:50%%;">%s</span></h1>'
-                      % (display_name, headernumpapers))
-
-        html = []
-        html.append(headertext)
-
-        if person_link or person_link == 'None':
-            cmp_link = ('<div><a href="%s/person/claimstub?person=%s">%s</a></div>'
-                      % (CFG_SITE_URL, person_link,
-                         _("This is me.  Verify my publication list.")))
-            html.append(cmp_link)
+        html_header = self.tmpl_authornametitle(authorname, bibauthorid_data, pubs, person_link, ln, loading=not (beval[0] and beval[7] and beval[9]))
+        html.append(html_header)
 
         html_name_variants = self.tmpl_author_name_variants_box(names_dict, bibauthorid_data, ln, loading=not beval[0])
         html_combined_papers = self.tmpl_papers_with_self_papers_box(pubs, selfpubs, bibauthorid_data, num_downloads, ln, loading=not beval[12])
@@ -717,20 +724,20 @@ class Template:
                               g(1, 1, cell_padding=5)(html_hepnames))
                       )
         html.append(page)
+
+        rec_date = 'now'
         if oldest_cache_date:
             rec_date = str(oldest_cache_date)
-        else:
-            rec_date = 'now'
 
+        cache_reload_link = ''
         if recompute_allowed:
             cache_reload_link = ('<a href="%s/author/%s/?recompute=1">%s</a>'
-                      % (CFG_SITE_URL, person_link,
-                         _("Recompute Now!")))
-        else:
-            cache_reload_link = ''
+                                % (CFG_SITE_URL, person_link, _("Recompute Now!")))
 
         html.append("<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link))
+
         return ' '.join(html)
+
 
     def tmpl_open_table(self, width_pcnt=False, cell_padding=False, height_pcnt=False):
         options = []

@@ -533,7 +533,6 @@ def _get_kwtuples_bai(pubs, person_id):
     @param person_id: int person id
     '''
     tup = get_most_popular_field_values(pubs,
-
                             (CFG_WEBAUTHORPROFILE_KEYWORD_TAG), count_repetitive_values=True)
     return tup
 

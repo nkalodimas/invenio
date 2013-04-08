@@ -168,6 +168,7 @@ def split_name_parts(name_string, delete_name_additions=True,
     return retval
 
 def create_canonical_name(name):
+    name = translate_to_ascii(name)[0]
     canonical_name = create_unified_name(name, reverse=True)
     artifact_removal_re = re.compile("[^a-zA-Z0-9]")
     whitespace_removal = re.compile("[ ]{1,10}")

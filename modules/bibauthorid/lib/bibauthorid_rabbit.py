@@ -51,7 +51,7 @@ from invenio.bibauthorid_backinterface import get_inspire_id
 from invenio.bibauthorid_backinterface import get_person_with_extid
 from invenio.bibauthorid_backinterface import get_name_string_to_pid_dictionary
 from invenio.bibauthorid_backinterface import get_new_personid
-
+from invenio.bibauthorid_backinterface import delete_empty_persons
 USE_EXT_IDS = bconfig.RABBIT_USE_EXTERNAL_IDS
 USE_INSPIREID = bconfig.RABBIT_USE_EXTERNAL_ID_INSPIREID
 
@@ -188,3 +188,5 @@ def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None)
 
     if SWAPPED_GET_GROUPED_RECORDS:
         destroy_partial_marc_caches()
+
+    delete_empty_persons()
