@@ -93,15 +93,22 @@ $(document).ready(function() {
                     $('.dataTables_length').css('display','none');
                 }
     });
-
+    // TODO: if actions column exists add 6 to aTargets
+    var targets = [3,4,5,6];
+    if ($('#personsTable th').length == 6 ) {
+        targets = [3,4,5];
+    }
     $('#personsTable').dataTable({
             "bJQueryUI": true,
             "sPaginationType": "full_numbers",
             "aoColumnDefs": [
-                { "bSortable": false, "aTargets": [ 3, 4, 5, 6 ] }
+                { "bSortable": false, "aTargets": targets }
                 ],
             "iDisplayLength": 5,
             "aLengthMenu": [5, 10, 20],
+            "oLanguage": {
+                "sSearch": "Filter: "
+            }
     });
 
     // Activate Tabs
@@ -165,7 +172,7 @@ $(document).ready(function() {
                 event.preventDefault();
             }
         });
-        $("#searchform :input").attr("disabled",true);
+        //$("#searchform :input").attr("disabled",true);
         // gResultsPerPage = 3;
         // gCurPage = 1;
         // showPage(gCurPage);

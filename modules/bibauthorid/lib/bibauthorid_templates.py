@@ -1632,7 +1632,7 @@ class Template:
             h('</div>')
             return "\n".join(html)
 
-        h("<p>&nbsp;</p>")
+        #h("<p>&nbsp;</p>")
 
         if query and not results:
             authemail = CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL
