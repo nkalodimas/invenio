@@ -60,7 +60,7 @@ from invenio.search_engine_utils import get_fieldvalues
 import invenio.bibauthorid_webapi as webapi
 from invenio.bibauthorid_frontinterface import get_bibrefrec_name_string
 from invenio.bibauthorid_backinterface import update_personID_external_ids
-
+from invenio.bibauthorid_dbinterface import defaultdict
 
 TEMPLATE = load('bibauthorid')
 swap = re.compile("\S*[.](\d)+$")
@@ -2265,28 +2265,28 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return TEMPLATE.tmpl_search_ticket_box('person_search', 'assign_papers', search_ticket['bibrefs'])
 
 
-    def search_box(self, pid_list, query, button_gen, new_person_gen, show_search_bar = False):
+    def search_box(self, pid_list, query, button_gen, new_person_gen, show_search_bar):
 
         search_results = []
         for index, pid in enumerate(pid_list):
-            result = dict()
+            result = defaultdict(list)
             result['pid'] = pid
             
-            if index < PERSONS_PER_PAGE:
-                result['canonical_id'] = webapi.get_canonical_id_from_person_id(pid)
-                result['name_variants'] = webapi.get_person_names_from_id(pid)
-                result['external_ids'] = webapi.get_external_ids_from_person_id(pid)
+            #if index < PERSONS_PER_PAGE:
+            result['canonical_id'] = webapi.get_canonical_id_from_person_id(pid)
+            result['name_variants'] = webapi.get_person_names_from_id(pid)
+            result['external_ids'] = webapi.get_external_ids_from_person_id(pid)
             
             search_results.append(result)
 
-        body = TEMPLATE.tmpl_author_search(query, search_results, author_pages_mode=True,
-                                                  button_gen = button_gen, new_person_gen = new_person_gen, show_search_bar = show_search_bar)
+        body = TEMPLATE.tmpl_author_search(query, search_results, button_gen, 
+                                               new_person_gen, show_search_bar)
 
         body = TEMPLATE.tmpl_person_detail_layout(body)
         
         return body
 
-    def new_search(self, req, form):
+    def search(self, req, form):
         '''
         Function used for searching a person based on a name with which the
         function is queried.
@@ -2300,7 +2300,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         self._session_bareinit(req)
         session = get_session(req)
         no_access = self._page_access_permission_wall(req)
-        show_search_bar = True
+        search_bar = TEMPLATE.tmpl_general_search_bar()
 
         if no_access:
             return no_access
@@ -2343,10 +2343,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if 'q' in argd:
             if argd['q']:
                 query = escape(argd['q'])
-
+        
+        pid_canditates_list = []
+        
         if query:
-            pid_canditates_list = []
-
             if query.count(":"):
                 try:
                     left, right = query.split(":")
@@ -2374,7 +2374,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if recid and (len(pid_canditates_list) == 1):
             return redirect_to_url(req, "/person/%s" % search_results[0])
         
-        body  = body + self.search_box(pid_canditates_list, query, button_gen, new_person_gen, show_search_bar)
+        body  = body + self.search_box(pid_canditates_list, query, button_gen, new_person_gen, search_bar)
 
         return page(title=title,
                     metaheaderadd=self._scripts(kill_browser_cache=True),
@@ -2382,7 +2382,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     req=req,
                     language=ln)
 
-    def search(self, req, form, welcome_mode = False, welcome_query=""):
+    def old_search(self, req, form, welcome_mode = False, welcome_query=""):
         '''
         Function used for searching a person based on a name with which the
         function is queried.
@@ -2540,7 +2540,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     max_num_show_papers = 5
                     papers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(pId, -1)],
                                           key=itemgetter(0))
-                    papers_html = TEMPLATE.tmpl_gen_papers(pId, papers[0:max_num_show_papers])
+                    papers_html = TEMPLATE.tmpl_gen_papers(papers[0:max_num_show_papers])
                     json_response.update({'result': "\n".join(papers_html)})
                     json_response.update({'resultCode': 1})
                     json_response.update({'pid': str(pId)})
@@ -2846,7 +2846,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             button_func = TEMPLATE.tmpl_welcome_search_button_generator()
             new_person_func = TEMPLATE.tmpl_welcome_search_new_person_generator()
             
-            req.write(self.search_box(pid_canditates_list, search_param, button_func, new_person_func, show_search_bar = True))
+            req.write(self.search_box(pid_canditates_list, search_param, button_func, new_person_func, show_search_bar = TEMPLATE.tmpl_welcome_search_bar()))
 
             # search_results = search...
             # if the one we suggested is not the one you think, please search for the one you like most
