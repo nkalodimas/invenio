@@ -38,7 +38,8 @@ except:
 from invenio.config import CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
 from invenio.bibauthorid_config import AID_ENABLED, CLAIMPAPER_ADMIN_ROLE, CLAIMPAPER_USER_ROLE, \
                             PERSON_SEARCH_RESULTS_SHOW_PAPERS_PERSON_LIMIT, \
-                            BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS, PERSONS_PER_PAGE
+                            BIBAUTHORID_UI_SKIP_ARXIV_STUB_PAGE, VALID_EXPORT_FILTERS, PERSONS_PER_PAGE, \
+                            MAX_NUM_SHOW_PAPERS
 
 from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, CFG_SITE_NAME, CFG_INSPIRE_SITE  # , CFG_SITE_SECURE_URL
 
@@ -2537,10 +2538,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if json_data['requestType'] == 'getPapers':
                 if json_data.has_key('personId'):
                     pId = json_data['personId']
-                    max_num_show_papers = 5
                     papers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(pId, -1)],
                                           key=itemgetter(0))
-                    papers_html = TEMPLATE.tmpl_gen_papers(papers[0:max_num_show_papers])
+                    papers_html = TEMPLATE.tmpl_gen_papers(papers[0:MAX_NUM_SHOW_PAPERS])
                     json_response.update({'result': "\n".join(papers_html)})
                     json_response.update({'resultCode': 1})
                     json_response.update({'pid': str(pId)})

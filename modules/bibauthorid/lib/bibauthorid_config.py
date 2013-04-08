@@ -80,6 +80,8 @@ CMPROLESLCUL = {'guest': 0,
 
 # Number of persons that will be shown per page in search results.
 PERSONS_PER_PAGE = 5
+# Max amount of recent papers shown to the user
+MAX_NUM_SHOW_PAPERS = 5
 
 # Globally enable AuthorID Interfaces.
 #     If False: No guest, user or operator will have access to the system.
