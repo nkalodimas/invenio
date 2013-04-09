@@ -48,7 +48,8 @@ from webauthorprofile_config import CFG_WEBSEARCH_DEF_RECORDS_IN_GROUPS, \
      CFG_BIBRANK_SHOW_DOWNLOAD_STATS, CFG_SITE_NAME, CFG_SITE_URL, \
      CFG_INSPIRE_SITE, CFG_WEBSEARCH_DEFAULT_SEARCH_INTERFACE, \
      CFG_BIBINDEX_CHARS_PUNCTUATION, CFG_WEBSEARCH_WILDCARD_LIMIT, \
-     CFG_WEBAUTHORPROFILE_CFG_HEPNAMES_EMAIL, CFG_WEBAUTHORPROFILE_FIELDCODE_TAG
+     CFG_WEBAUTHORPROFILE_CFG_HEPNAMES_EMAIL, CFG_WEBAUTHORPROFILE_FIELDCODE_TAG, \
+     CFG_WEBAUTHORPROFILE_GENERATED_TIMESTAMP_BOTTOM_POSITION
 
 # maximum number of collaborating authors etc shown in GUI
 from webauthorprofile_config import CFG_WEBAUTHORPROFILE_MAX_COLLAB_LIST, \
@@ -733,8 +734,12 @@ class Template:
         if recompute_allowed:
             cache_reload_link = ('<a href="%s/author/%s/?recompute=1">%s</a>'
                                 % (CFG_SITE_URL, person_link, _("Recompute Now!")))
+        html_generated_timestamp = "<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link)
 
-        html.append("<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link))
+        if CFG_WEBAUTHORPROFILE_GENERATED_TIMESTAMP_BOTTOM_POSITION:
+            html.append(html_generated_timestamp)
+        else:
+            html.insert(0, html_generated_timestamp)
 
         return ' '.join(html)
 

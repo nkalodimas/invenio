@@ -897,6 +897,11 @@ class Template:
         if 'data' in show_tabs:
             r = verbiage_dict['data']
             h('    <li><a rel="nofollow" href="#tabData"><span>%s</span></a></li>' % r)
+
+            userid = get_uid_from_personid(person_id)
+            if userid:
+                h('<img src="%s/img/webbasket_user.png" alt="%s" width="30" height="30" />' %
+                   (CFG_SITE_URL, self._("The author has an internal ID!")))
         h('  </ul>')
 
         if 'records' in show_tabs:

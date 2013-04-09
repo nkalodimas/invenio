@@ -71,6 +71,9 @@ if marc_tag_collaboration:
 else:
     CFG_WEBAUTHORPROFILE_COLLABORATION_TAG = '65017a'
 
+CFG_WEBAUTHORPROFILE_GENERATED_TIMESTAMP_BOTTOM_POSITION = True
+
+
 try:
     from cPickle import loads
 except ImportError:
