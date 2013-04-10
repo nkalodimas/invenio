@@ -170,10 +170,10 @@ def get_external_ids_from_person_id(pid):
 
     if isinstance(pid, str):
         return None
-    
+
     external_ids = dbapi.get_personiID_external_ids(pid)
     return external_ids
-    
+
 def get_canonical_id_from_person_id(person_id):
     '''
     Finds the person  canonical name from personid (e.g. 1)
@@ -1144,7 +1144,7 @@ def match_profile(req, recids, remote_login_systems_info):
 
     if most_compatible_person != None:
         return most_compatible_person
-    
+
     name_variants = get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
     most_compatible_person = dbapi.find_most_compatible_person(recids, name_variants)
     pinfo['most_compatible_person'] = most_compatible_person
@@ -1159,7 +1159,7 @@ def get_profile_suggestion_info(req, pid):
 
     if profile_suggestion_info != None:
         return profile_suggestion_info
-    
+
     profile_suggestion_info = dict()
     profile_suggestion_info['canonical_id'] = dbapi.get_canonical_id_from_personid(pid)
     name_variants = [element[0] for element in get_person_names_from_id(pid)]
