@@ -1022,7 +1022,17 @@ def get_remote_login_systems_info(req, remote_logged_in_systems):
 
     return user_remote_logged_in_systems_info
 
-def get_arxiv_recids(req, ):
+def get_arxivids(req):
+    session = get_session(req)
+    uinfo = collect_user_info(req)
+    pinfo = session['personinfo']
+    current_external_ids = []
+
+    if 'external_arxivids' in uinfo.keys() and uinfo['external_arxivids']:
+        current_external_ids = uinfo['external_arxivids'].split(';')
+    return current_external_ids
+
+def get_arxiv_recids(req ):
     session = get_session(req)
     uinfo = collect_user_info(req)
     pinfo = session['personinfo']
@@ -1040,7 +1050,7 @@ def get_arxiv_recids(req, ):
     if current_external_ids and not cached_ids_association:
         for arxivid in current_external_ids:
             #perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxiv_id), of='id', rg=0)
-            recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m='e', cc='HEP')
+            recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m1='e', cc='HEP')
             if recid_list:
                 recid = recid_list[0]
                 recids_from_arxivids.append(recid)
@@ -1051,7 +1061,7 @@ def get_arxiv_recids(req, ):
                 recid = cached_ids_association[('arxivid', arxivid)]
                 recids_from_arxivids.append(recid)
             else:
-                recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m='e', cc='HEP')
+                recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m1='e', cc='HEP')
                 if recid_list:
                     recid = recid_list[0]
                     recids_from_arxivids.append(recid)
