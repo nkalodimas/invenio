@@ -2534,20 +2534,38 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         # Handle request.
         if ajax_request:
-            if json_data['requestType'] == 'getPapers':
+            req_type = json_data['requestType']
+            if req_type == 'getPapers':
                 if json_data.has_key('personId'):
                     pId = json_data['personId']
                     max_num_show_papers = 5
-                    papers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(pId, -1)],
+                    papers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(int(pId), -1)],
                                           key=itemgetter(0))
                     papers_html = TEMPLATE.tmpl_gen_papers(papers[0:max_num_show_papers])
                     json_response.update({'result': "\n".join(papers_html)})
+                    json_response.update({'totalPapers': len(papers)})
                     json_response.update({'resultCode': 1})
                     json_response.update({'pid': str(pId)})
                 else:
                     json_response.update({'result': 'Error: Missing person id'})
-            # json_response.update(perform_request_ajax(req, recid, uid,
-            #                                           json_data))
+            elif req_type == 'getNames':
+                if json_data.has_key('personId'):
+                    pId = json_data['personId']
+                    print "debug pid:",pId
+                    names = webapi.get_person_names_from_id(int(pId))
+                    print "debug names:",names
+                    names_html = TEMPLATE.tmpl_gen_names(names)
+                    json_response.update({'result': "\n".join(names_html)})
+                    json_response.update({'resultCode': 1})
+                    json_response.update({'pid': str(pId)})
+            elif req_type =='getIDs':
+                if json_data.has_key('personId'):
+                    pId = json_data['personId']
+                    ids = webapi.get_external_ids_from_person_id(int(pId))
+                    ids_html = TEMPLATE.tmpl_gen_ext_ids(ids)
+                    json_response.update({'result': "\n".join(ids_html)})
+                    json_response.update({'resultCode': 1})
+                    json_response.update({'pid': str(pId)})
             else:
                 json_response.update({'result': 'Error: Wrong request type'})
             return json.dumps(json_response)
