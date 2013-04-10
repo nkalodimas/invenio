@@ -1547,10 +1547,10 @@ class Template:
         def stub():
             text = self._("Create a new Person for your search")
             link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, '-3')
-            
+
             for r in bibrefs:
                 link = link + '&selection=%s' % str(r)
-                
+
             return text, link
 
         return stub
@@ -1563,15 +1563,15 @@ class Template:
             return text, link
 
         return stub
-            
+
     def tmpl_assigning_search_button_generator(self, bibrefs):
         def stub(pid):
             text = self._("Attribute paper")
             link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, pid)
-            
+
             for r in bibrefs:
                 link = link + '&selection=%s' % str(r)
-                
+
             return text, link
 
         return stub
@@ -1585,7 +1585,7 @@ class Template:
             return activated, parameters, link
 
         return stub
-            
+
     def tmpl_general_search_bar(self):
         def stub(search_param):
             activated = True
@@ -1617,22 +1617,22 @@ class Template:
         search_bar_activated, parameters, link = search_bar(query)
 
         if search_bar_activated:
+            h('<div class="fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix" id="aid_search_bar">')
             h('<form id="searchform" action="%s" method="GET">' % (link,))
             h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
 
             for param in parameters[1:]:
                 h('<input type="hidden" name=%s value=%s>' % (param[0], param[1]))
-    
+
             h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name=%s style="border:1px solid #333; width:500px;" '
                         'maxlength="250" value="%s" class="focus" />' % (parameters[0][0], parameters[0][1]))
             h('<input type="submit" value="Search" />')
             h('</form>')
+            h('</div>')
 
         if not results and not query:
             h('</div>')
             return "\n".join(html)
-
-        #h("<p>&nbsp;</p>")
 
         if query and not results:
             authemail = CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL
@@ -1643,17 +1643,17 @@ class Template:
                                  "<a rel='nofollow' href=\"mailto:%s\">%s</a>.</strong>") % (query, authemail, authemail))
             h('</div>')
             if new_person_gen:
-                new_person_text, new_person_link = new_person_gen() 
+                new_person_text, new_person_link = new_person_gen()
                 h('<div>')
                 h('<a rel="nofollow" href="%s">%s' % (new_person_text, new_person_link))
                 h('</a>')
                 h('</div>')
             return "\n".join(html)
-        
+
         show_action_button = False
         if button_gen:
             show_action_button = True
-            
+
         # base_color = 100
         # row_color = 0
         # html table
@@ -1671,12 +1671,6 @@ class Template:
             h('         <th scope="col" id="">Action</th>')
         h('         </tr>\
                 </thead>\
-           <!-- Table footer -->\
-                <tfoot>\
-                    <tr>\
-                        <td>Footer</td>\
-                    </tr>\
-                </tfoot>\
            <!-- Table body -->\
                 <tbody>')
         for index, result in enumerate(results):
@@ -1687,9 +1681,9 @@ class Template:
             #                 base_color / len(results)))
 
             pid = result['pid']
-            canonical_id = result['canonical_id']                
+            canonical_id = result['canonical_id']
             names = result['name_variants']
-            
+
             external_ids = result['external_ids']
 
             # person row
@@ -1708,21 +1702,14 @@ class Template:
             else:
                 h('<td>%s</td>' % ('Canonical id not available',))
             #Names
-            h('<td>')
-            if names:
-                for name in names:
-                    h('<span style="margin-right:20px;">%s </span>'
-                                % (name[0],))
-            else:
-                h('%s' % ('Name is not available',))
+            h('<td class="emptyName' + str(pid) + '">')
+            #html.extend(self.tmpl_gen_names(names))
             h('</td>')
             # IDs
-            if external_ids:
-                for key, value in external_ids.iteritems():
-                    h('<td>%s: %s</td>' % (key, str(value))) # TODO: get id
-            else:
-                h('<td>%s</td>' % ('External ids are not available',))
-            # recent papers
+            h('<td class="emptyIDs' + str(pid) + '">')
+            #html.extend(self.tmpl_gen_ext_ids(external_ids))
+            h('</td>')
+            # Recent papers
             h('<td>')
             h(('<a rel="nofollow" href="#" id="aid_moreinfolink" class="mpid%s">'
                         '<img src="../img/aid_plus_16.png" '
@@ -1738,34 +1725,32 @@ class Template:
             #Link
             h('<td>')
             h(('<span>'
-                    '<em><a rel="nofollow" href="%s/author/%s" id="aid_moreinfolink">'
+                    '<em><a rel="nofollow" href="%s/author/%s" id="aid_moreinfolink" target="_blank">'
                     + self._('Publication List ') + '(%s)</a></em></span>')
                     % (CFG_SITE_URL,get_person_redirect_link(pid),
                        get_person_redirect_link(pid)))
             h('</td>')
-            
+
             if show_action_button:
                 action_button_text, action_button_link = button_gen(pid)
                 #Action link
                 h('<td>')
                 h(('<span style="margin-left: 120px;">'
-                            '<em><a rel="nofollow" href="%s" id="confirmlink">'
+                            '<em><a rel="nofollow" href="%s" class="confirmlink">'
                             '<strong>%s</strong>' + '</a></em></span>')
-                            % (action_button_link, action_button_text))    
+                            % (action_button_link, action_button_text))
                 h('</td>')
             h('</tr>')
         h('</tbody>')
         h('</table>')
-        
+
         if new_person_gen:
-            new_person_text, new_person_link = new_person_gen() 
-            h('<div>')
-            h('<a rel="nofollow" href="%s">%s' % (new_person_link, new_person_text))
+            new_person_text, new_person_link = new_person_gen()
+            h('<a rel="nofollow" href="%s" class="new_person_link">%s' % (new_person_link, new_person_text))
             h('</a>')
-            h('</div>')
 
         return "\n".join(html)
-    
+
     def old_tmpl_author_search(self, query, results,
                            search_ticket=None, author_pages_mode=True,
                            new_person_link=False, welcome_mode = False):
@@ -1960,7 +1945,7 @@ class Template:
                                 '<em><a rel="nofollow" href="%s" id="confirmlink">'
                                 '<strong>' + self._('Claim this profile!') + '</strong>'
                                 +'</a></em></span>')
-                                % (link))                    
+                                % (link))
                 else:
                     h(('<span>'
                                 '<em><a rel="nofollow" href="%s/%s/%s" id="aid_moreinfolink">'
@@ -2010,6 +1995,42 @@ class Template:
             h("</ul>")
         elif not papers:
             h("<p>" + self._('Sorry, there are no documents known for this person') + "</p>")
+        return html
+
+    def tmpl_gen_names(self, names):
+        """
+            Generates the names html code.
+            Returns a list of strings
+        """
+        html = []
+        h = html.append
+
+        if names:
+            for name in names:
+                h('<span style="margin-right:20px;">%s </span>'
+                            % (name[0],))
+                # for name in names:
+                #     h('<span style="margin-right:20px;">%s </span>'
+                #                 % (name[0],))
+        else:
+            h('%s' % ('Name is not available',))
+        return html
+
+
+    def tmpl_gen_ext_ids(self, external_ids):
+        """
+            Generates the external ids html code.
+            Returns a list of strings
+        """
+        html = []
+        h = html.append
+
+        if external_ids:
+            for key, value in external_ids.iteritems():
+                    h('%s: %s' % (key, str(value))) # TODO: get id
+        else:
+            h('%s' % ('External ids are not available',))
+
         return html
 
 
@@ -2097,7 +2118,7 @@ class Template:
         html = []
         h = html.append
         links = []
-        
+
         for system in suggested_remote_login_systems:
             links.append('<a href=%s>%s</a>' % (bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_LINKS[system], system))
 

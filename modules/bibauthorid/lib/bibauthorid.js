@@ -28,8 +28,10 @@ $(document).ready(function() {
 
         if (toggleimg == '../img/aid_plus_16.png') {
             $this.find('img').attr({src:'../img/aid_minus_16.png'});
+            $this.closest('td').css('padding-top', '15px');
         } else {
             $this.find('img').attr({src:'../img/aid_plus_16.png'});
+            $this.closest('td').css('padding-top', '0px');
         }
         return false;
     });
@@ -93,24 +95,58 @@ $(document).ready(function() {
                     $('.dataTables_length').css('display','none');
                 }
     });
-    // TODO: if actions column exists add 6 to aTargets
-    var targets = [3,4,5,6];
-    if ($('#personsTable th').length == 6 ) {
-        targets = [3,4,5];
-    }
-    $('#personsTable').dataTable({
-            "bJQueryUI": true,
-            "sPaginationType": "full_numbers",
-            "aoColumnDefs": [
-                { "bSortable": false, "aTargets": targets }
-                ],
-            "iDisplayLength": 5,
-            "aLengthMenu": [5, 10, 20],
-            "oLanguage": {
-                "sSearch": "Filter: "
-            }
-    });
 
+    // search box
+    if ( $('#personsTable').length ) {
+        // bind retrieve papers ajax request
+        $('[class^=mpid]').on('click', function(event){
+            if ( !$(this).siblings('.retreived_papers').length) {
+                var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
+                var data = { 'requestType': "getPapers", 'personId': pid.toString()};
+                var errorCallback = onRetrievePapersError(pid);
+                $.ajax({
+                    dataType: 'json',
+                    type: 'POST',
+                    url: '/person/search_box_ajax',
+                    data: {jsondata: JSON.stringify(data)},
+                    success: onRetrievePapersSuccess,
+                    error: errorCallback,
+                    async: true
+                });
+                event.preventDefault();
+            }
+        });
+        // create ui buttons
+        $('.new_person_link, .confirmlink').button();
+        //$("#searchform :input").attr("disabled",true);
+        // gResultsPerPage = 3;
+        // gCurPage = 1;
+        // showPage(gCurPage);
+        var targets = [2,3,4,5,6];
+        if ($('#personsTable th').length == 6 ) {
+            targets = [2,3,4,5];
+        }
+        var pTable = $('#personsTable').dataTable({
+                "bJQueryUI": true,
+                "sPaginationType": "full_numbers",
+                "aoColumnDefs": [
+                    { "bSortable": false, "aTargets": targets },
+                    { "sType": "numeric", "aTargets": [ 0 ] },
+                    { "sType": "string", "aTargets": [ 1,2 ] }
+                    ],
+                "iDisplayLength": 5,
+                "aLengthMenu": [5, 10, 20],
+                "oLanguage": {
+                    "sSearch": "Filter: "
+                }
+        });
+        // draw first page
+        onPageChange();
+        // on page change
+        $(pTable).bind('draw', function() {
+            onPageChange();
+        });
+    }
     // Activate Tabs
     $("#aid_tabbing").tabs();
 
@@ -153,35 +189,84 @@ $(document).ready(function() {
     });
 
 //    update_action_links();
-    // person/search pagination
-    if ( $('#personsTable').length ) {
-        $('[class^=mpid]').on('click', function(event){
-            if ( !$(this).hasClass('retreived_papers')) {
+
+});
+
+function onPageChange() {
+    $('[class^=emptyName]').each( function(index){
                 var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
-                var data = { 'requestType': "getPapers", 'personId': pid.toString()};
-                var errorCallback = onRetrievePapersError(pid);
+                var data = { 'requestType': "getNames", 'personId': pid.toString()};
+                var errorCallback = onGetNamesError(pid);
                 $.ajax({
                     dataType: 'json',
                     type: 'POST',
                     url: '/person/search_box_ajax',
                     data: {jsondata: JSON.stringify(data)},
-                    success: onRetrievePapersSuccess,
+                    success: onGetNamesSuccess,
                     error: errorCallback,
                     async: true
                 });
-                event.preventDefault();
-            }
         });
-        //$("#searchform :input").attr("disabled",true);
-        // gResultsPerPage = 3;
-        // gCurPage = 1;
-        // showPage(gCurPage);
+
+    $('[class^=emptyIDs]').each( function(index){
+                var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
+                var data = { 'requestType': "getIDs", 'personId': pid.toString()};
+                var errorCallback = onGetIDsError(pid);
+                $.ajax({
+                    dataType: 'json',
+                    type: 'POST',
+                    url: '/person/search_box_ajax',
+                    data: {jsondata: JSON.stringify(data)},
+                    success: onGetIDsSuccess,
+                    error: errorCallback,
+                    async: true
+                });
+    });
+}
+
+function onGetIDsSuccess(json){
+    if(json['resultCode'] == 1) {
+        $('.emptyIDs' + json['pid']).html(json['result']).addClass('retreivedIDs').removeClass('.emptyIDs' + json['pid']);
+
     }
-});
+    else {
+        $('.emptyIDs' + json['pid']).text(json['result']);
+    }
+}
+
+function onGetIDsError(pid){
+  /*
+   * Handle failed 'getIDs' requests.
+   */
+   return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('.emptyIDs' + pID).text('External ids could not be retrieved');
+    };
+}
+
+function onGetNamesSuccess(json){
+    if(json['resultCode'] == 1) {
+        $('.emptyName' + json['pid']).html(json['result']).addClass('retreivedName').removeClass('.emptyName' + json['pid']);
+    }
+    else {
+        $('.emptyName' + json['pid']).text(json['result']);
+    }
+}
+
+function onGetNamesError(pid){
+  /*
+   * Handle failed 'getNames' requests.
+   */
+   return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('.emptyName' + pID).text('Names could not be retrieved');
+    };
+}
 
 function onRetrievePapersSuccess(json){
     if(json['resultCode'] == 1) {
         $('.more-mpid' + json['pid']).html(json['result']).addClass('retreived_papers');
+        $('.mpid' + json['pid']).append('(' + json['totalPapers'] + ')');
     }
     else {
         $('.more-mpid' + json['pid']).text(json['result']);

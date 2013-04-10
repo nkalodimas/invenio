@@ -2272,19 +2272,19 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         for index, pid in enumerate(pid_list):
             result = defaultdict(list)
             result['pid'] = pid
-            
+
             #if index < PERSONS_PER_PAGE:
             result['canonical_id'] = webapi.get_canonical_id_from_person_id(pid)
             result['name_variants'] = webapi.get_person_names_from_id(pid)
             result['external_ids'] = webapi.get_external_ids_from_person_id(pid)
-            
+
             search_results.append(result)
 
-        body = TEMPLATE.tmpl_author_search(query, search_results, button_gen, 
+        body = TEMPLATE.tmpl_author_search(query, search_results, button_gen,
                                                new_person_gen, show_search_bar)
 
         body = TEMPLATE.tmpl_person_detail_layout(body)
-        
+
         return body
 
     def search(self, req, form):
@@ -2310,7 +2310,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         search_ticket = None
         new_person_gen = None
         bibrefs = []
-        
+
         if 'search_ticket' in pinfo:
             search_ticket = pinfo['search_ticket']
             for r in search_ticket['bibrefs']:
@@ -2319,7 +2319,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if search_ticket and "ulevel" in pinfo:
             if pinfo["ulevel"] == "admin":
                 new_person_gen = TEMPLATE.tmpl_assigning_search_new_person_generator(bibrefs)
-                
+
         body = ''
         button_gen = None
 
@@ -2344,9 +2344,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if 'q' in argd:
             if argd['q']:
                 query = escape(argd['q'])
-        
+
         pid_canditates_list = []
-        
+
         if query:
             if query.count(":"):
                 try:
@@ -2374,7 +2374,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         if recid and (len(pid_canditates_list) == 1):
             return redirect_to_url(req, "/person/%s" % search_results[0])
-        
+
         body  = body + self.search_box(pid_canditates_list, query, button_gen, new_person_gen, search_bar)
 
         return page(title=title,
@@ -2489,10 +2489,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                 authorpapers[0:max_num_show_papers], len(authorpapers)])
 
             search_results = authors
-        
+
         if recid and (len(search_results) == 1):
             return redirect_to_url(req, "/person/%s" % search_results[0][0])
-        
+
         body = body + TEMPLATE.tmpl_author_search(query, search_results, search_ticket,
                                                   new_person_link=new_person_link, welcome_mode = welcome_mode)
 
@@ -2535,19 +2535,38 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         # Handle request.
         if ajax_request:
-            if json_data['requestType'] == 'getPapers':
+            req_type = json_data['requestType']
+            if req_type == 'getPapers':
                 if json_data.has_key('personId'):
                     pId = json_data['personId']
-                    papers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(pId, -1)],
+                    papers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(int(pId), -1)],
                                           key=itemgetter(0))
+
                     papers_html = TEMPLATE.tmpl_gen_papers(papers[0:MAX_NUM_SHOW_PAPERS])
                     json_response.update({'result': "\n".join(papers_html)})
+                    json_response.update({'totalPapers': len(papers)})
                     json_response.update({'resultCode': 1})
                     json_response.update({'pid': str(pId)})
                 else:
                     json_response.update({'result': 'Error: Missing person id'})
-            # json_response.update(perform_request_ajax(req, recid, uid,
-            #                                           json_data))
+            elif req_type == 'getNames':
+                if json_data.has_key('personId'):
+                    pId = json_data['personId']
+                    print "debug pid:",pId
+                    names = webapi.get_person_names_from_id(int(pId))
+                    print "debug names:",names
+                    names_html = TEMPLATE.tmpl_gen_names(names)
+                    json_response.update({'result': "\n".join(names_html)})
+                    json_response.update({'resultCode': 1})
+                    json_response.update({'pid': str(pId)})
+            elif req_type =='getIDs':
+                if json_data.has_key('personId'):
+                    pId = json_data['personId']
+                    ids = webapi.get_external_ids_from_person_id(int(pId))
+                    ids_html = TEMPLATE.tmpl_gen_ext_ids(ids)
+                    json_response.update({'result': "\n".join(ids_html)})
+                    json_response.update({'resultCode': 1})
+                    json_response.update({'pid': str(pId)})
             else:
                 json_response.update({'result': 'Error: Wrong request type'})
             return json.dumps(json_response)
@@ -2729,13 +2748,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         action = argd['action']
         selected_pid = argd['pid']
         search_param = argd['search_param']
-        
+
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
 
         if not CFG_INSPIRE_SITE:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
-        
+
         if action != None and action != 'select' and action != 'search':
             return page_not_authorized(req, text=_("This page in not accessible directly."))
         # login_status checks if the user is logged in and return his uid and external systems that he is logged in through.
@@ -2747,7 +2766,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_info['remote_logged_in_systems'])
         self._welcome_general_initial_text(req, login_info, remote_login_systems_info, ln)
-        
+
         if login_info['logged_in']:
             # get union of recids from all external systems: set(inspire_recids_list)
             recids = webapi.get_remote_login_systems_recids(req, login_info['remote_logged_in_systems'])
@@ -2778,19 +2797,19 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         req.write(pageheaderonly(req=req, title=title_message, uid=login_info["uid"],
                                language=ln, secure_page_p=ssl_param, metaheaderadd=self._scripts(kill_browser_cache=True)))
         req.write(TEMPLATE.tmpl_welcome_start())
-        
+
         if not login_info['logged_in']:
             # here will have to display please log in through whatever is available (/youraccount/login to be included? probably not Salvatore says)
             req.write(TEMPLATE.tmpl_welcome_not_logged_in())
             suggested_systems = CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
         else:
             body = ""
-    
+
             # show info message: you are logged in in ispire as user 0, through arXiv with user bla bla and through ORCID with user bla bla.
             body = TEMPLATE.tmpl_welcome_remote_login_systems(remote_login_systems_info, login_info["uid"])
-    
+
             req.write(body)
-    
+
             # warmly suggest the user to log in through all the others available systems if possible so we gather all papers for him for free!
             suggested_systems = list(set(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS) - set(login_info['remote_logged_in_systems']))
 
@@ -2816,7 +2835,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if probable_pid > -1:
                 profile_suggestion_info = webapi.get_profile_suggestion_info(req, probable_pid)
                 req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(profile_suggestion_info))
-            
+
             if not search_param:
                 name_variants = webapi.get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
                 search_param = most_relevant_name(name_variants)
@@ -2842,10 +2861,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             for result in sorted_results:
                 pid_canditates_list.append(result[0])
-            
+
             button_func = TEMPLATE.tmpl_welcome_search_button_generator()
             new_person_func = TEMPLATE.tmpl_welcome_search_new_person_generator()
-            
+
             req.write(self.search_box(pid_canditates_list, search_param, button_func, new_person_func, show_search_bar = TEMPLATE.tmpl_welcome_search_bar()))
 
             # search_results = search...
