@@ -170,10 +170,10 @@ def get_external_ids_from_person_id(pid):
 
     if isinstance(pid, str):
         return None
-    
+
     external_ids = dbapi.get_personiID_external_ids(pid)
     return external_ids
-    
+
 def get_canonical_id_from_person_id(person_id):
     '''
     Finds the person  canonical name from personid (e.g. 1)
@@ -1040,7 +1040,7 @@ def get_arxiv_recids(req, ):
     if current_external_ids and not cached_ids_association:
         for arxivid in current_external_ids:
             #perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxiv_id), of='id', rg=0)
-            recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m='e', cc='HEP')
+            recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m1='e', cc='HEP')
             if recid_list:
                 recid = recid_list[0]
                 recids_from_arxivids.append(recid)
@@ -1051,7 +1051,7 @@ def get_arxiv_recids(req, ):
                 recid = cached_ids_association[('arxivid', arxivid)]
                 recids_from_arxivids.append(recid)
             else:
-                recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m='e', cc='HEP')
+                recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m1='e', cc='HEP')
                 if recid_list:
                     recid = recid_list[0]
                     recids_from_arxivids.append(recid)
@@ -1134,7 +1134,7 @@ def match_profile(req, recids, remote_login_systems_info):
 
     if most_compatible_person != None:
         return most_compatible_person
-    
+
     name_variants = get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
     most_compatible_person = dbapi.find_most_compatible_person(recids, name_variants)
     pinfo['most_compatible_person'] = most_compatible_person
@@ -1149,7 +1149,7 @@ def get_profile_suggestion_info(req, pid):
 
     if profile_suggestion_info != None:
         return profile_suggestion_info
-    
+
     profile_suggestion_info = dict()
     profile_suggestion_info['canonical_id'] = dbapi.get_canonical_id_from_personid(pid)
     name_variants = get_person_names_from_id(pid)
