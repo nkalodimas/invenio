@@ -2809,6 +2809,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
             # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
         else:
+            # recids = [1]
+            # remote_login_systems_info['arXiv']['name'] = 'Photolab,'
             # show: this is who we think you are, if you lije this profile click here and you'll become him!
             # this is the profile with the biggest intersection of papers
             probable_pid = webapi.match_profile(req, recids, remote_login_systems_info)
