@@ -1049,8 +1049,8 @@ def get_arxiv_recids(req ):
 
     if current_external_ids and not cached_ids_association:
         for arxivid in current_external_ids:
-            #perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxiv_id), of='id', rg=0)
-            recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m1='e', cc='HEP')
+            recid_list = perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxivid), of='id', rg=0)
+            #recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m1='e', cc='HEP')
             if recid_list:
                 recid = recid_list[0]
                 recids_from_arxivids.append(recid)
