@@ -2815,8 +2815,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         if suggested_systems:
             req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
-        
-        req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(webapi.get_arxivids(req)))
+
 
     def _welcome_main_functionality(self, req, form, login_status, recids, remote_login_systems_info, pid, search_param ):
         # check if a profile is already associated
@@ -2868,7 +2867,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             new_person_func = TEMPLATE.tmpl_welcome_search_new_person_generator()
 
             req.write(self.search_box(pid_canditates_list, search_param, button_func, new_person_func, show_search_bar = TEMPLATE.tmpl_welcome_search_bar()))
-
+            
+            cached_ids_association = webapi.get_cached_id_association(req)
+            req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(webapi.get_remote_login_systems_ids(req, remote_login_systems_info), cached_ids_association))
             # search_results = search...
             # if the one we suggested is not the one you think, please search for the one you like most
             # this show the search box prefilled with one of the names we got
