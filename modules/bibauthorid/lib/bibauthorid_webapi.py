@@ -184,8 +184,8 @@ def get_canonical_id_from_person_id(person_id):
     @return: result from the request or person_id on failure
     @rtype: int
     '''
-    if not person_id or not (isinstance(person_id, str) or isinstance(person_id, (int, long))):
-        return person_id
+    if not person_id:
+        return None
 
     canonical_name = person_id
 
@@ -316,8 +316,8 @@ def get_papers_by_person_id(person_id= -1, rec_status= -2, ext_out=False):
     @param ext_out: Extended output (w/ author aff and date)
     @type ext_out: boolean
 
-    @return: list of record ids
-    @rtype: list of int
+    @return: list of record info
+    @rtype: list of lists of info
     '''
     if not isinstance(person_id, (int, long)):
         try:
@@ -341,7 +341,7 @@ def get_papers_by_person_id(person_id= -1, rec_status= -2, ext_out=False):
                                       show_date=ext_out,
                                       show_experiment=ext_out)
     if not ext_out:
-        records = [[row["data"].split(",")[1], row["data"], row["flag"],
+        records = [[int(row["data"].split(",")[1]), row["data"], row["flag"],
                     row["authorname"]] for row in db_data]
     else:
         for row in db_data:
@@ -359,7 +359,7 @@ def get_papers_by_person_id(person_id= -1, rec_status= -2, ext_out=False):
 
             exp = ", ".join(row['experiment'])
             # date = ""
-            records.append([recid, bibref, flag, authorname,
+            records.append([int(recid), bibref, flag, authorname,
                             authoraff, date, rt_status, exp])
 
 
@@ -1022,7 +1022,17 @@ def get_remote_login_systems_info(req, remote_logged_in_systems):
 
     return user_remote_logged_in_systems_info
 
-def get_arxiv_recids(req, ):
+def get_arxivids(req):
+    session = get_session(req)
+    uinfo = collect_user_info(req)
+    pinfo = session['personinfo']
+    current_external_ids = []
+
+    if 'external_arxivids' in uinfo.keys() and uinfo['external_arxivids']:
+        current_external_ids = uinfo['external_arxivids'].split(';')
+    return current_external_ids
+
+def get_arxiv_recids(req ):
     session = get_session(req)
     uinfo = collect_user_info(req)
     pinfo = session['personinfo']
@@ -1039,8 +1049,8 @@ def get_arxiv_recids(req, ):
 
     if current_external_ids and not cached_ids_association:
         for arxivid in current_external_ids:
-            #perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxiv_id), of='id', rg=0)
-            recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m1='e', cc='HEP')
+            recid_list = perform_request_search(p=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'] + str(arxivid), of='id', rg=0)
+            #recid_list = perform_request_search(p=arxivid, f=bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIERS['arXiv'], m1='e', cc='HEP')
             if recid_list:
                 recid = recid_list[0]
                 recids_from_arxivids.append(recid)
@@ -1152,7 +1162,7 @@ def get_profile_suggestion_info(req, pid):
 
     profile_suggestion_info = dict()
     profile_suggestion_info['canonical_id'] = dbapi.get_canonical_id_from_personid(pid)
-    name_variants = get_person_names_from_id(pid)
+    name_variants = [element[0] for element in get_person_names_from_id(pid)]
     name = most_relevant_name(name_variants)
     profile_suggestion_info['name_string'] = "[No name available]  "
 

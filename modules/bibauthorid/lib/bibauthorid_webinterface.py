@@ -2815,11 +2815,11 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         if suggested_systems:
             req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
-
+        
+        req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(webapi.get_arxivids(req)))
 
     def _welcome_main_functionality(self, req, form, login_status, recids, remote_login_systems_info, pid, search_param ):
         # check if a profile is already associated
-
         if pid != -1:
             # we already have a profile! let's claim papers!
             auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
@@ -2828,6 +2828,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
             # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
         else:
+            # recids = [1]
+            # remote_login_systems_info['arXiv']['name'] = 'Photolab,'
             # show: this is who we think you are, if you lije this profile click here and you'll become him!
             # this is the profile with the biggest intersection of papers
             probable_pid = webapi.match_profile(req, recids, remote_login_systems_info)
@@ -2885,7 +2887,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         # we already have a profile! let's claim papers!
         auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
-        req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(auto_claim_paper_list))
+        req.write(TEMPLATE.tmpl_welcome_autoclaim_remote_login_systems_papers(auto_claim_paper_list))
         # explain the user which one is his profile
         req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
         # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))

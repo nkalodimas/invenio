@@ -2332,7 +2332,7 @@ class Template:
 
         return head + body + tail
 
-    def tmpl_welcome_remote_login_systems_papers(self, paps):
+    def tmpl_welcome_autoclaim_remote_login_systems_papers(self, paps):
         '''
         Creates the list of remote login systems papers
         '''
@@ -2345,6 +2345,18 @@ class Template:
         else:
             plist = self._("We have got no papers from the remote login systems that you are currently logged in through, which we could claim automatically for you. <br>")
         return plist
+
+    def tmpl_welcome_remote_login_systems_papers(self, paps):
+        plist = "<br><br>"
+        if paps:
+            plist = plist + self._("We have got "
+                                    "the following papers from the remote login systems you are logged in through: <br>")
+            for p in paps:
+                plist = plist + "  " + str(p) + "<br>"
+        else:
+            plist = self._("We have got no papers from the remote login systems that you are currently logged in through. <br>")
+        return plist        
+
 
     def tmpl_welcome_arXiv_papers(self, paps):
         '''
