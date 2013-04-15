@@ -44,6 +44,7 @@ except ImportError:
 from invenio.bibindex_engine_tokenizer import BibIndexFuzzyNameTokenizer as FNT
 from invenio.logicutils import to_cnf
 from invenio.config import CFG_WEBSEARCH_SPIRES_SYNTAX
+from invenio.dateutils import strptime
 
 
 NameScanner = FNT()
@@ -874,14 +875,14 @@ class SpiresToInvenioSyntaxConverter:
             date_str, relative_units = parse_relative_unit(date_str)
 
             try:
-                d = datetime.strptime(date_str, '%Y-%m-%d')
+                d = strptime(date_str, '%Y-%m-%d')
                 d += du_delta(days=relative_units)
                 return datetime.strftime(d, '%Y-%m-%d'), end
             except ValueError:
                 pass
 
             try:
-                d = datetime.strptime(date_str, '%y-%m-%d')
+                d = strptime(date_str, '%y-%m-%d')
                 d += du_delta(days=relative_units)
                 d = guess_best_year(d)
                 return datetime.strftime(d, '%Y-%m-%d'), end
@@ -889,21 +890,21 @@ class SpiresToInvenioSyntaxConverter:
                 pass
 
             try:
-                d = datetime.strptime(date_str, '%Y-%m')
+                d = strptime(date_str, '%Y-%m')
                 d += du_delta(months=relative_units)
                 return datetime.strftime(d, '%Y-%m'), end
             except ValueError:
                 pass
 
             try:
-                d = datetime.strptime(date_str, '%Y')
+                d = strptime(date_str, '%Y')
                 d += du_delta(years=relative_units)
                 return datetime.strftime(d, '%Y'), end
             except ValueError:
                 pass
 
             try:
-                d = datetime.strptime(date_str, '%y')
+                d = strptime(date_str, '%y')
                 d += du_delta(days=relative_units)
                 d = guess_best_year(d)
                 return datetime.strftime(d, '%Y'), end
@@ -911,7 +912,7 @@ class SpiresToInvenioSyntaxConverter:
                 pass
 
             try:
-                d = datetime.strptime(date_str, '%b %y')
+                d = strptime(date_str, '%b %y')
                 d = guess_best_year(d)
                 return datetime.strftime(d, '%Y-%m'), end
             except ValueError:
