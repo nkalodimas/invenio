@@ -27,6 +27,7 @@ import os
 import time
 from tempfile import NamedTemporaryFile
 from datetime import datetime
+from xml.dom import minidom
 import urllib2
 import socket
 
@@ -45,14 +46,20 @@ from invenio.bibtask import task_init, \
                             task_sleep_now_if_required
 from invenio.search_engine_utils import get_fieldvalues
 from invenio.config import CFG_VERSION, \
-                           CFG_TMPSHAREDDIR
+                           CFG_TMPSHAREDDIR, \
+                           CFG_TMPDIR
 # Help message is the usage() print out of how to use Refextract
 from invenio.refextract_cli import HELP_MESSAGE, DESCRIPTION
-from invenio.bibdocfile import BibRecDocs, InvenioWebSubmitFileError
+from invenio.docextract_record import get_record
+from invenio.bibdocfile import BibRecDocs, \
+                               InvenioWebSubmitFileError, \
+                               calculate_md5
+from invenio.oai_harvest_dblayer import get_oai_src
+from invenio import oai_harvest_daemon
 
 
 NAME = 'arxiv-pdf-checker'
-ARXIV_URL_PATTERN = "http://export.arxiv.org/pdf/%s.pdf"
+ARXIV_URL_PATTERN = "http://export.arxiv.org/pdf/%sv%s.pdf"
 
 
 STATUS_OK = 'ok'
@@ -70,10 +77,6 @@ class PdfNotAvailable(Exception):
     pass
 
 
-class InvalidReportNumber(Exception):
-    pass
-
-
 class FoundExistingPdf(Exception):
     pass
 
@@ -84,20 +87,31 @@ class AlreadyHarvested(Exception):
         self.status = status
 
 
-def build_arxiv_url(arxiv_id):
-    return ARXIV_URL_PATTERN % arxiv_id
+def build_arxiv_url(arxiv_id, version):
+    return ARXIV_URL_PATTERN % (arxiv_id, version)
 
 
 def extract_arxiv_ids_from_recid(recid):
-    for report_number in get_fieldvalues(recid, '037__a'):
-        if report_number.startswith('arXiv'):
-            report_number = report_number.split(':')[1]
-
-        # Extract arxiv id
+    record = get_record(recid)
+    for report_number_field in record['037']:
         try:
-            yield report_number
+            source = report_number_field.get_subfield_values('9')[0]
         except IndexError:
-            raise InvalidReportNumber(report_number)
+            continue
+        else:
+            if source != 'arXiv':
+                continue
+
+        try:
+            report_number = report_number_field.get_subfield_values('a')[0]
+        except IndexError:
+            continue
+        else:
+            # Extract arxiv id
+            if report_number.startswith('arXiv'):
+                report_number = report_number.split(':')[1]
+
+            yield report_number
 
 
 def look_for_fulltext(recid):
@@ -140,22 +154,20 @@ def cb_parse_option(key, value, opts, args):
     return True
 
 
-def store_arxiv_pdf_status(recid, status):
+def store_arxiv_pdf_status(recid, status, version):
     """Store pdf harvesting status in the database"""
     valid_status = (STATUS_OK, STATUS_MISSING)
     if status not in valid_status:
         raise ValueError('invalid status %s' % status)
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    run_sql("""REPLACE INTO bibARXIVPDF (id_bibrec, status, date_harvested)
-            VALUES (%s, %s, %s)""", (recid, status, now))
+    run_sql("""REPLACE INTO bibARXIVPDF (id_bibrec, status, date_harvested, version)
+            VALUES (%s, %s, %s, %s)""", (recid, status, now, version))
 
 
 def fetch_arxiv_pdf_status(recid):
-    ret = run_sql("""SELECT status FROM bibARXIVPDF
+    ret = run_sql("""SELECT status, version FROM bibARXIVPDF
                      WHERE id_bibrec = %s""", [recid])
-    if ret:
-        return ret[0][0]
-    return None
+    return ret and ret[0] or (None, None)
 
 
 ### File utils temporary acquisition
@@ -205,9 +217,21 @@ def download_external_url(url, download_to_file, content_type=None,
     # 1. Attempt to download the external file
     error_str = ""
     error_code = None
-    for attempts in range(retry_count):
+    retry_attempt = 0
+
+    while retry_attempt < retry_count:
         try:
             request = open_url(url)
+            if request.code == 200 and "Refresh" in request.headers:
+                # PDF is being generated, they ask us to wait for n seconds
+                # New arxiv responses, we are not sure if the old ones are
+                # desactivated
+                try:
+                    retry_after = int(request.headers["Refresh"])
+                except ValueError:
+                    retry_after = timeout
+                time.sleep(retry_after)
+                continue
         except urllib2.HTTPError, e:
             error_code = e.code
             error_str = str(e)
@@ -219,21 +243,21 @@ def download_external_url(url, download_to_file, content_type=None,
                 except ValueError:
                     pass
             time.sleep(retry_after)
+            retry_attempt += 1
         except (urllib2.URLError, socket.timeout, socket.gaierror, socket.error), e:
             error_str = str(e)
             time.sleep(timeout)
+            retry_attempt += 1
         else:
             # When we get here, it means that the download was a success.
             try:
                 finalize_download(url, download_to_file, content_type, request)
             finally:
                 request.close()
-            break
-    else:
-        # All the attempts were used, but no successfull download - so raise error
-        raise InvenioFileDownloadError('URL could not be opened: %s' % (error_str,), code=error_code)
+            return download_to_file
 
-    return download_to_file
+    # All the attempts were used, but no successfull download - so raise error
+    raise InvenioFileDownloadError('URL could not be opened: %s' % (error_str,), code=error_code)
 
 
 def finalize_download(url, download_to_file, content_type, request):
@@ -279,13 +303,13 @@ def finalize_download(url, download_to_file, content_type, request):
 ### End of file utils temporary acquisition
 
 
-def download_one(recid):
+def download_one(recid, version):
     write_message('fetching %s' % recid)
     for count, arxiv_id in enumerate(extract_arxiv_ids_from_recid(recid)):
         if count != 0:
             write_message("Warning: %s has multiple arxiv #" % recid)
             continue
-        url_for_pdf = build_arxiv_url(arxiv_id)
+        url_for_pdf = build_arxiv_url(arxiv_id, version)
         filename_arxiv_id = arxiv_id.replace('/', '_')
         temp_file = NamedTemporaryFile(prefix="arxiv-pdf-checker",
                                        dir=CFG_TMPSHAREDDIR,
@@ -295,30 +319,93 @@ def download_one(recid):
                                      temp_file.name,
                                      content_type='pdf')
         docs = BibRecDocs(recid)
-        docs.add_new_file(path,
-                          doctype="arXiv",
-                          docname="arXiv:%s" % filename_arxiv_id)
+        bibdocfiles = docs.list_latest_files(doctype="arXiv")
+
+        needs_update = False
+        try:
+            bibdocfile = bibdocfiles[0]
+        except IndexError:
+            bibdocfile = None
+            needs_update = True
+        else:
+            existing_md5 = calculate_md5(bibdocfile.fullpath)
+            new_md5 = calculate_md5(path.encode('utf-8'))
+            if new_md5 != existing_md5:
+                write_message('md5 differs updating')
+                needs_update = True
+            else:
+                write_message('md5 matches existing pdf, skipping')
+
+        if needs_update:
+            if bibdocfiles:
+                write_message('adding as new version')
+                docs.add_new_version(path, docname=bibdocfile.name)
+            else:
+                write_message('adding as new file')
+                docs.add_new_file(path,
+                                  doctype="arXiv",
+                                  docname="arXiv:%s" % filename_arxiv_id)
+        else:
+            raise FoundExistingPdf()
         ffts = {recid: [{'doctype' : 'FIX-MARC'}]}
         bibupload_ffts(ffts, append=False, interactive=False)
+
+
+def fetch_arxiv_version(recid):
+    repositories = get_oai_src(params={'name': 'arxiv'})
+    try:
+        repository = repositories[0]
+    except IndexError:
+        raise Exception('arXiv repository information missing from database')
+
+    for count, arxiv_id in enumerate(extract_arxiv_ids_from_recid(recid)):
+        if count != 0:
+            write_message("Warning: %s has multiple arxiv #" % recid)
+            continue
+
+        responses = oai_harvest_daemon.oai_harvest_get(
+                                    prefix='arXivRaw',
+                                    baseurl=repository['baseurl'],
+                                    harvestpath=os.path.join(CFG_TMPDIR, "arxiv-pdf-checker-oai-"),
+                                    verb='GetRecord',
+                                    identifier='oai:arXiv.org:%s' % arxiv_id)
+        # We pass one arxiv id, we are assuming a single response file
+        tree = minidom.parse(responses[0])
+        version_tag = tree.getElementsByTagName('version')[0]
+        version = version_tag.getAttribute('version')
+        for file_path in responses:
+            os.unlink(file_path)
+        return int(version[1:])
 
 
 def process_one(recid):
     write_message('checking %s' % recid)
 
-    harvest_status = fetch_arxiv_pdf_status(recid)
-    if harvest_status:
+    harvest_status, harvest_version = fetch_arxiv_pdf_status(recid)
+
+    arxiv_version = fetch_arxiv_version(recid)
+    if not arxiv_version:
+        msg = 'version information unavailable'
+        write_message(msg)
+        raise PdfNotAvailable(msg)
+
+    if record_has_fulltext(recid) and harvest_version == arxiv_version:
         raise AlreadyHarvested(status=harvest_status)
 
-    if record_has_fulltext(recid):
-        raise FoundExistingPdf()
+    if harvest_status == STATUS_MISSING and harvest_version == arxiv_version:
+        raise PdfNotAvailable()
 
     try:
-        download_one(recid)
-        store_arxiv_pdf_status(recid, STATUS_OK)
-        submit_refextract_task(recid)
+        download_one(recid, arxiv_version)
     except PdfNotAvailable:
-        store_arxiv_pdf_status(recid, STATUS_MISSING)
+        store_arxiv_pdf_status(recid, STATUS_MISSING, arxiv_version)
         raise
+    except FoundExistingPdf:
+        store_arxiv_pdf_status(recid, STATUS_OK, arxiv_version)
+        raise
+    else:
+        store_arxiv_pdf_status(recid, STATUS_OK, arxiv_version)
+        submit_refextract_task(recid)
 
 
 def submit_refextract_task(recid):
@@ -359,23 +446,14 @@ def task_run_core(name=NAME):
 
         # BibTask sleep
         task_sleep_now_if_required(can_stop_too=True)
-        # Internal sleep
-        needs_sleep = True
 
         write_message('processing %s' % recid, verbose=9)
         try:
             process_one(recid)
-        except AlreadyHarvested, e:
-            if e.status == STATUS_OK:
-                write_message('already harvested successfully')
-            if e.status == STATUS_MISSING:
-                write_message('already harvested and pdf is missing')
-            else:
-                write_message('already harvested: %s' % e.status)
-            needs_sleep = False
+        except AlreadyHarvested:
+            write_message('already harvested successfully')
         except FoundExistingPdf:
-            write_message('found existing pdf')
-            needs_sleep = False
+            write_message('pdf already attached (matching md5)')
         except PdfNotAvailable:
             write_message("no pdf available")
         except InvenioFileDownloadError, e:
@@ -384,7 +462,8 @@ def task_run_core(name=NAME):
         if mod_date:
             store_last_updated(recid, start_date, name)
 
-        if needs_sleep and count + 1 != len(recids):
+        # To prevent overloading arxiv
+        if count + 1 != len(recids):
             time.sleep(60)
 
     return True

@@ -2919,6 +2919,7 @@ CREATE TABLE IF NOT EXISTS bibARXIVPDF (
   id_bibrec mediumint(8) unsigned NOT NULL,
   status ENUM('ok', 'missing') NOT NULL,
   date_harvested datetime NOT NULL,
+  version tinyint(2) NOT NULL,
   PRIMARY KEY (id_bibrec),
   KEY status (status)
 ) ENGINE=MyISAM;
