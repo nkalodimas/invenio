@@ -2343,16 +2343,52 @@ class Template:
             plist = self._("We have got no papers from the remote login systems that you are currently logged in through, which we could claim automatically for you. <br>")
         return plist
 
-    def tmpl_welcome_remote_login_systems_papers(self, paps):
+    def tmpl_welcome_remote_login_systems_papers(self, remote_login_systems_papers, cached_ids_association):
+        papers_found = False
+        html = []
+        h = html.append
+        message = self._("<br><br>We have got "
+                                "the following papers from the remote login systems you are logged in through: <br>")
+        h('<p>%s</p>' % message)
+        h('<table border="0"> <tr>')
+        h('<td>')
+        h('%s ' % (self._("External system")))
+        h('</td>')
+        h('<td>')
+        h('%s ' % (self._("External id")))
+        h('</td>')
+        h('<td>')
+        h('%s ' % (self._("Resolved record id")))
+        h('</td>')
+        h('</tr>')
+        
+        for system in remote_login_systems_papers.keys():
+            if remote_login_systems_papers[system]:
+                papers_found = True
+        
+            for paper in remote_login_systems_papers[system]:
+                h('<td>')
+                h('%s ' % (system))
+                h('</td>')
+                h('<td>')
+                h('%s ' % (paper))
+                h('</td>')
+                h('<td>')
+                h('%s ' % (cached_ids_association[(bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system], paper)],))
+                h('</td>')
+                h('</tr>')
+                
+        h('</table>')
+        h('</br>')
         plist = "<br><br>"
-        if paps:
-            plist = plist + self._("We have got "
-                                    "the following papers from the remote login systems you are logged in through: <br>")
-            for p in paps:
-                plist = plist + "  " + str(p) + "<br>"
-        else:
-            plist = self._("We have got no papers from the remote login systems that you are currently logged in through. <br>")
-        return plist        
+        
+        if not papers_found:
+            html = []
+            message = self._("<br><br>We have got "
+                                "the following papers from the remote login systems you are logged in through: <br>")
+            h('<p>%s</p>' % "We have got no papers from the remote login systems that you are currently logged in through. <br>")
+            
+        return "\n".join(html)        
 
 
     def tmpl_welcome_arXiv_papers(self, paps):
