@@ -2773,11 +2773,12 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             pid = webapi.get_user_pid(login_info['uid'])
 
             if action == None or pid >= 0:
+                #return self._error_page(req, ln,str(webapi.get_remote_login_systems_ids(req, remote_login_systems_info)))
                 self._welcome_main_functionality(req, form, login_info, recids, remote_login_systems_info, pid, '')
             elif action == 'search':
                 self._welcome_main_functionality(req, form, login_info, recids, remote_login_systems_info, pid, search_param)
             elif action == 'select':
-                self._welcome_profile_selection(req, login_info, selected_pid, recids)
+                self._welcome_profile_selection(req, remote_login_systems_info, login_info, selected_pid, recids)
         req.write(TEMPLATE.tmpl_welcome_end())
         req.write(pagefooteronly(req=req))
 
@@ -2819,10 +2820,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
     def _welcome_main_functionality(self, req, form, login_status, recids, remote_login_systems_info, pid, search_param ):
         # check if a profile is already associated
+        cached_ids_association = webapi.get_cached_id_association(req)
+        remote_login_systems_papers = webapi.get_remote_login_systems_ids(req, remote_login_systems_info)
+
         if pid != -1:
+            remote_login_systems_papers
             # we already have a profile! let's claim papers!
             auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
-            req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(auto_claim_paper_list))
+            req.write(TEMPLATE.tmpl_welcome_autoclaim_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association, auto_claim_paper_list))
             # explain the user which one is his profile
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
             # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
@@ -2868,8 +2873,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             req.write(self.search_box(pid_canditates_list, search_param, button_func, new_person_func, show_search_bar = TEMPLATE.tmpl_welcome_search_bar()))
             
-            cached_ids_association = webapi.get_cached_id_association(req)
-            req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(webapi.get_remote_login_systems_ids(req, remote_login_systems_info), cached_ids_association))
+            req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association))
             # search_results = search...
             # if the one we suggested is not the one you think, please search for the one you like most
             # this show the search box prefilled with one of the names we got
@@ -2878,7 +2882,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             # req.write(TEMPLATE.tmpl_welcome_select_empty_profile())
 
 
-    def _welcome_profile_selection(self, req, login_status, selected_pid, recids):
+    def _welcome_profile_selection(self, req, remote_login_systems_info, login_status, selected_pid, recids):
         pid, profile_claimed = webapi.claim_profile(login_status['uid'], selected_pid)
 
         if  profile_claimed or selected_pid == -1 :
@@ -2887,8 +2891,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             req.write(TEMPLATE.tmpl_profile_not_available())
 
         # we already have a profile! let's claim papers!
+        cached_ids_association = webapi.get_cached_id_association(req)
+        remote_login_systems_papers = webapi.get_remote_login_systems_ids(req, remote_login_systems_info)
         auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
-        req.write(TEMPLATE.tmpl_welcome_autoclaim_remote_login_systems_papers(auto_claim_paper_list))
+        req.write(TEMPLATE.tmpl_welcome_autoclaim_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association, auto_claim_paper_list))
         # explain the user which one is his profile
         req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
         # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
