@@ -152,10 +152,8 @@ def get_cites_counts(recids):
     return cites_counts
 
 
-def render_citation_summary(req, ln, recids, collections, searchpattern,
-                                                                  searchfield):
-    title = websearch_templates.tmpl_citesummary_title(ln)
-    req.write(title)
+def generate_citation_summary(recids, collections=CFG_CITESUMMARY_COLLECTIONS,
+                              searchpattern="", searchfield=""):
 
     coll_recids = get_recids(recids, collections)
     search_patterns = dict([(coll, searchpattern) \
@@ -165,6 +163,21 @@ def render_citation_summary(req, ln, recids, collections, searchpattern,
     stats = {}
     for coll, dummy in collections:
         stats[coll] = compute_citation_stats(coll_recids[coll], cites_counts)
+
+    return search_patterns, coll_recids, stats
+
+
+def render_citation_summary(req, ln, recids, collections, searchpattern,
+                            searchfield, citation_summary=None):
+
+    title = websearch_templates.tmpl_citesummary_title(ln)
+    req.write(title)
+
+    if citation_summary is None:
+        citation_summary = generate_citation_summary(recids, collections,
+                                                    searchpattern, searchfield)
+
+    search_patterns, coll_recids, stats = citation_summary
 
     render_citesummary_prologue(req,
                                 ln,
