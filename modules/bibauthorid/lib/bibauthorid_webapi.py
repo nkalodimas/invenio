@@ -1042,7 +1042,7 @@ def get_remote_login_systems_ids(req, remote_logged_in_systems):
     for system in remote_logged_in_systems:
         system_ids = REMOTE_LOGIN_SYSTEMS_GET_IDS_FUNCTIONS[system](req)
         remote_login_systems_ids[system] = system_ids
-    
+
     #return {'arXiv':[2]}
     return remote_login_systems_ids
 
