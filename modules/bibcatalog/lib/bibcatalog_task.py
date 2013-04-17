@@ -189,6 +189,12 @@ def task_parse_options(key, value, opts, args):
             query = set()
             task_set_option('query', query)
         query.update(value)
+    elif key in ('-x', '--arxivids'):
+        arxivids = task_get_option('arxivids')
+        if not arxivids:
+            arxivids = set()
+            task_set_option('arxivids', arxivids)
+        arxivids.update(value)
     return True
 
 
@@ -273,6 +279,7 @@ def get_recids_to_load():
     """
     recids_given = task_get_option("recids", default=[])
     query_given = task_get_option("query")
+    arxivids_given = task_get_option("arxivids")
     if query_given:
         write_message("Performing given search query: %s" % (query_given,))
         result = perform_request_search(p=query_given,
@@ -280,6 +287,15 @@ def get_recids_to_load():
                                         rg=0,
                                         wl=0)
         recids_given.extend(result)
+
+    if arxivids_given:
+        write_message("Searching for records referring to given arXiv ids")
+        for arxivid in arxivids_given:
+            result = perform_request_search(p='reportnumber:%s' % (arxivid,),
+                                            of='id',
+                                            rg=0,
+                                            wl=0)
+            recids_given.extend(result)
 
     recids_given = [(recid, None) for recid in recids_given]
 
@@ -350,6 +366,7 @@ def main():
   -i, --recids=      Record id for extraction.
   -c, --collections= Run on all records in a specific collection.
   -q, --query=       Specify a search query to fetch records to run on.
+  -x, --arxivids=    Run on all records related with specific arXiv ids.
 
   Selection of tickets:
 
@@ -373,6 +390,7 @@ def main():
                                  "collections=",
                                  "tickets=",
                                  "query=",
+                                 "arxivids="
                                  "new",
                                  "modified"]),
               task_submit_elaborate_specific_parameter_fnc=task_parse_options,

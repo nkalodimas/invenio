@@ -46,7 +46,10 @@ class TestUtilityFunctions(unittest.TestCase):
 
     def test_split_tag_code(self):
         """Tests function bibcatalog_utils.split_tag_code"""
-        self.assertEqual()
+        self.assertEqual(split_tag_code('035__a'), {"tag": "035",
+                            "ind1": "_",
+                            "ind2": "_",
+                            "code": "a"})
 
     def test_load_tag_code_from_name(self):
         """Tests function bibcatalog_utils.load_tag_code_from_name"""
