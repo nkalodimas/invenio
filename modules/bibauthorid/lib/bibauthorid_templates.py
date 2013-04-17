@@ -1628,6 +1628,10 @@ class Template:
                         'maxlength="250" value="%s" class="focus" />' % (parameters[0][0], parameters[0][1]))
             h('<input type="submit" value="Search" />')
             h('</form>')
+            if new_person_gen:
+                new_person_text, new_person_link = new_person_gen()
+                h('<button type="button" id="new_person_link"><a rel="nofollow" href="%s" >%s' % (new_person_link, new_person_text))
+                h('</a></button>')
             h('</div>')
 
         if not results and not query:
@@ -1662,7 +1666,7 @@ class Template:
                 <thead>\
                     <tr>\
                         <th scope="col" id="" style="width:85px;">Number</th>\
-                        <th scope="col" id="">Identifiers</th>\
+                        <th scope="col" id="">Identifier</th>\
                         <th scope="col" id="">Names</th>\
                         <th scope="col" id="">IDs</th>\
                         <th scope="col" id="" style="width:350px">Papers</th>\
@@ -1689,18 +1693,18 @@ class Template:
             # person row
             h('<tr id="pid'+ str(pid) + '">')
             # (TODO pageNum - 1) * personsPerPage + 1
-            h('<td><span>%s</span></td>' % (index + 1))
+            h('<td>%s</td>' % (index + 1))
 
 #            for nindex, name in enumerate(names):
 #                color = row_color + nindex * 35
 #                color = min(color, base_color)
 #                h('<span style="color:rgb(%d,%d,%d);">%s; </span>'
 #                            % (color, color, color, name[0]))
-            #Identifiers
+            #Identifier
             if canonical_id:
                 h('<td>%s</td>' % (canonical_id,))
             else:
-                h('<td>%s</td>' % ('Canonical id not available',))
+                h('<td>%s</td>' % ('No canonical id',))
             #Names
             h('<td class="emptyName' + str(pid) + '">')
             #html.extend(self.tmpl_gen_names(names))
@@ -1735,19 +1739,14 @@ class Template:
                 action_button_text, action_button_link = button_gen(pid)
                 #Action link
                 h('<td>')
-                h(('<span style="margin-left: 120px;">'
-                            '<em><a rel="nofollow" href="%s" class="confirmlink">'
-                            '<strong>%s</strong>' + '</a></em></span>')
+                h(('<span >'
+                            '<a rel="nofollow" href="%s" class="confirmlink">'
+                            '<strong>%s</strong>' + '</a></span>')
                             % (action_button_link, action_button_text))
                 h('</td>')
             h('</tr>')
         h('</tbody>')
         h('</table>')
-
-        if new_person_gen:
-            new_person_text, new_person_link = new_person_gen()
-            h('<a rel="nofollow" href="%s" class="new_person_link">%s' % (new_person_link, new_person_text))
-            h('</a>')
 
         return "\n".join(html)
 
@@ -2004,16 +2003,20 @@ class Template:
         """
         html = []
         h = html.append
-
+        delimiter = ": "
         if names:
-            for name in names:
-                h('<span style="margin-right:20px;">%s </span>'
+            for i,name in enumerate(names):
+                if i == 0:
+                    h('<span">%s </span>'
                             % (name[0],))
+                else:
+                    h('<span">%s%s </span>'
+                            % (delimiter, name[0]))
                 # for name in names:
                 #     h('<span style="margin-right:20px;">%s </span>'
                 #                 % (name[0],))
         else:
-            h('%s' % ('Name is not available',))
+            h('%s' % ('No names found',))
         return html
 
 
@@ -2029,7 +2032,7 @@ class Template:
             for key, value in external_ids.iteritems():
                     h('%s: %s' % (key, str(value))) # TODO: get id
         else:
-            h('%s' % ('External ids are not available',))
+            h('%s' % ('No external ids found',))
 
         return html
 
@@ -2350,11 +2353,11 @@ class Template:
         h('%s ' % (self._("Status")))
         h('</td>')
         h('</tr>')
-        
+
         for system in remote_login_systems_papers.keys():
             if remote_login_systems_papers[system]:
                 papers_found = True
-        
+
             for paper in remote_login_systems_papers[system]:
                 h('<td>')
                 h('%s ' % (system))
@@ -2365,7 +2368,7 @@ class Template:
                 h('<td>')
                 key = bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system]
 
-                if key in cached_ids_association.keys():
+                if key in cached_ids_association.keys() and cached_ids_association[(key, paper)] != -1:
                     recid = cached_ids_association[(key, paper)]
                     h('%s ' % (recid,))
 
@@ -2376,7 +2379,7 @@ class Template:
                 else:
                     h(self._('Not available'))
                     status = "Paper not present."
-                
+
                 h('</td>')
                 h('<td>')
                 h('%s ' % (status,))
@@ -2415,7 +2418,7 @@ class Template:
         for system in remote_login_systems_papers.keys():
             if remote_login_systems_papers[system]:
                 papers_found = True
-        
+
             for paper in remote_login_systems_papers[system]:
                 h('<td>')
                 h('%s ' % (system))
@@ -2424,19 +2427,26 @@ class Template:
                 h('%s ' % (paper))
                 h('</td>')
                 h('<td>')
-                h('%s ' % (cached_ids_association[(bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system], paper)],))
+                key = bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system]
+
+                if key in cached_ids_association.keys() and cached_ids_association[(key, paper)] != -1:
+                    recid = cached_ids_association[(key, paper)]
+                    h('%s ' % (recid,))
+                else:
+                    h(self._('Not available'))
+
                 h('</td>')
                 h('</tr>')
-                
+
         h('</table>')
         h('</br>')
-        
+
         if not papers_found:
             html = []
             message = self._("<br><br>We have got "
                                 "the following papers from the remote login systems you are logged in through: <br>")
             h('<p>%s</p>' % "We have got no papers from the remote login systems that you are currently logged in through. <br>")
-            
+
         return "\n".join(html)        
 
 

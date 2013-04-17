@@ -1042,7 +1042,7 @@ def get_remote_login_systems_ids(req, remote_logged_in_systems):
     for system in remote_logged_in_systems:
         system_ids = REMOTE_LOGIN_SYSTEMS_GET_IDS_FUNCTIONS[system](req)
         remote_login_systems_ids[system] = system_ids
-    
+
     #return {'arXiv':[2]}
     return remote_login_systems_ids
 
@@ -1066,6 +1066,8 @@ def get_arxiv_recids(req ):
                 recid = recid_list[0]
                 recids_from_arxivids.append(recid)
                 cached_ids_association[('arxivid', arxivid)] = recid
+            else:
+                cached_ids_association[('arxivid', arxivid)] = -1
     elif current_external_ids:
         for arxivid in current_external_ids:
             if ('arxivid', arxivid) in cached_ids_association.keys():

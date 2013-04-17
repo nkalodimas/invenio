@@ -2773,7 +2773,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             pid = webapi.get_user_pid(login_info['uid'])
 
             if action == None or pid >= 0:
-                #return self._error_page(req, ln,str(webapi.get_remote_login_systems_ids(req, remote_login_systems_info)))
+                # return self._error_page(req, ln,str(webapi.get_cached_id_association(req)))
                 self._welcome_main_functionality(req, form, login_info, recids, remote_login_systems_info, pid, '')
             elif action == 'search':
                 self._welcome_main_functionality(req, form, login_info, recids, remote_login_systems_info, pid, search_param)
