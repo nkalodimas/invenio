@@ -1066,6 +1066,8 @@ def get_arxiv_recids(req ):
                 recid = recid_list[0]
                 recids_from_arxivids.append(recid)
                 cached_ids_association[('arxivid', arxivid)] = recid
+            else:
+                cached_ids_association[('arxivid', arxivid)] = -1
     elif current_external_ids:
         for arxivid in current_external_ids:
             if ('arxivid', arxivid) in cached_ids_association.keys():

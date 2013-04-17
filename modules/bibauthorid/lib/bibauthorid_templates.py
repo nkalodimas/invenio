@@ -2368,7 +2368,7 @@ class Template:
                 h('<td>')
                 key = bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system]
 
-                if key in cached_ids_association.keys():
+                if key in cached_ids_association.keys() and cached_ids_association[(key, paper)] != -1:
                     recid = cached_ids_association[(key, paper)]
                     h('%s ' % (recid,))
 
@@ -2427,7 +2427,14 @@ class Template:
                 h('%s ' % (paper))
                 h('</td>')
                 h('<td>')
-                h('%s ' % (cached_ids_association[(bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system], paper)],))
+                key = bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system]
+
+                if key in cached_ids_association.keys() and cached_ids_association[(key, paper)] != -1:
+                    recid = cached_ids_association[(key, paper)]
+                    h('%s ' % (recid,))
+                else:
+                    h(self._('Not available'))
+
                 h('</td>')
                 h('</tr>')
 
