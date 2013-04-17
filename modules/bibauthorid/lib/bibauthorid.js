@@ -117,7 +117,7 @@ $(document).ready(function() {
             }
         });
         // create ui buttons
-        $('.new_person_link, .confirmlink').button();
+        //$('.confirmlink').button();//#new_person_link, 
         //$("#searchform :input").attr("disabled",true);
         // gResultsPerPage = 3;
         // gCurPage = 1;
@@ -131,15 +131,18 @@ $(document).ready(function() {
                 "sPaginationType": "full_numbers",
                 "aoColumnDefs": [
                     { "bSortable": false, "aTargets": targets },
-                    { "sType": "numeric", "aTargets": [ 0 ] },
-                    { "sType": "string", "aTargets": [ 1,2 ] }
+                    { "bSortable": true, "aTargets": [0,1] },
+                    { "sType": "numeric", "aTargets": [0] },
+                    { "sType": "string", "aTargets": [1] }
                     ],
+                "aaSorting": [[0,'asc']],
                 "iDisplayLength": 5,
                 "aLengthMenu": [5, 10, 20],
                 "oLanguage": {
                     "sSearch": "Filter: "
                 }
         });
+        // { "sType": "numeric", "aTargets": [ 0 ] }
         // draw first page
         onPageChange();
         // on page change

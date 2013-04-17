@@ -321,6 +321,7 @@
 #aid_search_bar {
     padding: 5px;
     margin-bottom: 10px;
+    position: relative;
 }
 
 #personsTable {
@@ -357,37 +358,48 @@
     background-color: lightblue;
 }
 
-.new_person_link {
+#new_person_link {
 /*    background-color: lightgreen!important;
-*/    background: #65a9d7;
+*/ /*   background: #65a9d7;
    background: -webkit-gradient(linear, left top, left bottom, from(#3e779d), to(#65a9d7))!important;
    background: -webkit-linear-gradient(top, #3e779d, #65a9d7)!important;
    background: -moz-linear-gradient(top, #3e779d, #65a9d7)!important;
    background: -ms-linear-gradient(top, #3e779d, #65a9d7)!important;
    background: -o-linear-gradient(top, #3e779d, #65a9d7)!important;
-    color: white!important;
-    width: 100%;
-    margin-top: 10px;
+    color: white!important;*/
+    width: 200px;
+    height: 32px;
     font-size: 1.2em;
+    position: absolute;
+    top: 12px;
+    right: 5px;
+    cursor: pointer;
 }
 
+#new_person_link a{
+    text-decoration: none;
+}
+
+.confirmlink {
+    text-decoration: none;
+}
 /*.new_person_link {
     background-color: lightgreen!important;
     color: blue;
 }*/
 
-.new_person_link:hover{
-    /*background-color: green!important;
-    color: red;*/
+/*.new_person_link:hover{
+    background-color: green!important;
+    color: red;
     background: #28597a!important;
     color: white!important;
-}
+}*/
 
-.new_person_link:active{
+/*.new_person_link:active{
     position: relative;
     top: 1px;
     background: #1b435e!important;
-}
+}*/
 /*.even {
     background: #fff!important;
 }
