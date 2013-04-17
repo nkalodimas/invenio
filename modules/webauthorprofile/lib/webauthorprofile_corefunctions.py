@@ -50,6 +50,7 @@ from invenio.webauthorprofile_dbapi import get_cached_element, precache_element,
 from invenio.search_engine_summarizer import summarize_records
 from invenio.search_engine import get_most_popular_field_values
 from invenio.search_engine import perform_request_search
+from invenio.search_engine_summarizer import generate_citation_summary
 from invenio.bibrank_downloads_indexer import get_download_weight_total
 from invenio.intbitset import intbitset
 from invenio.bibformat import format_record, format_records
@@ -288,7 +289,7 @@ def get_info_from_orcid(person_id):
     '''
     return retrieve_update_cache('orcid_info', 'pid:' + str(person_id), _get_info_from_orcid, person_id)
 
-def get_summarize_records(person_id, tag, ln):
+def get_summarize_records(person_id):
     '''
     Returns html for records summary given personid, tag and ln.
     @param person_id: int person id
@@ -304,18 +305,24 @@ def get_summarize_records(person_id, tag, ln):
     if not rcstatus:
         last_updated = datetime.now()
         return [None, False, last_updated]
-    return retrieve_update_cache('summarize_records' + '-' + str(ln), 'pid:' + str(person_id),
-                          _get_summarize_records, pubs, tag, ln, rec_query, person_id)
+    return retrieve_update_cache('summarize_records', 'pid:' + str(person_id),
+                          _get_summarize_records, pubs, rec_query)
 
-def _get_summarize_records(pubs, tag, ln, rec_query, person_id):
+def _get_summarize_records(pubs, rec_query):
     '''
     Returns  html for records summary given personid, tag and ln.
     @param person_id: int person id
     @param tag: str kind of output
     @param ln: str language
     '''
-    html = summarize_records(intbitset(pubs), tag, ln, rec_query)
-    return html
+    citation_summary = generate_citation_summary(intbitset(pubs), searchpattern=rec_query)
+
+    # the serialization function (msgpack.packb) cannot serialize an intbitset
+    for i in citation_summary[1].keys():
+        citation_summary[1][i] = list(citation_summary[1][i])
+
+    return citation_summary
+
 
 def _compute_cache_for_person(person_id):
     start = time()
