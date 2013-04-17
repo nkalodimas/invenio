@@ -167,8 +167,10 @@ def generate_citation_summary(recids, collections=CFG_CITESUMMARY_COLLECTIONS,
     return search_patterns, coll_recids, stats
 
 
-def render_citation_summary(req, ln, recids, collections, searchpattern,
-                            searchfield, citation_summary=None):
+def render_citation_summary(req, ln, recids,
+                            collections=CFG_CITESUMMARY_COLLECTIONS,
+                            searchpattern="", searchfield="",
+                            citation_summary=None):
 
     title = websearch_templates.tmpl_citesummary_title(ln)
     req.write(title)

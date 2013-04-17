@@ -357,7 +357,7 @@ class WebAuthorPages(WebInterfaceDirectory):
             coauthors = {}
         lu(last_updated)
 
-        summarize_records, summarize_recordsStatus, last_updated = get_summarize_records(person_id, 'hcs', ln)
+        summarize_records, summarize_recordsStatus, last_updated = get_summarize_records(person_id)
         if not summarize_records:
             summarize_records = 'None'
         lu(last_updated)
@@ -455,7 +455,7 @@ class WebAuthorPages(WebInterfaceDirectory):
             json_response['boxes_info'].update({'coauthors': {'status':beval[5], 'html_content': webauthorprofile_templates.tmpl_coauthor_box(bibauthorid_data, coauthors, ln, add_box=False, loading=not beval[5])}})
             json_response['boxes_info'].update({'numpaperstitle': {'status':beval[9], 'html_content': webauthorprofile_templates.tmpl_numpaperstitle(bibauthorid_data, pubs)}})
             json_response['boxes_info'].update({'authornametitle': {'status':(beval[0] and beval[7] and beval[9]), 'html_content': webauthorprofile_templates.tmpl_authornametitle(authorname, bibauthorid_data, pubs, person_link, ln, loading=not (beval[0] and beval[7] and beval[9]))}})
-            json_response['boxes_info'].update({'citations': {'status':beval[8], 'html_content': summarize_records}})
+            json_response['boxes_info'].update({'citations': {'status':(beval[8] and beval[9]), 'html_content': webauthorprofile_templates.tmpl_citations_box(summarize_records, pubs, ln, add_box=False, loading=not (beval[8] and beval[9]))}})
             json_response['boxes_info'].update({'pubs_graph': {'status':beval[10], 'html_content': webauthorprofile_templates.tmpl_graph_box(pubs_per_year, ln, add_box=False, loading=not beval[10])}})
             json_response['boxes_info'].update({'hepdata': {'status':beval[11], 'html_content':webauthorprofile_templates.tmpl_hepnames(hepdict, ln, add_box=False, loading=not beval[11])}})
             json_response['boxes_info'].update({'collaborations': {'status':beval[13], 'html_content': webauthorprofile_templates.tmpl_collab_box(collab, bibauthorid_data, ln, add_box=False, loading=not beval[13])}})
