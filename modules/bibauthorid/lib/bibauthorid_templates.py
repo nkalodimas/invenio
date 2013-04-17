@@ -2366,16 +2366,16 @@ class Template:
                 h('%s ' % (paper))
                 h('</td>')
                 h('<td>')
-                key = bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system]
+                key = (bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system], paper)
 
-                if key in cached_ids_association.keys() and cached_ids_association[(key, paper)] != -1:
-                    recid = cached_ids_association[(key, paper)]
+                if key in cached_ids_association.keys() and cached_ids_association[key] != -1:
+                    recid = cached_ids_association[key]
                     h('%s ' % (recid,))
 
                     if recid in auto_claim_list:
                         status = "Paper auto-claimed by the system."
                     else:
-                        status = "Paper already in chosen profile."
+                        status = "Paper already in chosen profile or could not be claimed."
                 else:
                     h(self._('Not available'))
                     status = "Paper not present."
@@ -2427,10 +2427,10 @@ class Template:
                 h('%s ' % (paper))
                 h('</td>')
                 h('<td>')
-                key = bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system]
+                key = (bconfig.CFG_BIBAUTHORID_REMOTE_LOGIN_SYSTEMS_IDENTIFIER_TYPES[system], paper)
 
-                if key in cached_ids_association.keys() and cached_ids_association[(key, paper)] != -1:
-                    recid = cached_ids_association[(key, paper)]
+                if key in cached_ids_association.keys() and cached_ids_association[key] != -1:
+                    recid = cached_ids_association[key]
                     h('%s ' % (recid,))
                 else:
                     h(self._('Not available'))
