@@ -25,14 +25,32 @@ __revision__ = "$Id$"
 
 from invenio.testutils import make_test_suite, run_test_suite
 from invenio.bibmatch_validator import compare_fieldvalues_normal, \
-                                       compare_fieldvalues_authorname, \
-                                       compare_fieldvalues_identifier, \
-                                       compare_fieldvalues_title, \
-                                       compare_fieldvalues_date, \
-                                       get_paired_comparisons
+    compare_fieldvalues_authorname, \
+    compare_fieldvalues_identifier, \
+    compare_fieldvalues_title, \
+    compare_fieldvalues_date, \
+    get_paired_comparisons
+from invenio.bibmatch_engine import get_longest_words
 import unittest
 
+
 class BibMatchTest(unittest.TestCase):
+    """Test functions of Bibmatch."""
+
+    def test_get_longest_words(self):
+        """ Testing get_longest_words function """
+        string_to_check = "This is a string containing some long words"
+        list_expected = ["containing", "string", "words"]
+        self.assertEqual(list_expected,
+                         get_longest_words(string_to_check, limit=3))
+
+        string_to_check = 'This is a "string containing some quoted" long words'
+        list_expected = ['"string containing some quoted"', "words"]
+        self.assertEqual(list_expected,
+                         get_longest_words(string_to_check, limit=2))
+
+
+class BibMatchValidationTest(unittest.TestCase):
     """Test functions to check the validator of Bibmatch."""
 
     def test_validation_get_paired_comparisons(self):
@@ -136,7 +154,8 @@ class BibMatchTest(unittest.TestCase):
         self.assertTrue(result)
 
 
-TEST_SUITE = make_test_suite(BibMatchTest)
+TEST_SUITE = make_test_suite(BibMatchTest,
+                             BibMatchValidationTest)
 
 if __name__ == "__main__":
     run_test_suite(TEST_SUITE, warn_user=False)
