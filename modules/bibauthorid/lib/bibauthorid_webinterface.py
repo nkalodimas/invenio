@@ -2874,8 +2874,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             button_func = TEMPLATE.tmpl_welcome_search_button_generator()
             new_person_func = TEMPLATE.tmpl_welcome_search_new_person_generator()
 
-            req.write(self.search_box(pid_canditates_list, nsearch_param, button_func, new_person_func, show_search_bar = TEMPLATE.tmpl_welcome_search_bar()))
-            
+            req.write(self.search_box(pid_canditates_list, search_param, button_func, new_person_func, show_search_bar = TEMPLATE.tmpl_welcome_search_bar()))
+
             req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association))
             # search_results = search...
             # if the one we suggested is not the one you think, please search for the one you like most
