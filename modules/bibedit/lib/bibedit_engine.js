@@ -1360,8 +1360,15 @@ function getRecord(recID, recRev, onSuccess){
     recRev = 0;
   }
 
-  if (onSuccess == undefined)
+  /* If we are changing recids always change to write mode */
+  if ( recID != gRecID ) {
+    gReadOnlyMode = false;
+  }
+
+  if (typeof onSuccess === 'undefined') {
     onSuccess = onGetRecordSuccess;
+  }
+
   if (recRev != undefined && recRev != 0){
     changeAndSerializeHash({state: 'edit', recid: recID, recrev: recRev});
   }
@@ -1378,9 +1385,14 @@ function getRecord(recID, recRev, onSuccess){
              clonedRecord: getRecord.clonedRecord,
              inReadOnlyMode: gReadOnlyMode};
 
-  if (recRev != undefined && recRev != 0){
+  if (recRev != undefined && recRev != 0) {
     reqData.recordRevision = recRev;
-    reqData.inReadOnlyMode = true;
+    if (recRev === gRecLatestRev) {
+      reqData.inReadOnlyMode = false;
+    }
+    else {
+      reqData.inReadOnlyMode = true;
+    }
   }
 
   resetBibeditState();
