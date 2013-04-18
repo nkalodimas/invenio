@@ -78,7 +78,7 @@
     margin: 0px;
     margin-top: 15px;
     padding: 0px;
-    text-align: center;
+    text-align: left;
 }
 
 #aid_moreinfo .record_body {
@@ -335,11 +335,17 @@
 #personsTable th {
     /*text-align: center;*/
     line-height: 40px;
+    padding-left: 10px;
 }
 
 #personsTable tr {
     height: 45px;
-    text-align: center;
+    text-align: left;
+    padding-left: 10px;
+}
+
+#personsTable td {
+    padding-left: 10px;
 }
 
 #personsTable tbody tr.even:hover, #personsTable tr.even td.highlighted {
@@ -356,6 +362,22 @@
 
 #personsTable tr.odd:hover td.sorting_1 {
     background-color: lightblue;
+}
+
+#externalIDsTable {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+#externalIDsTable tr {
+    height: 25px;
+    text-align: left;
+}
+
+#externalIDsTable td {
+    padding-left: 0px;
+    word-wrap:break-word;
 }
 
 #new_person_link {

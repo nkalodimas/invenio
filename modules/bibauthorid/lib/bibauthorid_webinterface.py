@@ -2567,6 +2567,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     json_response.update({'result': "\n".join(ids_html)})
                     json_response.update({'resultCode': 1})
                     json_response.update({'pid': str(pId)})
+            elif req_type =='isProfileClaimed':
+                if json_data.has_key('personId'):
+                    pId = json_data['personId']
+                    #todo isClaimed = webapi.get_uid_from_pid
+                    if isClaimed:
+                        json_response.update({'resultCode': 1})
+                    json_response.update({'pid': str(pId)})
             else:
                 json_response.update({'result': 'Error: Wrong request type'})
             return json.dumps(json_response)

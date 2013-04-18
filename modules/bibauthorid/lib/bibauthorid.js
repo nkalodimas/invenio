@@ -225,11 +225,25 @@ function onPageChange() {
                     async: true
                 });
     });
+    $('[class^=uncheckedProfile]').each( function(index){
+                var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
+                var data = { 'requestType': "isProfileClaimed", 'personId': pid.toString()};
+                var errorCallback = onIsProfileClaimed(pid);
+                $.ajax({
+                    dataType: 'json',
+                    type: 'POST',
+                    url: '/person/search_box_ajax',
+                    data: {jsondata: JSON.stringify(data)},
+                    success: onIsProfileClaimedSuccess,
+                    error: errorCallback,
+                    async: true
+                });
+    });
 }
 
 function onGetIDsSuccess(json){
     if(json['resultCode'] == 1) {
-        $('.emptyIDs' + json['pid']).html(json['result']).addClass('retreivedIDs').removeClass('.emptyIDs' + json['pid']);
+        $('.emptyIDs' + json['pid']).html(json['result']).addClass('retreivedIDs').removeClass('emptyIDs' + json['pid']);
 
     }
     else {
@@ -249,7 +263,7 @@ function onGetIDsError(pid){
 
 function onGetNamesSuccess(json){
     if(json['resultCode'] == 1) {
-        $('.emptyName' + json['pid']).html(json['result']).addClass('retreivedName').removeClass('.emptyName' + json['pid']);
+        $('.emptyName' + json['pid']).html(json['result']).addClass('retreivedName').removeClass('emptyName' + json['pid']);
     }
     else {
         $('.emptyName' + json['pid']).text(json['result']);
@@ -263,6 +277,24 @@ function onGetNamesError(pid){
    return function (XHR, textStatus, errorThrown) {
       var pID = pid;
       $('.emptyName' + pID).text('Names could not be retrieved');
+    };
+}
+
+function onIsProfileClaimedSuccess(json){
+    if(json['resultCode'] == 1) {
+        $('.emptyName' + json['pid']).html('<span style="color:red;">Profile already claimed</span><br/>\
+            <span>If you think that this is actually your profile bla bla bla</span>')
+        .addClass('checkedProfile').removeClass('uncheckedProfile' + json['pid']);
+    }
+}
+
+function onIsProfileClaimedError(pid){
+  /*
+   * Handle failed 'getNames' requests.
+   */
+   return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('.uncheckedProfile' + pID).text('Temporary not available');
     };
 }
 

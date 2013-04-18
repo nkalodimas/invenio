@@ -1710,7 +1710,7 @@ class Template:
             #html.extend(self.tmpl_gen_names(names))
             h('</td>')
             # IDs
-            h('<td class="emptyIDs' + str(pid) + '">')
+            h('<td class="emptyIDs' + str(pid) + '" >')#style="text-align:left;padding-left:35px;"
             #html.extend(self.tmpl_gen_ext_ids(external_ids))
             h('</td>')
             # Recent papers
@@ -1738,11 +1738,13 @@ class Template:
             if show_action_button:
                 action_button_text, action_button_link = button_gen(pid)
                 #Action link
-                h('<td>')
-                h(('<span >'
-                            '<a rel="nofollow" href="%s" class="confirmlink">'
-                            '<strong>%s</strong>' + '</a></span>')
-                            % (action_button_link, action_button_text))
+                h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center">')
+                # h(('<span >'
+                #             '<a rel="nofollow" href="%s" class="confirmlink">'
+                #             '<strong>%s</strong>' + '</a></span>')
+                #             % (action_button_link, action_button_text))
+                h('<button type="button"><a rel="nofollow" href="%s" class="confirmlink">%s' % (new_person_link, new_person_text))
+                h('</a></button>')
                 h('</td>')
             h('</tr>')
         h('</tbody>')
@@ -2003,18 +2005,15 @@ class Template:
         """
         html = []
         h = html.append
-        delimiter = ": "
+        delimiter = ";"
         if names:
             for i,name in enumerate(names):
                 if i == 0:
-                    h('<span">%s </span>'
+                    h('<span>%s</span>'
                             % (name[0],))
                 else:
-                    h('<span">%s%s </span>'
+                    h('<span">%s %s</span>'
                             % (delimiter, name[0]))
-                # for name in names:
-                #     h('<span style="margin-right:20px;">%s </span>'
-                #                 % (name[0],))
         else:
             h('%s' % ('No names found',))
         return html
@@ -2027,10 +2026,22 @@ class Template:
         """
         html = []
         h = html.append
+        delimiter = ";"
 
         if external_ids:
+            h('<table id="externalIDsTable">')
             for key, value in external_ids.iteritems():
-                    h('%s: %s' % (key, str(value))) # TODO: get id
+                h('<tr>')
+                h('<td style="margin-top:5px; width:1px;  padding-right:2px;">%s:</td>' % key) #white-space:nowrap;
+                h('<td style="padding-left:5px;width:1px;">')
+                for i, item in enumerate(value):
+                    if i == 0:
+                        h('%s' % item)
+                    else:
+                        h('; %s' % item)
+                h('</td>')
+                h('</tr>')
+            h('</table>')
         else:
             h('%s' % ('No external ids found',))
 
