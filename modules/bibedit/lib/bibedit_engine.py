@@ -101,7 +101,7 @@ from invenio.batchuploader_engine import perform_upload_check
 from invenio.bibcirculation_dblayer import get_number_copies, has_copies
 from invenio.bibcirculation_utils import create_item_details_url
 
-from invenio.refextract_api import FullTextNotAvailable
+from invenio.refextract_api import FullTextNotAvailable, record_has_fulltext
 from invenio import xmlmarc2textmarc as xmlmarc2textmarc
 from invenio.bibdocfile import BibRecDocs, InvenioWebSubmitFileError, \
                                InvenioBibDocFileError
@@ -280,6 +280,7 @@ def perform_request_init(uid, ln, req, lastupdated):
 
     return body, errors, warnings
 
+
 def get_available_kbs():
     """
     Return list of KBs that are available in the system to be used with
@@ -289,13 +290,6 @@ def get_available_kbs():
     available_kbs = [kb for kb in kb_list if kb_exists(kb)]
     return available_kbs
 
-
-def record_has_pdf(recid):
-    """ Check if record has a pdf attached
-    """
-    rec_info = BibRecDocs(recid)
-    docs = rec_info.list_bibdocs()
-    return bool(docs)
 
 def get_marcxml_of_revision_id(recid, revid):
     """
@@ -724,7 +718,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 # The record was deleted
                 response['resultCode'] = 103
 
-            response['record_has_pdf'] = record_has_pdf(recid)
+            response['record_has_pdf'] = record_has_fulltext(recid)
 
             response['cacheDirty'], response['record'], \
                 response['cacheMTime'], response['recordRevision'], \
