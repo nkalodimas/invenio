@@ -2824,6 +2824,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         remote_login_systems_papers = webapi.get_remote_login_systems_ids(req, remote_login_systems_info)
 
         if pid != -1:
+            link = TEMPLATE.tmpl_welcome_link()
+            req.write(link)
+            req.write("<br><br>")
             remote_login_systems_papers
             # we already have a profile! let's claim papers!
             auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
@@ -2871,7 +2874,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             button_func = TEMPLATE.tmpl_welcome_search_button_generator()
             new_person_func = TEMPLATE.tmpl_welcome_search_new_person_generator()
 
-            req.write(self.search_box(pid_canditates_list, search_param, button_func, new_person_func, show_search_bar = TEMPLATE.tmpl_welcome_search_bar()))
+            req.write(self.search_box(pid_canditates_list, nsearch_param, button_func, new_person_func, show_search_bar = TEMPLATE.tmpl_welcome_search_bar()))
             
             req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association))
             # search_results = search...
@@ -2884,7 +2887,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
     def _welcome_profile_selection(self, req, remote_login_systems_info, login_status, selected_pid, recids):
         pid, profile_claimed = webapi.claim_profile(login_status['uid'], selected_pid)
-
+        link = TEMPLATE.tmpl_welcome_link()
+        req.write(link)
+        req.write("<br><br>")
         if  profile_claimed or selected_pid == -1 :
             req.write(TEMPLATE.tmpl_profile_assigned_by_user())
         else:

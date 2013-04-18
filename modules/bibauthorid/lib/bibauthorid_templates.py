@@ -2373,9 +2373,9 @@ class Template:
                     h('%s ' % (recid,))
 
                     if recid in auto_claim_list:
-                        status = "Paper auto-claimed by the system."
+                        status = "Paper in the process of auto-claimed by the system."
                     else:
-                        status = "Paper already in chosen profile or could not be claimed."
+                        status = "Paper already claimed."
                 else:
                     h(self._('Not available'))
                     status = "Paper not present."
