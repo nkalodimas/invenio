@@ -150,6 +150,30 @@ $(document).ready(function() {
             onPageChange();
         });
     }
+
+    if ( $('.idsAssociationTable').length ) {
+        var idTargets = [1,2];
+        if ( $('#idsAssociationTableClaim').length ) {
+            idTargets.push(3);
+        }
+        $('.idsAssociationTable').dataTable({
+                "bJQueryUI": true,
+                "sPaginationType": "full_numbers",
+                "aoColumnDefs": [
+                    { "bSortable": true, "aTargets": [0] },
+                    { "bSortable": false, "aTargets": idTargets },
+                    { "sType": "string", "aTargets": [0] }
+                    ],
+                "aaSorting": [[0,'asc']],
+                "iDisplayLength": 5,
+                "aLengthMenu": [5, 10, 20],
+                "oLanguage": {
+                    "sSearch": "Filter: "
+                }
+        });
+        $('.idsAssociationTable').siblings('.ui-toolbar').css({ "width": "45.4%", "font-size": "12px" });
+    }
+
     // Activate Tabs
     $("#aid_tabbing").tabs();
 
@@ -228,7 +252,7 @@ function onPageChange() {
     $('[class^=uncheckedProfile]').each( function(index){
                 var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
                 var data = { 'requestType': "isProfileClaimed", 'personId': pid.toString()};
-                var errorCallback = onIsProfileClaimed(pid);
+                var errorCallback = onIsProfileClaimedError(pid);
                 $.ajax({
                     dataType: 'json',
                     type: 'POST',
@@ -282,9 +306,12 @@ function onGetNamesError(pid){
 
 function onIsProfileClaimedSuccess(json){
     if(json['resultCode'] == 1) {
-        $('.emptyName' + json['pid']).html('<span style="color:red;">Profile already claimed</span><br/>\
-            <span>If you think that this is actually your profile bla bla bla</span>')
+        $('.uncheckedProfile' + json['pid']).html('<span style="color:red;">Profile already claimed</span><br/>' +
+            '<span>If you think that this is actually your profile bla bla bla</span>')
         .addClass('checkedProfile').removeClass('uncheckedProfile' + json['pid']);
+    }
+    else {
+        $('.uncheckedProfile' + json['pid']).addClass('checkedProfile').removeClass('uncheckedProfile' + json['pid']);
     }
 }
 

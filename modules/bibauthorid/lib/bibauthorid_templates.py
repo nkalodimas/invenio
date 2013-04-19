@@ -2012,7 +2012,7 @@ class Template:
                     h('<span>%s</span>'
                             % (name[0],))
                 else:
-                    h('<span">%s %s</span>'
+                    h('<span">%s  &nbsp%s</span>'
                             % (delimiter, name[0]))
         else:
             h('%s' % ('No names found',))
@@ -2347,29 +2347,28 @@ class Template:
         papers_found = False
         html = []
         h = html.append
-        message = self._("<br><br>We have got "
-                                "the following papers from the remote login systems you are logged in through: <br>")
+        message = self._("<br><br><strong>We have got "
+                                "the following papers from the remote login systems you are logged in through: </strong><br>")
         h('<p>%s</p>' % message)
-        h('<table border="0"> <tr>')
-        h('<td>')
-        h('%s ' % (self._("External system")))
-        h('</td>')
-        h('<td>')
-        h('%s ' % (self._("External id")))
-        h('</td>')
-        h('<td>')
-        h('%s ' % (self._("Resolved record id")))
-        h('</td>')
-        h('<td>')
-        h('%s ' % (self._("Status")))
-        h('</td>')
-        h('</tr>')
+        h('<table class="idsAssociationTable" id="idsAssociationClaim">')
+        h('<!-- Table header -->\
+                <thead>\
+                    <tr>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                       </tr>\
+                </thead>\
+           <!-- Table body -->\
+                <tbody>' % (self._("External system"), self._("External id"), self._("Resolved record id"), self._("Status")))
 
         for system in remote_login_systems_papers.keys():
             if remote_login_systems_papers[system]:
                 papers_found = True
 
             for paper in remote_login_systems_papers[system]:
+                h('<tr>')
                 h('<td>')
                 h('%s ' % (system))
                 h('</td>')
@@ -2397,6 +2396,7 @@ class Template:
                 h('</td>')
                 h('</tr>')
                 
+        h('</tbody>')
         h('</table>')
         h('</br>')
         
@@ -2411,26 +2411,27 @@ class Template:
         papers_found = False
         html = []
         h = html.append
-        message = self._("<br><br>We have got "
-                                "the following papers from the remote login systems you are logged in through: <br>")
+        message = self._("<br><br><strong>We have got "
+                                "the following papers from the remote login systems you are logged in through: </strong><br>")
         h('<p>%s</p>' % message)
-        h('<table border="0"> <tr>')
-        h('<td>')
-        h('%s ' % (self._("External system")))
-        h('</td>')
-        h('<td>')
-        h('%s ' % (self._("External id")))
-        h('</td>')
-        h('<td>')
-        h('%s ' % (self._("Resolved record id")))
-        h('</td>')
-        h('</tr>')
+        h('<table class="idsAssociationTable" id="idsAssociationReview">')
+        h('<!-- Table header -->\
+                <thead>\
+                    <tr>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                        <th scope="col" id="">%s</th>\
+                       </tr>\
+                </thead>\
+           <!-- Table body -->\
+                <tbody>' % (self._("External system"), self._("External id"), self._("Resolved record id")))
         
         for system in remote_login_systems_papers.keys():
             if remote_login_systems_papers[system]:
                 papers_found = True
 
             for paper in remote_login_systems_papers[system]:
+                h('<tr>')
                 h('<td>')
                 h('%s ' % (system))
                 h('</td>')
@@ -2449,6 +2450,7 @@ class Template:
                 h('</td>')
                 h('</tr>')
 
+        h('</tbody>')
         h('</table>')
         h('</br>')
 

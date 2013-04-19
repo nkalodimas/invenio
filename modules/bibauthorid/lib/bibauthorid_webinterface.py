@@ -2552,9 +2552,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             elif req_type == 'getNames':
                 if json_data.has_key('personId'):
                     pId = json_data['personId']
-                    print "debug pid:",pId
                     names = webapi.get_person_names_from_id(int(pId))
-                    print "debug names:",names
                     names_html = TEMPLATE.tmpl_gen_names(names)
                     json_response.update({'result': "\n".join(names_html)})
                     json_response.update({'resultCode': 1})
@@ -2567,11 +2565,11 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     json_response.update({'result': "\n".join(ids_html)})
                     json_response.update({'resultCode': 1})
                     json_response.update({'pid': str(pId)})
-            elif req_type =='isProfileClaimed':
+            elif req_type == 'isProfileClaimed':
                 if json_data.has_key('personId'):
                     pId = json_data['personId']
-                    #todo isClaimed = webapi.get_uid_from_pid
-                    if isClaimed:
+                    isClaimed = webapi.get_uid_from_personid(pId)
+                    if isClaimed != -1:
                         json_response.update({'resultCode': 1})
                     json_response.update({'pid': str(pId)})
             else:

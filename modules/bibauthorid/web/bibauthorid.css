@@ -364,6 +364,24 @@
     background-color: lightblue;
 }
 
+.idsAssociationTable {
+    width: 46%;
+    height:20px;
+    font-size: 12px;
+    border-spacing: 0px;
+}
+
+.idsAssociationTable th {
+    height: 36px;
+    text-align: left;
+    padding-left: 10px;
+}
+
+.idsAssociationTable td {
+    height: 45px;
+    padding-left: 10px;
+}
+
 #externalIDsTable {
     width: 100%;
     table-layout: fixed;

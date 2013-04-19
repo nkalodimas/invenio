@@ -1045,6 +1045,7 @@ def get_arxivids(req):
 
     if 'external_arxivids' in uinfo.keys() and uinfo['external_arxivids']:
         current_external_ids = uinfo['external_arxivids'].split(';')
+    # return ['2','3']
     return current_external_ids
 
 def get_dois(req):
@@ -1095,7 +1096,8 @@ def get_arxiv_recids(req ):
                     recid = recid_list[0]
                     recids_from_arxivids.append(recid)
                     cached_ids_association[('arxivid', arxivid)] = recid
-
+    # cached_ids_association= { ('arxivid', '2'):  2, ('arxivid', '3'):  3}
+    # recids_from_arxivids = [2,3]
     pinfo['external_ids'] = cached_ids_association
     session.dirty = True
     return recids_from_arxivids
