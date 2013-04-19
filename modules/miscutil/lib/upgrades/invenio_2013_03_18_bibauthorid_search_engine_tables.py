@@ -28,14 +28,14 @@ def info():
 
 def do_upgrade():
     run_sql("""
-        CREATE TABLE IF NOT EXISTS `denseINDEX` (
+        CREATE TABLE IF NOT EXISTS `aidDENSEINDEX` (
             `name_id` INT( 10 ) NOT NULL,
             `person_name` VARCHAR( 256 ) NOT NULL,
             `personids` LONGBLOB NOT NULL,
             PRIMARY KEY (`name_id`)
         ) ENGINE=MyISAM;
         
-        CREATE TABLE IF NOT EXISTS `invertedLISTS` (
+        CREATE TABLE IF NOT EXISTS `aidINVERTEDLISTS` (
             `qgram` VARCHAR( 4 ) NOT NULL,
             `inverted_list` LONGBLOB NOT NULL,
             `list_cardinality` INT( 10 ) NOT NULL,
