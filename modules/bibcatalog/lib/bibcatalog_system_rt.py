@@ -32,7 +32,8 @@ from invenio.config import CFG_BIBCATALOG_SYSTEM, \
                            CFG_BIBCATALOG_SYSTEM_RT_CLI, \
                            CFG_BIBCATALOG_SYSTEM_RT_URL, \
                            CFG_BIBCATALOG_SYSTEM_RT_DEFAULT_USER, \
-                           CFG_BIBCATALOG_SYSTEM_RT_DEFAULT_PWD
+                           CFG_BIBCATALOG_SYSTEM_RT_DEFAULT_PWD, \
+                           CFG_BIBEDIT_ADD_TICKET_RT_QUEUES
 
 class BibCatalogSystemRT(BibCatalogSystem):
 
@@ -383,6 +384,7 @@ class BibCatalogSystemRT(BibCatalogSystem):
     def get_queues(self, uid):
         """get all the queues from RT. Returns a list of queues"""
         # get all queues with id from 1-100 in order to get all the available queues.
+        # Then filters the queues keeping these selected in the configuration variable
         command = CFG_BIBCATALOG_SYSTEM_RT_CLI + " show -t queue -f name 1-100"
         command_out = self._run_rt_command(command, uid)
         spl = command_out.split("\n")
@@ -392,8 +394,8 @@ class BibCatalogSystemRT(BibCatalogSystem):
                 id = line.split("/")[1]
                 # name is on the next line after id
                 name = spl[i+1].split(": ")[1]
-                if name:
-                    queue = {'id': id, 'name':name}
+                if name in CFG_BIBEDIT_ADD_TICKET_RT_QUEUES:
+                    queue = {'id': id, 'name': name}
                     queues.append(queue)
         return queues
 

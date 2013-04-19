@@ -28,7 +28,7 @@ function displayRecord() {
 
     // Every time we display the table, mark all checkboxes to show/hide
     // specific tags
-    displayAllTags();
+    displayAllTagsCheckboxes();
 
     var table = '' + '<table id="bibEditTable">' +
         '<col span="1" class="bibEditColFieldBox"/>' +

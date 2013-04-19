@@ -362,7 +362,7 @@ function initJeditable(){
         addHandler_autocompleteAffiliations(textarea);
     }
 
-    initInputHotkeys(textarea);
+    initInputHotkeys(textarea, original);
     return(textarea);
   };
 
@@ -389,9 +389,9 @@ function initJeditable(){
 
                 $(this).blur();
 
-                var currentElementIndex = $(".tabSwitch").index($(original));
+                var currentElementIndex = $(".tabSwitch:visible").index($(original));
                 var step = e.shiftKey ? -1 : 1;
-                $(".tabSwitch").eq(currentElementIndex + step).click();
+                $(".tabSwitch:visible").eq(currentElementIndex + step).click();
                 break;
             }
         });
@@ -692,24 +692,32 @@ function initStateFromHash(){
   var tmpReadOnlyMode = gHashParsed.romode;
 
   // Find out which internal state the new hash leaves us with
-  if (tmpState && tmpRecID){
+  if ( tmpState && tmpRecID ) {
     // We have both state and record ID.
-    if ($.inArray(tmpState, ['edit', 'submit', 'cancel', 'deleteRecord', 'hpapply']) != -1)
-  gState = tmpState;
-    else
+    if ($.inArray(tmpState, ['edit', 'submit', 'cancel', 'deleteRecord', 'hpapply']) != -1) {
+      gState = tmpState;
+    }
+    else {
       // Invalid state, fail...
       return;
+    }
   }
-  else if (tmpState){
+  else if ( tmpState ) {
     // We only have state.
-    if (tmpState == 'edit')
+    if ( tmpState == 'edit' ) {
       gState = 'startPage';
-    else if (tmpState == 'newRecord')
+    }
+    else if ( tmpState == 'newRecord' ) {
       gState = 'newRecord';
-    else
+    }
+    else if ( tmpState == 'search' ) {
+      gState = "search";
+    }
+    else {
       // Invalid state, fail... (all states but 'edit' and 'newRecord' are
       // illegal without record ID).
       return;
+    }
   }
   else
     // Invalid hash, fail...
@@ -723,27 +731,28 @@ function initStateFromHash(){
     // We have an actual and legal change of state. Clean up and update the
     // page.
     updateStatus('updating');
-    if (gRecID && !gRecordDirty && !tmpReadOnlyMode)
+    if ( gRecID && !gRecordDirty && !tmpReadOnlyMode ) {
       // If the record is unchanged, delete the cache.
       createReq({recID: gRecID, requestType: 'deleteRecordCache'}, function() {},
                 true, undefined, onDeleteRecordCacheError);
-    switch (gState){
+    }
+    switch (gState) {
       case 'startPage':
         cleanUp(true, '', 'recID', true, true);
         updateStatus('ready');
         break;
       case 'edit':
         var recID = parseInt(tmpRecID, 10);
-        if (isNaN(recID)){
+        if ( isNaN(recID) ) {
           // Invalid record ID.
           cleanUp(true, tmpRecID, 'recID', true);
           displayMessage(102);
           updateStatus('error', gRESULT_CODES[102]);
         }
-        else{
+        else {
           cleanUp(true, recID, 'recID');
           gReadOnlyMode = tmpReadOnlyMode;
-            if (tmpRecRev != undefined && tmpRecRev != 0){
+            if (tmpRecRev != undefined && tmpRecRev != 0) {
               getRecord(recID, tmpRecRev);
             } else {
               getRecord(recID);
@@ -770,6 +779,16 @@ function initStateFromHash(){
           });
           getRecord(recID);
         }
+        break;
+      case 'search':
+        cleanUp(true, '', null, null, true);
+        var search_pattern = gHashParsed.p;
+        if ( typeof search_pattern !== "undefined" ) {
+          // There is a pattern to seach for
+          createReq({requestType: 'searchForRecord', searchType: 'anywhere',
+      searchPattern: search_pattern}, onSearchForRecordSuccess);
+        }
+        updateStatus('ready');
         break;
       case 'newRecord':
         cleanUp(true, '', null, null, true);
@@ -1546,7 +1565,7 @@ function onSubmitPreviewSuccess(dialogPreview, html_preview){
                               // Submission was successful.
                               changeAndSerializeHash({state: 'submit', recid: gRecID});
                               updateStatus('report', gRESULT_CODES[resCode]);
-                              cleanUp(!gNavigatingRecordSet, '', null, true, false);
+                              cleanUp(!gNavigatingRecordSet, '', null, !gNavigatingRecordSet, false);
                               updateToolbar(false);
                               resetBibeditState();
                               displayMessage(resCode, false, [json['recID'], json["new_cnum"]]);
@@ -5730,8 +5749,8 @@ function onFieldTagChange(value, cell) {
 
     /* Update client side model */
     updateModel();
-
     redrawTags();
+    highlight_change(cell, value);
 
     return value;
 }
@@ -5772,6 +5791,8 @@ function onSubfieldCodeChange(value, cell) {
                       subfield_instance[1], null, urHandler, true);
 
   updateModel();
+
+  highlight_change(cell, value);
 
   return value;
 }
@@ -5875,6 +5896,8 @@ function onContentChange(value, cell) {
     updateModel();
   }
 
+  highlight_change(cell, value);
+
   return value;
 
 }
@@ -5972,16 +5995,22 @@ function onEditableCellChange(value, th) {
         return value;
     }
 
-    highlight_change(cell, value);
-
     return escapeHTML(value);
 }
 
 
-/* Functions specific to display modes */
+/******************** Functions specific to display modes ********************/
+/*****************************************************************************/
 
-function onfocusreference() {
-  if ($("#focuson_references").prop("checked") === true) {
+function onfocusreference(check_box) {
+  var $reference_checkbox = $("#focuson_references");
+
+  /* For cases when we call the function without click on the interface */
+  if ( check_box === true ) {
+    $reference_checkbox.prop("checked", !$reference_checkbox.prop("checked"));
+  }
+
+  if ( $reference_checkbox.prop("checked") === true ) {
     $.each(gDisplayReferenceTags, function() {
       $("tbody[id^='rowGroup_" + this + "']").show();
     });
@@ -5994,8 +6023,15 @@ function onfocusreference() {
 }
 
 
-function onfocusauthor() {
-  if ($("#focuson_authors").prop("checked") === true) {
+function onfocusauthor(check_box) {
+  var $author_checkbox = $("#focuson_authors");
+
+  /* For cases when we call the function without click on the interface */
+  if ( check_box === true ) {
+    $author_checkbox.prop("checked", !$author_checkbox.prop("checked"));
+  }
+
+  if ($author_checkbox.prop("checked") === true) {
     $.each(gDisplayAuthorTags, function() {
       $("tbody[id^='rowGroup_" + this + "']").show();
     });
@@ -6008,7 +6044,14 @@ function onfocusauthor() {
 }
 
 
-function onfocusother() {
+function onfocusother(check_box) {
+  var $others_checkbox = $("#focuson_others");
+
+  /* For cases when we call the function without click on the interface */
+  if ( check_box === true ) {
+    $others_checkbox.prop("checked", !$others_checkbox.prop("checked"));
+  }
+
   var tags = [];
   tags = tags.concat(gDisplayReferenceTags, gDisplayAuthorTags);
 
@@ -6017,7 +6060,7 @@ function onfocusother() {
     myselector = myselector.add("tbody[id^='rowGroup_" + this + "']");
   });
 
-  if ($("#focuson_others").prop("checked") === true) {
+  if ($others_checkbox.prop("checked") === true) {
     $("tbody:[id^='rowGroup_']").not(myselector).show();
   }
   else {
@@ -6025,8 +6068,34 @@ function onfocusother() {
   }
 }
 
+function onfocuscurator(check_box) {
+  var $curator_checkbox = $("#focuson_curator");
 
-function displayAllTags() {
+  if ( $curator_checkbox.length === 0 ) {
+    return;
+  }
+
+  /* For cases when we call the function without click on the interface */
+  if ( check_box === true ) {
+    $curator_checkbox.prop("checked", !$curator_checkbox.prop("checked"));
+  }
+
+  $("#focuson_references").prop("checked", true);
+  $("#focuson_authors").prop("checked", true);
+  $("#focuson_others").prop("checked", true);
+  onfocusreference();
+  onfocusother();
+  onfocusauthor();
+
+  if ( $curator_checkbox.prop("checked") === true ) {
+    $.each(gExcludeCuratorTags, function() {
+      $("tbody[id^='rowGroup_" + this + "']").hide();
+    });
+  }
+}
+
+
+function displayAllTagsCheckboxes() {
   $("#focuson_references").prop("checked", true);
   $("#focuson_authors").prop("checked", true);
   $("#focuson_others").prop("checked", true);
@@ -6049,4 +6118,56 @@ function bindFocusHandlers() {
   $("#focuson_references").on("click", onfocusreference);
   $("#focuson_authors").on("click", onfocusauthor);
   $("#focuson_others").on("click", onfocusother);
+  $("#focuson_curator").on("click", onfocuscurator);
+}
+
+
+function displayOnlyAuthors() {
+  $("#focuson_references").prop("checked", false);
+  $("#focuson_authors").prop("checked", true);
+  $("#focuson_others").prop("checked", false);
+  $("#focuson_curator").prop("checked", false);
+  onfocusreference();
+  onfocusother();
+  onfocusauthor();
+}
+
+
+function displayOnlyReferences() {
+  $("#focuson_references").prop("checked", true);
+  $("#focuson_authors").prop("checked", false);
+  $("#focuson_others").prop("checked", false);
+  $("#focuson_curator").prop("checked", false);
+  onfocusreference();
+  onfocusother();
+  onfocusauthor();
+}
+
+
+function displayOnlyOthers() {
+  $("#focuson_references").prop("checked", false);
+  $("#focuson_authors").prop("checked", false);
+  $("#focuson_others").prop("checked", true);
+  $("#focuson_curator").prop("checked", false);
+  onfocusreference();
+  onfocusother();
+  onfocusauthor();
+}
+
+function displayOnlyCurator() {
+  $("#focuson_references").prop("checked", true);
+  $("#focuson_authors").prop("checked", true);
+  $("#focuson_others").prop("checked", true);
+  $("#focuson_curator").prop("checked", true);
+  onfocusreference();
+  onfocusother();
+  onfocusauthor();
+  onfocuscurator();
+}
+
+function displayAll() {
+  displayAllTagsCheckboxes();
+  onfocusreference();
+  onfocusother();
+  onfocusauthor();
 }

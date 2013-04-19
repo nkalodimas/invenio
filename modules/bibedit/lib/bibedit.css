@@ -26,6 +26,10 @@
 
 /* BibEdit - new interface */
 
+#btnSubmit:not([disabled]) {
+    background: green !important;
+}
+
 .bibEditBtnBold {
   font-weight: bold
 }

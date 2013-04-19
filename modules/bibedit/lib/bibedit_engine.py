@@ -51,7 +51,8 @@ from invenio.bibedit_config import CFG_BIBEDIT_AJAX_RESULT_CODES, \
     CFG_BIBEDIT_KEYWORD_TAXONOMY, CFG_BIBEDIT_KEYWORD_TAG, \
     CFG_BIBEDIT_KEYWORD_RDFLABEL, CFG_BIBEDIT_REQUESTS_UNTIL_SAVE, \
     CFG_BIBEDIT_DOI_LOOKUP_FIELD, CFG_DOI_USER_AGENT, \
-    CFG_BIBEDIT_DISPLAY_REFERENCE_TAGS, CFG_BIBEDIT_DISPLAY_AUTHOR_TAGS
+    CFG_BIBEDIT_DISPLAY_REFERENCE_TAGS, CFG_BIBEDIT_DISPLAY_AUTHOR_TAGS, \
+    CFG_BIBEDIT_EXCLUDE_CURATOR_TAGS
 
 from invenio.config import CFG_SITE_LANG, CFG_DEVEL_SITE, CFG_BIBCATALOG_SYSTEM_RT_URL
 from invenio.bibedit_dblayer import get_name_tags_all, reserve_record_id, \
@@ -213,6 +214,7 @@ def perform_request_init(uid, ln, req, lastupdated):
             'gSITE_URL': '"' + CFG_SITE_URL + '"',
             'gSITE_RECORD': '"' + CFG_SITE_RECORD + '"',
             'gCERN_SITE': cern_site,
+            'gINSPIRE_SITE': CFG_INSPIRE_SITE,
             'gHASH_CHECK_INTERVAL': CFG_BIBEDIT_JS_HASH_CHECK_INTERVAL,
             'gCHECK_SCROLL_INTERVAL': CFG_BIBEDIT_JS_CHECK_SCROLL_INTERVAL,
             'gSTATUS_ERROR_TIME': CFG_BIBEDIT_JS_STATUS_ERROR_TIME,
@@ -241,6 +243,7 @@ def perform_request_init(uid, ln, req, lastupdated):
             'gDOILookupField': '"' + CFG_BIBEDIT_DOI_LOOKUP_FIELD + '"',
             'gDisplayReferenceTags': CFG_BIBEDIT_DISPLAY_REFERENCE_TAGS,
             'gDisplayAuthorTags': CFG_BIBEDIT_DISPLAY_AUTHOR_TAGS,
+            'gExcludeCuratorTags': CFG_BIBEDIT_EXCLUDE_CURATOR_TAGS,
             'gBIBCATALOG_SYSTEM_RT_URL': repr(CFG_BIBCATALOG_SYSTEM_RT_URL)
             }
     body += '<script type="text/javascript">\n'
@@ -476,6 +479,8 @@ def perform_request_bibedit_search(data, req):
         pattern = searchPattern
     else:
         pattern = searchType + ':' + searchPattern
+
+    pattern = urllib.unquote(pattern)
     result_set = list(perform_request_search(req=req, p=pattern))
     response['resultCode'] = 1
     response['resultSet'] = result_set[0:CFG_BIBEDIT_MAX_SEARCH_RESULTS]

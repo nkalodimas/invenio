@@ -21,7 +21,7 @@
 
 __revision__ = "$Id$"
 
-from invenio.config import CFG_SITE_URL
+from invenio.config import CFG_SITE_URL, CFG_INSPIRE_SITE
 from invenio.messages import gettext_set_language
 
 class Template:
@@ -327,6 +327,18 @@ class Template:
         return value
 
     def focuson(self):
+        """ Returns the html of the display options box on the left panel. """
+
+        curator_display_html = ""
+        if CFG_INSPIRE_SITE:
+            curator_display_html = """
+            <hr>
+            <li>
+                <input type="checkbox" name="curator" id="focuson_curator" value="curator"/>
+                <label for="focuson_curator">Curator view</label>
+            </li>
+            """
+
         html = """
         <div id='display_div'>
             <strong>Display</strong> <br />
@@ -343,9 +355,13 @@ class Template:
                     <input type="checkbox" name="others" id="focuson_others" value="others" checked/>
                     <label for="focuson_others">Others</label>
                 </li>
+                %(curator_display_html)s
             </ul>
         </div>
-        """
+        """ % {
+            'curator_display_html' : curator_display_html
+        }
+
         return html
 
 def img(src, _class='', **kargs):
