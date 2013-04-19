@@ -504,7 +504,7 @@ class SpiresToInvenioSyntaxConverter:
         'j' : 'journal:',
         'published_in' : 'journal:',
         'spicite' : 'journal:',
-        'vol' : 'journal:',
+        'vol' : 'volume:',
         # journal page
         'journal-page' : '773__c:',
         'jp' : '773__c:',
