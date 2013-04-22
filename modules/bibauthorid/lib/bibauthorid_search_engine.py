@@ -24,6 +24,7 @@ from invenio.bibauthorid_config import QGRAM_LEN, MATCHING_QGRAMS_PERCENTAGE, \
         MAX_T_OCCURANCE_RESULT_LIST_CARDINALITY, MIN_T_OCCURANCE_RESULT_LIST_CARDINALITY, \
         MAX_NOT_MATCHING_NAME_CHARS, PREFIX_SCORE_COEFFICIENT, NAME_SCORE_COEFFICIENT
 
+from Queue import Queue
 from threading import Thread
 from operator import itemgetter
 from math import ceil
@@ -35,7 +36,7 @@ from invenio.intbitset import intbitset
 from invenio.bibauthorid_name_utils import create_indexable_name, distance
 from bibauthorid_dbinterface import get_name_string_to_pid_dictionary, get_indexable_name_personids, get_inverted_lists, \
                                     set_inverted_lists_ready, set_dense_index_ready, trancate_table, \
-                                    flush_data
+                                    flush_data, check_search_engine_status
 
 
 
@@ -58,6 +59,7 @@ def get_qgrams_from_string(string, q):
         qgrams.append(string[i:i+q])
 
     return qgrams
+
 
 def populate_table_with_limit(table_name, column_names, args, args_tuple_size, \
                               max_insert_size=CFG_BIBAUTHORID_SEARCH_ENGINE_MAX_DATACHUNK_PER_INSERT_DB_QUERY):
@@ -117,7 +119,8 @@ def populate_table(table_name, column_names, args, empty_table_first=True):
 
     populate_table_with_limit(table_name, column_names, args, args_tuple_size)
 
-def create_dense_index(name_pids_dict, names_list):
+
+def create_dense_index(name_pids_dict, names_list, q):
     '''
     It builds the dense index which maps a name to the set of personids whi withhold that name.
     Each entry in the dense index is identified by a unique id called name id.
@@ -127,18 +130,30 @@ def create_dense_index(name_pids_dict, names_list):
     @param names_list: the names to be indexed
     @type names_list: list
     '''
-    name_id = 0
-    args = list()
+    def create_dense_index(name_pids_dict, names_list):
+        name_id = 0
+        args = list()
 
-    for name in names_list:
-        personids = name_pids_dict[name]
-        args += [name_id, name, serialize(list(personids))]
-        name_id += 1
+        for name in names_list:
+            personids = name_pids_dict[name]
+            args += [name_id, name, serialize(list(personids))]
+            name_id += 1
 
-    populate_table('denseINDEX', ['name_id','person_name','personids'], args)
-    set_dense_index_ready()
+        populate_table('aidDENSEINDEX', ['name_id','person_name','personids'], args)
+        set_dense_index_ready()
 
-def create_inverted_lists(names_list):
+
+    result = (True, None)
+
+    try:
+        create_dense_index(name_pids_dict, names_list)
+    except Exception as e:
+        result = (False, e)
+
+    q.put(result)
+
+
+def create_inverted_lists(names_list, q):
     '''
     It builds the inverted index which maps a qgram to the set of name ids that share that qgram.
     To construct the index it decomposes each name string into its qgrams and adds its id to the
@@ -147,28 +162,40 @@ def create_inverted_lists(names_list):
     @param names_list: the names to be indexed
     @type names_list: list
     '''
-    name_id = 0
-    inverted_lists = dict()
+    def create_inverted_lists_worker(names_list):
+        name_id = 0
+        inverted_lists = dict()
 
-    for name in names_list:
-        qgrams = set(get_qgrams_from_string(name, QGRAM_LEN))
-        for qgram in qgrams:
-            try:
-                inverted_list, cardinality = inverted_lists[qgram]
-                inverted_list.add(name_id)
-                inverted_lists[qgram][1] = cardinality + 1
-            except KeyError:
-                inverted_lists[qgram] = [set([name_id]), 1]
-        name_id += 1
+        for name in names_list:
+            qgrams = set(get_qgrams_from_string(name, QGRAM_LEN))
+            for qgram in qgrams:
+                try:
+                    inverted_list, cardinality = inverted_lists[qgram]
+                    inverted_list.add(name_id)
+                    inverted_lists[qgram][1] = cardinality + 1
+                except KeyError:
+                    inverted_lists[qgram] = [set([name_id]), 1]
+            name_id += 1
 
-    args = list()
+        args = list()
 
-    for qgram in inverted_lists.keys():
-        inverted_list, cardinality = inverted_lists[qgram]
-        args += [qgram, serialize(list(inverted_list)), cardinality]
+        for qgram in inverted_lists.keys():
+            inverted_list, cardinality = inverted_lists[qgram]
+            args += [qgram, serialize(list(inverted_list)), cardinality]
 
-    populate_table('invertedLISTS', ['qgram','inverted_list','list_cardinality'], args)
-    set_inverted_lists_ready()
+        populate_table('aidINVERTEDLISTS', ['qgram','inverted_list','list_cardinality'], args)
+        set_inverted_lists_ready()
+
+
+    result = (True, None)
+
+    try:
+        create_inverted_lists_worker(names_list)
+    except Exception as e:
+        result = (False, e)
+
+    q.put(result)
+
 
 def create_bibauthorid_indexer():
     '''
@@ -189,15 +216,25 @@ def create_bibauthorid_indexer():
 
     indexable_names_list = indexable_name_pids_dict.keys()
 
+    # If an exception/error occurs in any of the threads it is not detectable
+    # so inter-thread communication is necessary to make it visible.
+    q = Queue()
     threads = list()
-    threads.append(Thread(target=create_dense_index, args=(indexable_name_pids_dict, indexable_names_list)))
-    threads.append(Thread(target=create_inverted_lists, args=(indexable_names_list, )))
+    threads.append(Thread(target=create_dense_index, args=(indexable_name_pids_dict, indexable_names_list, q)))
+    threads.append(Thread(target=create_inverted_lists, args=(indexable_names_list, q)))
 
     for t in threads:
         t.start()
 
     for t in threads:
+        all_ok, error = q.get(block=True)
+        if not all_ok:
+            raise error
+        q.task_done()
+
+    for t in threads:
         t.join()
+
 
 def solve_T_occurence_problem(query_string):
     '''
@@ -240,6 +277,7 @@ def solve_T_occurence_problem(query_string):
 
     return nameids
 
+
 def calculate_name_score(query_string, nameids):
     '''
     docstring
@@ -270,6 +308,7 @@ def calculate_name_score(query_string, nameids):
             name_score_list.append((name, name_score, deserialize(personids)))
 
     return name_score_list
+
 
 def calculate_pid_score(names_score_list):
     '''
@@ -303,6 +342,7 @@ def calculate_pid_score(names_score_list):
 
     return pids_score_list
 
+
 def find_personids_by_name(query_string):
     '''
     It finds a collection of personids who own a signature that is similar to the given query string.
@@ -316,6 +356,10 @@ def find_personids_by_name(query_string):
     @return: personids which own a signature similar to the query string
     @rtype: list
     '''
+    search_engine_is_functioning = check_search_engine_status()
+    if not search_engine_is_functioning:
+        return None
+
     query_string = create_indexable_name(translate_to_ascii(query_string)[0])
     if not query_string:
         return None

@@ -2878,10 +2878,9 @@ def delete_empty_persons():
     '''
     pp = run_sql("select personid from aidPERSONIDPAPERS")
     pp = set(p[0] for p in pp)
-    pd = run_sql("select personid from aidPERSONIDDATA")
-    pd = set(p[0] for p in pd)
-    fpd = run_sql("select personid from aidPERSONIDDATA where tag <> 'canonical_name'")
-    fpd = set(p[0] for p in fpd)
+    g = run_sql("select personid, tag from aidPERSONIDDATA")
+    pd = set(pid for pid, tag in g)
+    fpd = set(pid for pid, tag in g if tag in bconfig.NON_EMPTY_PERSON_TAGS)
     to_delete = pd - (pp | fpd)
     if to_delete:
         run_sql("delete from aidPERSONIDDATA where personid in %s" % list_2_SQL_str(to_delete))
@@ -3158,13 +3157,13 @@ def set_dense_index_ready():
     '''
     docstring
     '''
-    run_sql("insert into denseINDEX (name_id,person_name,personids) values (%s,%s,%s)", (-1,'',''))
+    run_sql("insert into aidDENSEINDEX (name_id,person_name,personids) values (%s,%s,%s)", (-1,'',''))
 
 def set_inverted_lists_ready():
     '''
     docstring
     '''
-    run_sql("insert into invertedLISTS (qgram,inverted_list,list_cardinality) values (%s,%s,%s)", ('!'*QGRAM_LEN,'',0))
+    run_sql("insert into aidINVERTEDLISTS (qgram,inverted_list,list_cardinality) values (%s,%s,%s)", ('!'*QGRAM_LEN,'',0))
 
 def get_inverted_lists(qgrams):
     '''
@@ -3175,7 +3174,7 @@ def get_inverted_lists(qgrams):
     @return:
     @rtype:
     '''
-    inverted_lists = run_sql("select inverted_list, list_cardinality from invertedLISTS where qgram in %s"
+    inverted_lists = run_sql("select inverted_list, list_cardinality from aidINVERTEDLISTS where qgram in %s"
                                 % (list_2_SQL_str(qgrams, f=lambda x: "'%s'" % x), ))
     return inverted_lists
 
@@ -3188,7 +3187,7 @@ def get_indexable_name_personids(nameids):
     @return:
     @rtype:
     '''
-    name_personids = run_sql("select person_name, personids from denseINDEX where name_id in %s" % (list_2_SQL_str(nameids),) )
+    name_personids = run_sql("select person_name, personids from aidDENSEINDEX where name_id in %s" % (list_2_SQL_str(nameids),) )
     return name_personids
 
 def check_search_engine_status():
@@ -3198,10 +3197,10 @@ def check_search_engine_status():
     @return:
     @rtype:
     '''
-    denseINDEX_exists = run_sql("select * from denseINDEX where name_id=%s", (-1,))
-    invertedLISTS_exists = run_sql("select * from invertedLISTS where qgram=%s", ('!'*QGRAM_LEN,) )
+    dense_index_exists = bool(run_sql("select * from aidDENSEINDEX where name_id=%s", (-1,)))
+    inverted_lists_exists = bool(run_sql("select * from aidINVERTEDLISTS where qgram=%s", ('!'*QGRAM_LEN,) ))
 
-    if denseINDEX_exists and invertedLISTS_exists:
+    if dense_index_exists and inverted_lists_exists:
         return True
 
     return False
