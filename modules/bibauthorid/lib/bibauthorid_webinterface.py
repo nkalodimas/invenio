@@ -2596,6 +2596,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if suggested_systems:
             req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
 
+        req.write(TEMPLATE.tmpl_welcome_remote_login_systems_papers(webapi.get_arxivids(req)))
+
 
     def _welcome_main_functionality(self, req, form, login_status, recids, remote_login_systems_info, pid, search_param ):
         # check if a profile is already associated
@@ -2605,6 +2607,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         # if the user has already a profile then:
         if pid != -1:
+            # we already have a profile! let's claim papers!
             # we first show a link to his publications
             link = TEMPLATE.tmpl_welcome_link()
             req.write(link)

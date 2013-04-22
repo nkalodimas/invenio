@@ -28,6 +28,7 @@ __revision__ = "$Id$"
 from re import compile, findall
 from operator import itemgetter
 from datetime import datetime
+from StringIO import StringIO
 
 import sys
 if sys.hexversion < 0x2060000:
@@ -40,6 +41,7 @@ from invenio.webauthorprofile_publication_grapher import get_graph_code
 from invenio.messages import gettext_set_language
 from invenio.intbitset import intbitset
 from invenio.search_engine import perform_request_search
+from invenio.search_engine_summarizer import render_citation_summary
 from invenio.urlutils import create_html_link
 import invenio.template
 websearch_templates = invenio.template.load('websearch')
@@ -568,14 +570,22 @@ class Template:
         else:
             return content
 
-    def tmpl_citations_box(self, summarize_records, ln, add_box=True, loading=False):
+    def tmpl_citations_box(self, summarize_records, pubs, ln, add_box=True, loading=False):
         _ = gettext_set_language(ln)
         if CFG_INSPIRE_SITE:
             addition = ' (from papers in INSPIRE)'
         else:
             addition = ''
         line1 = "<strong>" + _("Citations%s:" % addition) + "</strong>"
-        line2 = summarize_records
+
+        for i in summarize_records[1].keys():
+            summarize_records[1][i] = intbitset(summarize_records[1][i])
+
+        str_buffer = StringIO()
+        render_citation_summary(str_buffer, ln, intbitset(pubs), citation_summary=summarize_records)
+        str_buffer.write(websearch_templates.tmpl_citesummary_footer())
+        line2 = str_buffer.getvalue()
+
         if loading:
             line2 = self.loading_html()
         if add_box:
@@ -702,7 +712,7 @@ class Template:
         else:
             html_hepnames = ''
             html_orcid = ''
-        html_citations = self.tmpl_citations_box(summarize_records, ln, loading=not beval[8])
+        html_citations = self.tmpl_citations_box(summarize_records, pubs, ln, loading=not (beval[8] and beval[9]))
         html_graph = self.tmpl_graph_box(pubs_per_year, ln, loading=not beval[10])
         html_collabs = self.tmpl_collab_box(collabs, bibauthorid_data, ln, loading=not beval[13])
 
