@@ -189,10 +189,12 @@ def create_normalized_name(splitted_name):
     @return: normalized name
     @rtype: string
     '''
-    name = splitted_name[0] + ','
-
+    name = splitted_name[0]
+    
     if not splitted_name[1] and not splitted_name[2]:
         return name
+
+    name = name + ','
 
     for i in range(len(splitted_name[1])):
         try:

@@ -267,6 +267,21 @@ def get_pid_from_uid(uid):
     return dbapi.get_personid_from_uid(uid)
 
 
+def get_uid_from_personid(pid):
+    '''
+    Return the uid associated with the pid
+
+    @param pid: the person id
+    @type uid: int
+
+    @return: the internal ID of a user or -1 if none found
+    '''
+    result = dbapi.get_uid_from_personid(pid)
+    
+    if not result:
+        return -1
+    return result
+
 def get_user_level(uid):
     '''
     Finds and returns the aid-universe-internal numeric user level
