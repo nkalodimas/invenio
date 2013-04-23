@@ -835,9 +835,8 @@ class TestSpiresToInvenioSyntaxConverter(unittest.TestCase):
 
             def test_date_accept_yesterday(self):
                 """SPIRES search syntax - searching by yesterday"""
-                import dateutil.relativedelta
                 spi_search = "find date yesterday"
-                inv_search = "year:" + datetime.datetime.strftime(datetime.datetime.today()+dateutil.relativedelta.relativedelta(days=-1), '%Y-%m-%d')
+                inv_search = "year:" + datetime.datetime.strftime(datetime.datetime.today()+du_delta(days=-1), '%Y-%m-%d')
                 self._compare_searches(inv_search, spi_search)
 
             def test_date_accept_this_month(self):
@@ -937,6 +936,12 @@ class TestSpiresToInvenioSyntaxConverter(unittest.TestCase):
                 """SPIRES search syntax - searching by 2011-02-24 + 666"""
                 spi_search = "find date 2011-02-24 + 666"
                 inv_search = "year:2012-12-21"
+                self._compare_searches(inv_search, spi_search)
+
+            def test_date_before_1900(self):
+                """SPIRES search syntax - searching by 1850"""
+                spi_search = "find date 1850 - 1"
+                inv_search = "year:1849"
                 self._compare_searches(inv_search, spi_search)
 
         def test_spires_syntax_detected_f(self):

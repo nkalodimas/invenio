@@ -70,18 +70,17 @@ class datetime(real_datetime):
     def strftime(self, fmt):
         return strftime(fmt, self)
 
-    @classmethod
-    def combine(self, date_obj, time_obj):
-        return datetime(date_obj.year, date_obj.month, date_obj.day,
-                        time_obj.hour, time_obj.minute, time_obj.microsecond,
-                        time_obj.tzinfo)
-
     def date(self):
         return date(self.year, self.month, self.day)
 
     @staticmethod
     def strptime(date_string, format):
         return datetime(*(time.strptime(date_string, format)[0:6]))
+
+    def __add__(self, other):
+        d = real_datetime.combine(self, self.timetz())
+        d += other
+        return self.combine(d, d.timetz())
 
 
 def convert_datetext_to_dategui(datetext, ln=CFG_SITE_LANG, secs=False):
