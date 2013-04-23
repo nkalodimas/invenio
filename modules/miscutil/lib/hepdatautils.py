@@ -30,7 +30,7 @@ import threading
 import signal
 
 from invenio.config import CFG_CACHEDIR, CFG_HEPDATA_URL, \
-    CFG_HEPDATA_PLOTSIZE, CFG_LOGDIR, CFG_TMPDIR, CFG_HEPDATA_THREADS_NUM, \
+    CFG_HEPDATA_PLOTSIZE, CFG_LOGDIR, CFG_TMPSHAREDDIR, CFG_HEPDATA_THREADS_NUM, \
     CFG_HEPDATA_INDEX, CFG_HEPDATA_FIELD
 from invenio.jsonutils import json
 from datetime import datetime
@@ -413,7 +413,8 @@ class Dataset(object):
         # collaboration
         existing_collaboration = get_subfield_with_defval(tag = "710",
                                                           sfcode = "g")
-        correct_collaboration = get_record_collaboration(parent_recid)
+        correct_collaboration = get_record_collaboration(parent_recid).strip()
+
 
         if correct_collaboration and \
                 existing_collaboration != correct_collaboration:
@@ -428,10 +429,10 @@ class Dataset(object):
                                                         sfcode = "r")
             existing_location = get_subfield_with_defval(tag = "786",
                                                          sfcode = "h")
-            correct_location = self.location
-            correct_arXivId = get_record_arxivid(parent_recid)
+            correct_location = self.location.strip()
+            correct_arXivId = get_record_arxivid(parent_recid).strip()
 
-            correct_id = str(parent_recid)
+            correct_id = str(parent_recid).strip()
 
             existing_position =  get_subfield_with_defval(tag = "786",
                                                          sfcode = "q")
@@ -453,7 +454,7 @@ class Dataset(object):
 	    write_message("No dataset parent recid!")
 
         # dataset type (determined based on the location)
-        correct_type = self.get_type()
+        correct_type = self.get_type().strip()
         existing_type = get_subfield_with_defval(tag = "336", sfcode = "t")
 #        print "Types: %s %s" % (correct_type, existing_type)
         if existing_type != correct_type:
@@ -904,7 +905,7 @@ class Dataset(object):
         import tempfile
         if cPickle.dumps(self.data):
             fdesc, fname = tempfile.mkstemp(suffix = ".data", prefix = "data_", \
-                                                dir = CFG_TMPDIR)
+                                                dir = CFG_TMPSHAREDDIR)
 
             os.write(fdesc, cPickle.dumps(self.data))
             os.close(fdesc)
@@ -913,7 +914,7 @@ class Dataset(object):
 
         if self.data_plain:
             fdesc, fname2 = tempfile.mkstemp(suffix = ".txt", prefix = "data_", \
-                                                 dir = CFG_TMPDIR)
+                                                 dir = CFG_TMPSHAREDDIR)
             os.write(fdesc, self.data_plain)
             os.close(fdesc)
         else:
@@ -1682,7 +1683,7 @@ def write_xml_stream_to_tmpfile(stream, prefix):
 
     import tempfile
     fdesc, fname = tempfile.mkstemp(suffix = ".xml", prefix = prefix, \
-                                        dir = CFG_TMPDIR)
+                                        dir = CFG_TMPSHAREDDIR)
     os.write(fdesc, """<?xml version="1.0" encoding="UTF-8"?>
 <collection xmlns="http://www.loc.gov/MARC21/slim">""")
     for part in stream:
