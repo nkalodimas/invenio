@@ -1150,7 +1150,7 @@ class BibSched(object):
             for other_task_id, other_proc, dummy_other_runtime, other_status, other_priority, other_host, other_sequenceid in self.mono_tasks_all_nodes:
                 if priority < other_priority:
                     # Sleep ourselves
-                    if status not in ('SLEEPING', 'ABOUT TO SLEEP'):
+                    if status not in ('SLEEPING', 'ABOUT TO SLEEP', 'SCHEDULED'):
                         sleep_task(task_id, proc, priority, status, sequenceid)
                         return True
                     return False
@@ -1331,13 +1331,13 @@ class BibSched(object):
                 ## and to put to sleep task that should be put to sleep
                 changes = False
                 for other_task_id, other_proc, dummy, other_status, other_priority, dummy, dummy in tasks_to_stop:
-                    if other_status != 'ABOUT TO STOP':
+                    if other_status not in ('ABOUT TO STOP', 'SCHEDULED'):
                         changes = True
                         stop_task(other_task_id, other_proc, other_priority, other_status, other_sequenceid)
                     elif debug:
                         Log("Cannot run because we are waiting for #%s to stop" % other_task_id)
                 for other_task_id, other_proc, dummy, other_status, other_priority, dummy, dummy in tasks_to_sleep:
-                    if other_status != 'ABOUT TO SLEEP':
+                    if other_status not in ('ABOUT TO SLEEP', 'SCHEDULED'):
                         changes = True
                         sleep_task(other_task_id, other_proc, other_priority, other_status, other_sequenceid)
                     elif debug:
