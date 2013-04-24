@@ -1083,30 +1083,23 @@ class BibSched(object):
         of tasks to sleep.
         """
         def minimum_priority_task(task_set):
-            min_prio = None
-            min_task_id = None
-            min_proc = None
-            min_status = None
-            min_sequenceid = None
+            min_task = None
 
             ## For all the lower priority tasks...
-            for (this_task_id, this_proc, dummy, this_status, this_priority, dummy, this_sequenceid) in task_set:
-                if (min_prio is None or this_priority < min_prio) and this_status != 'SLEEPING':
+            for t in task_set:
+                this_status, this_priority = t[3:5]
+                if (min_task is None or this_priority < t[4]) and this_status != 'SLEEPING':
                     ## We don't put to sleep already sleeping task :-)
-                    min_prio = this_priority
-                    min_task_id = this_task_id
-                    min_proc = this_proc
-                    min_status = this_status
-                    min_sequenceid = this_sequenceid
+                    min_task = t
 
-            return min_prio, min_task_id, min_proc, min_status, min_sequenceid
+            return min_task
 
         to_stop = []
         to_sleep = []
 
-        for (this_task_id, this_proc, dummy, this_status, this_priority, dummy, this_sequenceid) in task_set:
-            if not self.is_task_compatible(this_proc, proc):
-                to_stop.append((this_task_id, this_proc, this_priority, this_status, this_sequenceid))
+        for t in task_set:
+            if not self.is_task_compatible(t[1], proc):
+                to_stop.append(t)
 
         if proc in CFG_BIBTASK_MONOTASKS:
             to_sleep = [t for t in task_set if t[3] != 'SLEEPING']
@@ -1121,7 +1114,7 @@ class BibSched(object):
                 len(self.node_relevant_active_tasks) == \
                                       CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS:
             min_task = minimum_priority_task(task_set)
-            if min_task[0]:
+            if min_task:
                 to_sleep = [min_task]
 
         return to_stop, to_sleep
@@ -1264,6 +1257,12 @@ class BibSched(object):
                     Log("Cannot run because there are task to stop: %s and priority < 100" % tasks_to_stop)
                 return False
 
+            for other_task_id, other_proc, dummy, other_status, other_priority, dummy, dummy in tasks_to_sleep:
+                if not other_priority < priority:
+                    if debug:
+                        Log("Cannot run because #%s with priority %s cannot be slept by this task" % (other_task_id, other_priority))
+                    return False
+
             procname = proc.split(':')[0]
             if not tasks_to_stop and not tasks_to_sleep and len(self.node_relevant_active_tasks) < CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS:
                 if proc in CFG_BIBTASK_MONOTASKS and self.active_tasks_all_nodes:
@@ -1331,13 +1330,13 @@ class BibSched(object):
                 ## We first need to stop task that should be stopped
                 ## and to put to sleep task that should be put to sleep
                 changes = False
-                for other_task_id, other_proc, dummy_other_runtime, other_status, other_priority, dummy_other_host, other_sequenceid in tasks_to_stop:
+                for other_task_id, other_proc, dummy, other_status, other_priority, dummy, dummy in tasks_to_stop:
                     if other_status != 'ABOUT TO STOP':
                         changes = True
                         stop_task(other_task_id, other_proc, other_priority, other_status, other_sequenceid)
                     elif debug:
                         Log("Cannot run because we are waiting for #%s to stop" % other_task_id)
-                for other_task_id, other_proc, dummy_other_runtime, other_status, other_priority, dummy_other_host, other_sequenceid in tasks_to_sleep:
+                for other_task_id, other_proc, dummy, other_status, other_priority, dummy, dummy in tasks_to_sleep:
                     if other_status != 'ABOUT TO SLEEP':
                         changes = True
                         sleep_task(other_task_id, other_proc, other_priority, other_status, other_sequenceid)
@@ -1441,7 +1440,9 @@ class BibSched(object):
                 else:
                     # If nothing has changed we can go on to run tasks.
                     for task in self.node_relevant_waiting_tasks:
-                        if task[1] == 'bibupload' and self.node_relevant_bibupload_tasks:
+                        if task[1] == 'bibupload' \
+                           and self.node_relevant_bibupload_tasks \
+                           and not CFG_INSPIRE_SITE:
                             ## We switch in bibupload serial mode!
                             ## which means we execute the first next bibupload.
                             if self.handle_task(*self.node_relevant_bibupload_tasks[0]):
