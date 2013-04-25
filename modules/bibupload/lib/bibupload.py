@@ -71,7 +71,8 @@ from invenio.bibrecord import create_records, \
                               record_add_subfield_into, \
                               record_find_field, \
                               record_extract_oai_id, \
-                              record_extract_dois
+                              record_extract_dois, \
+                              print_rec
 from invenio.search_engine import get_record, record_exists, search_pattern
 from invenio.dateutils import convert_datestruct_to_datetext
 from invenio.errorlib import register_exception
@@ -144,6 +145,8 @@ def bibupload(record, opt_tag=None, opt_mode=None,
     """
     assert(opt_mode in ('insert', 'replace', 'replace_or_insert', 'reference',
         'correct', 'append', 'format', 'holdingpen', 'delete'))
+
+    print_rec(record).decode('utf-8')
 
     error = None
     now = datetime.now() # will hold record creation/modification date
@@ -2122,7 +2125,8 @@ Examples:
                    "special-treatment=",
                  ]),
             task_submit_elaborate_specific_parameter_fnc=task_submit_elaborate_specific_parameter,
-            task_run_fnc=task_run_core)
+            task_run_fnc=task_run_core,
+            task_submit_check_options_fnc=task_submit_check_options)
 
 def task_submit_elaborate_specific_parameter(key, value, opts, args):
     """ Given the string key it checks it's meaning, eventually using the
