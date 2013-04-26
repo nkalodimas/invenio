@@ -53,7 +53,7 @@ from invenio.bibedit_config import CFG_BIBEDIT_AJAX_RESULT_CODES, \
     CFG_BIBEDIT_DOI_LOOKUP_FIELD, CFG_DOI_USER_AGENT, \
     CFG_BIBEDIT_DISPLAY_REFERENCE_TAGS, CFG_BIBEDIT_DISPLAY_AUTHOR_TAGS
 
-from invenio.config import CFG_SITE_LANG, CFG_DEVEL_SITE
+from invenio.config import CFG_SITE_LANG, CFG_DEVEL_SITE, CFG_BIBEDIT_SHOW_HOLDING_PEN_REMOVED_FIELDS
 from invenio.bibedit_dblayer import get_name_tags_all, reserve_record_id, \
     get_related_hp_changesets, get_hp_update_xml, delete_hp_change, \
     get_record_last_modification_date, get_record_revision_author, \
@@ -238,7 +238,8 @@ def perform_request_init(uid, ln, req, lastupdated):
             'gTagsToAutocomplete': CFG_BIBEDIT_AUTOCOMPLETE_INSTITUTIONS_FIELDS,
             'gDOILookupField': '"' + CFG_BIBEDIT_DOI_LOOKUP_FIELD + '"',
             'gDisplayReferenceTags': CFG_BIBEDIT_DISPLAY_REFERENCE_TAGS,
-            'gDisplayAuthorTags': CFG_BIBEDIT_DISPLAY_AUTHOR_TAGS
+            'gDisplayAuthorTags': CFG_BIBEDIT_DISPLAY_AUTHOR_TAGS,
+            'gSHOW_HP_REMOVED_FIELDS': CFG_BIBEDIT_SHOW_HOLDING_PEN_REMOVED_FIELDS
             }
     body += '<script type="text/javascript">\n'
     for key in data:

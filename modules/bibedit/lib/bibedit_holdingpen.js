@@ -365,6 +365,13 @@ function prepareVisualizeChangeset(changesetNumber, newChangesList, undoHandler)
 
   $("#holdingPenPreview_" + changesetNumber).remove();
 
+  // add the added fiels div
+  if ( $('#bibEditHoldingPenAddedFields').length < 1 ) {
+      var addedFiedsDivHtml = "<div id=\"bibEditHoldingPenAddedFields\"><div id=\"bibEditHoldingPenAddedFieldsLabel\">" +
+      "<strong>Added fields in Holding Pen</div></strong></div>";
+      $("#bibEditContentTable").append(addedFiedsDivHtml);
+  }
+
   // now producing the controls allowing to apply the change
   for (change in newChangesList) {
     changePos = gHoldingPenChanges.length;
@@ -822,7 +829,7 @@ function applyFieldChanged(changeNumber){
     var data = prepareFieldChangedRequest(changeNumber, undoHandler);
 
     createReq(data, function(json){
-      updateStatus('report', gRESULT_CODES[json['resultCode']])
+      updateStatus('report', gRESULT_CODES[json['resultCode']]);
     });
 
     removeViewedChange(changeNumber); // redrawing included in this call
@@ -841,7 +848,7 @@ function applyFieldAdded(changeNo){
     data.undoRedo = undoHandler;
 
     createReq(data, function(json){
-      updateStatus('report', gRESULT_CODES[json['resultCode']])
+      updateStatus('report', gRESULT_CODES[json['resultCode']]);
     });
     // now adding appropriate controls to the interface
     removeViewedChange(changeNo);
@@ -870,6 +877,7 @@ function updateInterfaceAfterChangeModification(changeNo){
   }
   adjustGeneralHPControlsVisibility();
 }
+
 function revertViewedChange(changeNo){
   /** Reverts a Holding Pen change that has been marked as removed before
       Parameters:
@@ -898,7 +906,7 @@ function addGeneralControls(){
     */
   if ($("#bibeditHoldingPenGC").length == 0){
     panel = createGeneralControlsPanel();
-    $("#bibEditContentTable").prepend(panel);
+    $("#bibEditContentTable").before(panel);
   }
 }
 
@@ -1173,7 +1181,7 @@ function onAcceptAllChanges(){
   /** Finally, we can proceed with removal of the fields. Doing so, changes
       the field numbers */
   var resRemoveFields = acceptRemoveFieldChanges(
-         chNumbers.changesRemoveSubfield);
+         chNumbers.changesRemoveField);
 
   /** Now we remove all the changes visulaized in the interface */
   var removeAllChangesUndoHandler = prepareUndoHandlerRemoveAllHPChanges(
@@ -1226,6 +1234,21 @@ function onAcceptAllChanges(){
   createBulkReq(collectiveAjaxData, function(json){
     updateStatus('report', gRESULT_CODES[json['resultCode']])
   }, optArgs);
+}
+
+function onAcceptAllReferences(){
+    $.each(gDisplayReferenceTags, function() {
+      $("tbody[id^='rowGroup_" + this + "']").show();
+    });
+    $("tbody[id^='rowGroup_" + gDisplayReferenceTags + "']").each(function() {
+      $(this).find('.bibeditHPCorrection').find('button[title="Apply"]').click();
+    });
+    $("[id^='changeBox']").each(function(){
+      changeNo = $(this).attr('id').substring(10);
+      if (gHoldingPenChanges[changeNo]["tag"] == gDisplayReferenceTags) {
+        $(this).find('button[title="Apply"]').click();
+      }
+    });
 }
 
 function prepareRemoveAllAppliedChanges(){

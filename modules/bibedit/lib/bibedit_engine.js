@@ -1022,7 +1022,7 @@ function compareFields(fieldId, indicators, fieldPos, field1, field2){
            "field_content" : field2}];
       } else
       {
-        if (field1[sfPos][1] != field2[sfPos][1]){
+        if ( (field1[sfPos][1] != field2[sfPos][1]) && (field1[sfPos][1].substring(0,9) != "VOLATILE:") ){
           result.push({"change_type" : "subfield_changed",
             "tag" : fieldId,
             "indicators" : indicators,
@@ -1032,17 +1032,28 @@ function compareFields(fieldId, indicators, fieldPos, field1, field2){
             "subfield_content" : field2[sfPos][1]});
 
         }
+        else if ( field1[sfPos][1] == field2[sfPos][1] ) {
+          result.push({"change_type" : "subfield_same",
+            "tag" : fieldId,
+            "indicators" : indicators,
+            "field_position" : fieldPos,
+            "subfield_position" : sfPos,
+            "subfield_code" : field2[sfPos][0],
+            "subfield_content" : field2[sfPos][1]});
+        }
       }
     }
   }
 
-  for (sfPos in field1){
-    if (field2[sfPos] == undefined){
-      result.push({"change_type" : "subfield_removed",
-                "tag" : fieldId,
-                "indicators" : indicators,
-                "field_position" : fieldPos,
-                "subfield_position" : sfPos});
+  if ( gSHOW_HP_REMOVED_FIELDS == 1) {
+    for (sfPos in field1){
+      if (field2[sfPos] == undefined){
+        result.push({"change_type" : "subfield_removed",
+                  "tag" : fieldId,
+                  "indicators" : indicators,
+                  "field_position" : fieldPos,
+                  "subfield_position" : sfPos});
+      }
     }
   }
 
@@ -1065,13 +1076,15 @@ function compareIndicators(fieldId, indicators, fields1, fields2){
     }
   }
 
-  for (fieldPos in fields1){
-    if (fields2[fieldPos] == undefined){
-      fieldPosition = fields1[fieldPos][1];
-      result.push({"change_type" : "field_removed",
-             "tag" : fieldId,
-             "indicators" : indicators,
-             "field_position" : fieldPosition});
+  if ( gSHOW_HP_REMOVED_FIELDS == 1) {
+    for (fieldPos in fields1){
+      if (fields2[fieldPos] == undefined){
+        fieldPosition = fields1[fieldPos][1];
+        result.push({"change_type" : "field_removed",
+               "tag" : fieldId,
+               "indicators" : indicators,
+               "field_position" : fieldPosition});
+      }
     }
   }
   return result;
@@ -1118,32 +1131,36 @@ function compareRecords(record1, record2){
         }
       }
 
-      for (indicators in r1[fieldId]){
-        if (r2[fieldId][indicators] == undefined){
-          for (fieldInd in r1[fieldId][indicators]){
-            fieldPosition = r1[fieldId][indicators][fieldInd][1];
-            result.push({"change_type" : "field_removed",
-                 "tag" : fieldId,
-                 "field_position" : fieldPosition});
-          }
+      if ( gSHOW_HP_REMOVED_FIELDS == 1) {
+        for (indicators in r1[fieldId]){
+          if (r2[fieldId][indicators] == undefined){
+            for (fieldInd in r1[fieldId][indicators]){
+              fieldPosition = r1[fieldId][indicators][fieldInd][1];
+               result.push({"change_type" : "field_removed",
+                    "tag" : fieldId,
+                    "field_position" : fieldPosition});
+            }
 
+          }
         }
       }
 
     }
   }
 
-  for (fieldId in r1){
-    if (r2[fieldId] == undefined){
-      for (indicators in r1[fieldId]){
-        for (field in r1[fieldId][indicators])
-        {
-          // field position has to be calculated here !!!
-          fieldPosition = r1[fieldId][indicators][field][1]; // field position inside the mark
-          result.push({"change_type" : "field_removed",
-                       "tag" : fieldId,
-                       "field_position" : fieldPosition});
+  if ( gSHOW_HP_REMOVED_FIELDS == 1) {
+    for (fieldId in r1){
+      if (r2[fieldId] == undefined){
+        for (indicators in r1[fieldId]){
+          for (field in r1[fieldId][indicators])
+          {
+            // field position has to be calculated here !!!
+            fieldPosition = r1[fieldId][indicators][field][1]; // field position inside the mark
+            result.push({"change_type" : "field_removed",
+                         "tag" : fieldId,
+                         "field_position" : fieldPosition});
 
+          }
         }
       }
     }
@@ -2054,6 +2071,7 @@ function cleanUp(disableRecBrowser, searchPattern, searchType,
     gNavigatingRecordSet = false;
   }
   // Clear main content area.
+  $('#bibeditHoldingPenGC').remove();
   $('#bibEditContentTable').empty();
   $('#bibEditMessage').empty();
 
