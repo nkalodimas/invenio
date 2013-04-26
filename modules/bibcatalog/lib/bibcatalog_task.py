@@ -118,7 +118,8 @@ def task_check_options():
     if not task_get_option('new') \
             and not task_get_option('modified') \
             and not task_get_option('recids') \
-            and not task_get_option('collections'):
+            and not task_get_option('collections')\
+            and not task_get_option('arxivids'):
         print >>sys.stderr, 'Error: No records specified, you need' \
             ' to specify which records to run on'
         return False
@@ -133,6 +134,7 @@ def task_check_options():
         # Tickets specified
         for ticket in task_get_option('tickets'):
             if ticket not in all_plugins.get_enabled_plugins():
+                print ticket
                 print >>sys.stderr, 'Error: plugin %s is broken or does not exist'
                 return False
             ticket_plugins[ticket] = all_plugins[ticket]
@@ -182,19 +184,19 @@ def task_parse_options(key, value, opts, args):
             tickets = set()
             task_set_option('tickets', tickets)
         for item in value.split(','):
-            tickets.update(item.strip())
+            tickets.add(item.strip())
     elif key in ('-q', '--query'):
         query = task_get_option('query')
         if not query:
             query = set()
             task_set_option('query', query)
-        query.update(value)
+        query.add(value)
     elif key in ('-x', '--arxivids'):
         arxivids = task_get_option('arxivids')
         if not arxivids:
             arxivids = set()
             task_set_option('arxivids', arxivids)
-        arxivids.update(value)
+        arxivids.add(value)
     return True
 
 
@@ -229,10 +231,17 @@ def task_run_core():
                                               queue=queue,
                                               recid=int(recid))
                     try:
-                        ticket.submit()
-                        write_message("Ticket #%s created for %i" %
+                        res = ticket.submit()
+                        if res:
+                            write_message("Ticket #%s created for %s" %
                                       (ticket.ticketid, recid))
-                    except Exception:
+                        else:
+                            write_message("Ticket already exists")
+                    except Exception, e:
+                        import traceback
+                        import sys
+                        exc_type, exc_value, exc_traceback = sys.exc_info()
+                        print e,traceback.format_exception(exc_type, exc_value, exc_traceback)
                         write_message("Error submitting ticket for record %s. "
                                       "Perhaps it already exists." %
                                       (recid,))
@@ -382,7 +391,7 @@ def main():
 
     """,
               version="Invenio v%s" % CFG_VERSION,
-              specific_params=("hVv:i:c:t:q:am",
+              specific_params=("hVv:i:c:t:q:x:am",
                                 ["help",
                                  "version",
                                  "verbose=",
@@ -390,7 +399,7 @@ def main():
                                  "collections=",
                                  "tickets=",
                                  "query=",
-                                 "arxivids="
+                                 "arxivids=",
                                  "new",
                                  "modified"]),
               task_submit_elaborate_specific_parameter_fnc=task_parse_options,

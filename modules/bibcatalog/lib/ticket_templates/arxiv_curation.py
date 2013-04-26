@@ -42,13 +42,14 @@ def check_record(record):
     """
     # TODO: Find what kind of records do we expect and what kind of restrictions exist.
     # Is it ?
+    return True
     if not record_in_collection(record, "HEP"):
         return
     recid = record_id_from_record(record)
     # Do not create tickets for old records
     creation_date = run_sql("""SELECT creation_date FROM bibrec
                                WHERE id = %s""", [recid])[0][0]
-    if creation_date < datetime.now() - datetime.timedelta(days=365*2):
+    if creation_date < datetime.now() - datetime.timedelta(days=365*5):
         return
 
     for report_tag in record_get_field_instances(record, "037"):
