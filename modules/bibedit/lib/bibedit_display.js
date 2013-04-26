@@ -293,7 +293,7 @@ function redrawFields(tag, skipAddFileds) {
 
     // Now redraw all the Holding Pen changes connected controls
     for (changeNr in gHoldingPenChanges) {
-        if (gHoldingPenChanges[changeNr]["tag"] == tag) {
+        if (gHoldingPenChanges[changeNr]["tag"] == tag && gHoldingPenChanges[changeNr]["applied_change"] != true ) {
             addChangeControl(changeNr, skipAddFileds);
         }
     }
@@ -320,6 +320,9 @@ function removeAddFieldControl(changeNo) {
         changeNo: a number of the change, the control is associated with
    */
     $("#changeBox_" + changeNo).remove();
+    if ( $('#bibEditHoldingPenAddedFields').find('.bibeditHPCorrection').length < 1 ) {
+         $('#bibEditHoldingPenAddedFields').remove();
+    }
 }
 
 /// generating the changes controls
@@ -363,9 +366,24 @@ function addSubfieldChangedControl(changeNo) {
 
     newel = "<div class=\"bibeditHPCorrection\"><span>" + content +
         "</span>&nbsp;&nbsp;" +
+        "<div class=\"HPCorrectionButtonWrapper\">" +
         applyButton +
         rejectButton +
         addButton +
+        "</div>" +
+        "</div>";
+
+    $("#content_" + fieldId + "_" + fieldPos + "_" + sfPos).append(newel);
+}
+
+function addSubfieldSameControl(changeNo) {
+    fieldId = gHoldingPenChanges[changeNo]["tag"];
+    fieldPos = gHoldingPenChanges[changeNo]["field_position"];
+    sfPos = gHoldingPenChanges[changeNo]["subfield_position"];
+    content = "Same content";
+
+    newel = "<div class=\"bibeditHPCorrection bibeditHPSame\"><span>" + content +
+        "</span>&nbsp;&nbsp;" +
         "</div>";
 
     $("#content_" + fieldId + "_" + fieldPos + "_" + sfPos).append(newel);
@@ -385,7 +403,7 @@ function addSubfieldAddedControl(changeNo) {
         subfieldContent;
     newel = "<tr><td></td><td></td><td></td><td></td><td>" +
         "<div class=\"bibeditHPCorrection\"><span>Subfield added: " +
-        subfieldPreview + "</span>" + "<div>" + applyButton + rejectButton +
+        subfieldPreview + "</span>" + "<div>" + "<div class=\"HPCorrectionButtonWrapper\">" + applyButton + rejectButton + "</div>" +
         "</div></div></td><td></td></tr>";
 
     $("#rowGroup_" + fieldId + "_" + fieldPos).append(newel);
@@ -401,8 +419,8 @@ function addSubfieldRemovedControl(changeNo) {
     rejectButton = getRejectChangeButton(changeNo);
 
     newel = "<div class=\"bibeditHPCorrection\"><span>" +
-        "The subfield has been removed " + "</span>" + applyButton +
-        rejectButton + "</div>";
+        "The subfield has been removed " + "</span>" + "<div class=\"HPCorrectionButtonWrapper\">" + applyButton +
+        rejectButton + "</div>" + "</div>";
     $("#content_" + fieldId + "_" + fieldPos + "_" + sfPos).append(newel);
 }
 
@@ -416,8 +434,8 @@ function addFieldRemovedControl(changeNo) {
 
     newel = "<tr><td></td><td></td><td></td><td></td><td>" +
         "<div class=\"bibeditHPCorrection\">" +
-        "Field has been removed in the Holding Pen. " + applyButton +
-        rejectButton + "</div></td><td></td></tr>";
+        "Field has been removed in the Holding Pen. " + "<div class=\"HPCorrectionButtonWrapper\">" + applyButton +
+        rejectButton + "</div>" + "</div></td><td></td></tr>";
 
     $("#rowGroup_" + fieldId + "_" + fieldPos).append(newel);
 }
@@ -439,7 +457,7 @@ function addFieldChangedControl(changeNo) {
     newel = "<tr><td></td><td></td><td></td><td></td><td>" +
     "<div class=\"bibeditHPCorrection\">" +
     "Field structure has changed. New value: " + fieldPreview + "<br>" +
-    applyButton + rejectButton + addButton + "</div></td><td></td></tr>";
+    "<div class=\"HPCorrectionButtonWrapper\">" + applyButton + rejectButton + addButton + "</div>" + "</div></td><td></td></tr>";
 
     $("#rowGroup_" + fieldId + "_" + fieldPos).append(newel);
 }
@@ -456,18 +474,19 @@ function addFieldAddedControl(changeNo) {
     applyButton = getApplyChangeButton("applyFieldAdded", changeNo);
     rejectButton = getRejectChangeButton(changeNo);
 
-    content = "<div class=\"bibeditHPCorrection\" id=\"changeBox_" + changeNo +
+    content = "<div style=\"clear:both;\"></div><div class=\"bibeditHPCorrection\" id=\"changeBox_" + changeNo +
         "\">" + "<div>A field has been added in the Holding Pen entry </div> " +
-        "<div>" + fieldContent + "</div>" + "<div>" + applyButton +
-        rejectButton + "</div></div>";
+        "<div>" + fieldContent + "</div>" + "<div>" + "<div class=\"HPCorrectionButtonWrapper\">" + applyButton +
+        rejectButton + "</div>" + "</div></div>";
 
-    $('#bibEditContentTable').append(content);
+    $('#bibEditHoldingPenAddedFields').append(content);
 }
 
 function removeAllChangeControls() {
     /** Removing all the change controls from the interface
      */
     $(".bibeditHPCorrection").remove();
+    $('#bibEditHoldingPenAddedFields').remove();
 }
 
 function addChangeControl(changeNum, skipAddedField) {
@@ -487,6 +506,9 @@ function addChangeControl(changeNum, skipAddedField) {
     }
     if (changeType == "subfield_removed") {
         addSubfieldRemovedControl(changeNum);
+    }
+    if (changeType == "subfield_same") {
+        addSubfieldSameControl(changeNum);
     }
     if (changeType == "subfield_added") {
         addSubfieldAddedControl(changeNum);
@@ -519,7 +541,7 @@ function createFieldPreviewCore(tag, indicators, subfields) {
 
 function createFieldPreview(tag, indicators, subfields) {
     /* Creating a preview of a single field */
-    return "<table>" + createFieldPreviewCore(tag, indicators, subfields) +
+    return "<table class=\"bibeditHPFieldPreview\" >" + createFieldPreviewCore(tag, indicators, subfields) +
         "</table>";
 }
 
@@ -642,6 +664,7 @@ function createGeneralControlsPanel() {
     result = "<div id=\"bibeditHoldingPenGC\">";
     result += "<button onClick=\"onAcceptAllChanges();\">Apply all the changes</button>";
     result += "<button onClick=\"onRejectAllChanges();\"> Reject all the changes</button>";
+    result += "<button id=\"acceptReferences\" onClick=\"onAcceptAllReferences();\"> Apply all references</button>";
     result += "</div>";
 
     return result;
@@ -1129,6 +1152,10 @@ function displayAlert(msgType, args) {
         break;
     case 'alertDeleteProtectedField':
         msg = 'ERROR: Cannot delete protected field ' + args[0] + '.';
+        break;
+    case 'alertDeleteHPAffectedField':
+        msg = 'Field ' + args[0] + ' cannot be deleted.\n' +
+        'It contains subfield changed in Holding Pen\'s record and an action should be taken first';
         break;
     case 'errorPhysicalCopiesExist':
         msg = "ERROR: Cannot delete record when physical copies exist. " +

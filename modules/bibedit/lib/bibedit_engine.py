@@ -54,7 +54,9 @@ from invenio.bibedit_config import CFG_BIBEDIT_AJAX_RESULT_CODES, \
     CFG_BIBEDIT_DISPLAY_REFERENCE_TAGS, CFG_BIBEDIT_DISPLAY_AUTHOR_TAGS, \
     CFG_BIBEDIT_EXCLUDE_CURATOR_TAGS
 
-from invenio.config import CFG_SITE_LANG, CFG_DEVEL_SITE, CFG_BIBCATALOG_SYSTEM_RT_URL
+from invenio.config import CFG_SITE_LANG, CFG_DEVEL_SITE, \
+    CFG_BIBCATALOG_SYSTEM_RT_URL, CFG_BIBEDIT_SHOW_HOLDING_PEN_REMOVED_FIELDS
+
 from invenio.bibedit_dblayer import get_name_tags_all, reserve_record_id, \
     get_related_hp_changesets, get_hp_update_xml, delete_hp_change, \
     get_record_last_modification_date, get_record_revision_author, \
@@ -244,6 +246,7 @@ def perform_request_init(uid, ln, req, lastupdated):
             'gDisplayReferenceTags': CFG_BIBEDIT_DISPLAY_REFERENCE_TAGS,
             'gDisplayAuthorTags': CFG_BIBEDIT_DISPLAY_AUTHOR_TAGS,
             'gExcludeCuratorTags': CFG_BIBEDIT_EXCLUDE_CURATOR_TAGS,
+            'gSHOW_HP_REMOVED_FIELDS': CFG_BIBEDIT_SHOW_HOLDING_PEN_REMOVED_FIELDS,
             'gBIBCATALOG_SYSTEM_RT_URL': repr(CFG_BIBCATALOG_SYSTEM_RT_URL)
             }
     body += '<script type="text/javascript">\n'
@@ -514,6 +517,7 @@ def perform_request_holdingpen(request_type, recId, changeId=None):
         changes = []
         for change in changeSet:
             changes.append((str(change[0]), str(change[1])))
+        changes.reverse()  # newest to older order
         response["changes"] = changes
     elif request_type == 'getHoldingPenUpdateDetails':
         # returning the list of changes related to the holding pen update
