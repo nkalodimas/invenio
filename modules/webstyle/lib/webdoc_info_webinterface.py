@@ -40,7 +40,20 @@ from invenio.jsonutils import json, json_unicode_to_utf8
 
 from invenio.access_control_engine import acc_authorize_action
 
+
+# Add here mapping to dynamic pages
+# We can map any /info/some-page to a dynamic page
+MAPPINGS = {}
+try:
+    # Adding mappings in webdoc_info_mappings overwrite Invenio default
+    # ones
+    from invenio.webdoc_info_mappings import MAPPINGS as EXTRA_MAPPINGS
+    MAPPINGS.update(EXTRA_MAPPINGS)
+except ImportError:
+    pass
+
 INFO_PREFIX = webdoc_dirs["info"][0]
+
 
 class WebInterfaceInfoPages(WebInterfaceDirectory):
     """Defines the set of documentation pages, usually installed under /help."""
@@ -53,6 +66,11 @@ class WebInterfaceInfoPages(WebInterfaceDirectory):
 
     def _lookup(self, component, path):
         """This handler parses dynamic URLs."""
+        key = tuple([component] + path)
+        # List of dynamic mappings
+        if key in MAPPINGS:
+            return MAPPINGS[key](), path[-1:]
+
         try:
             if path[-1] != '':
                 webdocname = path[-1]
