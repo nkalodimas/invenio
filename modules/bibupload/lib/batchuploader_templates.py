@@ -221,13 +221,13 @@ class Template:
         <input type="checkbox" name="skip_simulation" value="skip">
     </div>
     <div>
-        %(txt_upload_later)s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="italics">%(txt_date)s:</span>
-        <input type="text" id="datepicker" name="submit_date" value=%(submit_date)s onBlur="defText(this)" onFocus="clearText(this)" style="width:100px" >
-        &nbsp;&nbsp;<span class="italics">%(txt_time)s:</span>
-        <input type="text" name="submit_time" id="submit_time" value=%(submit_time)s onBlur="defText(this)" onFocus="clearText(this)" style="width:100px" >
-        <span class="italics">%(txt_example)s: 2012-12-20 19:22:18</span>
+    %(txt_upload_later)s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="italics">%(txt_date)s:</span>
+    <input type="text" id="datepicker" name="submit_date" value=%(submit_date)s onBlur="defText(this)" onFocus="clearText(this)" style="width:100px" >
+    &nbsp;&nbsp;<span class="italics">%(txt_time)s:</span>
+    <input type="text" name="submit_time" id="submit_time" value=%(submit_time)s onBlur="defText(this)" onFocus="clearText(this)" style="width:100px" >
+    <span class="italics">%(txt_example)s: 2012-12-20 19:22:18</span>
+    <div>%(txt_email_logs_to)s: <input type="text" name="email_logs_to" value=%(email_logs_to)s size=%(email_len)s/>
     </div>
-    <div>%(txt_email_logs_to)s: <input type="text" name="email_logs_to" value=%(email_logs_to)s />
     <div> <input type="submit" value="Upload" class="adminbutton"> </div>
 </fieldset>
 """ % {'txt_file': _("Select file to upload"),
@@ -253,7 +253,8 @@ class Template:
         'site_url': CFG_SITE_URL,
         'submit_date': cgi.escape(submit_date, True),
         'submit_time': cgi.escape(submit_time, True),
-        'email_logs_to': cgi.escape(email_logs_to, True)}
+        'email_logs_to': cgi.escape(email_logs_to, True),
+        'email_len': len(email_logs_to) + 5}
 
         body_content += """</form></div>"""
         return body_content
@@ -451,7 +452,7 @@ class Template:
             &nbsp;&nbsp;<span class="italics">%(txt7)s:</span>
             <input type="text" name="submit_time" id="submit_time" value=%(submit_time)s onBlur="defText(this)" onFocus="clearText(this)" style="width:100px" >
             <span class="italics">%(txt8)s: 2009-12-20 19:22:18</span>
-            <div>%(txt_email_logs_to)s: <input type="text" name="email_logs_to" value=%(email_logs_to)s />
+            <div>%(txt_email_logs_to)s: <input type="text" name="email_logs_to" value=%(email_logs_to)s size=%(email_len)s />
             <br/>
             <div><i>%(txt9)s</i></div>
         </div>
@@ -473,6 +474,7 @@ class Template:
                         {'x_fmt_open': '<span class="mandatory_field">', 'x_fmt_close': '</span>',},
                 'txt_email_logs_to': _("Email logs to"),
                 'email_logs_to': cgi.escape(email_logs_to, True),
+                'email_len': len(email_logs_to) + 5,
                }
         return body_content
 
