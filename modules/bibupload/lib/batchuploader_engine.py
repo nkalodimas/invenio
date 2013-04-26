@@ -181,9 +181,6 @@ def metadata_upload(req, metafile=None, filetype=None, mode=None, exec_date=None
     req.send_http_header()
 
     error_codes = {'not_authorized': 1}
-    # write temporary file:
-    if filetype != 'marcxml':
-        metafile = _transform_input_to_marcxml(file_input=metafile)
 
     user_info = collect_user_info(req)
     tempfile.tempdir = CFG_TMPSHAREDDIR
@@ -652,6 +649,7 @@ def _transform_input_to_marcxml(file_input=""):
         transform_file(filename)
     finally:
         sys.stdout = old_stdout
+
     return new_stdout.getvalue()
 
 def _log(msg, logfile="webupload.log"):

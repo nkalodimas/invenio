@@ -509,7 +509,7 @@ class Template:
             if not errors_upload:
                 errors_textarea = '<div class="clean_ok">No errors were found during the upload simulation</div><br/>'
 
-        marcxml_textarea = """<textarea style="background-color: lightyellow" name="metafile" rows="20" cols="80">%(filecontent)s</textarea> """ % {'filecontent': escape_html(metafile.value)}
+        marcxml_textarea = """<textarea style="background-color: lightyellow" name="metafile" rows="20" cols="80">%(filecontent)s</textarea> """ % {'filecontent': escape_html(metafile)}
 
         body_content = """<form class="uploadform" method="post" action="%(site_url)s/batchuploader/metasubmit">""" \
                                        % {'site_url': CFG_SITE_URL}
@@ -547,12 +547,12 @@ class Template:
                                'filetype': filetype,
                                'filename': file_name,
                                'marcxml_textarea': marcxml_textarea,
-                               'filecontent': metafile.value,
+                               'filecontent': metafile,
                                'priority_num': priority,
                                'priority_txt': priority_map[priority],
                                'email_logs_to': email_logs_to,
                                'mode': mode,
-                               'num_rec': metafile.value.count('<record>'),
+                               'num_rec': metafile.count('<record>'),
                                'submit_date': submit_date,
                                'submit_time': submit_time,
                                'errors_textarea': errors_textarea,
