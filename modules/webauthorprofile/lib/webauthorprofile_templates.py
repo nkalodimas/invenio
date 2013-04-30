@@ -686,7 +686,7 @@ class Template:
         return html_header
 
 
-    def tmpl_author_page(self, pubs, selfpubs, authorname, num_downloads,
+    def tmpl_author_page_old(self, pubs, selfpubs, authorname, num_downloads,
                         aff_pubdict, kwtuples, fieldtuples, authors,
                         names_dict, person_link, bibauthorid_data, summarize_records,
                         pubs_per_year, hepdict, collabs, orcid_info, ln, beval, oldest_cache_date,
@@ -753,6 +753,73 @@ class Template:
 
         return ' '.join(html)
 
+
+    def tmpl_author_page(self, pubs, selfpubs, authorname, num_downloads,
+                        aff_pubdict, kwtuples, fieldtuples, authors,
+                        names_dict, person_link, bibauthorid_data, summarize_records,
+                        pubs_per_year, hepdict, collabs, orcid_info, ln, beval, oldest_cache_date,
+                        recompute_allowed):
+        '''
+        '''
+        _ = gettext_set_language(ln)
+
+        html = list()
+
+        html_header = self.tmpl_authornametitle(authorname, bibauthorid_data, pubs, person_link, ln, loading=not (beval[0] and beval[7] and beval[9]))
+        html.append(html_header)
+
+        html_name_variants = self.tmpl_author_name_variants_box(names_dict, bibauthorid_data, ln, loading=True)
+        html_combined_papers = self.tmpl_papers_with_self_papers_box(pubs, selfpubs, bibauthorid_data, num_downloads, ln, loading=True)
+        html_keywords = self.tmpl_keyword_box(kwtuples, bibauthorid_data, ln, loading=True)
+        html_fieldcodes = self.tmpl_fieldcode_box(fieldtuples, bibauthorid_data, ln, loading=True)
+        html_affiliations = self.tmpl_affiliations_box(aff_pubdict, ln, loading=True)
+        html_coauthors = self.tmpl_coauthor_box(bibauthorid_data, authors, ln, loading=True)
+        if CFG_INSPIRE_SITE:
+            html_hepnames = self.tmpl_hepnames(hepdict, ln, loading=True)
+            html_orcid = self.tmpl_orcid_info_box(orcid_info, ln, loading=True)
+        else:
+            html_hepnames = ''
+            html_orcid = ''
+        html_citations = self.tmpl_citations_box(summarize_records, pubs, ln, loading=True)
+        html_graph = self.tmpl_graph_box(pubs_per_year, ln, loading=True)
+        html_collabs = self.tmpl_collab_box(collabs, bibauthorid_data, ln, loading=True)
+
+        g = self._grid
+
+        page = g(1, 2)(
+                      g(3, 2)(
+                              g(1, 1, cell_padding=5)(html_name_variants),
+                              g(1, 1, cell_padding=5)(html_combined_papers),
+                              g(1, 1, cell_padding=5)(html_affiliations),
+                              g(1, 1, cell_padding=5)(html_collabs),
+                              g(1, 1, cell_padding=5)(html_coauthors),
+                              g(2, 1)(g(1, 1, cell_padding=5)(html_keywords),
+                                      g(1, 1, cell_padding=5)(html_fieldcodes)
+                                     )
+                              ),
+                      g(4, 1)(g(1, 1, cell_padding=5)(html_citations),
+                              g(1, 1, cell_padding=5)(html_orcid),
+                              g(1, 1, cell_padding=5)(html_graph),
+                              g(1, 1, cell_padding=5)(html_hepnames))
+                      )
+        html.append(page)
+
+        rec_date = 'now'
+        if oldest_cache_date:
+            rec_date = str(oldest_cache_date)
+
+        cache_reload_link = ''
+        if recompute_allowed:
+            cache_reload_link = ('<a href="%s/author/%s/?recompute=1">%s</a>'
+                                % (CFG_SITE_URL, person_link, _("Recompute Now!")))
+        html_generated_timestamp = "<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link)
+
+        if CFG_WEBAUTHORPROFILE_GENERATED_TIMESTAMP_BOTTOM_POSITION:
+            html.append(html_generated_timestamp)
+        else:
+            html.insert(0, html_generated_timestamp)
+
+        return ' '.join(html)
 
     def tmpl_open_table(self, width_pcnt=False, cell_padding=False, height_pcnt=False):
         options = []

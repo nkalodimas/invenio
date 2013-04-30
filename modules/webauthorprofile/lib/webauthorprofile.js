@@ -37,6 +37,16 @@ $(document).ready(function() {
         return false;
         });
     });
+    //call name variants
+    var data = { 'personId': gPID };
+    $.ajax({
+        dataType: 'json',
+        type: 'POST',
+        url: '/author/create_authorpage_name_variants',
+        data: {jsondata: JSON.stringify(data)},
+        success: onAjaxSuccess,
+        async: true
+    });
 });
 
 function initAjax(){
@@ -48,6 +58,19 @@ function initAjax(){
       dataType: 'json',
       type: 'POST',
       url: gBOX_STATUS
+    }
+  );
+}
+
+function initAjaxNew(){
+  /*
+   * Initialize Ajax.
+   */
+  $.ajaxSetup(
+    {cache: false,
+      dataType: 'json',
+      type: 'POST',
+      async: true
     }
   );
 }
@@ -110,7 +133,7 @@ $(function(){
     /*
      * Init functions
      */
-    initAjax();
+    initAjaxNew();
     if (gBOX_STATUS != 'noAjax') {
         initPing();
     	setTimeout("stopPing()", 360000);
