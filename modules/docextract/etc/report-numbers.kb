@@ -221,8 +221,16 @@ KEK TH	      ---KEK-TH
 < yyyy 999>
 
 DESY		---DESY
-DESY M		---DESY M
+DESY M		---DESY-M
 DESY-THESIS ---DESY-THESIS
+
+
+*****DESY F*****
+<99 9>
+<9 99 99>
+<99 99 99>
+
+DESY F      ---DESY-F
 
 
 *****SLAC*****

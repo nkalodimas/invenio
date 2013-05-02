@@ -2774,7 +2774,7 @@ and C. Tomei et al., Astropart. Phys. 33 (2010) 169 [arXiv:0912.0452 [physics.in
         reference_test(self, ref_line, u"""<record>
     <datafield ind1="C" ind2="5" tag="999">
         <subfield code="o">76</subfield>
-        <subfield code="h">Abulencia et al.</subfield>
+        <subfield code="h">A. Abulencia et al.</subfield>
         <subfield code="c">CDF collaboration</subfield>
         <subfield code="s">Phys.Rev.Lett.,98,122001</subfield>
         <subfield code="r">hep-ex/0609021</subfield>
@@ -2798,6 +2798,43 @@ and C. Tomei et al., Astropart. Phys. 33 (2010) 169 [arXiv:0912.0452 [physics.in
        <subfield code="o">2</subfield>
        <subfield code="h">E. Dudas, G. von Gersdorff, J. Parmentier and S. Pokorski</subfield>
        <subfield code="r">arXiv:1007.5208</subfield>
+   </datafield>
+</record>""")
+
+    def test_leftover_number(self):
+        """test_leftover_number
+
+        The result was
+        <datafield ind1="C" ind2="5" tag="999">
+            <subfield code="o">2</subfield>
+            <subfield code="m">9</subfield>
+            <subfield code="r">CERN-LHCC-2011-999</subfield>
+        </datafield>
+        """
+        ref_line = u"""[2] CERN-LHCC2011-999"""
+        reference_test(self, ref_line, u"""<record>
+   <datafield ind1="C" ind2="5" tag="999">
+       <subfield code="o">2</subfield>
+       <subfield code="r">CERN-LHCC-2011-999</subfield>
+   </datafield>
+</record>""", ignore_misc=False)
+
+    def test_leftover_brackets(self):
+        ref_line = u"""[2] [CERN-LHCC2011-999]"""
+        reference_test(self, ref_line, u"""<record>
+   <datafield ind1="C" ind2="5" tag="999">
+       <subfield code="o">2</subfield>
+       <subfield code="r">CERN-LHCC-2011-999</subfield>
+   </datafield>
+</record>""", ignore_misc=False)
+
+    def test_valid_utf_8(self):
+        """Checks that the utf-8 characters are kept"""
+        ref_line = u"""[2] "Λb → J/ψΛ and B0 → J/ψKS" """
+        reference_test(self, ref_line, u"""<record>
+   <datafield ind1="C" ind2="5" tag="999">
+       <subfield code="o">2</subfield>
+       <subfield code="t">Λb → J/ψΛ and B0 → J/ψKS</subfield>
    </datafield>
 </record>""")
 

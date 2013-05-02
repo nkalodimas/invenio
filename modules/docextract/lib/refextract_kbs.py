@@ -160,15 +160,8 @@ def create_institute_numeration_group_regexp_pattern(patterns):
         patterns. E.g.:
            (?P<num>[12]\d{3} \d\d\d|\d\d \d\d\d|[A-Za-z] \d\d\d)
     """
-    grouped_numeration_pattern = u""
-    if len(patterns) > 0:
-        grouped_numeration_pattern = u"(?P<numn>"
-        for pattern in patterns:
-            grouped_numeration_pattern += \
-                  institute_num_pattern_to_regex(pattern[1]) + u"|"
-        grouped_numeration_pattern = \
-              grouped_numeration_pattern[0:len(grouped_numeration_pattern) - 1]
-        grouped_numeration_pattern += u")"
+    patterns_list = [institute_num_pattern_to_regex(p[1]) for p in patterns]
+    grouped_numeration_pattern = u"(?P<numn>%s)" % u'|'.join(patterns_list)
     return grouped_numeration_pattern
 
 
@@ -309,9 +302,9 @@ def build_reportnum_kb(fpath):
             # complete regex:
             # will be in the style "(categ)-(numatn1|numatn2|numatn3|...)"
             for classification in preprint_classifications:
-                search_pattern_str = ur'(?:^|[^a-zA-Z0-9\/\.\-])((?P<categ>' \
+                search_pattern_str = ur'(?:^|[^a-zA-Z0-9\/\.\-])([\[\(]?(?P<categ>' \
                                      + classification[0].strip() + u')' \
-                                     + numeration_regexp + u')'
+                                     + numeration_regexp + u'[\]\)]?)'
 
                 re_search_pattern = re.compile(search_pattern_str,
                                                  re.UNICODE)
