@@ -870,15 +870,17 @@ def identify_and_tag_authors(line, authors_kb):
         line = line.replace(pattern, repl)
 
     output_line = line
-    line = strip_tags(unidecode(line))
 
-    # Find as many author groups (collections of author names) as possible from the 'title-hidden' line
-    matched_authors = re_auth.finditer(line)
+    # We matched authors here
+    line = strip_tags(output_line)
+    matched_authors = list(re_auth.finditer(line))
+    # We try to have better results by unidecoding
+    unidecoded_line = strip_tags(unidecode(output_line))
+    matched_authors_unidecode = list(re_auth.finditer(unidecoded_line))
 
-    if matched_authors:
-        unidecoded_line = unidecode(strip_tags(output_line))
-        if len(unidecoded_line) != len(output_line):
-            output_line = unidecode(output_line)
+    if len(matched_authors_unidecode) > len(matched_authors):
+        output_line = unidecode(output_line)
+        matched_authors = matched_authors_unidecode
 
     # If there is at least one matched author group
     if matched_authors:

@@ -2792,7 +2792,7 @@ and C. Tomei et al., Astropart. Phys. 33 (2010) 169 [arXiv:0912.0452 [physics.in
 </record>""")
 
     def test_leftover_tag(self):
-        ref_line = u"""[2] ΦΦΦΦΦΦΦΦΦΦΦΦΦΦΦΦΦΦ E. Dudas, G. von Gersdorff, J. Parmentier and S. Pokorski, arXiv:1007.5208."""
+        ref_line = u"""[2] ΦΦΦΦΦΦΦΦΦΦΦΦΦΦΦΦΦΦ^ E. Dudas, G. von Gersdorff, J. Parmentier and S. Pokorski, arXiv:1007.5208."""
         reference_test(self, ref_line, u"""<record>
    <datafield ind1="C" ind2="5" tag="999">
        <subfield code="o">2</subfield>
