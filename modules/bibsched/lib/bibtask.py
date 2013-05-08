@@ -70,7 +70,8 @@ from invenio.access_control_config import CFG_EXTERNAL_AUTH_USING_SSO, \
     CFG_EXTERNAL_AUTHENTICATION
 from invenio.webuser import get_user_preferences, get_email
 from invenio.bibtask_config import CFG_BIBTASK_VALID_TASKS, \
-    CFG_BIBTASK_DEFAULT_TASK_SETTINGS, CFG_BIBTASK_FIXEDTIMETASKS
+    CFG_BIBTASK_DEFAULT_TASK_SETTINGS, CFG_BIBTASK_FIXEDTIMETASKS, \
+    CFG_BIBTASK_DEFAULT_GLOBAL_TASK_SETTINGS
 from invenio.dateutils import parse_runtime_limit
 from invenio.shellutils import escape_shell_arg
 from invenio.mailutils import send_email
@@ -79,27 +80,7 @@ from invenio.bibsched import bibsched_set_host, \
 
 
 # Global _TASK_PARAMS dictionary.
-_TASK_PARAMS = {
-        'version': '',
-        'task_stop_helper_fnc': None,
-        'task_name': os.path.basename(sys.argv[0]),
-        'task_specific_name': '',
-        'task_id': 0,
-        'user': '',
-        # If the task is not initialized (usually a developer debugging
-        # a single method), output all messages.
-        'verbose': 9,
-        'sleeptime': '',
-        'runtime': time.strftime("%Y-%m-%d %H:%M:%S"),
-        'priority': 0,
-        'runtime_limit': None,
-        'profile': [],
-        'post-process': [],
-        'sequence-id':None,
-        'stop_queue_on_error': False,
-        'fixed_time': False,
-        'email_logs_to': [],
-        }
+_TASK_PARAMS = dict(CFG_BIBTASK_DEFAULT_GLOBAL_TASK_SETTINGS)
 
 # Global _OPTIONS dictionary.
 _OPTIONS = {}
@@ -107,6 +88,11 @@ _OPTIONS = {}
 # Which tasks don't need to ask the user for authorization?
 CFG_VALID_PROCESSES_NO_AUTH_NEEDED = ("bibupload", )
 CFG_TASK_IS_NOT_A_DEAMON = ("bibupload", )
+
+
+class RecoverableError(StandardError):
+    pass
+
 
 def fix_argv_paths(paths, argv=None):
     """Given the argv vector of cli parameters, and a list of path that
@@ -491,7 +477,12 @@ def task_init(
                 write_message("Traceback is:", sys.stderr)
                 write_messages(''.join(traceback.format_tb(sys.exc_info()[2])), sys.stderr)
                 write_message("Exiting.", sys.stderr)
-                task_update_status("ERROR")
+                if task_get_task_param('stop_queue_on_error'):
+                    task_update_status("ERROR")
+                elif isinstance(e, RecoverableError) and task_get_task_param('email_logs_to'):
+                    task_update_status("ERRORS REPORTED")
+                else:
+                    task_update_status("CERROR")
         finally:
             _task_email_logs()
             logging.shutdown()
@@ -974,20 +965,12 @@ def _task_run(task_run_fnc):
 
     sleeptime = _TASK_PARAMS['sleeptime']
     try:
-        try:
-            if callable(task_run_fnc) and task_run_fnc():
-                task_update_status("DONE")
-            else:
-                task_update_status("DONE WITH ERRORS")
-        except SystemExit:
-            pass
-        except:
-            write_message(traceback.format_exc()[:-1])
-            register_exception(alert_admin=True)
-            if task_get_task_param('stop_queue_on_error'):
-                task_update_status("ERROR")
-            else:
-                task_update_status("CERROR")
+        if callable(task_run_fnc) and task_run_fnc():
+            task_update_status("DONE")
+        elif task_get_task_param('email_logs_to'):
+            task_update_status("ERRORS REPORTED")
+        else:
+            task_update_status("DONE WITH ERRORS")
     finally:
         task_status = task_read_status()
         if sleeptime:
