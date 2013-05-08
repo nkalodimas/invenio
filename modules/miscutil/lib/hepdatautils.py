@@ -105,7 +105,7 @@ def download_with_retry(data_url):
             last_e = e
         time.sleep(sleeptime)
         sleeptime = sleeptime * 2
-    raise Exception("Failed to download url. Last error mesasge: %s " %( last_e.reason, ))
+    raise Exception("Failed to download url. Last error code: %s " %( last_e.code, ))
 
 class Paper(object):
     def __init__(self):
