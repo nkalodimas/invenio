@@ -80,8 +80,9 @@ from invenio.intbitset import intbitset
 from invenio.urlutils import make_user_agent_string
 from invenio.config import CFG_BIBDOCFILE_FILEDIR
 from invenio.bibtask import task_init, write_message, \
-    task_set_option, task_get_option, task_get_task_param, task_update_status, \
-    task_update_progress, task_sleep_now_if_required, fix_argv_paths
+    task_set_option, task_get_option, task_get_task_param, \
+    task_update_progress, task_sleep_now_if_required, fix_argv_paths, \
+    RecoverableError
 from invenio.bibdocfile import BibRecDocs, file_strip_ext, normalize_format, \
     get_docname_from_url, check_valid_url, download_url, \
     KEEP_OLD_VALUE, decompose_bibdocfile_url, InvenioBibDocFileError, \
@@ -330,10 +331,10 @@ def bibupload(record, opt_tag=None, opt_mode=None,
             extract_tag_from_record(record, 'FFT') is not None:
             record_had_FFT = True
             if not writing_rights_p():
-                write_message("   Stage 2 failed: Error no rights to write fulltext files",
+                msg = "Error no rights to write fulltext files"
+                write_message("   Stage 2 failed: %s" % msg,
                     verbose=1, stream=sys.stderr)
-                task_update_status("ERROR")
-                sys.exit(1)
+                raise StandardError(msg)
             try:
                 record = elaborate_fft_tags(record, rec_id, opt_mode, pretend=pretend)
             except Exception, e:
@@ -536,15 +537,13 @@ def open_marc_file(path):
         marc_file.close()
     except IOError, erro:
         write_message("Error: %s" % erro, verbose=1, stream=sys.stderr)
-        write_message("Exiting.", sys.stderr)
         if erro.errno == 2:
             # No such file or directory
             # Not scary
-            task_update_status("CERROR")
+            e = RecoverableError('File does not exist: %s' % path)
         else:
-            task_update_status("ERROR")
-        sys.exit(1)
-
+            e = StandardError('File not accessible: %s' % path)
+        raise e
     return marc
 
 def xml_marc_to_records(xml_marc):
@@ -552,16 +551,13 @@ def xml_marc_to_records(xml_marc):
     # Creation of the records from the xml Marc in argument
     recs = create_records(xml_marc, 1, 1)
     if recs == []:
-        write_message("Error: Cannot parse MARCXML file.", verbose=1, stream=sys.stderr)
-        write_message("Exiting.", sys.stderr)
-        task_update_status("ERROR")
-        sys.exit(1)
+        msg = "Error: Cannot parse MARCXML file."
+        write_message(msg, verbose=1, stream=sys.stderr)
+        raise StandardError(msg)
     elif recs[0][0] is None:
-        write_message("Error: MARCXML file has wrong format: %s" % recs,
-            verbose=1, stream=sys.stderr)
-        write_message("Exiting.", sys.stderr)
-        task_update_status("CERROR")
-        sys.exit(1)
+        msg = "Error: MARCXML file has wrong format: %s" % recs
+        write_message(msg, verbose=1, stream=sys.stderr)
+        raise RecoverableError(msg)
     else:
         recs = map((lambda x:x[0]), recs)
         return recs
