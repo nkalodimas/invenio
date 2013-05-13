@@ -228,4 +228,4 @@ CFG_BIBEDIT_DISPLAY_AUTHOR_TAGS = ['100', '700']
 
 # CFG_BIBEDIT_EXCLUDE_CURATOR_TAGS - which tags to be excludeed when for the
 # curator view
-CFG_BIBEDIT_EXCLUDE_CURATOR_TAGS = ['035', '041', '520', '540', '650', '653', '690', '695', '856']
+CFG_BIBEDIT_EXCLUDE_CURATOR_TAGS = ['035', '041', '520', '540', '595', '650', '653', '690', '695', '856']

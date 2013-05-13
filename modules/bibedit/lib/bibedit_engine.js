@@ -2154,7 +2154,7 @@ function colorFields(){
   /*
    * Color every other field (rowgroup) gray to increase readability.
    */
-  $('#bibEditTable tbody:even').each(function(){
+  $('#bibEditTable tbody:visible:even').each(function(){
     $(this).addClass('bibEditFieldColored');
   });
 }
@@ -6041,6 +6041,7 @@ function onfocusauthor(check_box) {
       $("tbody[id^='rowGroup_" + this + "']").hide();
     });
   }
+  reColorFields();
 }
 
 
@@ -6092,6 +6093,7 @@ function onfocuscurator(check_box) {
       $("tbody[id^='rowGroup_" + this + "']").hide();
     });
   }
+  reColorFields();
 }
 
 
