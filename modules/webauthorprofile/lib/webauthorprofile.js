@@ -39,14 +39,20 @@ $(document).ready(function() {
     });
     //call name variants
     var data = { 'personId': gPID };
-    $.ajax({
+    var funcs = ['create_authorpage_name_variants', 'create_authorpage_combined_papers', 'create_authorpage_keywords', 'create_authorpage_fieldcodes', 'create_authorpage_affiliations',
+                 'create_authorpage_coauthors', 'create_authorpage_pubs', 'create_authorpage_authors_pubs', 'create_authorpage_citations', 'create_authorpage_pubs_graph',
+                 'create_authorpage_hepdata', 'create_authorpage_collaborations', 'create_authorpage_orcid_info'];
+    // use for(;;) instead? http://stackoverflow.com/questions/2265167/why-is-forvar-item-in-list-with-arrays-considered-bad-practice-in-javascript
+    for (var i in funcs) {
+      $.ajax({
         dataType: 'json',
         type: 'POST',
-        url: '/author/create_authorpage_name_variants',
+        url: '/author/' + funcs[i],
         data: {jsondata: JSON.stringify(data)},
         success: onAjaxSuccess,
         async: true
-    });
+      });
+    }
 });
 
 function initAjax(){
