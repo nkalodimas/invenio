@@ -102,7 +102,7 @@ def bibreformat_task(fmt, recids, without_fmt, process):
                      WHERE id in (%s)""" % ','.join(str(r) for r in recids)
 
             def check_date(mod_date):
-                return mod_date < latest_bibrank_run
+                return mod_date.strftime("%Y-%m-%d %H:%M:%S") < latest_bibrank_run
             rel_recids = intbitset([recid for recid, mod_date in run_sql(sql)
                                                     if check_date(mod_date)])
             for r in rel_recids:
