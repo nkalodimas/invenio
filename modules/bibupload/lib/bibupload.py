@@ -2242,21 +2242,24 @@ def task_submit_check_options():
     values. It must return False if there are errors in the options.
     """
     if task_get_option('mode') is None:
-        write_message("Please specify at least one update/insert mode!")
+        write_message("Please specify at least one update/insert mode!",
+                      stream=sys.stderr)
         return False
 
     file_path = task_get_option('file_path')
     if file_path is None:
-        write_message("Missing filename! -h for help.")
+        write_message("Missing filename! -h for help.", stream=sys.stderr)
         return False
 
     try:
         open(file_path).read().decode('utf-8')
     except IOError:
-        print >> sys.stderr, """File is not accessible: %s""" % file_path
+        write_message("""File is not accessible: %s""" % file_path,
+                      stream=sys.stderr)
         return False
     except UnicodeDecodeError:
-        print >> sys.stderr, """File encoding is not valid utf-8: %s""" % file_path
+        write_message("""File encoding is not valid utf-8: %s""" % file_path,
+                      stream=sys.stderr)
         return False
 
     return True
