@@ -456,6 +456,18 @@ class WebSearchTestCollections(unittest.TestCase):
         return
 
 
+    def test_canonical_and_alternate_urls_quoting(self):
+        """ websearch - check that canonical and alternate URL in collection page header are properly quoted"""
+        url = CFG_SITE_URL + '/collection/Experimental%20Physics%20%28EP%29?ln=en'
+        expected_text = ['<link rel="alternate" hreflang="en" href="' + CFG_SITE_URL + '/collection/Experimental%20Physics%20%28EP%29?ln=en" />',
+                         '<link rel="canonical" href="' + CFG_SITE_URL + '/collection/Experimental%20Physics%20%28EP%29" />']
+        unexpected_text = ['<link rel="alternate" hreflang="en" href="' + CFG_SITE_URL + '/collection/Experimental Physics (EP)?ln=en" />',
+                           '<link rel="canonical" href="' + CFG_SITE_URL + '/collection/Experimental Physics (EP)" />']
+
+        self.assertEqual([], test_web_page_content(url,
+                                                   expected_text=expected_text,
+                                                   unexpected_text=unexpected_text))
+
 class WebSearchTestBrowse(unittest.TestCase):
 
     def test_browse_field(self):
@@ -2174,7 +2186,6 @@ class WebSearchGetRecordTests(unittest.TestCase):
         from invenio.search_engine import print_record, get_record
         self.assertEqual(print_record(self.recid, 'xm'), '    <record>\n        <controlfield tag="001">%s</controlfield>\n    </record>\n\n    ' % self.recid)
         self.assertEqual(get_record(self.recid), {'001': [([], ' ', ' ', str(self.recid), 1)]})
-
 
 
 TEST_SUITE = make_test_suite(WebSearchWebPagesAvailabilityTest,
