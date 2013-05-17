@@ -200,9 +200,9 @@ def fetch_bibauthorid_last_update():
     try:
         bibauthorid_end_date = bibauthorid_log[0][2]
     except IndexError:
-        bibauthorid_end_date = datetime(year=1, month=1, day=1)
+        bibauthorid_end_date = datetime(year=1900, month=1, day=1)
 
-    return bibauthorid_end_date
+    return bibauthorid_end_date.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def fetch_index_update():
@@ -233,11 +233,12 @@ def fetch_concerned_records(name, ids_param):
         recids = intbitset()
         for first, last in ids_param:
             recids += range(first, last+1)
+        end_date = None
     else:
         start_date = get_bibrankmethod_lastupdate(name)
         end_date = fetch_index_update()
         recids = fetch_records(start_date, end_date)
-    return recids
+    return recids, end_date
 
 
 def store_last_updated(name, date):
@@ -268,13 +269,13 @@ def process_updates(rank_method_code):
         'algorithm': selfcites_config.get(rank_method_code, "algorithm"),
         'friends_threshold': selfcites_config.get(rank_method_code, "friends_threshold")
     }
-    begin_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     quick = task_get_option("quick") != "no"
     if not quick:
         return rebuild_tables(config)
 
     tags = get_authors_tags()
-    recids = fetch_concerned_records(rank_method_code, task_get_option("id"))
+    recids, end_date = fetch_concerned_records(rank_method_code,
+                                               task_get_option("id"))
     citations_fun = get_citations_fun(config['algorithm'])
     selfcites_dic = fromDB(rank_method_code)
 
@@ -289,7 +290,7 @@ def process_updates(rank_method_code):
 
         process_one(recid, tags, citations_fun, selfcites_dic)
 
-    intoDB(selfcites_dic, begin_date, rank_method_code)
+    intoDB(selfcites_dic, end_date, rank_method_code)
 
     write_message("Complete")
     return True

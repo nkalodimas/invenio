@@ -239,17 +239,23 @@ class SelfCitesTaskTests(unittest.TestCase):
         except IndexError:
             original_date = old_date
         store_last_updated(name, old_date)
-        self.assert_(fetch_concerned_records('selfcites', None))
+        recids, end_date = fetch_concerned_records('selfcites', None)
+        self.assert_(recids)
+        self.assert_(end_date)
         future_date = datetime.now() + timedelta(days=1)
         store_last_updated(name, future_date)
-        self.assert_(not fetch_concerned_records('selfcites', None))
+        recids, end_date = fetch_concerned_records('selfcites', None)
+        self.assert_(not recids)
+        self.assert_(end_date)
         # Restore value in db
         store_last_updated(name, original_date)
 
     def test_fetch_concerned_records_recids(self):
         from invenio.bibrank_selfcites_task import fetch_concerned_records
-        recids = fetch_concerned_records('selfcites', ((1, 3), (5, 10)))
+        ids_param = ((1, 3), (5, 10))
+        recids, end_date = fetch_concerned_records('selfcites', ids_param)
         self.assertEqual(recids, intbitset([1, 2, 3, 5, 6, 7, 8, 9, 10]))
+        self.assertEqual(end_date, None)
 
     def test_process_updates(self):
         from invenio.bibrank_selfcites_task import process_updates
