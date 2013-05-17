@@ -31,7 +31,8 @@ from invenio.bibtask import task_init, task_set_option, \
 from invenio.config import CFG_VERSION, \
                            CFG_SITE_SECURE_URL, \
                            CFG_BIBCATALOG_SYSTEM, \
-                           CFG_REFEXTRACT_TICKET_QUEUE
+                           CFG_REFEXTRACT_TICKET_QUEUE, \
+                           CFG_INSPIRE_SITE
 from invenio.dbquery import run_sql
 from invenio.search_engine import perform_request_search
 # Help message is the usage() print out of how to use Refextract
@@ -116,24 +117,34 @@ def cb_parse_option(key, value, opts, args):
 
 
 def create_ticket(recid, bibcatalog_system, queue=CFG_REFEXTRACT_TICKET_QUEUE):
-    write_message('bibcatalog_system %s' % bibcatalog_system, verbose=1)
-    write_message('queue %s' % queue, verbose=1)
+    write_message('ticket system: %s' % bibcatalog_system.__class__.__name__)
+    write_message('queue: %s' % queue)
     if bibcatalog_system and queue:
+        results = bibcatalog_system.ticket_search(None,
+                                                  recordid=recid,
+                                                  queue=queue)
+        if results:
+            write_message("Ticket #%s found" % results[0])
+        else:
+            _create_ticket(recid, bibcatalog_system, queue)
 
-        subject = "Refs for #%s" % recid
 
+def _create_ticket(recid, bibcatalog_system, queue):
+    subject = "Refs for #%s" % recid
+
+    if CFG_INSPIRE_SITE:
         # Add report number in the subjecet
         report_number = ""
         record = get_bibrecord(recid)
 
-        in_hep = False
+        in_core = False
         for collection_tag in record_get_field_instances(record, "980"):
             for collection in field_get_subfield_values(collection_tag, 'a'):
-                if collection == 'HEP':
-                    in_hep = True
+                if collection == 'CORE':
+                    in_core = True
 
         # Only create tickets for HEP
-        if not in_hep:
+        if not in_core:
             write_message("not in hep", verbose=1)
             return
 
@@ -154,12 +165,12 @@ def create_ticket(recid, bibcatalog_system, queue=CFG_REFEXTRACT_TICKET_QUEUE):
                 subject += " " + report_number
                 break
 
-        text = '%s/record/edit/#state=edit&recid=%s' % (CFG_SITE_SECURE_URL, \
-                                                        recid)
-        bibcatalog_system.ticket_submit(subject=subject,
-                                        queue=queue,
-                                        text=text,
-                                        recordid=recid)
+    text = '%s/record/edit/#state=edit&recid=%s' % (CFG_SITE_SECURE_URL,
+                                                    recid)
+    bibcatalog_system.ticket_submit(subject=subject,
+                                    queue=queue,
+                                    text=text,
+                                    recordid=recid)
 
 
 def task_run_core(recid, bibcatalog_system=None, _arxiv=False):
@@ -180,9 +191,7 @@ def task_run_core(recid, bibcatalog_system=None, _arxiv=False):
             write_message(msg)
 
         # Create a RT ticket if necessary
-        if not _arxiv and task_get_option('new') \
-                                    or task_get_option('create-ticket'):
-            write_message("Checking if we should create a ticket", verbose=1)
+        if task_get_option('new') or task_get_option('create-ticket'):
             create_ticket(recid, bibcatalog_system)
     except FullTextNotAvailable:
         write_message("No full text available for %s" % recid)
