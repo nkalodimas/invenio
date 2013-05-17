@@ -44,6 +44,8 @@ from invenio.bibrank_citation_searcher import get_refers_to
 from invenio.bibauthorid_daemon import get_user_log as bibauthorid_user_log
 from invenio.bibrank_citation_indexer import get_bibrankmethod_lastupdate
 from invenio.bibrank_tag_based_indexer import intoDB, fromDB
+from invenio.intbitset import intbitset
+
 
 HELP_MESSAGE = """
   Scheduled (daemon) self cites options:
@@ -222,15 +224,20 @@ def fetch_records(start_date, end_date):
     sql = """SELECT `id` FROM `bibrec`
              WHERE `modification_date` <= %s
              AND `modification_date` > %s"""
-    records = run_sql(sql, (end_date,
-                            start_date))
-    return [r[0] for r in records]
+    records = run_sql(sql, (end_date, start_date))
+    return intbitset(records)
 
 
-def fetch_concerned_records(name):
-    start_date = get_bibrankmethod_lastupdate(name)
-    end_date = fetch_index_update()
-    return fetch_records(start_date, end_date)
+def fetch_concerned_records(name, ids_param):
+    if ids_param:
+        recids = intbitset()
+        for first, last in ids_param:
+            recids += range(first, last+1)
+    else:
+        start_date = get_bibrankmethod_lastupdate(name)
+        end_date = fetch_index_update()
+        recids = fetch_records(start_date, end_date)
+    return recids
 
 
 def store_last_updated(name, date):
@@ -254,6 +261,8 @@ def process_updates(rank_method_code):
     It handles the --rebuild option. If that option is not specified
     we fall back to the process_one()
     """
+    write_message("Running rank method: %s" % rank_method_code, verbose=0)
+
     selfcites_config = read_configuration(rank_method_code)
     config = {
         'algorithm': selfcites_config.get(rank_method_code, "algorithm"),
@@ -264,10 +273,8 @@ def process_updates(rank_method_code):
     if not quick:
         return rebuild_tables(config)
 
-    write_message("Starting")
-
     tags = get_authors_tags()
-    recids = fetch_concerned_records(rank_method_code)
+    recids = fetch_concerned_records(rank_method_code, task_get_option("id"))
     citations_fun = get_citations_fun(config['algorithm'])
     selfcites_dic = fromDB(rank_method_code)
 

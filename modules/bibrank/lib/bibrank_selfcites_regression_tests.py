@@ -26,6 +26,7 @@ from StringIO import StringIO
 from datetime import datetime, timedelta
 
 from invenio.testutils import make_test_suite, run_test_suite
+from invenio.intbitset import intbitset
 
 
 class SelfCitesIndexerTests(unittest.TestCase):
@@ -238,12 +239,17 @@ class SelfCitesTaskTests(unittest.TestCase):
         except IndexError:
             original_date = old_date
         store_last_updated(name, old_date)
-        self.assert_(fetch_concerned_records('selfcites'))
+        self.assert_(fetch_concerned_records('selfcites', None))
         future_date = datetime.now() + timedelta(days=1)
         store_last_updated(name, future_date)
-        self.assert_(not fetch_concerned_records('selfcites'))
+        self.assert_(not fetch_concerned_records('selfcites', None))
         # Restore value in db
         store_last_updated(name, original_date)
+
+    def test_fetch_concerned_records_recids(self):
+        from invenio.bibrank_selfcites_task import fetch_concerned_records
+        recids = fetch_concerned_records('selfcites', ((1, 3), (5, 10)))
+        self.assertEqual(recids, intbitset([1, 2, 3, 5, 6, 7, 8, 9, 10]))
 
     def test_process_updates(self):
         from invenio.bibrank_selfcites_task import process_updates
