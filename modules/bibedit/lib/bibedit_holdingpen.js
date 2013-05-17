@@ -852,7 +852,7 @@ function applyFieldAdded(changeNo){
     });
     // now adding appropriate controls to the interface
     removeViewedChange(changeNo);
-    redrawFields(fieldId);
+    redrawFields(fieldId, true);
     reColorFields();
   }
 }
@@ -928,6 +928,29 @@ function adjustGeneralHPControlsVisibility(){
   }
 }
 
+function adjustReferenceHPControlsVisibility(){
+  /** Function adjusting the visibility of the Holding Pen apply all references button.
+      This bar is responsible of applying or rejecting all the visualized reference
+      changes at once */
+  var shouldDisplay = false;
+  for (changeInd in gHoldingPenChanges){
+    var changeTag = gHoldingPenChanges[changeInd].tag;
+    var changeIndicators = gHoldingPenChanges[changeInd].indicators;
+    var changeType = gHoldingPenChanges[changeInd].change_type;
+    if ( (changeType == "field_added" || changeType == "subfield_changed" ||
+        changeType == "subfield_added" || changeType == "field_changed" ) &&
+        gHoldingPenChanges[changeInd].applied_change !== true && changeTag == "999" &&
+              changeIndicators == "C5" ){
+      shouldDisplay = true;
+    }
+  }
+  if (shouldDisplay){
+    addGeneralControls();
+  } else {
+    $("#acceptReferences").remove();
+  }
+}
+
 function refreshChangesControls(){
   /** Redrawing all the changes controls
    */
@@ -985,21 +1008,49 @@ function aggregateHoldingPenChanges(){
   for (changeNum in gHoldingPenChanges){
     changeNumInt = parseInt(changeNum);
     changeType = gHoldingPenChanges[changeNum].change_type;
-    if ( changeType == "field_added" || changeType == "subfield_changed" ||
-	 changeType == "subfield_added" || changeType == "field_changed"){
-      result.changesAddModify.push(changeNumInt);
-    }
-    if ( changeType == "field_removed"){
-      result.changesRemoveField.push(changeNumInt);
-    }
-    if ( changeType == "subfield_removed"){
-      result.changesRemoveSubfield.push(changeNumInt);
+    if (gHoldingPenChanges[changeNum].applied_change == undefined ||
+        gHoldingPenChanges[changeNum].applied_change !== true) {
+        if ( changeType == "field_added" || changeType == "subfield_changed" ||
+          changeType == "subfield_added" || changeType == "field_changed"){
+          result.changesAddModify.push(changeNumInt);
+        }
+        if ( changeType == "field_removed"){
+          result.changesRemoveField.push(changeNumInt);
+        }
+        if ( changeType == "subfield_removed"){
+          result.changesRemoveSubfield.push(changeNumInt);
+        }
     }
   }
 
   return result;
 }
 
+function aggregateHoldingPenReferenceChanges(){
+  /** Fuction aggregating the Holding Pen Reference changes in different categories.
+      Returns an object with following fields:
+        changesAddModify : a list of numbers of changes of modification or adding fields
+   */
+  var result = {};
+  result.changesAddModify= [];
+
+  for (changeNum in gHoldingPenChanges){
+    changeNumInt = parseInt(changeNum);
+    changeType = gHoldingPenChanges[changeNum].change_type;
+    changeTag = gHoldingPenChanges[changeNum].tag;
+    changeIndicators = gHoldingPenChanges[changeNum].indicators;
+    if (gHoldingPenChanges[changeNum].applied_change == undefined ||
+        gHoldingPenChanges[changeNum].applied_change !== true) {
+        if ( (changeType == "field_added" || changeType == "subfield_changed" ||
+              changeType == "subfield_added" || changeType == "field_changed") && changeTag == "999" &&
+              changeIndicators == "C5" ){
+                  result.changesAddModify.push(changeNumInt);
+        }
+    }
+  }
+
+  return result;
+}
 
 function acceptAddModifyChanges(changeNumbers){
   /** A helper function. Applies a list of add/modify Holding Pen changes
@@ -1237,16 +1288,85 @@ function onAcceptAllChanges(){
 }
 
 function onAcceptAllReferences(){
+  /** Applying all the changes visualised in the editor.
+   */
+
+  /** Changes have to be ordered by their type. First we process the
+      modifications of the content and adding new fields and subfields.
+      Such changes do not modify the numeration of other fields/subfields
+      and so, the indices of fields/subfields stored in other changes
+      remain valid */
+
+  var chNumbers = aggregateHoldingPenReferenceChanges();
+
+  /** First we add the addField requests, as they do not change the numbers
+      of existing fields and subields. Subsequents field/subfield removals
+      will be possible. An opposite order (first removals and then adding,
+      would break the record structure */
+
+  var resAddUpdate = acceptAddModifyChanges(chNumbers.changesAddModify);
+
+  /** Now we remove all the changes visulaized in the interface */
+  var removeAllChangesUndoHandler = prepareUndoHandlerBulkOperation(resAddUpdate.undoHandlers,
+                                     'apply all references');
+  for (var i in chNumbers.changesAddModify) {
+    removeViewedChange(chNumbers.changesAddModify[i]);
+  }
+  /** updating the user interface after all the changes being finished in the
+      cliens side model */
+  var collectiveTagsToRedraw = {};
+  for (tag in resAddUpdate.tagsToRedraw){
+    collectiveTagsToRedraw[tag] = true;
+  }
+  for (tag in collectiveTagsToRedraw){
+    redrawFields(tag, true);
+  }
+
+  adjustReferenceHPControlsVisibility();
+  reColorFields();
+
+  /** At this point, all the changes to the browser interface are finished.
+      The only remaining activity is combining the AJAX request into one big,
+      preparing the bulk undo/redo handler and passing the request to the
+      server side of BibEdit  */
+
+  var collectiveAjaxData = resAddUpdate.ajaxData;
+
+  var collectiveUndoHandlers = resAddUpdate.undoHandlers.concat([removeAllChangesUndoHandler]);
+  collectiveUndoHandlers.reverse();
+
+  var finalUndoHandler = prepareUndoHandlerBulkOperation(collectiveUndoHandlers,
+               "apply all reference's changes");
+  addUndoOperation(finalUndoHandler);
+
+  var optArgs = {
+      undoRedo: finalUndoHandler
+  };
+
+  createBulkReq(collectiveAjaxData, function(json){
+    updateStatus('report', gRESULT_CODES[json['resultCode']])
+  }, optArgs);
+}
+
+function onAcceptAllReferencesOld(){
+  //$(el).find('button[title="Apply"]').click()
     $.each(gDisplayReferenceTags, function() {
       $("tbody[id^='rowGroup_" + this + "']").show();
     });
     $("tbody[id^='rowGroup_" + gDisplayReferenceTags + "']").each(function() {
       $(this).find('.bibeditHPCorrection').find('button[title="Apply"]').click();
     });
+    function add(elem){
+        console.log(elem + new Date().getTime()/1000);
+          $(elem).find('button[title="Apply"]').click();
+        }
     $("[id^='changeBox']").each(function(){
       changeNo = $(this).attr('id').substring(10);
       if (gHoldingPenChanges[changeNo]["tag"] == gDisplayReferenceTags) {
-        $(this).find('button[title="Apply"]').click();
+        var el = this;
+        console.log(el);
+        var toadd = add(el);
+        setTimeout( toadd, 2000);
       }
     });
 }
@@ -1262,6 +1382,7 @@ function prepareRemoveAllAppliedChanges(){
   return {recID: gRecID, requestType: "otherUpdateRequest",
 	  hpChanges: {toOverride : []}};
 }
+
 
 function onRejectAllChanges(){
   /** Rejecting all the considered changes*/

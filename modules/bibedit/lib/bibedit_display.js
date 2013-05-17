@@ -665,7 +665,7 @@ function createGeneralControlsPanel() {
     result = "<div id=\"bibeditHoldingPenGC\">";
     result += "<button onClick=\"onAcceptAllChanges();\">Apply all the changes</button>";
     result += "<button onClick=\"onRejectAllChanges();\"> Reject all the changes</button>";
-    //result += "<button onClick=\"onAcceptAllReferences();\"> Apply all references</button>";
+    result += "<button id=\"acceptReferences\" onClick=\"onAcceptAllReferences();\"> Apply all references</button>";
     result += "</div>";
 
     return result;

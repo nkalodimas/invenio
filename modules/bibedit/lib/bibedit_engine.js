@@ -4148,6 +4148,14 @@ function prepareUndoHandlerRemoveAllHPChanges(hpChanges){
   return result;
 }
 
+function prepareUndoHandlerRemoveAllHPReferenceChanges(hpRefChanges){
+  /** A function preparing the undo handler associated with the
+      removal of all the Holding Pen Reference changes present in the interface */
+  var result = {};
+  result.operation_type = "remove_all_hp_ref_changes";
+  result.old_changes_list = hpRefChanges;
+  return result;
+}
 
 function prepareUndoHandlerBulkOperation(undoHandlers, handlerTitle){
   /*
