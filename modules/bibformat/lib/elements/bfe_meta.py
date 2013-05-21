@@ -22,6 +22,9 @@
 __revision__ = "$Id$"
 
 import cgi
+import re
+import time
+from datetime import datetime
 from invenio.bibformat_elements.bfe_server_info import format_element as server_info
 from invenio.bibformat_elements.bfe_client_info import format_element as client_info
 from invenio.htmlutils import create_tag
@@ -37,7 +40,7 @@ def format_element(bfo, name, tag_name='', tag='', kb='', kb_default_output='', 
     @param tag_name: the name, from tag table, of the field to be exported
     looks initially for names prefixed by "meta-"<tag_name>
     then looks for exact name, then falls through to "tag"
-    @param tag: the MARC tag to be exported (only if not defined by tag_name)
+    @param tag: the MARC tag to be exported (only if not defined by tag_name). Comma-separated list of tags.
     @param name: name to be displayed in the meta headers, labelling this value.
     @param kb: a knowledge base through which to process the retrieved value if necessary.
     @param kb: when a '<code>kb</code>' is specified and no match for value is found, what shall we
@@ -72,7 +75,10 @@ def format_element(bfo, name, tag_name='', tag='', kb='', kb_default_output='', 
             tags = get_field_tags(tag_name)
     if not tags and tag:
         # fall back to explicit marc tag
-        tags = [tag]
+        if ',' in tag:
+            tags = tag.split(',')
+        else:
+            tags = [tag]
     if not tags:
         return ''
     out = []
@@ -88,10 +94,20 @@ def format_element(bfo, name, tag_name='', tag='', kb='', kb_default_output='', 
             out.extend(value.values())
         else:
             out.append(value)
-    out = dict(zip(out, len(out)*[''])).keys() # Remove duplicates
+
     if name == 'citation_date':
         for idx in range(len(out)):
             out[idx] = out[idx].replace('-', '/')
+
+    elif name == 'citation_publication_date':
+        for idx in range(len(out)):
+            # Stop at first match
+            parsed_date = parse_date_for_googlescholar(out[idx])
+            if parsed_date:
+                out = [parsed_date]
+                break
+
+    out = dict(zip(out, len(out)*[''])).keys() # Remove duplicates
 
     if kb:
         if kb_default_output == "{value}":
@@ -108,6 +124,50 @@ def create_metatag(name, content):
         return create_tag('meta', property=name, content=content)
     else:
         return create_tag('meta', name=name, content=content)
+
+CFG_POSSIBLE_DATE_FORMATS = ['%Y-%m-%d',
+                             '%Y %m %d',
+                             '%d %m %Y',
+                             '%d-%m-%Y',
+                             '%d %B %Y',
+                             '%d %b %Y',
+                             '%m %Y',
+                             '%m-%Y',
+                             '%m-%Y',
+                             '%B %Y',
+                             '%b %Y',
+                             '%x',
+                             '%x %X']
+CFG_POSSIBLE_DATE_FORMATS = CFG_POSSIBLE_DATE_FORMATS + \
+                            [f + ' %H:%M:%S' for f in CFG_POSSIBLE_DATE_FORMATS] + \
+                            [f + 'T%H:%M:%S' for f in CFG_POSSIBLE_DATE_FORMATS]
+
+CFG_YEAR_PATTERN_RE = re.compile("((\D|\A)(\d{4})(\D|\Z))")
+
+def parse_date_for_googlescholar(datetime_string):
+    """
+    Parse (guess) and return the date in a format adequate for Google
+    Scholar. We don't use dateutils.guess_datetime() as this one might
+    lead to results not accurate enough.
+    """
+    parsed_datetime = None
+    for dateformat in CFG_POSSIBLE_DATE_FORMATS:
+        try:
+            parsed_datetime = time.strptime(datetime_string.strip(), dateformat)
+            break
+        except:
+            pass
+
+    if parsed_datetime:
+        return datetime(*(parsed_datetime[0:6])).strftime('%Y/%m/%d')
+    else:
+        # Look for a year inside the string:
+        try:
+            return CFG_YEAR_PATTERN_RE.search(datetime_string).group(3)
+        except:
+            return ''
+
+    return ''
 
 def escape_values(bfo):
     """
