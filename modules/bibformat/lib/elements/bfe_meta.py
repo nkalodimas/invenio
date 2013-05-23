@@ -24,12 +24,17 @@ __revision__ = "$Id$"
 import cgi
 import re
 import time
+import string
 from datetime import datetime
 from invenio.bibformat_elements.bfe_server_info import format_element as server_info
 from invenio.bibformat_elements.bfe_client_info import format_element as client_info
+from invenio.dateutils import get_i18n_month_name
 from invenio.htmlutils import create_tag
 from invenio.bibindex_engine import get_field_tags
-from invenio.config import CFG_WEBSEARCH_ENABLE_GOOGLESCHOLAR, CFG_WEBSEARCH_ENABLE_OPENGRAPH
+from invenio.config import \
+     CFG_WEBSEARCH_ENABLE_GOOGLESCHOLAR, \
+     CFG_WEBSEARCH_ENABLE_OPENGRAPH, \
+     CFG_SITE_LANG
 
 def format_element(bfo, name, tag_name='', tag='', kb='', kb_default_output='', var='', protocol='googlescholar'):
     """Prints a custom field in a way suitable to be used in HTML META
@@ -125,15 +130,14 @@ def create_metatag(name, content):
     else:
         return create_tag('meta', name=name, content=content)
 
-CFG_POSSIBLE_DATE_FORMATS = ['%Y-%m-%d',
-                             '%Y %m %d',
+# Build list of expected patterns
+CFG_POSSIBLE_DATE_FORMATS = ['%Y %m %d',
                              '%d %m %Y',
-                             '%d-%m-%Y',
                              '%d %B %Y',
                              '%d %b %Y',
+                             '%Y %B %d',
+                             '%Y %b %d',
                              '%m %Y',
-                             '%m-%Y',
-                             '%m-%Y',
                              '%B %Y',
                              '%b %Y',
                              '%x',
@@ -142,7 +146,25 @@ CFG_POSSIBLE_DATE_FORMATS = CFG_POSSIBLE_DATE_FORMATS + \
                             [f + ' %H:%M:%S' for f in CFG_POSSIBLE_DATE_FORMATS] + \
                             [f + 'T%H:%M:%S' for f in CFG_POSSIBLE_DATE_FORMATS]
 
+# Build month translation mapping from CFG_SITE_LANG to English.
+CFG_MONTH_NAMES_MAPPING = {}
+if CFG_SITE_LANG != 'en':
+    CFG_MONTH_NAMES_MAPPING = dict([(get_i18n_month_name(month_nb, display='short', ln=CFG_SITE_LANG).upper(),
+                                     get_i18n_month_name(month_nb, display='short', ln='en')) \
+                                    for month_nb in range(1, 13)])
+    CFG_MONTH_NAMES_MAPPING.update(dict([(get_i18n_month_name(month_nb, display='long', ln=CFG_SITE_LANG).upper(),
+                                          get_i18n_month_name(month_nb, display='long', ln='en')) \
+                                         for month_nb in range(1, 13)]))
+# Build regular expression pattern to match month name in
+# CFG_SITE_LANG.  Note the use \W instead of \b for word boundaries
+# because of a bug in 're' module with unicode.
+CFG_MONTHS_I18N_PATTERN_RE = re.compile(r"(\W|\A)(%s)(\W|\Z)" % "|".join(CFG_MONTH_NAMES_MAPPING.keys()),
+                                        re.IGNORECASE | re.UNICODE)
+
 CFG_YEAR_PATTERN_RE = re.compile("((\D|\A)(\d{4})(\D|\Z))")
+
+CFG_PUNCTUATION_PATTERN_RE = re.compile(r'[' + string.punctuation + ']')
+CFG_SPACES_PATTERN_RE = re.compile(r'\s+')
 
 def parse_date_for_googlescholar(datetime_string):
     """
@@ -150,6 +172,16 @@ def parse_date_for_googlescholar(datetime_string):
     Scholar. We don't use dateutils.guess_datetime() as this one might
     lead to results not accurate enough.
     """
+    datetime_string = CFG_PUNCTUATION_PATTERN_RE.sub(' ', datetime_string)
+    datetime_string = CFG_SPACES_PATTERN_RE.sub(' ', datetime_string)
+
+    def replace_month(match_obj):
+        "Return translated month in the matching object"
+        month = match_obj.group(2).strip()
+        return match_obj.group(1) + \
+               CFG_MONTH_NAMES_MAPPING.get(month.upper(), month) + \
+               match_obj.group(3)
+
     parsed_datetime = None
     for dateformat in CFG_POSSIBLE_DATE_FORMATS:
         try:
@@ -157,6 +189,16 @@ def parse_date_for_googlescholar(datetime_string):
             break
         except:
             pass
+
+    if not parsed_datetime:
+        # Do it all again, with the translated version of the string
+        translated_datetime_string = CFG_MONTHS_I18N_PATTERN_RE.sub(replace_month, datetime_string)
+        for dateformat in CFG_POSSIBLE_DATE_FORMATS:
+            try:
+                parsed_datetime = time.strptime(translated_datetime_string.strip(), dateformat)
+                break
+            except:
+                pass
 
     if parsed_datetime:
         return datetime(*(parsed_datetime[0:6])).strftime('%Y/%m/%d')
