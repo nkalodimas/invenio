@@ -1217,6 +1217,49 @@ function containsProtectedField(fieldData){
   return false;
 }
 
+function containsHPAffectedField(fieldData){
+  /*
+   * Determine if a field data structure contains affected from HP elements (useful
+   * when checking if a deletion command is valid).
+   * The data structure must be an object with the following levels
+   * - Tag
+   *   - Field position
+   *     - Subfield index
+   */
+   // First find all fields and their position containing subfield changed in Holding Pen
+  var fieldPositions, subfieldIndexes;
+  var hpTags = {};
+  for (var changePos in gHoldingPenChanges) {
+      var change = gHoldingPenChanges[changePos];
+      if (change["change_type"] == "field_changed" || change["change_type"] == "subfield_changed") {
+        if ( hpTags[change["tag"]] == undefined ) {
+            hpTags[change["tag"]] = [change["field_position"]];
+        }
+        else {
+            hpTags[change["tag"]].push(change["field_position"]);
+        }
+      }
+  }
+  // For every field selected to be deleted check if it exists in hpTags dictionary
+  for (var type in fieldData) {
+    fields = fieldData[type];
+    for (var field in fields){
+      if ( hpTags[field] != undefined ) {
+        var field_positions = hpTags[field];
+        subfieldIndexes = fields[field];
+        var keys = Object.keys(subfieldIndexes);
+        for (var i=0, l=keys.length; i<l; i++){
+            for (var j=0, m=field_positions.length; j<m; j++){
+                if ( keys[i] == field_positions[j] ) {
+                  return field;
+                }
+            }
+        }
+      }
+    }
+  }
+  return false;
+}
 
 function getMARC(tag, fieldPosition, subfieldIndex){
   /*
@@ -3602,6 +3645,13 @@ function onDeleteClick(event){
   var toDelete = getSelectedFields();
   // Assert that no protected fields are scheduled for deletion.
   var protectedField = containsProtectedField(toDelete);
+  var affectedField = containsHPAffectedField(toDelete);
+
+  if (affectedField){
+    displayAlert('alertDeleteHPAffectedField', [affectedField]);
+    updateStatus('ready');
+    return;
+  }
   if (protectedField){
     displayAlert('alertDeleteProtectedField', [protectedField]);
     updateStatus('ready');
