@@ -366,26 +366,26 @@ function prepareVisualizeChangeset(changesetNumber, newChangesList, undoHandler)
   $("#holdingPenPreview_" + changesetNumber).remove();
 
   // add the added fiels div
-  if ( $('#bibEditHoldingPenAddedFields').length < 1 ) {
-      var addedFiedsDivHtml = "<div id=\"bibEditHoldingPenAddedFields\"><div id=\"bibEditHoldingPenAddedFieldsLabel\">" +
-      "<strong>Added fields in Holding Pen</div></strong></div>";
-      $("#bibEditContentTable").append(addedFiedsDivHtml);
-  }
+  // if ( $('#bibEditHoldingPenAddedFields').length < 1 ) {
+  //     var addedFiedsDivHtml = "<div id=\"bibEditHoldingPenAddedFields\"><div id=\"bibEditHoldingPenAddedFieldsLabel\">" +
+  //     "<strong>Added fields in Holding Pen</div></strong></div>";
+  //     $("#bibEditContentTable").append(addedFiedsDivHtml);
+  // }
 
-  var showAddedFields = false;
+  //var showAddedFields = false;
   // now producing the controls allowing to apply the change
   for (change in newChangesList) {
     changePos = gHoldingPenChanges.length;
     gHoldingPenChanges[changePos] = newChangesList[change];
-    if ( newChangesList[change]['change_type'] == "field_added" ) {
-      showAddedFields =true;
-    }
+    // if ( newChangesList[change]['change_type'] == "field_added" ) {
+    //   showAddedFields =true;
+    // }
     addChangeControl(changePos);
   }
 
-  if ( showAddedFields == false ) {
-    $('#bibEditHoldingPenAddedFields').remove();
-  }
+  // if ( showAddedFields == false ) {
+  //   $('#bibEditHoldingPenAddedFields').remove();
+  // }
 
   gDisabledHpEntries[changesetNumber] = true;
   adjustHPChangesetsActivity();

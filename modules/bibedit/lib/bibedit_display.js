@@ -321,9 +321,9 @@ function removeAddFieldControl(changeNo) {
         changeNo: a number of the change, the control is associated with
    */
     $("#changeBox_" + changeNo).remove();
-    if ( $('#bibEditHoldingPenAddedFields').find('.bibeditHPCorrection').length < 1 ) {
-         $('#bibEditHoldingPenAddedFields').remove();
-    }
+    // if ( $('#bibEditHoldingPenAddedFields').find('.bibeditHPCorrection').length < 1 ) {
+    //      $('#bibEditHoldingPenAddedFields').remove();
+    // }
 }
 
 /// generating the changes controls
@@ -475,19 +475,30 @@ function addFieldAddedControl(changeNo) {
     applyButton = getApplyChangeButton("applyFieldAdded", changeNo);
     rejectButton = getRejectChangeButton(changeNo);
 
-    content = "<div style=\"clear:both;\"></div><div class=\"bibeditHPCorrection\" id=\"changeBox_" + changeNo +
-        "\">" + "<div>A field has been added in the Holding Pen entry </div> " +
+    // content = "<div style=\"clear:both;\"></div><div class=\"bibeditHPCorrection\" id=\"changeBox_" + changeNo +
+    //     "\">" + "<div>A field has been added in the Holding Pen entry </div> " +
+    //     "<div>" + fieldContent + "</div>" + "<div>" + "<div class=\"HPCorrectionButtonWrapper\">" + applyButton +
+    //     rejectButton + "</div>" + "</div></div>";
+    content = "<tbody class=\"bibeditHPCorrection\" id=\"changeBox_" + changeNo +
+        "\">" + "<tr><td><div>A field has been added in the Holding Pen entry </div> " +
         "<div>" + fieldContent + "</div>" + "<div>" + "<div class=\"HPCorrectionButtonWrapper\">" + applyButton +
-        rejectButton + "</div>" + "</div></div>";
-
-    $('#bibEditHoldingPenAddedFields').append(content);
+        rejectButton + "</div>" + "</div></td></tr></tbody>";
+    
+    fieldIdInt = parseInt(fieldId, 10);
+    setToAppend = $('tbody[id^="rowGroup_' + fieldId + '"]');
+    while ( setToAppend.length < 1 ) {
+        fieldIdInt--;
+        setToAppend = $('tbody[id^="rowGroup_' + String(fieldIdInt) + '"]');
+    }
+    setToAppend.last().after(content);
+    //$('#bibEditHoldingPenAddedFields').append(content);
 }
 
 function removeAllChangeControls() {
     /** Removing all the change controls from the interface
      */
     $(".bibeditHPCorrection").remove();
-    $('#bibEditHoldingPenAddedFields').remove();
+    //$('#bibEditHoldingPenAddedFields').remove();
 }
 
 function addChangeControl(changeNum, skipAddedField) {
