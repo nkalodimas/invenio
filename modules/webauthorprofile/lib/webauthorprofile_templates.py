@@ -166,11 +166,7 @@ class Template:
 
         # first find total number of hits:
         out = ('<table class="searchresultsbox" ><thead><tr><th class="searchresultsboxheader">'
-<<<<<<< HEAD
-            + header + '</th></tr></thead><tbody><tr><td id ="%s" class="searchresultsboxbody">' % cgi.escape(id)
-=======
             + header + '</th></tr></thead><tbody><tr><td id ="%s" class="searchresultsboxbody">' % bid
->>>>>>> 1a1d577... BibAuthorID: fixes and improvements
             + body + '</td></tr></tbody></table>')
         return out
 
@@ -220,22 +216,6 @@ class Template:
         header = "<strong>" + _("Name variants") + "</strong>"
         content = []
 
-<<<<<<< HEAD
-        for name, frequency in sorted_names_list:
-            if not name:
-                name = ''
-
-            prquery = baid_query + ' exactauthor:"' + name + '"'
-            name_lnk = create_html_link(websearch_templates.build_search_url(p=prquery),
-                                                              {},
-                                                              str(frequency),)
-            content.append("%s (%s)" % (cgi.escape(name), name_lnk))
-
-        if not content:
-            content = [_("No Name Variants")]
-
-=======
->>>>>>> 1a1d577... BibAuthorID: fixes and improvements
         if loading:
             content = self.loading_html()
         else:
@@ -769,26 +749,6 @@ class Template:
         if CFG_WEBAUTHORPROFILE_GENERATED_TIMESTAMP_BOTTOM_POSITION:
             html.append(html_generated_timestamp)
         else:
-<<<<<<< HEAD
-            headernumpapers = ''
-        headertext = ('<h1><span id="authornametitle">%s</span> <span id="numpaperstitle" style="font-size:50%%;">%s</span></h1>'
-                      % (cgi.escape(display_name), headernumpapers))
-
-        html = []
-        html.append(headertext)
-
-        if person_link or person_link == 'None':
-            cmp_link = ('<div><a href="%s/person/claimstub?person=%s">%s</a></div>'
-                      % (CFG_SITE_URL, urllib.quote(person_link),
-                         _("This is me.  Verify my publication list.")))
-            html.append(cmp_link)
-
-        html_name_variants = self.tmpl_author_name_variants_box(req, names_dict, bibauthorid_data, ln, loading=not eval[7])
-        html_combined_papers = self.tmpl_papers_with_self_papers_box(req, pubs, selfpubs, bibauthorid_data, num_downloads, ln, loading=not (eval[3] and eval[12]))
-        html_keywords = self.tmpl_keyword_box(kwtuples, bibauthorid_data, ln, loading=not eval[4])
-        html_affiliations = self.tmpl_affiliations_box(aff_pubdict, ln, loading=not eval[2])
-        html_coauthors = self.tmpl_coauthor_box(bibauthorid_data, authors, ln, loading=not eval[5])
-=======
             html.insert(0, html_generated_timestamp)
 
         return ' '.join(html)
@@ -811,7 +771,7 @@ class Template:
         html_fieldcodes = self.tmpl_fieldcode_box(None, None, ln, loading=True)
         html_affiliations = self.tmpl_affiliations_box(None, ln, loading=True)
         html_coauthors = self.tmpl_coauthor_box(None, None, ln, loading=True)
->>>>>>> 1a1d577... BibAuthorID: fixes and improvements
+
         if CFG_INSPIRE_SITE:
             html_hepnames = self.tmpl_hepnames(None, ln, loading=True)
             html_orcid = self.tmpl_orcid_info_box(False, ln, loading=True)
