@@ -2072,7 +2072,7 @@ def get_free_author_id():   ### get_new_personid
     max_pids = [_select_from_aidpersonidpapers_where(select=['max(personid)']),
                 _select_from_aidpersoniddata_where(select=['max(personid)'])]
 
-    max_pids = tuple(int(pid[0][0]) for pid in max_pids if pid)
+    max_pids = tuple(int(pid[0][0]) for pid in max_pids if pid and pid[0][0])
 
     free_pid = 0
     if len(max_pids) == 2:
