@@ -319,6 +319,10 @@
     width: 500px;
 }
 
+#bibEditTable .bibeditHPFieldPreview {
+  font-size:1.2em;
+}
+
 .bibeditHPControl{
     display:table-cell;
     width:20%;

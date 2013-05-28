@@ -894,6 +894,20 @@ function deleteFieldFromTag(tag, fieldPosition){
    */
   var field = gRecord[tag][fieldPosition];
   var fields = gRecord[tag];
+  for (var change in gHoldingPenChanges) {
+      // If deleted field contains a HP change then mark change as applied or decrease the field position
+      if ((gHoldingPenChanges[change]["tag"] == tag)) {  // TODO add indicators
+            if (gHoldingPenChanges[change]["field_position"] == fieldPosition) {
+              // there are more changes associated with this field ! They are no more correct
+              // and should be removed... it is also possible to consider transforming them into add field
+              // change, but seems to be an unnecessary effort
+              gHoldingPenChanges[change].applied_change = true;
+            }
+            else if (gHoldingPenChanges[change]["field_position"] > fieldPosition) {
+              gHoldingPenChanges[change]["field_position"] -= 1;
+            }
+        }
+  }
   fields.splice($.inArray(field, fields), 1);
   // If last field, delete tag.
   if (fields.length == 0){
@@ -1231,7 +1245,8 @@ function containsHPAffectedField(fieldData){
   var hpTags = {};
   for (var changePos in gHoldingPenChanges) {
       var change = gHoldingPenChanges[changePos];
-      if (change["change_type"] == "field_changed" || change["change_type"] == "subfield_changed") {
+      if ( (change["change_type"] == "field_changed" || change["change_type"] == "subfield_changed") &&
+            change["applied_change"] != true ) {
         if ( hpTags[change["tag"]] == undefined ) {
             hpTags[change["tag"]] = [change["field_position"]];
         }
@@ -2917,7 +2932,7 @@ function addFieldSave(fieldTmpNo)
   if (!$('#bibEditTable > [id^=rowGroupAddField]').length)
       $('#bibEditColFieldTag').css('width', '48px');
   // Redraw all fields with the same tag and recolor the full table.
-  redrawFields(tag);
+  redrawFields(tag, true);
   reColorFields();
   // Scroll and color the new field for a short period.
   var rowGroup = $('#rowGroup_' + tag + '_' + fieldPosition);
@@ -3127,6 +3142,12 @@ function onAddSubfieldsSave(event, tag, fieldPosition) {
       var rows = $('#rowGroup_' + fieldID + ' tr');
       $(rows).slice(rows.length - subfields.length).effect('highlight', {
         color: gNEW_CONTENT_COLOR}, gNEW_CONTENT_COLOR_FADE_DURATION);
+      for (var changePos in gHoldingPenChanges) {
+          var change = gHoldingPenChanges[changePos];
+          if ( change["tag"] == tag && change["field_position"] == fieldPosition ) {// TODO: add indicators?
+            addChangeControl(changePos,true);
+          }
+      }
   } else {
     // No valid fields were submitted.
     $('#rowAddSubfields_' + fieldID + '_' + 0).nextAll().andSelf().remove();
@@ -4049,7 +4070,7 @@ function onPerformPaste(){
   }
   tags.sort();
   for (tagInd in tags){
-      redrawFields(tags[tagInd]);
+      redrawFields(tags[tagInd], true);
   }
   reColorFields();
 }
@@ -4227,7 +4248,7 @@ function urPerformAddSubfields(tag, fieldPosition, subfields, isUndo){
     };
 
     gRecord[tag][fieldPosition][0] = gRecord[tag][fieldPosition][0].concat(subfields);
-    redrawFields(tag);
+    redrawFields(tag, true);
     reColorFields();
 
     return ajaxData;
@@ -4348,10 +4369,10 @@ function processURUntil(entry){
 }
 
 
-function prepareUndoHandlerChangeSubfield(tag, fieldPos, subfieldPos, oldVal, 
-         newVal, oldCode, newCode, operation_type){
+function prepareUndoHandlerChangeSubfield (tag, fieldPos, subfieldPos, oldVal,
+         newVal, oldCode, newCode, operation_type) {
   var result = {};
-  result.operation_type = operation_type;
+  result.operation_type = "change_content";
   result.tag = tag;
   result.oldVal = oldVal;
   result.newVal = newVal;
@@ -4435,7 +4456,7 @@ function urPerformRemoveField(tag, position, isUndo){
   if (gRecord[tag] == []){
     gRecord[tag] = undefined;
   }
-  redrawFields(tag);
+  redrawFields(tag,true);
   reColorFields();
 
   return ajaxData;
@@ -4708,7 +4729,7 @@ function urPerformAddField(controlfield, fieldPosition, tag, ind1, ind2, subfiel
   var newField = [(controlfield ? [] : subfields), ind1, ind2,
                   (controlfield ? value: ""), 0];
   gRecord[tag].splice(fieldPosition, 0, newField);
-  redrawFields(tag);
+  redrawFields(tag, true);
   reColorFields();
 
   return ajaxData;
@@ -4733,7 +4754,7 @@ function urPerformRemoveSubfields(tag, fieldPosition, subfields, isUndo){
 
   // modifying the client-side interface
   gRecord[tag][fieldPosition][0].splice( gRecord[tag][fieldPosition][0].length - subfields.length, subfields.length);
-  redrawFields(tag);
+  redrawFields(tag, true);
   reColorFields();
 
   return ajaxData;
@@ -5214,6 +5235,19 @@ function deleteFields(toDeleteStruct, undoRedo){
         field = gRecord[tag][fieldPosition];
         subfields = field[0];
         for (var j = subfieldIndexesToDelete.length - 1; j >= 0; j--){
+          for (var change in gHoldingPenChanges) {
+              if ((gHoldingPenChanges[change]["tag"] == tag) && (gHoldingPenChanges[change]["field_position"] == fieldPosition)) {  // TODO add indicators
+                    if (gHoldingPenChanges[change]["subfield_position"] == subfieldIndexesToDelete[j]) {
+                      // there are more changes associated with this field ! They are no more correct
+                      // and should be removed... it is also possible to consider transforming them into add field
+                      // change, but seems to be an unnecessary effort
+                      gHoldingPenChanges[change].applied_change = true;
+                    }
+                    else if (gHoldingPenChanges[change]["subfield_position"] > subfieldIndexesToDelete[j]) {
+                      gHoldingPenChanges[change]["subfield_position"] -= 1;
+                    }
+                }
+          }
           subfields.splice(subfieldIndexesToDelete[j], 1);
         }
       }
@@ -5223,7 +5257,7 @@ function deleteFields(toDeleteStruct, undoRedo){
   // If entire fields has been deleted, redraw all fields with the same tag
   // and recolor the full table.
   for (tag in tagsToRedraw) {
-      redrawFields(tagsToRedraw[tag]);
+      redrawFields(tagsToRedraw[tag], true);
   }
   reColorFields();
 
@@ -5307,7 +5341,7 @@ function urPerformChangeSubfieldContent(tag, fieldPos, subfieldPos, code, val, i
   gRecord[tag][fieldPos][0][subfieldPos][1] = val;
 
   // changing the display .... what if being edited right now ?
-  redrawFields(tag);
+  redrawFields(tag, true);
   reColorFields();
 
   return ajaxData;
@@ -5331,7 +5365,7 @@ function urPerformChangeSubfieldCode(tag, fieldPos, subfieldPos, code, val, isUn
   gRecord[tag][fieldPos][0][subfieldPos][1] = val;
 
   // changing the display .... what if being edited right now ?
-  redrawFields(tag);
+  redrawFields(tag, true);
   reColorFields();
 
   return ajaxData;
@@ -5373,8 +5407,8 @@ function urPerformChangeFieldCode(oldTag, oldInd1, oldInd2, newTag, ind1, ind2,
       gRecord[oldTag].splice(fieldNewPos, 0, currentField);
   }
   // changing the display .... what if being edited right now ?
-  redrawFields(newTag);
-  redrawFields(oldTag);
+  redrawFields(newTag, true);
+  redrawFields(oldTag, true);
   reColorFields();
 
   return ajaxData;
@@ -5409,7 +5443,7 @@ function performChangeField(tag, fieldPos, ind1, ind2, subFields, isControlfield
   gRecord[tag][fieldPos][1] = ind1;
   gRecord[tag][fieldPos][2] = ind2;
   gRecord[tag][fieldPos][3] = value;
-  redrawFields(tag);
+  redrawFields(tag, true);
   reColorFields();
 
   return ajaxData;
@@ -5544,7 +5578,7 @@ function createFields(toCreateFields, isUndo){
   // - redrawint the affected tags
 
   for (tag in tagsToRedraw){
-   redrawFields(tag);
+   redrawFields(tag, true);
   }
   reColorFields();
 
@@ -5718,8 +5752,8 @@ function onFieldTagChange(value, cell) {
     }
 
     function redrawTags() {
-        redrawFields(oldTag);
-        redrawFields(newTag);
+        redrawFields(oldTag, true);
+        redrawFields(newTag, true);
         reColorFields();
     }
 

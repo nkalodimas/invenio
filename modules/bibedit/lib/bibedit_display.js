@@ -294,7 +294,7 @@ function redrawFields(tag, skipAddFileds) {
 
     // Now redraw all the Holding Pen changes connected controls
     for (changeNr in gHoldingPenChanges) {
-        if (gHoldingPenChanges[changeNr]["tag"] == tag) {
+        if (gHoldingPenChanges[changeNr]["tag"] == tag && gHoldingPenChanges[changeNr]["applied_change"] != true ) {
             addChangeControl(changeNr, skipAddFileds);
         }
     }
@@ -542,7 +542,7 @@ function createFieldPreviewCore(tag, indicators, subfields) {
 
 function createFieldPreview(tag, indicators, subfields) {
     /* Creating a preview of a single field */
-    return "<table>" + createFieldPreviewCore(tag, indicators, subfields) +
+    return "<table class=\"bibeditHPFieldPreview\" >" + createFieldPreviewCore(tag, indicators, subfields) +
         "</table>";
 }
 
@@ -1155,7 +1155,8 @@ function displayAlert(msgType, args) {
         msg = 'ERROR: Cannot delete protected field ' + args[0] + '.';
         break;
     case 'alertDeleteHPAffectedField':
-        msg = 'ERROR: Cannot delete Holding Pen changed field ' + args[0] + '.';
+        msg = 'Field ' + args[0] + ' cannot be deleted.\n' +
+        'It contains subfield changed in Holding Pen\'s record and an action should be taken first';
         break;
     case 'errorPhysicalCopiesExist':
         msg = "ERROR: Cannot delete record when physical copies exist. " +

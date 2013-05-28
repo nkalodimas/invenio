@@ -502,6 +502,7 @@ def perform_request_holdingpen(request_type, recId, changeId=None):
         changes = []
         for change in changeSet:
             changes.append((str(change[0]), str(change[1])))
+        changes.reverse()  # newest to older order
         response["changes"] = changes
     elif request_type == 'getHoldingPenUpdateDetails':
         # returning the list of changes related to the holding pen update

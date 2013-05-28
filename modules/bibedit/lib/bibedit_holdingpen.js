@@ -925,7 +925,8 @@ function adjustGeneralHPControlsVisibility(){
       changes at once */
   var shouldDisplay = false;
   for (changeInd in gHoldingPenChanges){
-    if (gHoldingPenChanges[changeInd].applied_change !== true){
+    if (gHoldingPenChanges[changeInd].applied_change !== true &&
+        gHoldingPenChanges[changeInd].change_type !== "subfield_same"){
       shouldDisplay = true;
     }
   }
@@ -1106,7 +1107,7 @@ function acceptAddModifyChanges(changeNumbers){
     }
 
     if ( changeType == "subfield_added"){
-      var undoHandler = prepareHPSubfieldAddedUndoHandler(changeNo);
+      var undoHandler = prepareHPSubfieldAddedUndoHandler(changeNum);
       var changeData = prepareSubfieldAddedRequest(changeNum);
       result.undoHandlers.push(undoHandler);
       result.ajaxData.push(changeData);
@@ -1401,5 +1402,6 @@ function onRejectAllChanges(){
 
   createReq(ajaxData, function(json){
     updateStatus('report', gRESULT_CODES[json['resultCode']])});
+  adjustGeneralHPControlsVisibility();
   reColorFields();
 }
