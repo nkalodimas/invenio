@@ -117,7 +117,7 @@ $(document).ready(function() {
             }
         });
         // create ui buttons
-        //$('.confirmlink').button();//#new_person_link, 
+        //$('.confirmlink').button();//#new_person_link,
         //$("#searchform :input").attr("disabled",true);
         // gResultsPerPage = 3;
         // gCurPage = 1;

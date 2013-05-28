@@ -3236,7 +3236,7 @@ def _get_grouped_records_from_db(sig, *args):
     paper specified in the given signature and carry a tag from 'args'.
 
     @param sig: signature (bibref_table, bibref_value, bibrec)
-    @type sig: tuple (int, int, int)
+    @type sig: tuple (str, str, str)
     @param args: tags
     @type args: tuple (str,)
     @return: {tag: [extracted_value,]}
@@ -3249,8 +3249,8 @@ def _get_grouped_records_from_db(sig, *args):
 
     group_id = run_sql("""select field_number
                           from %s
-                          where id_bibrec=%d
-                          and id_bibxxx=%d"""
+                          where id_bibrec=%s
+                          and id_bibxxx=%s"""
                           % (mapping_table, rec, ref) )
 
     if not group_id:
@@ -3264,8 +3264,8 @@ def _get_grouped_records_from_db(sig, *args):
 
     grouped = run_sql("""select id_bibxxx
                          from %s
-                         where id_bibrec=%d
-                         and field_number=%d"""
+                         where id_bibrec=%s
+                         and field_number=%s"""
                          % (mapping_table, rec, field_number) )
 
     assert len(grouped) > 0, "There should be at most one grouped value per tag."

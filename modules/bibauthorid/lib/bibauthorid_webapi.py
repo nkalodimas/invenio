@@ -277,7 +277,7 @@ def get_uid_from_personid(pid):
     @return: the internal ID of a user or -1 if none found
     '''
     result = dbapi.get_uid_of_author(pid)
-    
+
     if not result:
         return -1
     return result
@@ -1066,7 +1066,7 @@ def get_remote_login_systems_ids(req, remote_logged_in_systems):
 def get_arxiv_recids(req ):
     session = get_session(req)
     pinfo = session['personinfo']
-    
+
     current_external_ids = get_arxivids(req)
     recids_from_arxivids = []
     cached_ids_association = pinfo['external_ids']
@@ -1120,7 +1120,7 @@ def get_cached_id_association(req):
         session_bareinit(req)
         session = get_session(req)
         pinfo = session['personinfo']
-        
+
         return pinfo['external_ids']
 
 
@@ -1140,7 +1140,7 @@ def merge_profiles(req, primary_profile, profiles):
         if papers:
             for rec_info in papers:
                 records[rec_info[0]] = rec_info[1]
-    
+
     recids
     for recid in records.keys():
         if len(records[recid]) > 1:
@@ -1148,7 +1148,7 @@ def merge_profiles(req, primary_profile, profiles):
         else:
             recids.append(records[recid][0])
     auto_claim_papers(req, get_person_id_from_canonical_id(primary_profile), recids)
-    
+
 def auto_claim_papers(req, pid, recids):
 
     session_bareinit(req)
@@ -1766,7 +1766,7 @@ def sign_assertion(robotname, assertion):
 
 def get_orcids_by_pid(pid):
     orcids = dbapi.get_orcids_by_pids(pid)
-    
+
     return tuple(str(x[0]) for x in orcids)
 
 def get_person_info_by_pid(pid):

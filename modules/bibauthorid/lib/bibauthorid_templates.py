@@ -320,11 +320,11 @@ class Template:
 
 
     def tmpl_merge_ticket_box(self, teaser_key, message_key, primary_profile, profiles, merge_power):
-        
+
         message = self._('Person search for profile merging in progress!')
         if not merge_power:
             message += '(You have no rights to actualy merge profiles. However you can submit profiles for merging)'
-        
+
         error_teaser_dict = {'person_search': message }
         error_message_dict = {'merge_profiles': 'You are about to merge the following profile%s:' }
 
@@ -341,7 +341,7 @@ class Template:
         h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
         h('    <strong>%s</strong> </br>%s ' % (teaser, message))
         h("<ul>")
-        
+
         h("<li><a href='%s'target='_blank'>%s</a> <strong>(primary profile)</strong></li>"
           % (primary_profile, primary_profile))
         for profile in profiles:
@@ -354,7 +354,7 @@ class Template:
                 h('<a rel="nofollow" id="merge" href="merge_profiles?search_pid=%s">' % (str(primary_profile),) + self._('Merge profiles.') + '</a>' )
             else:
                 h('<a rel="nofollow" id="checkout" href="manage_profile?search_pid=%s">' % (str(primary_profile),) + self._('Submit for merging') + '</a>' )
-                
+
         h(' </div>')
         h('</div>')
         h('<p>&nbsp;</p>')
@@ -1648,7 +1648,7 @@ class Template:
         return stub
 
     def merge_profiles_check_box_column(self):
-        def stub(pid):            
+        def stub(pid):
             #link = link + '&selection='.join([str(element) for element in pidlist+prof])
             checkbox = '<input type="checkbox" name="profile" value=%s>' %(str(pid),)
             return checkbox
@@ -1672,7 +1672,7 @@ class Template:
 
         html = []
         h = html.append
-        
+
         search_bar_activated = False
         if 'show_search_bar' in shown_element_functions.keys():
             search_bar_activated, parameters, link = shown_element_functions['show_search_bar'](query)
@@ -2551,7 +2551,7 @@ class Template:
 
     def loading_html(self):
         return '<img src=/img/ui-anim_basic_16x16.gif> Loading...'
-    
+
     def tmpl_personnametitle(self, person_info, ln, loading=False):
         _ = gettext_set_language(ln)
 
@@ -2566,7 +2566,7 @@ class Template:
             html_header = ('<h1><span id="personnametitle">%s</span></h1>'
                           % (display_name))
             html_header += ('<span id="personnametitle">%s</span>'
-                            % (_("Author Managment Page"))) 
+                            % (_("Author Managment Page")))
 
         return html_header
 
@@ -2622,9 +2622,9 @@ class Template:
     def tmpl_arxiv_box(self, arxiv_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
         html_head = _("<strong> Login with your arXiv.org account </strong>")
-        
+
         if arxiv_data['login'] == True and arxiv_data['view_own_profile'] == True:
-           
+
             if arxiv_data['view_own_profile'] == True:
                 html_arxiv = _("You have succesfully logged in through arXiv. You can now manage your profile accordingly.</br>")
             else:
@@ -2647,15 +2647,15 @@ class Template:
 
     def tmpl_orcid_box(self, orcid_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
-        
+
         html_head = _("<strong> Connect this profile to an ORCID Id </strong>")
         html_orcid = _("The Open Researcher and Contributor ID provides a persistent digital identifier"
                        " that distinguishes you from every other researcher in the world and supports "
                        "automated linkages between you and your professional activities.</br>")
-        
+
         if orcid_data['orcids']:
             html_orcid += _('This profile is already connected to an orcid. Do you believe this is wrong?</br>')
-        
+
         html_orcid += '</br><div><a href="mpla.com">Add/connect an orcid  to this profile.</a></div>'
         if loading:
             html_orcid = self.loading_html()
@@ -2667,7 +2667,7 @@ class Template:
 
     def tmpl_claim_paper_box(self, claim_paper_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
-        
+
         html_head = _("<strong> Claim papers for this profile </strong>")
         html_claim_paper = _("If you claim papers on INSPIRE, you make sure that your publications and citations"
                        " are being shown correctly on your pofile. You can also assi9gn publication to other "
@@ -2685,14 +2685,14 @@ class Template:
 
     def tmpl_ext_ids_box(self, ext_ids, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
-        
+
         html_head = _("<strong> External Ids </strong>")
         html_etx_ids = ''
         if ext_ids:
             html_etx_ids = '<tr>'
         else:
             html_etx_ids = _("There are no available external ids")
-            
+
         for idType in ext_ids.keys():
             html_etx_ids += '<td>' + str(idType) +'</td>' + '<td>' + str(ext_ids[idType]) +'</td>'
 
@@ -2709,12 +2709,12 @@ class Template:
 
     def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
-        
+
         html_head = _("<strong> Autoclaim Papers </strong>")
         if not autoclaim_data['hidden']:
             html_support = _("Here you can see and manage papers that exist in your external system's account and"
                            " not in INSPIRE's.</br>")
-    
+
             html_support += '</br><div><a href=%s>Merge profiles</a></div>' % (support_data['merge_link'],)
             html_support += '<div><a href=%s>Report a problem</a></div>' % (support_data['problem_link'],)
             html_support += '++++<div><a href=%s>Get help!</a></div>' % (support_data['help_link'],)
@@ -2725,12 +2725,12 @@ class Template:
                 return support_box
             else:
                 return html_support
-            
+
         return None
-    
+
     def tmpl_support_box(self, support_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
-        
+
         html_head = _("<strong> Contact and support </strong>")
         html_support = _("Please, contact our support if you need any kind of help or if you want to suggest"
                        " us  new ideas. We will get back to you quickly.</br>")
