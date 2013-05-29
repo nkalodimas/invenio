@@ -379,7 +379,7 @@ def duplicated_conirmed_papers_exist(printer, repair=False):   ### check_duplica
     @return: duplicated records are found
     @rtype: bool
     '''
-    all_ok = True
+    duplicated_conirmed_papers_exist = False
     author_confirmed_papers = dict()
     to_reassign = list()
 
@@ -394,7 +394,7 @@ def duplicated_conirmed_papers_exist(printer, repair=False):   ### check_duplica
     for pid, recs in author_confirmed_papers.iteritems():
 
         if not len(recs) == len(set(recs)):
-            all_ok = False
+            duplicated_conirmed_papers_exist = True
 
             duplicates = sorted(recs)
             duplicates = set([rec for i, rec in enumerate(duplicates[:-1]) if rec == duplicates[i+1]])
@@ -424,7 +424,7 @@ def duplicated_conirmed_papers_exist(printer, repair=False):   ### check_duplica
         from bibauthorid_rabbit import rabbit
         rabbit(to_reassign)
 
-    return all_ok
+    return duplicated_conirmed_papers_exist
 
 
 def duplicated_confirmed_signatures_exist(printer, repair=False):   # check_duplicated_signatures
@@ -440,7 +440,7 @@ def duplicated_confirmed_signatures_exist(printer, repair=False):   # check_dupl
     @return: duplicated signatures are found
     @rtype: bool
     '''
-    all_ok = True
+    duplicated_confirmed_signatures_exist = False
     paper_confirmed_bibrefs = dict()
     to_reassign = list()
 
@@ -455,7 +455,7 @@ def duplicated_confirmed_signatures_exist(printer, repair=False):   # check_dupl
     for rec, bibrefs in paper_confirmed_bibrefs.iteritems():
 
         if not len(bibrefs) == len(set(bibrefs)):
-            all_ok = False
+            duplicated_confirmed_signatures_exist = True
 
             duplicates = sorted(bibrefs)
             duplicates = set([bibref for i, bibref in enumerate(duplicates[:-1]) if bibref == duplicates[i+1]])
@@ -482,7 +482,7 @@ def duplicated_confirmed_signatures_exist(printer, repair=False):   # check_dupl
         from bibauthorid_rabbit import rabbit
         rabbit(to_reassign)
 
-    return all_ok
+    return duplicated_confirmed_signatures_exist
 
 
 def wrong_names_exist(printer, repair=False):   ### check_wrong_names
@@ -520,7 +520,7 @@ def wrong_names_exist(printer, repair=False):   ### check_wrong_names
                 else:
                     _delete_from_aidpersonidpapers_where(table=wrong_name[0], ref=wrong_name[1])
 
-    return not wrong_names_exist
+    return wrong_names_exist
 
 
 def impaired_rejections_exist(printer, repair=False):   ### check_wrong_rejection
@@ -536,7 +536,7 @@ def impaired_rejections_exist(printer, repair=False):   ### check_wrong_rejectio
     @return: damaged records are found
     @rtype: bool
     '''
-    all_ok = True
+    impaired_rejections_exist = False
     to_reassign = list()
     to_deal_with = list()
 
@@ -566,7 +566,7 @@ def impaired_rejections_exist(printer, repair=False):   ### check_wrong_rejectio
         to_deal_with.append(paper)
 
     if not_assigned_papers or both_confirmed_and_rejected_papers:
-        all_ok = False
+        impaired_rejections_exist = True
 
     if repair and (to_reassign or to_deal_with):
         from bibauthorid_rabbit import rabbit
@@ -595,7 +595,7 @@ def impaired_rejections_exist(printer, repair=False):   ### check_wrong_rejectio
             recs = map(itemgetter(3), to_deal_with)
             rabbit(recs)
 
-    return all_ok
+    return impaired_rejections_exist
 
 
 def _delete_from_aidpersonidpapers_where(pid=None, table=None, ref=None, rec=None, name=None, flag=None, lcul=None):
@@ -1839,6 +1839,34 @@ def _get_orcid_id_of_author(pid):   ### get_orcids_by_pids
     return _select_from_aidpersoniddata_where(select=['data'], pid=pid, tag='extid:ORCID')
 
 
+def create_new_author_by_uid(uid=-1, uid_is_owner=False):   ### create_new_person
+    '''
+    Creates a new author and associates him with the given user identifier. If
+    the 'uid_is_owner' flag is enabled the author will hold the user identifier
+    as owner, otherwise as creator.
+
+    @param uid: user identifier
+    @type uid: int
+    @param uid_is_owner: the author will hold the user identifier as owner, otherwise as creator
+    @type uid_is_owner: bool
+    @return: author identifier
+    @rtype: int
+    '''
+    pid_with_uid = _select_from_aidpersoniddata_where(select=['personid'], tag='uid', data=uid)
+
+    if pid_with_uid:
+        return pid_with_uid[0][0]
+
+    pid = get_free_author_id()
+
+    if uid_is_owner:
+        add_author_data(pid, 'uid', str(uid))
+    else:
+        add_author_data(pid, 'user-created', str(uid))
+
+    return pid
+
+
 def user_can_modify_data_of_author(uid, pid):   ### user_can_modify_data
     '''
     Examines if the specified user can modify data of the given author.
@@ -1938,9 +1966,9 @@ def empty_authors_exist(printer, repair=False):   ### check_empty_personids
     @return: empty authors are found
     @rtype: bool
     '''
-    empty_pids = remove_empty_authors(remove=repair)
-
     empty_authors_exist = False
+
+    empty_pids = remove_empty_authors(remove=repair)
     if empty_pids:
         empty_authors_exist = True
 
@@ -2203,7 +2231,7 @@ def impaired_canonical_names_exist(printer, repair=False):   ### check_canonical
     @return: authors with less/more than one canonical name exist
     @rtype: bool
     '''
-    all_ok = True
+    impaired_canonical_names_exist = False
 
     authors_cnames = _select_from_aidpersoniddata_where(select=['personid', 'data'], tag='canonical_name')
     authors_cnames = sorted(authors_cnames, key=itemgetter(0))
@@ -2218,19 +2246,19 @@ def impaired_canonical_names_exist(printer, repair=False):   ### check_canonical
             if cnames_count == 0:
                 papers_count = _select_from_aidpersonidpapers_where(select=['count(*)'], pid=pid)[0][0]
                 if papers_count != 0:
-                    all_ok = False
+                    impaired_canonical_names_exist = True
                     printer("Personid %d does not have a canonical name, but has %d papers." % (pid, papers_count))
                     to_update.append(pid)
             else:
-                all_ok = False
+                impaired_canonical_names_exist = True
                 printer("Personid %d has %d canonical names.", (pid, cnames_count))
                 to_update.append(pid)
 
-    if repair and not all_ok:
+    if repair and impaired_canonical_names_exist:
         printer("Repairing canonical names for pids: %s" % str(to_update))
         update_canonical_names_of_authors(to_update, overwrite=True)
 
-    return all_ok
+    return impaired_canonical_names_exist
 
 
 def user_can_modify_paper(uid, sig_str):
@@ -3495,72 +3523,6 @@ def _truncate_table(table_name):
     run_sql("truncate %s" % table_name)
 
 
-def populate_table(table_name, column_names, values, empty_table_first=True):
-    '''
-    Populates the specified table which has the specified column names with the
-    given list of values. If 'empty_table_first' flag is enabled it truncates
-    the table before populating it.
-
-    @param table_name: name of the table to populate
-    @type table_name: str
-    @param column_names: column names of the table
-    @type column_names: list [str,]
-    @param values: values to be inserted
-    @type values: list
-    @param empty_table_first: truncate the table before populating it
-    @type empty_table_first: bool
-    '''
-    values_len = len(values)
-    column_num = len(column_names)
-    values_tuple_size = list()
-
-    assert values_len % column_num == 0, 'Trying to populate table %s. Wrong number of arguments passed.' % table_name
-
-    for i in range(values_len/column_num):
-        # it keeps the size for each tuple of values
-        values_tuple_size.append(sum([len(str(i)) for i in values[i*column_num:i*column_num+column_num]]))
-
-    if empty_table_first:
-        _truncate_table(table_name)
-
-    populate_table_with_limit(table_name, column_names, values, values_tuple_size)
-
-
-def populate_table_with_limit(table_name, column_names, values, values_tuple_size, \
-                              max_insert_size=CFG_BIBAUTHORID_SEARCH_ENGINE_MAX_DATACHUNK_PER_INSERT_DB_QUERY):
-    '''
-    Populates the specified table which has the specified column names with the
-    given list of values. It limits the datachunk size per single insert query
-    according to the given threshold. Bigger threshold means better
-    performance. Nevertheless if it is too big there is the risk that the mysql
-    connection timeout will run out and connection with the db will be lost.
-
-    @param table_name: name of the table to populate
-    @type table_name: str
-    @param column_names: column names of the table
-    @type column_names: list [str,]
-    @param values: values to be inserted
-    @type values: list
-    @param values_tuple_size: size of each tuple of values
-    @type values_tuple_size: list [int,]
-    @param max_insert_size: max datachunk size to be inserted to the table per single insert query
-    @type max_insert_size: int
-    '''
-    column_num = len(column_names)
-    summ = 0
-    start = 0
-
-    for i in range(len(values_tuple_size)):
-        if summ+values_tuple_size[i] <= max_insert_size:
-            summ += values_tuple_size[i]
-            continue
-        summ = values_tuple_size[i]
-        flush_data_to_db(table_name, column_names, values[start:(i-1)*column_num])
-        start = (i-1)*column_num
-
-    flush_data_to_db(table_name, column_names, values[start:])
-
-
 def flush_data_to_db(table_name, column_names, args):   ### flush_data
     '''
     Flushes the given data in the specified table with the specified columns.
@@ -3587,34 +3549,6 @@ def flush_data_to_db(table_name, column_names, args):   ### flush_data
 ###                                    no table                                        ###
 ###                                                                                    ###
 ##########################################################################################
-
-def create_new_author_by_uid(uid=-1, uid_is_owner=False):   ### create_new_person
-    '''
-    Creates a new author and associates him with the given user identifier. If
-    the 'uid_is_owner' flag is enabled the author will hold the user identifier
-    as owner, otherwise as creator.
-
-    @param uid: user identifier
-    @type uid: int
-    @param uid_is_owner: the author will hold the user identifier as owner, otherwise as creator
-    @type uid_is_owner: bool
-    @return: author identifier
-    @rtype: int
-    '''
-    pid_with_uid = _select_from_aidpersoniddata_where(select=['personid'], tag='uid', data=uid)
-
-    if pid_with_uid:
-        return pid_with_uid[0][0]
-
-    pid = get_free_author_id()
-
-    if uid_is_owner:
-        add_author_data(pid, 'uid', str(uid))
-    else:
-        add_author_data(pid, 'user-created', str(uid))
-
-    return pid
-
 
 def create_new_author_by_signature(sig, name=None):   ### new_person_from_signature
     '''
@@ -3660,7 +3594,7 @@ def check_author_paper_associations(output_file=None):   ### check_personid_pape
                 # check_claim_inspireid_contradiction
                 )
     # avoid writing f(a) or g(a), because one of the calls might be optimized
-    return all([check(printer) for check in checkers])
+    return not any([check(printer) for check in checkers])
 
 
 def repair_author_paper_associations(output_file=None):   ### repair_personid
@@ -3693,11 +3627,11 @@ def repair_author_paper_associations(output_file=None):   ### repair_personid
     repair_pass = [check(printer, repair=True) for check in checkers]
     last_check = [check(printer) for check in checkers]
 
-    if not all(first_check):
-        assert not(all(repair_pass))
-        assert all(last_check)
+    if any(first_check):
+        assert any(repair_pass)
+        assert not any(last_check)
 
-    return all(last_check)
+    return not any(last_check)
 
 
 def get_author_refs_of_paper(rec):   ### get_authors_from_paper
@@ -4014,6 +3948,72 @@ def _get_grouped_records_using_marc_caches(sig, *args):   ### _get_grouped_recor
             res[tag] = list()
 
     return res
+
+
+def populate_table(table_name, column_names, values, empty_table_first=True):
+    '''
+    Populates the specified table which has the specified column names with the
+    given list of values. If 'empty_table_first' flag is enabled it truncates
+    the table before populating it.
+
+    @param table_name: name of the table to populate
+    @type table_name: str
+    @param column_names: column names of the table
+    @type column_names: list [str,]
+    @param values: values to be inserted
+    @type values: list
+    @param empty_table_first: truncate the table before populating it
+    @type empty_table_first: bool
+    '''
+    values_len = len(values)
+    column_num = len(column_names)
+    values_tuple_size = list()
+
+    assert values_len % column_num == 0, 'Trying to populate table %s. Wrong number of arguments passed.' % table_name
+
+    for i in range(values_len/column_num):
+        # it keeps the size for each tuple of values
+        values_tuple_size.append(sum([len(str(i)) for i in values[i*column_num:i*column_num+column_num]]))
+
+    if empty_table_first:
+        _truncate_table(table_name)
+
+    populate_table_with_limit(table_name, column_names, values, values_tuple_size)
+
+
+def populate_table_with_limit(table_name, column_names, values, values_tuple_size, \
+                              max_insert_size=CFG_BIBAUTHORID_SEARCH_ENGINE_MAX_DATACHUNK_PER_INSERT_DB_QUERY):
+    '''
+    Populates the specified table which has the specified column names with the
+    given list of values. It limits the datachunk size per single insert query
+    according to the given threshold. Bigger threshold means better
+    performance. Nevertheless if it is too big there is the risk that the mysql
+    connection timeout will run out and connection with the db will be lost.
+
+    @param table_name: name of the table to populate
+    @type table_name: str
+    @param column_names: column names of the table
+    @type column_names: list [str,]
+    @param values: values to be inserted
+    @type values: list
+    @param values_tuple_size: size of each tuple of values
+    @type values_tuple_size: list [int,]
+    @param max_insert_size: max datachunk size to be inserted to the table per single insert query
+    @type max_insert_size: int
+    '''
+    column_num = len(column_names)
+    summ = 0
+    start = 0
+
+    for i in range(len(values_tuple_size)):
+        if summ+values_tuple_size[i] <= max_insert_size:
+            summ += values_tuple_size[i]
+            continue
+        summ = values_tuple_size[i]
+        flush_data_to_db(table_name, column_names, values[start:(i-1)*column_num])
+        start = (i-1)*column_num
+
+    flush_data_to_db(table_name, column_names, values[start:])
 
 ##########################################################################################
 ###                                                                                    ###
