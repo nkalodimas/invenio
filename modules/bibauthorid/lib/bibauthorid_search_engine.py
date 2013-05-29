@@ -19,7 +19,6 @@
 
 """ Author search engine. """
 
-from invenio.config import CFG_BIBAUTHORID_SEARCH_ENGINE_MAX_DATACHUNK_PER_INSERT_DB_QUERY
 from invenio.bibauthorid_config import QGRAM_LEN, MATCHING_QGRAMS_PERCENTAGE, \
         MAX_T_OCCURANCE_RESULT_LIST_CARDINALITY, MIN_T_OCCURANCE_RESULT_LIST_CARDINALITY, \
         MAX_NOT_MATCHING_NAME_CHARS, PREFIX_SCORE_COEFFICIENT, NAME_SCORE_COEFFICIENT
@@ -35,9 +34,7 @@ from invenio.textutils import translate_to_ascii
 from invenio.intbitset import intbitset
 from invenio.bibauthorid_name_utils import create_indexable_name, distance
 from bibauthorid_dbinterface import get_name_to_authors_mapping, get_authors_data_from_indexable_name_ids, get_inverted_lists, \
-                                    set_inverted_lists_ready, set_dense_index_ready, _truncate_table, \
-                                    flush_data_to_db, search_engine_is_operating
-
+                                    set_inverted_lists_ready, set_dense_index_ready, populate_table, search_engine_is_operating
 
 
 def get_qgrams_from_string(string, q):
@@ -59,65 +56,6 @@ def get_qgrams_from_string(string, q):
         qgrams.append(string[i:i+q])
 
     return qgrams
-
-
-def populate_table_with_limit(table_name, column_names, args, args_tuple_size, \
-                              max_insert_size=CFG_BIBAUTHORID_SEARCH_ENGINE_MAX_DATACHUNK_PER_INSERT_DB_QUERY):
-    '''
-    docstring
-
-    @param table_name: the name of the table which we want to populate
-    @type table_name: str
-    @param column_names: the column names of the table
-    @type column_names: list
-    @param args:
-    @type args: list
-    @param args_tuple_size:
-    @type args_tuple_size: list
-    @param max_insert_size:
-    @type max_insert_size: int
-    '''
-    column_num = len(column_names)
-    summ = 0
-    start = 0
-
-    for i in range(len(args_tuple_size)):
-        if summ+args_tuple_size[i] <= max_insert_size:
-            summ += args_tuple_size[i]
-            continue
-        summ = args_tuple_size[i]
-        flush_data_to_db(table_name, column_names, args[start:(i-1)*column_num])
-        start = (i-1)*column_num
-
-    flush_data_to_db(table_name, column_names, args[start:])
-
-
-def populate_table(table_name, column_names, args, empty_table_first=True):
-    '''
-    docstring
-
-    @param table_name:
-    @type table_name:
-    @param column_names:
-    @type column_names:
-    @param args:
-    @type args:
-    @param empty_table_first:
-    @type empty_table_first:
-    '''
-    args_len = len(args)
-    column_num = len(column_names)
-    args_tuple_size = list()
-
-    assert args_len % column_num == 0, 'Trying to populate table %s. Wrong number of arguments passed.' % table_name
-
-    for i in range(args_len/column_num):
-        args_tuple_size.append(sum([len(str(i)) for i in args[i*column_num:i*column_num+column_num]]))
-
-    if empty_table_first:
-        _truncate_table(table_name)
-
-    populate_table_with_limit(table_name, column_names, args, args_tuple_size)
 
 
 def create_dense_index(name_pids_dict, names_list, q):

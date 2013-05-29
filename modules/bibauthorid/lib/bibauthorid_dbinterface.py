@@ -25,7 +25,8 @@
     the other files in the module.
 '''
 
-from invenio.config import CFG_SITE_URL
+from invenio.config import CFG_SITE_URL, \
+                CFG_BIBAUTHORID_SEARCH_ENGINE_MAX_DATACHUNK_PER_INSERT_DB_QUERY
 import invenio.bibauthorid_config as bconfig
 
 import os
@@ -3492,6 +3493,72 @@ def _truncate_table(table_name):
     @type table_name: str
     '''
     run_sql("truncate %s" % table_name)
+
+
+def populate_table(table_name, column_names, values, empty_table_first=True):
+    '''
+    Populates the specified table which has the specified column names with the
+    given list of values. If 'empty_table_first' flag is enabled it truncates
+    the table before populating it.
+
+    @param table_name: name of the table to populate
+    @type table_name: str
+    @param column_names: column names of the table
+    @type column_names: list [str,]
+    @param values: values to be inserted
+    @type values: list
+    @param empty_table_first: truncate the table before populating it
+    @type empty_table_first: bool
+    '''
+    values_len = len(values)
+    column_num = len(column_names)
+    values_tuple_size = list()
+
+    assert values_len % column_num == 0, 'Trying to populate table %s. Wrong number of arguments passed.' % table_name
+
+    for i in range(values_len/column_num):
+        # it keeps the size for each tuple of values
+        values_tuple_size.append(sum([len(str(i)) for i in values[i*column_num:i*column_num+column_num]]))
+
+    if empty_table_first:
+        _truncate_table(table_name)
+
+    populate_table_with_limit(table_name, column_names, values, values_tuple_size)
+
+
+def populate_table_with_limit(table_name, column_names, values, values_tuple_size, \
+                              max_insert_size=CFG_BIBAUTHORID_SEARCH_ENGINE_MAX_DATACHUNK_PER_INSERT_DB_QUERY):
+    '''
+    Populates the specified table which has the specified column names with the
+    given list of values. It limits the datachunk size per single insert query
+    according to the given threshold. Bigger threshold means better
+    performance. Nevertheless if it is too big there is the risk that the mysql
+    connection timeout will run out and connection with the db will be lost.
+
+    @param table_name: name of the table to populate
+    @type table_name: str
+    @param column_names: column names of the table
+    @type column_names: list [str,]
+    @param values: values to be inserted
+    @type values: list
+    @param values_tuple_size: size of each tuple of values
+    @type values_tuple_size: list [int,]
+    @param max_insert_size: max datachunk size to be inserted to the table per single insert query
+    @type max_insert_size: int
+    '''
+    column_num = len(column_names)
+    summ = 0
+    start = 0
+
+    for i in range(len(values_tuple_size)):
+        if summ+values_tuple_size[i] <= max_insert_size:
+            summ += values_tuple_size[i]
+            continue
+        summ = values_tuple_size[i]
+        flush_data_to_db(table_name, column_names, values[start:(i-1)*column_num])
+        start = (i-1)*column_num
+
+    flush_data_to_db(table_name, column_names, values[start:])
 
 
 def flush_data_to_db(table_name, column_names, args):   ### flush_data
