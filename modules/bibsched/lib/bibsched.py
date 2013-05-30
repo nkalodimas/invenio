@@ -32,6 +32,7 @@ from itertools import chain
 from socket import gethostname
 from subprocess import Popen
 import signal
+import textwrap
 
 from invenio.bibtask_config import \
     CFG_BIBTASK_VALID_TASKS, \
@@ -651,7 +652,7 @@ order to let this task run. The current priority is %s. New value:"
 
     def _display_message_box(self, msg):
         """Utility to display message boxes."""
-        rows = msg.split('\n')
+        rows = textwrap.wrap(msg, self.width-1)
         height = len(rows) + 2
         width = max([len(row) for row in rows]) + 3
         self.win = self.curses.newwin(
