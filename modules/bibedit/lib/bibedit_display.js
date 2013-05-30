@@ -480,6 +480,12 @@ function addFieldAddedControl(changeNo) {
         "<div>" + fieldContent + "</div>" + "<div>" + "<div class=\"HPCorrectionButtonWrapper\">" + applyButton +
         rejectButton + "</div>" + "</div></div>";
 
+    if ( $('#bibEditHoldingPenAddedFields').length < 1 ) {
+      var addedFiedsDivHtml = "<div id=\"bibEditHoldingPenAddedFields\"><div id=\"bibEditHoldingPenAddedFieldsLabel\">" +
+      "<strong>Added fields in Holding Pen</div></strong></div>";
+      $("#bibEditContentTable").append(addedFiedsDivHtml);
+    }
+
     $('#bibEditHoldingPenAddedFields').append(content);
 }
 
@@ -499,7 +505,7 @@ function addChangeControl(changeNum, skipAddedField) {
         return;
     }
     changeType = gHoldingPenChanges[changeNum]["change_type"];
-    if (changeType == "field_added" && skipAddedField != true) {
+    if (changeType == "field_added" && skipAddedField != true && $("#changeBox_" + changeNum).length < 1 ) {
         addFieldAddedControl(changeNum);
     }
     if (changeType == "subfield_changed") {

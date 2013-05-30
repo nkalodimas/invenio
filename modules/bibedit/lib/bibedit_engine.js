@@ -1036,7 +1036,8 @@ function compareFields(fieldId, indicators, fieldPos, field1, field2){
            "field_content" : field2}];
       } else
       {
-        if ( (field1[sfPos][1] != field2[sfPos][1]) && (field1[sfPos][1].substring(0,9) != "VOLATILE:") ){
+        // in case where gRec subfield is normal and HP record's subfield is volatile ignore it
+        if ( (field1[sfPos][1] != field2[sfPos][1]) && (field2[sfPos][1].substring(0,9) != "VOLATILE:")){
           result.push({"change_type" : "subfield_changed",
             "tag" : fieldId,
             "indicators" : indicators,
@@ -1046,7 +1047,8 @@ function compareFields(fieldId, indicators, fieldPos, field1, field2){
             "subfield_content" : field2[sfPos][1]});
 
         }
-        else if ( field1[sfPos][1] == field2[sfPos][1] ) {
+        // in case where both gRec and HP record's subfield is volatile ignore them
+        else if ( (field1[sfPos][1] == field2[sfPos][1]) && (field1[sfPos][1].substring(0,9) != "VOLATILE:")) {
           result.push({"change_type" : "subfield_same",
             "tag" : fieldId,
             "indicators" : indicators,
@@ -1086,7 +1088,30 @@ function compareIndicators(fieldId, indicators, fields1, fields2){
                   "indicators" : indicators,
                   "field_content" : fields2[fieldPos][0]});
     } else { // comparing the content of the subfields
-      result = result.concat(compareFields(fieldId, indicators, fields1[fieldPos][1], fields1[fieldPos][0], fields2[fieldPos][0]));
+      var isVolatile1 = true;
+      for (var sfPos in fields1[fieldPos][0]) {
+        if (fields1[fieldPos][0][sfPos][1].substring(0,9) != "VOLATILE:"){
+          isVolatile1 = false;
+          break;
+        }
+      }
+      var isVolatile2 = true;
+      for (var sfPos in fields2[fieldPos][0]) {
+        if (fields2[fieldPos][0][sfPos][1].substring(0,9) != "VOLATILE:"){
+          isVolatile2 = false;
+          break;
+        }
+      }
+      // in case where gRec's field is volatile and HP's is not
+      if (isVolatile1 && !isVolatile2){
+      result.push({"change_type" : "field_added",
+                  "tag" : fieldId,
+                  "indicators" : indicators,
+                  "field_content" : fields2[fieldPos][0]});
+      }
+      else {
+        result = result.concat(compareFields(fieldId, indicators, fields1[fieldPos][1], fields1[fieldPos][0], fields2[fieldPos][0]));
+      }
     }
   }
 
@@ -4456,7 +4481,7 @@ function urPerformRemoveField(tag, position, isUndo){
   if (gRecord[tag] == []){
     gRecord[tag] = undefined;
   }
-  redrawFields(tag,true);
+  redrawFields(tag, true);
   reColorFields();
 
   return ajaxData;
@@ -5907,7 +5932,7 @@ function onContentChange(value, cell) {
                                                      cell.fieldPosition,
                                                      subfieldsToAdd));
 
-    urHandler = prepareUndoHandlerBulkOperation(undoHandlers, "addSufields");
+    urHandler = prepareUndoHandlerBulkOperation(undoHandlers, "addSubfields");
     addUndoOperation(urHandler);
 
     bulkUpdateSubfieldContent(cell.tag, cell.fieldPosition, cell.subfieldIndex, subfield_instance[0], value, null,

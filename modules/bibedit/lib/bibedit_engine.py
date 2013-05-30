@@ -364,6 +364,7 @@ def perform_request_ajax(req, recid, uid, data, isBulk = False):
     """Handle Ajax requests by redirecting to appropriate function."""
     response = {}
     request_type = data['requestType']
+    print request_type
     undo_redo = None
     if data.has_key("undoRedo"):
         undo_redo = data["undoRedo"]
@@ -511,6 +512,12 @@ def perform_request_holdingpen(request_type, recId, changeId=None):
         assert(changeId != None)
         hpContent = get_hp_update_xml(changeId)
         holdingPenRecord = create_record(hpContent[0], "xm")[0]
+        template_to_merge = extend_record_with_template(recId)
+        if template_to_merge:
+            merged_record = merge_record_with_template(holdingPenRecord, template_to_merge)
+            if merged_record:
+                holdingPenRecord = merged_record
+
         # order subfields alphabetically
         record_order_subfields(holdingPenRecord)
 #        databaseRecord = get_record(hpContent[1])
