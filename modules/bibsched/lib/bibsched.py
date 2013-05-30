@@ -41,6 +41,7 @@ from invenio.bibtask_config import \
 
 from invenio.config import \
      CFG_PREFIX, \
+     CFG_TMPSHAREDDIR, \
      CFG_BIBSCHED_REFRESHTIME, \
      CFG_BIBSCHED_LOG_PAGER, \
      CFG_BIBSCHED_EDITOR, \
@@ -63,7 +64,7 @@ CFG_VALID_STATUS = ('WAITING', 'SCHEDULED', 'RUNNING', 'CONTINUING',
                     '% DELETED', 'ABOUT TO STOP', 'ABOUT TO SLEEP', 'STOPPED',
                     'SLEEPING', 'KILLED', 'NOW STOP', 'ERRORS REPORTED')
 
-CFG_MOTD_PATH = os.path.join(CFG_PREFIX, "var", "run", "bibsched.motd")
+CFG_MOTD_PATH = os.path.join(CFG_TMPSHAREDDIR, "bibsched.motd")
 
 SHIFT_RE = re.compile("([-\+]{0,1})([\d]+)([dhms])")
 
