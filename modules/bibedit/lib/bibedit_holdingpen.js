@@ -896,6 +896,7 @@ function revertViewedChange(changeNo){
    */
   gHoldingPenChanges[changeNo].applied_change = false;
   updateInterfaceAfterChangeModification(changeNo);
+  adjustGeneralHPControlsVisibility();
 }
 
 
@@ -914,7 +915,8 @@ function addGeneralControls(){
    /** If necessary, creates the panel containing the general controls that allow
     * to accept or reject all teh viewed changes
     */
-  if ($("#bibeditHoldingPenGC").length == 0){
+  if ($("#bibeditHoldingPenGC").length == 0 || $("#acceptReferences").length == 0){
+    $("#bibeditHoldingPenGC").remove();
     panel = createGeneralControlsPanel();
     $("#bibEditContentTable").before(panel);
   }
@@ -926,14 +928,28 @@ function adjustGeneralHPControlsVisibility(){
       This bar is responsible of applying or rejecting all the visualized
       changes at once */
   var shouldDisplay = false;
+  var shouldDisplayRefs = false;
   for (changeInd in gHoldingPenChanges){
+    var changeTag = gHoldingPenChanges[changeInd].tag;
+    var changeIndicators = gHoldingPenChanges[changeInd].indicators;
+    var changeType = gHoldingPenChanges[changeInd].change_type;
+
     if (gHoldingPenChanges[changeInd].applied_change !== true &&
-        gHoldingPenChanges[changeInd].change_type !== "subfield_same"){
+        changeType !== "subfield_same"){
       shouldDisplay = true;
+    }
+    if ( (changeType == "field_added" || changeType == "subfield_changed" ||
+        changeType == "subfield_added" || changeType == "field_changed" ) &&
+        gHoldingPenChanges[changeInd].applied_change !== true && changeTag == "999" &&
+              changeIndicators == "C5" ){
+      shouldDisplayRefs = true;
     }
   }
   if (shouldDisplay){
     addGeneralControls();
+    if (!shouldDisplayRefs){
+        $("#acceptReferences").remove();
+    }
   } else {
     $("#bibeditHoldingPenGC").remove();
   }
@@ -1281,7 +1297,7 @@ function onAcceptAllChanges(){
     resRemoveFields.ajaxData.concat(
     [removeAllChangesAjaxData])));
 
-  var collectiveUndoHandlers = resAddUpdate.undoHandlers.concat(
+  var collectiveUndoHandlers = resAddUpdate.undoHandlers.reverse().concat(
     resRemoveSubfields.undoHandlers.concat(
     resRemoveFields.undoHandlers.concat(
     [removeAllChangesUndoHandler])));
@@ -1335,7 +1351,8 @@ function onAcceptAllReferences(){
     redrawFields(tag, true);
   }
 
-  adjustReferenceHPControlsVisibility();
+  adjustGeneralHPControlsVisibility();
+  // adjustReferenceHPControlsVisibility();
   reColorFields();
 
   /** At this point, all the changes to the browser interface are finished.
@@ -1345,7 +1362,9 @@ function onAcceptAllReferences(){
 
   var collectiveAjaxData = resAddUpdate.ajaxData;
 
-  var collectiveUndoHandlers = resAddUpdate.undoHandlers.concat([removeAllChangesUndoHandler]);
+  removeAllChangesUndoHandler.handlers.reverse();
+  var collectiveUndoHandlers = [removeAllChangesUndoHandler];
+  // var collectiveUndoHandlers = resAddUpdate.undoHandlers.concat([removeAllChangesUndoHandler]);
   collectiveUndoHandlers.reverse();
 
   var finalUndoHandler = prepareUndoHandlerBulkOperation(collectiveUndoHandlers,
