@@ -207,7 +207,8 @@ function onToggleDetailsVisibility(changesetNumber){
       // preview box
       createReq({
         changesetNumber: changesetNumber,
-        requestType: 'getHoldingPenUpdateDetails'
+        requestType: 'getHoldingPenUpdateDetails',
+        recID: gRecID,
       }, onHoldingPenPreviewDataRetreived)
     }
     else {
@@ -288,7 +289,7 @@ function prepareUndoVisualizeChangeset(changesetNumber, changesBefore){
 
   // now updating the interface
   for (tag in tagsToRedraw){
-    redrawFields(tag);
+    redrawFields(tag, true);
   }
   for (changeNo in addFieldChangesToRemove){
     removeAddFieldControl(changeNo);
@@ -437,7 +438,8 @@ function holdingPenPanelApplyChangeSet(changesNum){
   if (gHoldingPenLoadedChanges[changesNum] == undefined){
     createReq({
       changesetNumber: changesNum,
-      requestType: 'getHoldingPenUpdateDetails'},
+      requestType: 'getHoldingPenUpdateDetails',
+      recID: gRecID},
       onHoldingPenChangesetRetrieved);
   }else
   {
@@ -509,7 +511,7 @@ function prepareSubfieldRemovedRequest(changeNo){
   toDelete[fieldId][fieldPos] = [sfPos];
 
   gRecord[fieldId][fieldPos][0].splice(sfPos, 1);
-  redrawFields(fieldId);
+  redrawFields(fieldId, true);
 
   return {
     recID: gRecID,
@@ -544,7 +546,7 @@ function prepareFieldRemovedRequest(changeNo){
 
 
   gRecord[fieldId].splice(fieldPos, 1);
-  redrawFields(fieldId);
+  redrawFields(fieldId, true);
 
   return {
     recID: gRecID,
@@ -974,10 +976,12 @@ function refreshChangesControls(){
   }
 
   for (tag in tagsToRedraw){
-    redrawFields(tag);
+    redrawFields(tag, true);
   }
 
+  reColorFields();
   adjustHPChangesetsActivity();
+  adjustGeneralHPControlsVisibility();
 }
 
 function prepareHPRejectChangeUndoHandler(changeNo){
@@ -1357,28 +1361,6 @@ function onAcceptAllReferences(){
   }, optArgs);
 }
 
-function onAcceptAllReferencesOld(){
-  //$(el).find('button[title="Apply"]').click()
-    $.each(gDisplayReferenceTags, function() {
-      $("tbody[id^='rowGroup_" + this + "']").show();
-    });
-    $("tbody[id^='rowGroup_" + gDisplayReferenceTags + "']").each(function() {
-      $(this).find('.bibeditHPCorrection').find('button[title="Apply"]').click();
-    });
-    function add(elem){
-        console.log(elem + new Date().getTime()/1000);
-          $(elem).find('button[title="Apply"]').click();
-        }
-    $("[id^='changeBox']").each(function(){
-      changeNo = $(this).attr('id').substring(10);
-      if (gHoldingPenChanges[changeNo]["tag"] == gDisplayReferenceTags) {
-        var el = this;
-        console.log(el);
-        var toadd = add(el);
-        setTimeout( toadd, 2000);
-      }
-    });
-}
 
 function prepareRemoveAllAppliedChanges(){
   /**Removing all the changes together with their user interface controls.
