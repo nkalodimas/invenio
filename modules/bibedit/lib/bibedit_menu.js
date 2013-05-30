@@ -169,8 +169,8 @@ function onSearchClick(event){
     if (gRecordDirty && gReadOnlyMode == false){
       // Warn of unsubmitted changes.
       if (!displayAlert('confirmLeavingChangedRecord')){
-	updateStatus('ready');
-	return;
+        updateStatus('ready');
+        return;
       }
     }
     else if (gRecID && gReadOnlyMode == false)
@@ -203,8 +203,8 @@ function onSearchClick(event){
     if (gRecordDirty){
       // Warn of unsubmitted changes.
       if (!displayAlert('confirmLeavingChangedRecord')){
-	updateStatus('ready');
-	return;
+        updateStatus('ready');
+        return;
       }
     }
     else if (gRecID)

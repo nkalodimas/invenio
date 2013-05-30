@@ -536,11 +536,13 @@ function createFieldPreviewCore(tag, indicators, subfields) {
     var result = "";
 
     for (subfield in subfields) {
-        result += "<tr><td>" + headerData +
-            "</td><td>$$" + subfields[subfield][0] +
-            "&nbsp;&nbsp;&nbsp;</td><td>" + subfields[subfield][1] +
-            "</td></tr>";
-        headerData = "";
+        if (subfields[subfield][1].substring(0,9) != "VOLATILE:") {
+            result += "<tr><td>" + headerData +
+                "</td><td>$$" + subfields[subfield][0] +
+                "&nbsp;&nbsp;&nbsp;</td><td>" + subfields[subfield][1] +
+                "</td></tr>";
+            headerData = "";
+        }
     }
     return result;
 }
@@ -585,8 +587,17 @@ function createRecordPreview(recordData) {
             indicators = sortedIndicators[indicatorsInd];
             for (fieldInd in indicatorLists[indicators]) {
                 field = indicatorLists[indicators][fieldInd];
+                var isVolatile = true;
+                for (var sfPos in recordData[tag][field][0] ) {
+                   if (recordData[tag][field][0][sfPos][1].substring(0,9) != "VOLATILE:"){
+                     isVolatile = false;
+                     break;
+                   }
+                }
+                if (!isVolatile) {
                 result += createFieldPreviewCore(tag, indicators,
                                                  recordData[tag][field][0]);
+                }
             }
         }
     }

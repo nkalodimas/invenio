@@ -1058,18 +1058,19 @@ function compareFields(fieldId, indicators, fieldPos, field1, field2){
       } else
       {
         // in case where gRec subfield is normal and HP record's subfield is volatile ignore it
-        if ( (field1[sfPos][1] != field2[sfPos][1]) && (field2[sfPos][1].substring(0,9) != "VOLATILE:")){
+        if ( (field1[sfPos][1].toLowerCase() != field2[sfPos][1].toLowerCase()) && (field2[sfPos][1].substring(0,9) != "VOLATILE:")){
           result.push({"change_type" : "subfield_changed",
             "tag" : fieldId,
             "indicators" : indicators,
             "field_position" : fieldPos,
+            "field_content" : field2,
             "subfield_position" : sfPos,
             "subfield_code" : field2[sfPos][0],
             "subfield_content" : field2[sfPos][1]});
 
         }
         // in case where both gRec and HP record's subfield is volatile ignore them
-        else if ( (field1[sfPos][1] == field2[sfPos][1]) && (field1[sfPos][1].substring(0,9) != "VOLATILE:")) {
+        else if ( (field1[sfPos][1].toLowerCase() == field2[sfPos][1].toLowerCase()) && (field1[sfPos][1].substring(0,9) != "VOLATILE:")) {
           result.push({"change_type" : "subfield_same",
             "tag" : fieldId,
             "indicators" : indicators,
@@ -4459,7 +4460,7 @@ function processURUntil(entry){
 function prepareUndoHandlerChangeSubfield (tag, fieldPos, subfieldPos, oldVal,
          newVal, oldCode, newCode, operation_type) {
   var result = {};
-  result.operation_type = "change_content";
+  result.operation_type = operation_type;
   result.tag = tag;
   result.oldVal = oldVal;
   result.newVal = newVal;
