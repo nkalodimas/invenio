@@ -1754,15 +1754,15 @@ def get_author_by_uid(uid):   ### get_personid_from_uid
 
     @param uid: user identifier
     @type uid: tuple ((int),)
-    @return: author idnetifier ((pid, uid_owner_exists),)
-    @rtype: tuple ((int, bool),)
+    @return: author identifier ((pid), uid_owner_exists)
+    @rtype: tuple ((int), bool)
     '''
     pid = _select_from_aidpersoniddata_where(select=['personid'], tag='uid', data=str(uid[0][0]))
 
     if pid:
         return (pid[0], True)
 
-    return  ([-1], False)
+    return  ((-1), False)
 
 
 def get_author_by_external_id(ext_id, ext_sys=None):   ### get_person_with_extid
@@ -2687,7 +2687,7 @@ def get_clusters_by_surname(surname):   ### get_lastname_results
     '''
     return run_sql("""select personid, bibref_table, bibref_value, bibrec
                       from aidRESULTS
-                      where personid like '%s'"""
+                      where personid like %s""",
                       (surname + '.%',) )
 
 
