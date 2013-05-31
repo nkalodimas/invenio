@@ -1297,10 +1297,10 @@ function onAcceptAllChanges(){
     resRemoveFields.ajaxData.concat(
     [removeAllChangesAjaxData])));
 
-  var collectiveUndoHandlers = resAddUpdate.undoHandlers.reverse().concat(
+  var collectiveUndoHandlers = resAddUpdate.undoHandlers.concat(
     resRemoveSubfields.undoHandlers.concat(
     resRemoveFields.undoHandlers.concat(
-    [removeAllChangesUndoHandler])));
+      [removeAllChangesUndoHandler])));
   collectiveUndoHandlers.reverse();
 
   var finalUndoHandler = prepareUndoHandlerBulkOperation(collectiveUndoHandlers,
