@@ -659,6 +659,4 @@ INSERT INTO collectiondetailedrecordpagetabs VALUES (17, 'usage;comments;metadat
 
 INSERT INTO swrREMOTESERVER VALUES (1, 'arXiv', 'arxiv.org', 'CDS_Invenio', 'sword_invenio', 'admin', 'SWORD at arXiv', 'http://arxiv.org/abs', 'https://arxiv.org/sword-app/servicedocument', '', 0);
 
-INSERT INTO oaiHARVEST VALUES (1,'http://export.arxiv.org/oai2','arXiv','xœeOËNÄ0,ž    â/BQÜùNH¢lÖÕ\ZÒ8ØÎª?„X‰CÏØc{¾ä²ëºèE—²P¹3‚~Åý€Y\n2<Ì’äÊ\n£1)°³d0¦§¢}ÜŠÃ¼‡ŒÔo0ÛÛüôù“Ê\"g&c?OAÕòNN,TŸÃ/\r_XžÕ}V¨ §Ÿ«îˆEnšøcãÞ©r©]ò§ª¾0£.zdð©ù‡þîW¢\rK(:Lã<¥æðÜJê·u) Çkãz»\\ÿîd(.ÓÁÊ[ÅÃ¬¢\"e\'vU„·uw‚Âüø\rI|lL','','','arxiv','2013-04-16 04:03:19',1,'c-p-a-t-f-u','','');
-
 -- end of file
