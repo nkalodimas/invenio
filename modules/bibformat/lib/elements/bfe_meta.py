@@ -34,7 +34,8 @@ from invenio.bibindex_engine import get_field_tags
 from invenio.config import \
      CFG_WEBSEARCH_ENABLE_GOOGLESCHOLAR, \
      CFG_WEBSEARCH_ENABLE_OPENGRAPH, \
-     CFG_SITE_LANG
+     CFG_SITE_LANG, \
+     CFG_CERN_SITE
 
 def format_element(bfo, name, tag_name='', tag='', kb='', kb_default_output='', var='', protocol='googlescholar'):
     """Prints a custom field in a way suitable to be used in HTML META
@@ -62,6 +63,7 @@ def format_element(bfo, name, tag_name='', tag='', kb='', kb_default_output='', 
     elif protocol == 'opengraph' and not CFG_WEBSEARCH_ENABLE_OPENGRAPH:
         return ""
 
+    matched_by_tag_name_p = False
     tags = []
     if var:
         # delegate to bfe_server_info or bfe_client_info:
@@ -78,6 +80,7 @@ def format_element(bfo, name, tag_name='', tag='', kb='', kb_default_output='', 
         if not tags:
             # then check for regular tags
             tags = get_field_tags(tag_name)
+        matched_by_tag_name_p = tags and True or False
     if not tags and tag:
         # fall back to explicit marc tag
         if ',' in tag:
@@ -87,7 +90,32 @@ def format_element(bfo, name, tag_name='', tag='', kb='', kb_default_output='', 
     if not tags:
         return ''
     out = []
-    values = [bfo.fields(marctag, escape=9) for marctag in tags]
+
+    if protocol == 'googlescholar' and \
+      (tags == ['100__a'] or tags == ['700__a']):
+      # Authors for Google Scholar: remove names that are not purely
+      # author (thesis director, coordinator, etc). Assume that
+      # existence of $e subfield is a sign. Since this assumption
+      # might be wrong, put some strong conditions in order to get
+      # into this branch, with easy way to bypass.
+      values = [field_instance[tags[0][-1]] for field_instance in bfo.fields(tags[0][:-1], escape=9) \
+                if not field_instance.has_key('e')]
+    else:
+        # Standard fetching of values
+        values = [bfo.fields(marctag, escape=9) for marctag in tags]
+
+
+    if name == 'citation_dissertation_institution':
+        if CFG_CERN_SITE and \
+          'THESIS' in bfo.fields('980__a'):
+                authors = bfo.fields('100__', escape=9)
+                authors.extend(bfo.fields('700__', escape=9))
+                values = [field_instance['u'] for field_instance in authors \
+                  if not field_instance.has_key('e') and  field_instance.has_key('u')]
+        elif tag == '100__u' and not matched_by_tag_name_p:
+            # TODO: find way to map correctly this tag
+            values = []
+
     for value in values:
         if isinstance(value, list):
             for val in value:
