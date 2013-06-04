@@ -3162,8 +3162,7 @@ def get_modified_papers_before(recs, before):   ### filter_modified_record_ids
     recs_sqlstr = _get_sqlstr_from_set([rec[2] for rec in recs])
     modified_recs = run_sql("select id from bibrec "
                             "where id in %s "
-                            "and modification_date < %s "
-                               % recs_sqlstr , (before,) )
+                             % recs_sqlstr +  "and modification_date < %s " , (before,) )
     modified_recs = [rec[0] for rec in modified_recs]
     modified_recs = [rec for rec in recs if rec[2] in modified_recs]
 
