@@ -4397,7 +4397,7 @@ function processURUntil(entry){
 function prepareUndoHandlerChangeSubfield (tag, fieldPos, subfieldPos, oldVal,
          newVal, oldCode, newCode, operation_type) {
   var result = {};
-  result.operation_type = "change_content";
+  result.operation_type = operation_type;
   result.tag = tag;
   result.oldVal = oldVal;
   result.newVal = newVal;

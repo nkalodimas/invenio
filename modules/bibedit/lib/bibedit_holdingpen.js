@@ -526,7 +526,7 @@ function prepareHPFieldRemovedUndoHandler(changeNo){
   var fieldPos = gHoldingPenChanges[changeNo].field_position;
 
   var toDelete = {};
-  var fToDelete = {}
+  var fToDelete = {};
   fToDelete[tag] = {};
   fToDelete[tag][fieldPos] = gRecord[tag][fieldPos];
 
@@ -742,7 +742,7 @@ function applySubfieldChanged(changeNo){
     gRecord[tag][fieldPos][0][sfPos][1] = content; // changing the local copy
 
     var modificationUndoHandler = prepareUndoHandlerChangeSubfield(tag, fieldPos,
-      sfPos, oldContent, content, sfCode, sfCode);
+      sfPos, oldContent, content, sfCode, sfCode, "change_content");
     var undoHandler = prepareUndoHandlerApplyHPChange(modificationUndoHandler, changeNo);
 
     addUndoOperation(undoHandler);
@@ -820,9 +820,7 @@ function applySubfieldAdded(changeNo){
     var data = prepareSubfieldAddedRequest(changeNo);
     data.undoRedo = undoHandler;
     addUndoOperation(undoHandler);
-    createReq(data, function(json){
-      updateStatus('report', gRESULT_CODES[json['resultCode']])
-    });
+    queue_request(data);
 
     removeViewedChange(changeNo); // automatic redrawing !
   }
@@ -838,9 +836,7 @@ function applyFieldChanged(changeNumber){
     addUndoOperation(undoHandler);
     var data = prepareFieldChangedRequest(changeNumber, undoHandler);
 
-    createReq(data, function(json){
-      updateStatus('report', gRESULT_CODES[json['resultCode']]);
-    });
+    queue_request(data);
 
     removeViewedChange(changeNumber); // redrawing included in this call
   }
@@ -857,13 +853,39 @@ function applyFieldAdded(changeNo){
     addUndoOperation(undoHandler);
     data.undoRedo = undoHandler;
 
-    createReq(data, function(json){
-      updateStatus('report', gRESULT_CODES[json['resultCode']]);
-    });
+    // createReq(data, function(json){
+    //   updateStatus('report', gRESULT_CODES[json['resultCode']]);
+    // });
+    queue_request(data);
     // now adding appropriate controls to the interface
     removeViewedChange(changeNo);
     redrawFields(fieldId, true);
     reColorFields();
+
+    // if there is a volatile field with same tag and indicators with the field added should be deleted(replaced)
+    // TODO check for indicators
+    var isVolatile = true;
+    for (var fPos in gRecord[data.tag]) {
+      for (var sfPos in gRecord[data.tag][fPos][0]) {
+        if (gRecord[data.tag][fPos][0][sfPos][1].substring(0,9) != "VOLATILE:"){
+          isVolatile = false;
+          break;
+        }
+      }
+      if (isVolatile) {
+        var fieldToDelete = {};
+        fieldToDelete[data.tag] = {};
+        fieldToDelete[data.tag][fPos] = gRecord[data.tag][fPos];
+        var toDelete = {};
+        toDelete.fields = fieldToDelete;
+        toDelete.subfields = {};
+        var urHandler = prepareUndoHandlerDeleteFields(toDelete);
+        addUndoOperation(urHandler);
+        var ajaxData = deleteFields(toDelete, urHandler);
+        queue_request(ajaxData);
+      }
+    }
+
   }
 }
 
@@ -986,7 +1008,7 @@ function refreshChangesControls(){
   var tagsToRedraw = {};
   for (changeInd in gHoldingPenChanges){
     if (gHoldingPenChanges[changeInd].applied_change !== true){
-      addChangeControl(changeInd);
+      addChangeControl(changeInd, true);
       tagsToRedraw[gHoldingPenChanges[changeInd].tag] = true;
     }
   }
@@ -1117,7 +1139,7 @@ function acceptAddModifyChanges(changeNumbers){
       var oldContent = gRecord[tag][fieldPos][0][sfPos][1];
 
       var modificationUndoHandler = prepareUndoHandlerChangeSubfield(tag,
-        fieldPos, sfPos, oldContent, content, sfCode, sfCode);
+        fieldPos, sfPos, oldContent, content, sfCode, sfCode, "change_content");
       var undoHandler = prepareUndoHandlerApplyHPChange(modificationUndoHandler,
 							changeNum);
 
