@@ -736,7 +736,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                                                    t['pid'],
                                                                    t['action'])
             session.dirty = True
-            return self._add_user_data_to_ticket(req)
+            self._add_user_data_to_ticket(req)
             
             if self._can_commit_ticket(req):
                 return self._commit_ticket(req)
@@ -872,6 +872,35 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                                               userinfo['uid-ip'], str(userinfo))
             session.dirty = True
 
+<<<<<<< HEAD
+=======
+
+        session = get_session(req)
+        uid = getUid(req)
+        pinfo = session["personinfo"]
+        # ulevel = pinfo["ulevel"]
+        ticket = pinfo["ticket"]
+        
+        if self._is_ticket_review_handling_required(req):
+            self._handle_ticket_review_results(req)
+        else:
+            is_required, needs_review = self._is_ticket_review_required(req)
+            if is_required:
+                return self._ticket_review(req, needs_review)
+            
+        for t in ticket:
+            t['status'] = webapi.check_transaction_permissions(uid,
+                                                               t['bibref'],
+                                                               t['pid'],
+                                                               t['action'])
+        session.dirty = True
+        self._add_user_data_to_ticket(req)
+        
+        if self._can_commit_ticket(req):
+            return self._commit_ticket(req)
+        
+        return self._confirm_valid_ticket(req)
+>>>>>>> 417d023947dcd01fd8d7a0bfd0ed07d718259aaf
 
         ticket_commit = {'guest': ticket_commit_guest,
                          'user': ticket_commit_user,
@@ -1304,16 +1333,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if "upid" in pinfo and pinfo["upid"]:
             upid = pinfo["upid"]
         else:
+            pinfo["upid"] = -1
             dbpid = webapi.get_pid_from_uid(uid)
 
             if dbpid and dbpid[1]:
                 if dbpid[0] and not dbpid[0] == -1:
                     upid = dbpid[0][0]
-                    pinfo["upid"] = upid
-                return self._error_page(req, ln,
-                                        "%s" % str(upid))                    
-        return self._error_page(req, CFG_SITE_LANG,
-                    "xafsdfdsxxxxxxxx")
+                    pinfo["upid"] = upid                   
+
         session.dirty = True
 
     def _can_commit_ticket(self, req):
