@@ -2490,7 +2490,7 @@ def get_papers_info_of_author(pid, flag,   ### get_person_papers
 
         if show_affiliations:
             tag = '%s__u' % table
-            record_info['affiliation'] = get_grouped_records(table, ref, rec, tag)[tag]
+            record_info['affiliation'] = get_grouped_records((table, ref, rec), tag)[tag]
 
         if show_date:
             record_info['date'] = list()

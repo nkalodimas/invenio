@@ -101,7 +101,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         pid = -1
         is_bibref = False
         is_canonical_id = False
-        self.adf = self.__init_call_dispatcher()
 
         if (not isinstance(person_id, str)) or (not person_id):
             self.person_id = pid
@@ -227,11 +226,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         session.dirty = True
 
-        content = ''
-        for part in ['optional_menu', 'ticket_box', 'personid_info', 'tabs', 'footer']:
-            content += self.adf[part][ulevel](req, form, ln)
+        content = self._generate_optional_menu(ulevel, req, form)
+        content += self._generate_ticket_box(ulevel, req)
+        content += self._generate_person_info_box(ulevel, ln)
+        content += self._generate_tabs(ulevel, req)
+        content += self._generate_footer(ulevel)
 
-        title = self.adf['title'][ulevel](req, form, ln)
+        title = self._generate_title(ulevel) 
         body = TEMPLATE.tmpl_person_detail_layout(content)
         metaheaderadd = self._scripts()
         metaheaderadd += '\n <meta name="robots" content="nofollow" />'
@@ -365,106 +366,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return WebInterfaceBibAuthorIDPages(component), path
 
 
-    def __init_call_dispatcher(self):
-        '''
-        Initialization of call dispacher dictionary
-
-        @return: call dispatcher dictionary
-        @rtype: dict
-        '''
-        # author_detail_functions
-        adf = dict()
-        adf['title'] = dict()
-        adf['optional_menu'] = dict()
-        adf['ticket_box'] = dict()
-        adf['tabs'] = dict()
-        adf['footer'] = dict()
-        adf['personid_info'] = dict()
-        adf['ticket_dispatch'] = dict()
-        adf['ticket_commit'] = dict()
-
-        adf['title']['guest'] = self._generate_title_guest
-        adf['title']['user'] = self._generate_title_user
-        adf['title']['admin'] = self._generate_title_admin
-
-        adf['optional_menu']['guest'] = self._generate_optional_menu_guest
-        adf['optional_menu']['user'] = self._generate_optional_menu_user
-        adf['optional_menu']['admin'] = self._generate_optional_menu_admin
-
-        adf['ticket_box']['guest'] = self._generate_ticket_box_guest
-        adf['ticket_box']['user'] = self._generate_ticket_box_user
-        adf['ticket_box']['admin'] = self._generate_ticket_box_admin
-
-        adf['personid_info']['guest'] = self._generate_person_info_box_guest
-        adf['personid_info']['user'] = self._generate_person_info_box_user
-        adf['personid_info']['admin'] = self._generate_person_info_box_admin
-
-        adf['tabs']['guest'] = self._generate_tabs_guest
-        adf['tabs']['user'] = self._generate_tabs_user
-        adf['tabs']['admin'] = self._generate_tabs_admin
-
-        adf['footer']['guest'] = self._generate_footer_guest
-        adf['footer']['user'] = self._generate_footer_user
-        adf['footer']['admin'] = self._generate_footer_admin
-
-        adf['ticket_dispatch']['guest'] = self._ticket_dispatch_user
-        adf['ticket_dispatch']['user'] = self._ticket_dispatch_user
-        adf['ticket_dispatch']['admin'] = self._ticket_dispatch_admin
-
-        adf['ticket_commit']['guest'] = self._ticket_commit_guest
-        adf['ticket_commit']['user'] = self._ticket_commit_user
-        adf['ticket_commit']['admin'] = self._ticket_commit_admin
-
-        return adf
-
-
-    def _generate_title_guest(self, req, form, ln):
-        '''
-        Generate the title for a guest user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        if self.person_id:
-            return 'Attribute papers for: ' + str(webapi.get_person_redirect_link(self.person_id))
-        else:
-            return 'Attribute papers'
-
-
-    def _generate_title_user(self, req, form, ln):
-        '''
-        Generate the title for a regular user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        if self.person_id:
-            return 'Attribute papers (user interface) for: ' + str(webapi.get_person_redirect_link(self.person_id))
-        else:
-            return 'Attribute papers'
-
-    def _generate_title_admin(self, req, form, ln):
-        '''
-        Generate the title for an admin user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        if self.person_id:
-            return 'Attribute papers (administrator interface) for: ' + str(webapi.get_person_redirect_link(self.person_id))
-        else:
-            return 'Attribute papers'
-
-
     def _generate_title(self, ulevel):
         '''
         Generates the title for the specified user permission level.
@@ -498,72 +399,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                           'admin': generate_title_admin}
 
         return generate_title[ulevel]()
-
-
-    def _generate_optional_menu_guest(self, req, form, ln):
-        '''
-        Generate the menu for a guest user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
-                                   'verbose': (int, 0)})
-        menu = TEMPLATE.tmpl_person_menu()
-
-        if "verbose" in argd and argd["verbose"] > 0:
-            session = get_session(req)
-            pinfo = session['personinfo']
-            menu += "\n<pre>" + pformat(pinfo) + "</pre>\n"
-
-        return menu
-
-
-    def _generate_optional_menu_user(self, req, form, ln):
-        '''
-        Generate the menu for a regular user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
-                                   'verbose': (int, 0)})
-        menu = TEMPLATE.tmpl_person_menu()
-
-        if "verbose" in argd and argd["verbose"] > 0:
-            session = get_session(req)
-            pinfo = session['personinfo']
-            menu += "\n<pre>" + pformat(pinfo) + "</pre>\n"
-
-        return menu
-
-
-    def _generate_optional_menu_admin(self, req, form, ln):
-        '''
-        Generate the title for an admin user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
-                                   'verbose': (int, 0)})
-        menu = TEMPLATE.tmpl_person_menu_admin(self.person_id)
-
-        if "verbose" in argd and argd["verbose"] > 0:
-            session = get_session(req)
-            pinfo = session['personinfo']
-            menu += "\n<pre>" + pformat(pinfo) + "</pre>\n"
-
-        return menu
 
 
     def _generate_optional_menu(self, ulevel, req, form):
@@ -623,71 +458,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         return generate_optional_menu[ulevel](req, form)
 
 
-    def _generate_ticket_box_guest(self, req, form, ln):
-        '''
-        Generate the semi-permanent info box for a guest user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        session = get_session(req)
-        pinfo = session['personinfo']
-        ticket = pinfo['ticket']
-        results = []
-        pendingt = []
-        for t in ticket:
-            if 'execution_result' in t:
-                if t['execution_result']:
-                    for res in t['execution_result']:
-                        results.append(res)
-            else:
-                pendingt.append(t)
-
-        box = ''
-        if pendingt:
-            box = box + TEMPLATE.tmpl_ticket_box('in_process', 'transaction', len(pendingt))
-
-        if results:
-            failed = [messages for status, messages in results if not status]
-            if failed:
-                box = box + TEMPLATE.tmpl_transaction_box('failure', failed)
-
-            successfull = [messages for status, messages in results if status]
-            if successfull:
-                box = box + TEMPLATE.tmpl_transaction_box('success', successfull)
-
-        return box
-
-
-    def _generate_ticket_box_user(self, req, form, ln):
-        '''
-        Generate the semi-permanent info box for a regular user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        return self._generate_ticket_box_guest(req, form, ln)
-
-
-    def _generate_ticket_box_admin(self, req, form, ln):
-        '''
-        Generate the semi-permanent info box for an admin user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        return self._generate_ticket_box_guest(req, form, ln)
-
-
     def _generate_ticket_box(self, ulevel, req):
         '''
         Generates the semi-permanent info box for the specified user permission
@@ -742,49 +512,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         return generate_ticket_box[ulevel](req)
 
 
-    def _generate_person_info_box_guest(self, req, form, ln):
-        '''
-        Generate the name info box for a guest user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        return self._generate_person_info_box_admin(req, form, ln)
-
-
-    def _generate_person_info_box_user(self, req, form, ln):
-        '''
-        Generate the name info box for a regular user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        return self._generate_person_info_box_admin(req, form, ln)
-
-
-    def _generate_person_info_box_admin(self, req, form, ln):
-        '''
-        Generate the name info box for an admin user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        names = webapi.get_person_names_from_id(self.person_id)
-        box = TEMPLATE.tmpl_admin_person_info_box(ln, person_id=self.person_id,
-                                                  names=names)
-
-        return box
-
-
     def _generate_person_info_box(self, ulevel, ln):
         '''
         Generates the name info box for the specified user permission level.
@@ -814,268 +541,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                     'admin': generate_person_info_box_admin}
 
         return generate_person_info_box[ulevel](ln)
-
-
-    def _generate_tabs_guest(self, req, form, ln):
-        '''
-        Generate the tabs content for a guest user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        session = get_session(req)
-        # uid = getUid(req)
-        pinfo = session["personinfo"]
-        if 'ln' in pinfo:
-            ln = pinfo["ln"]
-        else:
-            ln = CFG_SITE_LANG
-        _ = gettext_set_language(ln)
-
-        links = []  # ['delete', 'commit','del_entry','commit_entry']
-        tabs = ['records', 'repealed', 'review']
-        verbiage_dict = {'confirmed': 'Papers', 'repealed': _('Papers removed from this profile'),
-                                         'review': _('Papers in need of review'),
-                                         'tickets': _('Open Tickets'), 'data': _('Data'),
-                                         'confirmed_ns': _('Papers of this Person'),
-                                         'repealed_ns': _('Papers _not_ of this Person'),
-                                         'review_ns': _('Papers in need of review'),
-                                         'tickets_ns': _('Tickets for this Person'),
-                                         'data_ns': _('Additional Data for this Person')}
-
-        buttons_verbiage_dict = {'mass_buttons': {'no_doc_string': _('Sorry, there are currently no documents to be found in this category.'),
-                                                  'b_confirm': _('Yes, those papers are by this person.'),
-                                                  'b_repeal': _('No, those papers are not by this person'),
-                                                  'b_to_others': _('Assign to other person'),
-                                                  'b_forget': _('Forget decision')},
-                                 'record_undecided': {'alt_confirm': _('Confirm!'),
-                                                     'confirm_text': _('Yes, this paper is by this person.'),
-                                                     'alt_repeal': _('Rejected!'),
-                                                     'repeal_text': _('No, this paper is <i>not</i> by this person'),
-                                                     'to_other_text': _('Assign to another person'),
-                                                     'alt_to_other': _('To other person!')},
-                                 'record_confirmed': {'alt_confirm': _('Confirmed.'),
-                                                       'confirm_text': _('Marked as this person\'s paper'),
-                                                       'alt_forget': _('Forget decision!'),
-                                                       'forget_text': _('Forget decision.'),
-                                                       'alt_repeal': _('Repeal!'),
-                                                       'repeal_text': _('But it\'s <i>not</i> this person\'s paper.'),
-                                                       'to_other_text': _('Assign to another person'),
-                                                       'alt_to_other': _('To other person!')},
-                                 'record_repealed': {'alt_confirm': _('Confirm!'),
-                                                    'confirm_text': _('But it <i>is</i> this person\'s paper.'),
-                                                    'alt_forget': _('Forget decision!'),
-                                                    'forget_text': _('Forget decision.'),
-                                                    'alt_repeal': _('Repealed'),
-                                                    'repeal_text': _('Marked as not this person\'s paper'),
-                                                    'to_other_text': _('Assign to another person'),
-                                                    'alt_to_other': _('To other person!')}}
-
-        return self._generate_tabs_admin(req, form, ln, show_tabs=tabs, ticket_links=links,
-                                         show_reset_button=False,
-                                         open_tickets=[], verbiage_dict=verbiage_dict,
-                                         buttons_verbiage_dict=buttons_verbiage_dict)
-
-
-    def _generate_tabs_user(self, req, form, ln):
-        '''
-        Generate the tabs content for a regular user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        '''
-        session = get_session(req)
-        uid = getUid(req)
-        pinfo = session['personinfo']
-        if 'ln' in pinfo:
-            ln = pinfo["ln"]
-        else:
-            ln = CFG_SITE_LANG
-        _ = gettext_set_language(ln)
-
-        links = ['delete', 'del_entry']
-        tabs = ['records', 'repealed', 'review', 'tickets']
-        if pinfo["claimpaper_admin_last_viewed_pid"] == webapi.get_pid_from_uid(uid)[0][0]:
-            verbiage_dict = {'confirmed': _('Your papers'), 'repealed': _('Not your papers'),
-                                             'review': _('Papers in need of review'),
-                                             'tickets': _('Your tickets'), 'data': _('Data'),
-                                             'confirmed_ns': _('Your papers'),
-                                             'repealed_ns': _('Not your papers'),
-                                             'review_ns': _('Papers in need of review'),
-                                             'tickets_ns': _('Your tickets'),
-                                             'data_ns': _('Additional Data for this Person')}
-            buttons_verbiage_dict = {'mass_buttons': {'no_doc_string': _('Sorry, there are currently no documents to be found in this category.'),
-                                                                  'b_confirm': _('These are mine!'),
-                                                                  'b_repeal': _('These are not mine!'),
-                                                                  'b_to_others': _('It\'s not mine, but I know whose it is!'),
-                                                                  'b_forget': _('Forget decision')},
-                                                 'record_undecided': {'alt_confirm': _('Mine!'),
-                                                                     'confirm_text': _('This is my paper!'),
-                                                                     'alt_repeal': _('Not mine!'),
-                                                                     'repeal_text': _('This is not my paper!'),
-                                                                     'to_other_text': _('Assign to another person'),
-                                                                     'alt_to_other': _('To other person!')},
-                                                 'record_confirmed': {'alt_confirm': _('Not Mine.'),
-                                                                       'confirm_text': _('Marked as my paper!'),
-                                                                       'alt_forget': _('Forget decision!'),
-                                                                       'forget_text': _('Forget assignment decision'),
-                                                                       'alt_repeal': _('Not Mine!'),
-                                                                       'repeal_text': _('But this is mine!'),
-                                                                       'to_other_text': _('Assign to another person'),
-                                                                       'alt_to_other': _('To other person!')},
-                                                 'record_repealed': {'alt_confirm': _('Mine!'),
-                                                                    'confirm_text': _('But this is my paper!'),
-                                                                    'alt_forget': _('Forget decision!'),
-                                                                    'forget_text': _('Forget decision!'),
-                                                                    'alt_repeal': _('Not Mine!'),
-                                                                    'repeal_text': _('Marked as not your paper.'),
-                                                                     'to_other_text': _('Assign to another person'),
-                                                                     'alt_to_other': _('To other person!')}}
-        else:
-            verbiage_dict = {'confirmed': _('Papers'), 'repealed': _('Papers removed from this profile'),
-                                 'review': _('Papers in need of review'),
-                                 'tickets': _('Your tickets'), 'data': _('Data'),
-                                 'confirmed_ns': _('Papers of this Person'),
-                                 'repealed_ns': _('Papers _not_ of this Person'),
-                                 'review_ns': _('Papers in need of review'),
-                                 'tickets_ns': _('Tickets you created about this person'),
-                                 'data_ns': _('Additional Data for this Person')}
-            buttons_verbiage_dict = {'mass_buttons': {'no_doc_string': _('Sorry, there are currently no documents to be found in this category.'),
-                                                  'b_confirm': _('Yes, those papers are by this person.'),
-                                                  'b_repeal': _('No, those papers are not by this person'),
-                                                  'b_to_others': _('Assign to other person'),
-                                                  'b_forget': _('Forget decision')},
-                                 'record_undecided': {'alt_confirm': _('Confirm!'),
-                                                     'confirm_text': _('Yes, this paper is by this person.'),
-                                                     'alt_repeal': _('Rejected!'),
-                                                     'repeal_text': _('No, this paper is <i>not</i> by this person'),
-                                                     'to_other_text': _('Assign to another person'),
-                                                     'alt_to_other': _('To other person!')},
-                                 'record_confirmed': {'alt_confirm': _('Confirmed.'),
-                                                       'confirm_text': _('Marked as this person\'s paper'),
-                                                       'alt_forget': _('Forget decision!'),
-                                                       'forget_text': _('Forget decision.'),
-                                                       'alt_repeal': _('Repeal!'),
-                                                       'repeal_text': _('But it\'s <i>not</i> this person\'s paper.'),
-                                                       'to_other_text': _('Assign to another person'),
-                                                       'alt_to_other': _('To other person!')},
-                                 'record_repealed': {'alt_confirm': _('Confirm!'),
-                                                    'confirm_text': _('But it <i>is</i> this person\'s paper.'),
-                                                    'alt_forget': _('Forget decision!'),
-                                                    'forget_text': _('Forget decision.'),
-                                                    'alt_repeal': _('Repealed'),
-                                                    'repeal_text': _('Marked as not this person\'s paper'),
-                                                    'to_other_text': _('Assign to another person'),
-                                                    'alt_to_other': _('To other person!')}}
-        session = get_session(req)
-        uid = getUid(req)
-        open_tickets = webapi.get_person_request_ticket(self.person_id)
-        tickets = []
-        for t in open_tickets:
-            owns = False
-            for row in t[0]:
-                if row[0] == 'uid-ip' and row[1].split('||')[0] == str(uid):
-                    owns = True
-            if owns:
-                tickets.append(t)
-        return self._generate_tabs_admin(req, form, ln, show_tabs=tabs, ticket_links=links,
-                                         open_tickets=tickets, verbiage_dict=verbiage_dict,
-                                         buttons_verbiage_dict=buttons_verbiage_dict)
-
-
-    def _generate_tabs_admin(self, req, form, ln,
-                             show_tabs=['records', 'repealed', 'review', 'comments', 'tickets', 'data'],
-                             open_tickets=None, ticket_links=['delete', 'commit', 'del_entry', 'commit_entry'],
-                             verbiage_dict=None, buttons_verbiage_dict=None, show_reset_button=True):
-        '''
-        Generate the tabs content for an admin user
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: POST/GET variables of the request
-        @type form: dict
-        @param ln: language to show this page in
-        @type ln: string
-        @param show_tabs: list of tabs to display
-        @type show_tabs: list of strings
-        @param ticket_links: list of links to display
-        @type ticket_links: list of strings
-        @param verbiage_dict: language for the elements
-        @type verbiage_dict: dict
-        @param buttons_verbiage_dict: language for the buttons
-        @type buttons_verbiage_dict: dict
-        '''
-        session = get_session(req)
-        personinfo = {}
-
-        try:
-            personinfo = session["personinfo"]
-        except KeyError:
-            return ""
-
-        if 'ln' in personinfo:
-            ln = personinfo["ln"]
-        else:
-            ln = CFG_SITE_LANG
-        _ = gettext_set_language(ln)
-
-        if not verbiage_dict:
-            verbiage_dict = self._get_default_verbiage_dicts_for_admin(req)
-        if not buttons_verbiage_dict:
-            buttons_verbiage_dict = self._get_default_buttons_verbiage_dicts_for_admin(req)
-
-        all_papers = webapi.get_papers_by_person_id(self.person_id,
-                                                    ext_out=True)
-
-        records = [{'recid': paper[0],
-                    'bibref': paper[1],
-                    'flag': paper[2],
-                    'authorname': paper[3],
-                    'authoraffiliation': paper[4],
-                    'paperdate': paper[5],
-                    'rt_status': paper[6],
-                    'paperexperiment': paper[7]}
-                    for paper in all_papers]
-
-        rejected_papers = [row for row in records if row['flag'] < -1]
-        rest_of_papers = [row for row in records if row['flag'] >= -1]
-        review_needed = webapi.get_review_needing_records(self.person_id)
-
-        if len(review_needed) < 1:
-            if 'review' in show_tabs:
-                show_tabs.remove('review')
-
-        rt_tickets = None
-
-        if open_tickets == None:
-            open_tickets = webapi.get_person_request_ticket(self.person_id)
-        else:
-            if len(open_tickets) < 1:
-                if 'tickets' in show_tabs:
-                    show_tabs.remove('tickets')
-
-        if "admin_requested_ticket_id" in personinfo:
-            rt_tickets = personinfo["admin_requested_ticket_id"]
-
-        # Send data to template function
-        tabs = TEMPLATE.tmpl_admin_tabs(ln, person_id=self.person_id,
-                                            rejected_papers=rejected_papers,
-                                            rest_of_papers=rest_of_papers,
-                                            review_needed=review_needed,
-                                            rt_tickets=rt_tickets,
-                                            open_rt_tickets=open_tickets,
-                                            show_tabs=show_tabs,
-                                            ticket_links=ticket_links,
-                                            verbiage_dict=verbiage_dict,
-                                            buttons_verbiage_dict=buttons_verbiage_dict,
-                                            show_reset_button=show_reset_button)
-
-        return tabs
 
 
     def _generate_tabs(self, ulevel, req):
@@ -1213,91 +678,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         return generate_tabs[ulevel](req)
 
 
-    def _get_default_verbiage_dicts_for_admin(self, req):
-
-        session = get_session(req)
-        personinfo = {}
-
-        try:
-            personinfo = session["personinfo"]
-        except KeyError:
-            return ""
-
-        if 'ln' in personinfo:
-            ln = personinfo["ln"]
-        else:
-            ln = CFG_SITE_LANG
-        _ = gettext_set_language(ln)
-
-        verbiage_dict = {'confirmed': _('Papers'), 'repealed': _('Papers removed from this profile'),
-                                 'review': _('Papers in need of review'),
-                                 'tickets': _('Tickets'), 'data': _('Data'),
-                                 'confirmed_ns': _('Papers of this Person'),
-                                 'repealed_ns': _('Papers _not_ of this Person'),
-                                 'review_ns': _('Papers in need of review'),
-                                 'tickets_ns': _('Request Tickets'),
-                                 'data_ns': _('Additional Data for this Person')}
-        return verbiage_dict
-
-
-    def _get_default_buttons_verbiage_dicts_for_admin(self, req):
-
-        session = get_session(req)
-        personinfo = {}
-
-        try:
-            personinfo = session["personinfo"]
-        except KeyError:
-            return ""
-
-        if 'ln' in personinfo:
-            ln = personinfo["ln"]
-        else:
-            ln = CFG_SITE_LANG
-        _ = gettext_set_language(ln)
-
-        buttons_verbiage_dict = {'mass_buttons': {'no_doc_string': _('Sorry, there are currently no documents to be found in this category.'),
-                                                  'b_confirm': _('Yes, those papers are by this person.'),
-                                                  'b_repeal': _('No, those papers are not by this person'),
-                                                  'b_to_others': _('Assign to other person'),
-                                                  'b_forget': _('Forget decision')},
-                                 'record_undecided': {'alt_confirm': _('Confirm!'),
-                                                     'confirm_text': _('Yes, this paper is by this person.'),
-                                                     'alt_repeal': _('Rejected!'),
-                                                     'repeal_text': _('No, this paper is <i>not</i> by this person'),
-                                                     'to_other_text': _('Assign to another person'),
-                                                     'alt_to_other': _('To other person!')},
-                                 'record_confirmed': {'alt_confirm': _('Confirmed.'),
-                                                       'confirm_text': _('Marked as this person\'s paper'),
-                                                       'alt_forget': _('Forget decision!'),
-                                                       'forget_text': _('Forget decision.'),
-                                                       'alt_repeal': _('Repeal!'),
-                                                       'repeal_text': _('But it\'s <i>not</i> this person\'s paper.'),
-                                                       'to_other_text': _('Assign to another person'),
-                                                       'alt_to_other': _('To other person!')},
-                                 'record_repealed': {'alt_confirm': _('Confirm!'),
-                                                    'confirm_text': _('But it <i>is</i> this person\'s paper.'),
-                                                    'alt_forget': _('Forget decision!'),
-                                                    'forget_text': _('Forget decision.'),
-                                                    'alt_repeal': _('Repealed'),
-                                                    'repeal_text': _('Marked as not this person\'s paper'),
-                                                    'to_other_text': _('Assign to another person'),
-                                                    'alt_to_other': _('To other person!')}}
-        return buttons_verbiage_dict
-
-
-    def _generate_footer_guest(self, req, form, ln):
-        return self._generate_footer_admin(req, form, ln)
-
-
-    def _generate_footer_user(self, req, form, ln):
-        return self._generate_footer_admin(req, form, ln)
-
-
-    def _generate_footer_admin(self, req, form, ln):
-        return TEMPLATE.tmpl_invenio_search_box()
-
-
     def _generate_footer(self, ulevel):
         '''
         Generates the footer for the specified user permission level.
@@ -1324,45 +704,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         return generate_footer[ulevel]()
 
 
-    def _ticket_dispatch_guest(self, req):
-        '''
-        Takes care of the ticket  when in guest mode
-        '''
-        return self._ticket_dispatch_user(req)
-
-
-    def _ticket_dispatch_user(self, req):
-        '''
-        Takes care of the ticket  when in user and guest mode
-
-        '''
-        session = get_session(req)
-        uid = getUid(req)
-        pinfo = session["personinfo"]
-        # ulevel = pinfo["ulevel"]
-        ticket = pinfo["ticket"]
-        bibref_check_required = self._ticket_review_bibref_check(req)
-
-        if bibref_check_required:
-            return bibref_check_required
-
-        for t in ticket:
-            t['status'] = webapi.check_transaction_permissions(uid,
-                                                               t['bibref'],
-                                                               t['pid'],
-                                                               t['action'])
-        session.dirty = True
-        return self._ticket_final_review(req)
-
-
-    def _ticket_dispatch_admin(self, req):
-        '''
-        Takes care of the ticket  when in administrator mode
-
-        '''
-        return self._ticket_dispatch_user(req)
-
-
     def _ticket_dispatch(self, ulevel, req):
         '''
         Checks the ticket manipulation permissions for the specified user
@@ -1376,22 +717,48 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @rtype: str
         '''
         def ticket_dispatch_guest(req):
-            bibref_check_required = self._ticket_review_bibref_check(req)
-            if bibref_check_required:
-                return bibref_check_required
-
-            uid = getUid(req)
             session = get_session(req)
+            uid = getUid(req)
             pinfo = session["personinfo"]
+            # ulevel = pinfo["ulevel"]
             ticket = pinfo["ticket"]
+            
+            if self._is_ticket_review_handling_required(req):
+                self._handle_ticket_review_results(req)
+            else:
+                is_required, needs_review = self._is_ticket_review_required(req)
+                if is_required:
+                    return self._ticket_review(req, needs_review)
+                
             for t in ticket:
                 t['status'] = webapi.check_transaction_permissions(uid,
                                                                    t['bibref'],
                                                                    t['pid'],
                                                                    t['action'])
             session.dirty = True
-
-            return self._ticket_final_review(req)
+            return self._add_user_data_to_ticket(req)
+            
+            if self._can_commit_ticket(req):
+                return self._commit_ticket(req)
+            
+            return self._confirm_valid_ticket(req)
+            
+#            bibref_check_required = self._ticket_review_bibref_check(req)
+#            if bibref_check_required:
+#                return bibref_check_required
+#
+#            uid = getUid(req)
+#            session = get_session(req)
+#            pinfo = session["personinfo"]
+#            ticket = pinfo["ticket"]
+#            for t in ticket:
+#                t['status'] = webapi.check_transaction_permissions(uid,
+#                                                                   t['bibref'],
+#                                                                   t['pid'],
+#                                                                   t['action'])
+#            session.dirty = True
+#
+#            return self.old_ticket_final_review(req)
 
         def ticket_dispatch_user(req):
             return ticket_dispatch_guest(req)
@@ -1405,7 +772,320 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                            'admin': ticket_dispatch_admin}
 
         return ticket_dispatch[ulevel](req)
+        
+        
+    def _ticket_commit(self, ulevel, req):
+        '''
+        Executes/Creates the tickets for the specified user permission level.
 
+        @param ulevel: user permission level
+        @type ulevel: str
+        @param req: apache request object
+        @type req: apache request object
+        '''
+        def ticket_commit_guest(req):
+            self._clean_ticket(req)
+            uid = getUid(req)
+            userinfo = {'uid-ip': "userid: %s (from %s)" % (uid, req.remote_ip)}
+
+            session = get_session(req)
+            pinfo = session["personinfo"]
+            if "user_ticket_comments" in pinfo:
+                if pinfo["user_ticket_comments"]:
+                    userinfo['comments'] = pinfo["user_ticket_comments"]
+                else:
+                    userinfo['comments'] = "No comments submitted."
+            if "user_first_name" in pinfo:
+                userinfo['firstname'] = pinfo["user_first_name"]
+            if "user_last_name" in pinfo:
+                userinfo['lastname'] = pinfo["user_last_name"]
+            if "user_email" in pinfo:
+                userinfo['email'] = pinfo["user_email"]
+
+            ticket = pinfo['ticket']
+            webapi.create_request_ticket(userinfo, ticket)
+
+            for t in ticket:
+                t['execution_result'] = [(True, ''), ]
+
+            session.dirty = True
+
+        def ticket_commit_user(req):
+            self._clean_ticket(req)
+            uid = getUid(req)
+            userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
+
+            session = get_session(req)
+            pinfo = session["personinfo"]
+
+            if "user_ticket_comments" in pinfo:
+                userinfo['comments'] = pinfo["user_ticket_comments"]
+            if "user_first_name" in pinfo:
+                userinfo['firstname'] = pinfo["user_first_name"]
+            if "user_last_name" in pinfo:
+                userinfo['lastname'] = pinfo["user_last_name"]
+            if "user_email" in pinfo:
+                userinfo['email'] = pinfo["user_email"]
+
+            ticket = pinfo["ticket"]
+            ok_tickets = list()
+            for t in list(ticket):
+                if t['status'] in ['granted', 'warning_granted']:
+                    t['execution_result'] = webapi.execute_action(t['action'],
+                                                        t['pid'], t['bibref'], uid,
+                                                        userinfo['uid-ip'], str(userinfo))
+                    ok_tickets.append(t)
+                    ticket.remove(t)
+
+            if ticket:
+                webapi.create_request_ticket(userinfo, ticket)
+
+            if CFG_INSPIRE_SITE and ok_tickets:
+                webapi.send_user_commit_notification_email(userinfo, ok_tickets)
+
+            for t in ticket:
+                t['execution_result'] = [(True, ''), ]
+
+            ticket[:] = ok_tickets
+            session.dirty = True
+
+        def ticket_commit_admin(req):
+            self._clean_ticket(req)
+            uid = getUid(req)
+            userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
+
+            session = get_session(req)
+            pinfo = session["personinfo"]
+
+            if "user_ticket_comments" in pinfo:
+                userinfo['comments'] = pinfo["user_ticket_comments"]
+            if "user_first_name" in pinfo:
+                userinfo['firstname'] = pinfo["user_first_name"]
+            if "user_last_name" in pinfo:
+                userinfo['lastname'] = pinfo["user_last_name"]
+            if "user_email" in pinfo:
+                userinfo['email'] = pinfo["user_email"]
+
+            ticket = pinfo["ticket"]
+            for t in ticket:
+                t['execution_result'] = webapi.execute_action(t['action'], t['pid'], t['bibref'], uid,
+                                                              userinfo['uid-ip'], str(userinfo))
+            session.dirty = True
+
+
+        ticket_commit = {'guest': ticket_commit_guest,
+                         'user': ticket_commit_user,
+                         'admin': ticket_commit_admin}
+
+        return ticket_commit[ulevel](req)
+
+
+    def _is_ticket_review_handling_required(self, req):
+        '''
+        checks if the results of ticket reviewing should be handled
+        @param req: Apache request object
+        @type req: Apache request object
+        '''       
+
+        session = get_session(req)
+        pinfo = session["personinfo"]
+
+        # if check is neeeded
+        if ("bibref_check_required" in pinfo and pinfo["bibref_check_required"]
+                                    and "bibref_check_reviewed_bibrefs" in pinfo):
+            return True
+        return False
+
+
+    def _handle_ticket_review_results(self, req):
+        '''
+        handle the results of ticket reviewing by either fixing tickets or removing them based on the review performed
+        @param req: Apache request object
+        @type req: Apache request object
+        '''  
+
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        ticket = pinfo["ticket"]
+
+        # for every bibref in need of review
+        for rbibreft in pinfo["bibref_check_reviewed_bibrefs"]:
+            # if it's not in proper form skip it ( || delimiter is being added in bibauthorid_templates:tmpl_bibref_check function, coma delimiter
+            # are being added in bibauthorid_webinterface: action function )
+            # rbibreft ex: 'pid||bibrecref','8||100:4,45'
+            if not rbibreft.count("||") or not rbibreft.count(","):
+                continue
+            
+            # get pid and bibrecref
+            rpid, rbibref = rbibreft.split("||")
+            # get recid out of bibrecref
+            rrecid = rbibref.split(",")[1]
+            # convert string pid to int
+            rpid = webapi.wash_integer_id(rpid)
+
+            # updating ticket status with fixed bibrefs
+            # and removing them from incomplete
+            for ticket_update in [row for row in ticket
+                                  if (row['bibref'] == str(rrecid) and
+                                      row['pid'] == rpid)]:
+                ticket_update["bibref"] = rbibref
+                if "incomplete" in ticket_update:
+                    del(ticket_update["incomplete"])
+        # tickets that could't be fixed will be removed
+        for ticket_remove in [row for row in ticket
+                              if ('incomplete' in row)]:
+            ticket.remove(ticket_remove)
+        
+        # delete also all bibrefs_auto_assigned, bibrefs_to_confirm and bibref_check_reviewed_bibrefs since the have been handled
+        if ("bibrefs_auto_assigned" in pinfo):
+            del(pinfo["bibrefs_auto_assigned"])
+
+        if ("bibrefs_to_confirm" in pinfo):
+            del(pinfo["bibrefs_to_confirm"])
+
+        del(pinfo["bibref_check_reviewed_bibrefs"])
+        # now there is no check required
+        pinfo["bibref_check_required"] = False
+        session.dirty = True
+
+    def _is_ticket_review_required(self, req):
+        '''
+        checks if there are transactions inside ticket in need for review
+        @param req: Apache request object
+        @type req: Apache request object
+        ''' 
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        ticket = pinfo["ticket"]
+        needs_review = []
+        
+        # for every transaction in tickets check if there ara transaction that require review
+        for transaction in ticket:
+            if not webapi.is_valid_bibref(transaction['bibref']):
+                transaction['incomplete'] = True
+                needs_review.append(transaction)
+
+        if not needs_review:
+            return (False, [])
+        return (True, needs_review)
+        
+    def _ticket_review(self, req, needs_review):
+        session = get_session(req)
+        pinfo = session["personinfo"]
+
+        if 'arxiv_name' in pinfo:
+            arxiv_name = [pinfo['arxiv_name']]
+        else:
+            arxiv_name = None
+
+        if 'ln' in pinfo:
+            ln = pinfo["ln"]
+        else:
+            ln = CFG_SITE_LANG
+
+        _ = gettext_set_language(ln)
+        bibrefs_auto_assigned = {}
+        bibrefs_to_confirm = {}
+
+        # if ("bibrefs_auto_assigned" in pinfo and pinfo["bibrefs_auto_assigned"]):
+        #     bibrefs_auto_assigned = pinfo["bibrefs_auto_assigned"]
+        #
+        # if ("bibrefs_to_confirm" in pinfo and pinfo["bibrefs_to_confirm"]):
+        #     bibrefs_to_confirm = pinfo["bibrefs_to_confirm"]
+
+        for transaction in needs_review:
+            # convert recid from string to int
+            recid = webapi.wash_integer_id(transaction['bibref'])
+
+            if recid < 0:
+                # this doesn't look like a recid--discard!
+                continue
+
+            pid = transaction['pid']
+
+            if ((pid in bibrefs_auto_assigned
+                 and 'bibrecs' in bibrefs_auto_assigned[pid]
+                 and recid in bibrefs_auto_assigned[pid]['bibrecs'])
+                or
+                (pid in bibrefs_to_confirm
+                 and 'bibrecs' in bibrefs_to_confirm[pid]
+                 and recid in bibrefs_to_confirm[pid]['bibrecs'])):
+                # we already accessed those bibrefs.
+                continue
+
+            # access to possible bibrefs by arxiv  name and pid's name variants
+            fctptr = webapi.get_possible_bibrefs_from_pid_bibrec
+            bibrec_refs = fctptr(pid, [recid], additional_names=arxiv_name)
+            person_name = webapi.get_most_frequent_name_from_pid(pid, allow_none=True)
+
+            if not person_name:
+                if arxiv_name:
+                    person_name = ''.join(arxiv_name)
+                else:
+                    person_name = " "
+
+            for brr in bibrec_refs:
+                # if bibrefrec seems ok add it to the auto assign list
+                if len(brr[1]) == 1:
+                    if not pid in bibrefs_auto_assigned:
+                        bibrefs_auto_assigned[pid] = {
+                            'person_name': person_name,
+                            'canonical_id': "TBA",
+                            'bibrecs': {brr[0]: brr[1]}}
+                    else:
+                        bibrefs_auto_assigned[pid]['bibrecs'][brr[0]] = brr[1]
+                else:
+                    # if there is no bibreckref try to fix it
+                    if not brr[1]:
+                        tmp = webapi.get_bibrefs_from_bibrecs([brr[0]])
+
+                        try:
+                            brr[1] = tmp[0][1]
+                        except IndexError:
+                            # No bibrefs on record--discard
+                            continue
+                    # and add it to bibrefs_to_confirm list
+                    if not pid in bibrefs_to_confirm:
+                        bibrefs_to_confirm[pid] = {
+                            'person_name': person_name,
+                            'canonical_id': "TBA",
+                            'bibrecs': {brr[0]: brr[1]}}
+                    else:
+                        bibrefs_to_confirm[pid]['bibrecs'][brr[0]] = brr[1]
+
+        if bibrefs_to_confirm or bibrefs_auto_assigned:
+            pinfo["bibref_check_required"] = True
+            baa = deepcopy(bibrefs_auto_assigned)
+            btc = deepcopy(bibrefs_to_confirm)
+
+            for pid in baa:
+                for rid in baa[pid]['bibrecs']:
+                    baa[pid]['bibrecs'][rid] = []
+
+            for pid in btc:
+                for rid in btc[pid]['bibrecs']:
+                    btc[pid]['bibrecs'][rid] = []
+
+            pinfo["bibrefs_auto_assigned"] = baa
+            pinfo["bibrefs_to_confirm"] = btc
+        else:
+            pinfo["bibref_check_required"] = False
+
+        session.dirty = True
+
+        body = TEMPLATE.tmpl_bibref_check(bibrefs_auto_assigned,
+                                      bibrefs_to_confirm)
+        body = TEMPLATE.tmpl_person_detail_layout(body)
+
+        metaheaderadd = self._scripts(kill_browser_cache=True)
+        title = _("Submit Attribution Information")
+
+        return page(title=title,
+            metaheaderadd=metaheaderadd,
+            body=body,
+            req=req,
+            language=ln)
+            
 
     def _ticket_review_bibref_check(self, req):
         '''
@@ -1538,7 +1218,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                 'bibrecs': {brr[0]: brr[1]}}
                         else:
                             bibrefs_to_confirm[pid]['bibrecs'][brr[0]] = brr[1]
-
+            # if papers should be handled
             if bibrefs_to_confirm or bibrefs_auto_assigned:
                 pinfo["bibref_check_required"] = True
                 baa = deepcopy(bibrefs_auto_assigned)
@@ -1572,8 +1252,183 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 req=req,
                 language=ln)
 
+    def _add_user_data_to_ticket(self,req):
+        session = get_session(req)
+        uid = getUid(req)
+        userinfo = collect_user_info(uid)
+        pinfo = session["personinfo"]
+        upid = -1
+        user_first_name = ""
+        user_first_name_sys = False
+        user_last_name = ""
+        user_last_name_sys = False
+        user_email = ""
+        user_email_sys = False
 
-    def _ticket_final_review(self, req):
+        if 'ln' in pinfo:
+            ln = pinfo["ln"]
+        else:
+            ln = CFG_SITE_LANG
+
+        _ = gettext_set_language(ln)
+
+        if ("external_firstname" in userinfo
+              and userinfo["external_firstname"]):
+            user_first_name = userinfo["external_firstname"]
+            user_first_name_sys = True
+        elif "user_first_name" in pinfo and pinfo["user_first_name"]:
+            user_first_name = pinfo["user_first_name"]
+
+        if ("external_familyname" in userinfo
+              and userinfo["external_familyname"]):
+            user_last_name = userinfo["external_familyname"]
+            user_last_name_sys = True
+        elif "user_last_name" in pinfo and pinfo["user_last_name"]:
+            user_last_name = pinfo["user_last_name"]
+
+        if ("email" in userinfo
+              and not userinfo["email"] == "guest"):
+            user_email = userinfo["email"]
+            user_email_sys = True
+        elif "user_email" in pinfo and pinfo["user_email"]:
+            user_email = pinfo["user_email"]
+
+        pinfo["user_first_name"] = user_first_name
+        pinfo["user_first_name_sys"] = user_first_name_sys
+        pinfo["user_last_name"] = user_last_name
+        pinfo["user_last_name_sys"] = user_last_name_sys
+        pinfo["user_email"] = user_email
+        pinfo["user_email_sys"] = user_email_sys
+
+        # get pid by user id
+        if "upid" in pinfo and pinfo["upid"]:
+            upid = pinfo["upid"]
+        else:
+            dbpid = webapi.get_pid_from_uid(uid)
+
+            if dbpid and dbpid[1]:
+                if dbpid[0] and not dbpid[0] == -1:
+                    upid = dbpid[0][0]
+                    pinfo["upid"] = upid
+                return self._error_page(req, ln,
+                                        "%s" % str(upid))                    
+        return self._error_page(req, CFG_SITE_LANG,
+                    "xafsdfdsxxxxxxxx")
+        session.dirty = True
+
+    def _can_commit_ticket(self, req):
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        ticket = pinfo["ticket"]
+        ticket = [row for row in ticket if not "execution_result" in row]
+        skip_checkout_page = True
+        skip_checkout_page2 = True
+        
+        if not (pinfo["user_first_name"] or pinfo["user_last_name"] or pinfo["user_email"]):
+            skip_checkout_page = False
+
+        if [row for row in ticket
+            if row["status"] in ["denied", "warning_granted",
+                                 "warning_denied"]]:
+            skip_checkout_page2 = False
+
+        if 'external_first_entry_skip_review' in pinfo and pinfo['external_first_entry_skip_review']:
+            del(pinfo["external_first_entry_skip_review"])
+            skip_checkout_page = True
+            session.dirty = True
+
+        if (not ticket or skip_checkout_page2
+            or ("checkout_confirmed" in pinfo
+                and pinfo["checkout_confirmed"]
+                and "checkout_faulty_fields" in pinfo
+                and not pinfo["checkout_faulty_fields"]
+                and skip_checkout_page)):
+            return True
+        return False
+
+
+    def _commit_ticket(self, req):
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        ulevel = pinfo["ulevel"]
+        
+        self._ticket_commit(ulevel, req)
+
+        if "checkout_confirmed" in pinfo:
+            del(pinfo["checkout_confirmed"])
+
+        if "checkout_faulty_fields" in pinfo:
+            del(pinfo["checkout_faulty_fields"])
+
+        if "bibref_check_required" in pinfo:
+            del(pinfo["bibref_check_required"])
+
+        # if "user_ticket_comments" in pinfo:
+        #     del(pinfo["user_ticket_comments"])
+
+        session.dirty = True
+        return self._ticket_dispatch_end(req)
+
+    def _confirm_valid_ticket(self, req):
+        '''
+        displays the user what can/cannot finally be done
+        '''
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        ticket = pinfo["ticket"]
+        ticket = [row for row in ticket if not "execution_result" in row]
+        upid = pinfo["upid"]
+
+        if 'ln' in pinfo:
+            ln = pinfo["ln"]
+        else:
+            ln = CFG_SITE_LANG
+
+        _ = gettext_set_language(ln)
+
+        for tt in list(ticket):
+            if not 'bibref' in tt or not 'pid' in tt:
+                del(ticket[tt])
+                continue
+
+            tt['authorname_rec'] = get_bibrefrec_name_string(tt['bibref'])
+            tt['person_name'] = webapi.get_most_frequent_name_from_pid(tt['pid'])
+
+        mark_yours = []
+        mark_not_yours = []
+        
+        if upid >= 0:
+            mark_yours = [row for row in ticket
+                          if (str(row["pid"]) == str(upid) and
+                              row["action"] in ["to_other_person", "confirm"])]
+            mark_not_yours = [row for row in ticket
+                              if (str(row["pid"]) == str(upid) and
+                                  row["action"] in ["repeal", "reset"])]
+        mark_theirs = [row for row in ticket
+                       if ((not str(row["pid"]) == str(upid)) and
+                           row["action"] in ["to_other_person", "confirm"])]
+        mark_not_theirs = [row for row in ticket
+                           if ((not str(row["pid"]) == str(upid)) and
+                               row["action"] in ["repeal", "reset"])]
+
+        session.dirty = True
+
+        body = TEMPLATE.tmpl_ticket_final_review(req, mark_yours,
+                                                 mark_not_yours,
+                                                 mark_theirs,
+                                                 mark_not_theirs)
+        body = TEMPLATE.tmpl_person_detail_layout(body)
+        metaheaderadd = self._scripts(kill_browser_cache=True)
+        title = _("Please review your actions")
+
+        # body = body + '<pre>' + pformat(pinfo) + '</pre>'
+        return page(title=title,
+            metaheaderadd=metaheaderadd,
+            body=body,
+            req=req,
+            language=ln)
+
+    def old_ticket_final_review(self, req):
         '''
         displays the user what can/cannot finally be done, leaving the option of kicking some
         transactions from the ticket before commit
@@ -1630,6 +1485,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         pinfo["user_email"] = user_email
         pinfo["user_email_sys"] = user_email_sys
 
+        # get pid by user id
         if "upid" in pinfo and pinfo["upid"]:
             upid = pinfo["upid"]
         else:
@@ -1661,7 +1517,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 and "checkout_faulty_fields" in pinfo
                 and not pinfo["checkout_faulty_fields"]
                 and skip_checkout_page)):
-            self.adf['ticket_commit'][ulevel](req)
+            self._ticket_commit(ulevel, req)
 
             if "checkout_confirmed" in pinfo:
                 del(pinfo["checkout_confirmed"])
@@ -1719,214 +1575,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             body=body,
             req=req,
             language=ln)
-
-
-    def _ticket_commit_admin(self, req):
-        '''
-        Actual execution of the ticket transactions
-        '''
-        self._clean_ticket(req)
-        session = get_session(req)
-        uid = getUid(req)
-        pinfo = session["personinfo"]
-        ticket = pinfo["ticket"]
-
-        userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
-
-        if "user_ticket_comments" in pinfo:
-            userinfo['comments'] = pinfo["user_ticket_comments"]
-        if "user_first_name" in pinfo:
-            userinfo['firstname'] = pinfo["user_first_name"]
-        if "user_last_name" in pinfo:
-            userinfo['lastname'] = pinfo["user_last_name"]
-        if "user_email" in pinfo:
-            userinfo['email'] = pinfo["user_email"]
-
-        for t in ticket:
-            t['execution_result'] = webapi.execute_action(t['action'], t['pid'], t['bibref'], uid,
-                                                          userinfo['uid-ip'], str(userinfo))
-        session.dirty = True
-
-
-    def _ticket_commit_user(self, req):
-        '''
-        Actual execution of the ticket transactions
-        '''
-        self._clean_ticket(req)
-        session = get_session(req)
-        uid = getUid(req)
-        pinfo = session["personinfo"]
-        ticket = pinfo["ticket"]
-        ok_tickets = []
-
-        userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
-
-        if "user_ticket_comments" in pinfo:
-            userinfo['comments'] = pinfo["user_ticket_comments"]
-        if "user_first_name" in pinfo:
-            userinfo['firstname'] = pinfo["user_first_name"]
-        if "user_last_name" in pinfo:
-            userinfo['lastname'] = pinfo["user_last_name"]
-        if "user_email" in pinfo:
-            userinfo['email'] = pinfo["user_email"]
-
-        for t in list(ticket):
-            if t['status'] in ['granted', 'warning_granted']:
-                t['execution_result'] = webapi.execute_action(t['action'],
-                                                    t['pid'], t['bibref'], uid,
-                                                    userinfo['uid-ip'], str(userinfo))
-                ok_tickets.append(t)
-                ticket.remove(t)
-
-
-        if ticket:
-            webapi.create_request_ticket(userinfo, ticket)
-
-        if CFG_INSPIRE_SITE and ok_tickets:
-            webapi.send_user_commit_notification_email(userinfo, ok_tickets)
-
-        for t in ticket:
-            t['execution_result'] = [(True, ''), ]
-
-        ticket[:] = ok_tickets
-        session.dirty = True
-
-
-    def _ticket_commit_guest(self, req):
-        '''
-        Actual execution of the ticket transactions
-        '''
-        self._clean_ticket(req)
-        session = get_session(req)
-        pinfo = session["personinfo"]
-        uid = getUid(req)
-        userinfo = {'uid-ip': "userid: %s (from %s)" % (uid, req.remote_ip)}
-
-        if "user_ticket_comments" in pinfo:
-            if pinfo["user_ticket_comments"]:
-                userinfo['comments'] = pinfo["user_ticket_comments"]
-            else:
-                userinfo['comments'] = "No comments submitted."
-        if "user_first_name" in pinfo:
-            userinfo['firstname'] = pinfo["user_first_name"]
-        if "user_last_name" in pinfo:
-            userinfo['lastname'] = pinfo["user_last_name"]
-        if "user_email" in pinfo:
-            userinfo['email'] = pinfo["user_email"]
-
-        ticket = pinfo['ticket']
-        webapi.create_request_ticket(userinfo, ticket)
-
-        for t in ticket:
-            t['execution_result'] = [(True, ''), ]
-
-        session.dirty = True
-
-
-    def _ticket_commit(self, ulevel, req):
-        '''
-        Executes/Creates the tickets for the specified user permission level.
-
-        @param ulevel: user permission level
-        @type ulevel: str
-        @param req: apache request object
-        @type req: apache request object
-        '''
-        def ticket_commit_guest(req):
-            self._clean_ticket(req)
-            uid = getUid(req)
-            userinfo = {'uid-ip': "userid: %s (from %s)" % (uid, req.remote_ip)}
-
-            session = get_session(req)
-            pinfo = session["personinfo"]
-            if "user_ticket_comments" in pinfo:
-                if pinfo["user_ticket_comments"]:
-                    userinfo['comments'] = pinfo["user_ticket_comments"]
-                else:
-                    userinfo['comments'] = "No comments submitted."
-            if "user_first_name" in pinfo:
-                userinfo['firstname'] = pinfo["user_first_name"]
-            if "user_last_name" in pinfo:
-                userinfo['lastname'] = pinfo["user_last_name"]
-            if "user_email" in pinfo:
-                userinfo['email'] = pinfo["user_email"]
-
-            ticket = pinfo['ticket']
-            webapi.create_request_ticket(userinfo, ticket)
-
-            for t in ticket:
-                t['execution_result'] = [(True, ''), ]
-
-            session.dirty = True
-
-        def ticket_commit_user(req):
-            self._clean_ticket(req)
-            uid = getUid(req)
-            userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
-
-            session = get_session(req)
-            pinfo = session["personinfo"]
-
-            if "user_ticket_comments" in pinfo:
-                userinfo['comments'] = pinfo["user_ticket_comments"]
-            if "user_first_name" in pinfo:
-                userinfo['firstname'] = pinfo["user_first_name"]
-            if "user_last_name" in pinfo:
-                userinfo['lastname'] = pinfo["user_last_name"]
-            if "user_email" in pinfo:
-                userinfo['email'] = pinfo["user_email"]
-
-            ticket = pinfo["ticket"]
-            ok_tickets = list()
-            for t in list(ticket):
-                if t['status'] in ['granted', 'warning_granted']:
-                    t['execution_result'] = webapi.execute_action(t['action'],
-                                                        t['pid'], t['bibref'], uid,
-                                                        userinfo['uid-ip'], str(userinfo))
-                    ok_tickets.append(t)
-                    ticket.remove(t)
-
-            if ticket:
-                webapi.create_request_ticket(userinfo, ticket)
-
-            if CFG_INSPIRE_SITE and ok_tickets:
-                webapi.send_user_commit_notification_email(userinfo, ok_tickets)
-
-            for t in ticket:
-                t['execution_result'] = [(True, ''), ]
-
-            ticket[:] = ok_tickets
-            session.dirty = True
-
-        def ticket_commit_admin(req):
-            self._clean_ticket(req)
-            uid = getUid(req)
-            userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
-
-            session = get_session(req)
-            pinfo = session["personinfo"]
-
-            if "user_ticket_comments" in pinfo:
-                userinfo['comments'] = pinfo["user_ticket_comments"]
-            if "user_first_name" in pinfo:
-                userinfo['firstname'] = pinfo["user_first_name"]
-            if "user_last_name" in pinfo:
-                userinfo['lastname'] = pinfo["user_last_name"]
-            if "user_email" in pinfo:
-                userinfo['email'] = pinfo["user_email"]
-
-            ticket = pinfo["ticket"]
-            for t in ticket:
-                t['execution_result'] = webapi.execute_action(t['action'], t['pid'], t['bibref'], uid,
-                                                              userinfo['uid-ip'], str(userinfo))
-            session.dirty = True
-
-
-        ticket_commit = {'guest': ticket_commit_guest,
-                         'user': ticket_commit_user,
-                         'admin': ticket_commit_admin}
-
-        return ticket_commit[ulevel](req)
 
 
     def _ticket_dispatch_end(self, req):
@@ -2263,7 +1911,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 pinfo["checkout_confirmed"] = True
 
             session.dirty = True
-            return self.adf['ticket_dispatch'][ulevel](req)
+            return self._ticket_dispatch(ulevel, req)
             # return self._ticket_final_review(req)
 
         if action in ["checkout_remove_transaction"]:
@@ -2276,7 +1924,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             pinfo["checkout_confirmed"] = False
             session.dirty = True
-            return self.adf['ticket_dispatch'][ulevel](req)
+            return self._ticket_dispatch(ulevel, req)
             # return self._ticket_final_review(req)
 
         if action in ["checkout_continue_claiming"]:
@@ -2294,7 +1942,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     del(pinfo["bibref_check_reviewed_bibrefs"])
                     session.dirty = True
 
-                return self.adf['ticket_dispatch'][ulevel](req)
+                return self._ticket_dispatch(ulevel, req)
 
             pinfo["bibref_check_reviewed_bibrefs"] = []
             add_rev = pinfo["bibref_check_reviewed_bibrefs"].append
@@ -2337,7 +1985,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                             add_rev(element + "," + str(bibrec))
             session.dirty = True
 
-            return self.adf['ticket_dispatch'][ulevel](req)
+            return self._ticket_dispatch(ulevel, req)
 
         if not action:
             return self._error_page(req, ln,
@@ -2383,7 +2031,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             # start ticket processing chain
             pinfo["claimpaper_admin_last_viewed_pid"] = pid
             session.dirty = True
-            return self.adf['ticket_dispatch'][ulevel](req)
+            return self._ticket_dispatch(ulevel, req)
             # return self.perform(req, form)
 
         elif action in ['cancel']:
@@ -2403,7 +2051,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return self.search(req, form)
 
         elif action in ['checkout']:
-            return self.adf['ticket_dispatch'][ulevel](req)
+            return self._ticket_dispatch(ulevel, req)
             # return self._ticket_final_review(req)
 
         elif action in ['cancel_rt_ticket', 'commit_rt_ticket']:
@@ -2605,10 +2253,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         return self.search(req, form)
 
 
-    def comments(self, req, form):
-        return ""
-
-
     def _cancel_rt_ticket(self, req, tid, pid):
         '''
         deletes an RT ticket
@@ -2653,7 +2297,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         session.dirty = True
         # start ticket processing chain
         webapi.delete_request_ticket(pid, bibref)
-        return self.adf['ticket_dispatch'][ulevel](req)
+        return self._ticket_dispatch(ulevel, req)
 
 
     def _error_page(self, req, ln=CFG_SITE_LANG, message=None, intro=True):
@@ -2807,9 +2451,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         profiles = []
 
         if 'merge_ticket' not in pinfo and not primary_profile:
-                return page_not_authorized(req, text=_("This page in not accessible directly."))
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
         elif 'merge_ticket' not in pinfo:
-                pinfo['merge_ticket'] = dict()
+            pinfo['merge_ticket'] = dict()
         elif not primary_profile:
             primary_profile = pinfo['merge_ticket']['primary_profile']
         else:
@@ -3188,7 +2832,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             # then we find which of the records that came from the external systems are able( that means that they resolve to a recid and
             # are not currently in user's profile ) to be autoclaimed
-            auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
+            auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids, [])
             req.write(TEMPLATE.tmpl_welcome_autoclaim_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association, auto_claim_paper_list))
             # explain to the user which one is his profile
             req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
@@ -3256,7 +2900,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # we already have a profile! let's claim papers!
         cached_ids_association = webapi.get_cached_id_association(req)
         remote_login_systems_papers = webapi.get_remote_login_systems_ids(req, remote_login_systems_info)
-        auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids)
+        auto_claim_paper_list = webapi.auto_claim_papers(req, pid, recids, [])
         req.write(TEMPLATE.tmpl_welcome_autoclaim_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association, auto_claim_paper_list))
         # explain the user which one is his profile
         req.write(TEMPLATE.tmpl_welcome_personid_association(pid))

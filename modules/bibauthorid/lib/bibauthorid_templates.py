@@ -2712,20 +2712,7 @@ class Template:
 
         html_head = _("<strong> Autoclaim Papers </strong>")
         if not autoclaim_data['hidden']:
-            html_support = _("Here you can see and manage papers that exist in your external system's account and"
-                           " not in INSPIRE's.</br>")
-
-            html_support += '</br><div><a href=%s>Merge profiles</a></div>' % (support_data['merge_link'],)
-            html_support += '<div><a href=%s>Report a problem</a></div>' % (support_data['problem_link'],)
-            html_support += '++++<div><a href=%s>Get help!</a></div>' % (support_data['help_link'],)
-            if loading:
-                html_support = self.loading_html()
-            if add_box:
-                support_box = self.tmpl_print_searchresultbox('support', html_head, html_support)
-                return support_box
-            else:
-                return html_support
-
+            pass
         return None
 
     def tmpl_support_box(self, support_data, ln, add_box=True, loading=True):

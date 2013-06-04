@@ -34,7 +34,7 @@ from cgi import escape
 # Well this is bad, BUT otherwise there must 100+ lines
 # of the form from dbinterface import ...  # emitting
 from invenio.bibauthorid_dbinterface import *  # pylint:  disable-msg=W0614
-
+from invenio.bibauthorid_dbinterface import _get_orcid_id_of_author
 canonical_name_format = re.compile("\S*[.](\d)+$")
 
 

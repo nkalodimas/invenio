@@ -409,7 +409,7 @@ def get_person_request_ticket(pid= -1, tid=None):
     if pid < 0:
         return []
     else:
-        return dbapi.get_validated_request_tickets_for_author(pid, ticket_id=tid)
+        return dbapi.get_validated_request_tickets_for_author(pid, tid)
 
 def get_persons_with_open_tickets_list():
     '''
@@ -1117,12 +1117,11 @@ def get_remote_login_systems_recids(req, remote_logged_in_systems):
     return list(set(remote_login_systems_recids))
 
 def get_cached_id_association(req):
-        session_bareinit(req)
-        session = get_session(req)
-        pinfo = session['personinfo']
+    session_bareinit(req)
+    session = get_session(req)
+    pinfo = session['personinfo']
 
-        return pinfo['external_ids']
-
+    return pinfo['external_ids']
 
 def get_user_pid(uid):
 
@@ -1139,17 +1138,19 @@ def merge_profiles(req, primary_profile, profiles):
         papers = get_papers_by_person_id(get_person_id_from_canonical_id(p))
         if papers:
             for rec_info in papers:
-                records[rec_info[0]] = rec_info[1]
+                records[rec_info[0]] += [rec_info[1]]
 
-    recids
+    recids = []
+    bibrecrefs = []
     for recid in records.keys():
         if len(records[recid]) > 1:
-             recids.append(recid)
+            recids.append(recid)
         else:
-            recids.append(records[recid][0])
-    auto_claim_papers(req, get_person_id_from_canonical_id(primary_profile), recids)
+            bibrecrefs.append(records[recid][0])
+    if recids or bibrecrefs:
+        auto_claim_papers(req, get_person_id_from_canonical_id(primary_profile), list(set(recids)), list(set(bibrecrefs)))
 
-def auto_claim_papers(req, pid, recids):
+def auto_claim_papers(req, pid, recids, bibrecrefs):
 
     session_bareinit(req)
     session = get_session(req)
@@ -1158,10 +1159,12 @@ def auto_claim_papers(req, pid, recids):
     ticket = session['personinfo']['ticket']
 
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
-
+    missing_bibrecs = list(set(recids) - pid_bibrecs)
+    
+    
     #pid_bibrecs = [rec[0], rec[1] for rec in get_papers_by_person_id(pid)]
 
-    missing_bibrecs = list(set(recids) - pid_bibrecs)
+    
     # present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
 
     # assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
@@ -1765,7 +1768,7 @@ def sign_assertion(robotname, assertion):
     return robot.sign(secr, assertion)
 
 def get_orcids_by_pid(pid):
-    orcids = dbapi.get_orcids_by_pids(pid)
+    orcids = dbapi._get_orcid_id_of_author(pid)
 
     return tuple(str(x[0]) for x in orcids)
 
