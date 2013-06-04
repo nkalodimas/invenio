@@ -872,36 +872,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                                               userinfo['uid-ip'], str(userinfo))
             session.dirty = True
 
-<<<<<<< HEAD
-=======
-
-        session = get_session(req)
-        uid = getUid(req)
-        pinfo = session["personinfo"]
-        # ulevel = pinfo["ulevel"]
-        ticket = pinfo["ticket"]
-        
-        if self._is_ticket_review_handling_required(req):
-            self._handle_ticket_review_results(req)
-        else:
-            is_required, needs_review = self._is_ticket_review_required(req)
-            if is_required:
-                return self._ticket_review(req, needs_review)
-            
-        for t in ticket:
-            t['status'] = webapi.check_transaction_permissions(uid,
-                                                               t['bibref'],
-                                                               t['pid'],
-                                                               t['action'])
-        session.dirty = True
-        self._add_user_data_to_ticket(req)
-        
-        if self._can_commit_ticket(req):
-            return self._commit_ticket(req)
-        
-        return self._confirm_valid_ticket(req)
->>>>>>> 417d023947dcd01fd8d7a0bfd0ed07d718259aaf
-
         ticket_commit = {'guest': ticket_commit_guest,
                          'user': ticket_commit_user,
                          'admin': ticket_commit_admin}
