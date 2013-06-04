@@ -258,9 +258,8 @@ else:
 
 class WebInterfaceAdminPages(WebInterfaceDirectory):
     """This class implements /admin2 admin pages."""
-    _exports = ['index', 'bibsched']
-    def index(self, req, form):
-        return "FIXME: return /help/admin content"
+    _exports = ['bibsched']
+
     bibsched = WebInterfaceBibSchedPages()
 
 

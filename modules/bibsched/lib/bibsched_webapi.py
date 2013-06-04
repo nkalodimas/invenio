@@ -18,7 +18,7 @@
 # pylint: disable=C0103
 """Invenio BibSched live view engine implementation"""
 
-from invenio.config import CFG_SITE_URL, CFG_BINDIR, CFG_PREFIX
+from invenio.config import CFG_SITE_URL, CFG_BINDIR
 from invenio.dbquery import run_sql
 from invenio.bibsched import CFG_MOTD_PATH
 
@@ -78,7 +78,7 @@ def get_javascript():
                     </script>
                     <script type="text/javascript" src="%(site_url)s/js/bibsched.js">
                     </script>
-                 """ % {'site_url':CFG_SITE_URL}
+                 """ % {'site_url': CFG_SITE_URL}
     return js_scripts
 
 def get_bibsched_tasks():
@@ -89,15 +89,15 @@ def get_bibsched_tasks():
     other_tasks = run_sql("SELECT id,proc,priority,user,runtime,status,progress\
                            FROM schTASK WHERE status IN ('RUNNING',\
                            'CONTINUING','SCHEDULED','ABOUT TO STOP',\
-                           'ABOUT TO SLEEP', 'DONE WITH ERRORS')")
-    return waiting_tasks + other_tasks
+                           'ABOUT TO SLEEP', 'DONE WITH ERRORS', 'ERRORS REPORTED')")
+    return other_tasks + waiting_tasks
 
 def get_bibsched_mode():
     """
     Gets bibsched running mode: AUTOMATIC or MANUAL
     """
     child_stdout, child_stdin = popen2.popen2("%s status" %
-                                os.path.join(CFG_BINDIR, 'bibsched'))
+                                     os.path.join(CFG_BINDIR, 'bibsched'))
     child_stdin.close()
     output = child_stdout.readlines()
     child_stdout.close()
@@ -118,6 +118,6 @@ def get_motd_msg():
     except IOError:
         return ""
     if len(motd_msg) > 0:
-        return "MOTD [%s] " % time.strftime("%Y-%m-%d %H:%M",time.localtime(os.path.getmtime(CFG_MOTD_PATH))) + motd_msg
+        return "MOTD [%s] " % time.strftime("%Y-%m-%d %H:%M", time.localtime(os.path.getmtime(CFG_MOTD_PATH))) + motd_msg
     else:
         return ""
