@@ -379,7 +379,7 @@ def duplicated_conirmed_papers_exist(printer, repair=False):   ### check_duplica
     @return: duplicated records are found
     @rtype: bool
     '''
-    duplicated_conirmed_papers_exist = False
+    duplicated_conirmed_papers_found = False
     author_confirmed_papers = dict()
     to_reassign = list()
 
@@ -394,7 +394,7 @@ def duplicated_conirmed_papers_exist(printer, repair=False):   ### check_duplica
     for pid, recs in author_confirmed_papers.iteritems():
 
         if not len(recs) == len(set(recs)):
-            duplicated_conirmed_papers_exist = True
+            duplicated_conirmed_papers_found = True
 
             duplicates = sorted(recs)
             duplicates = set([rec for i, rec in enumerate(duplicates[:-1]) if rec == duplicates[i+1]])
@@ -424,7 +424,7 @@ def duplicated_conirmed_papers_exist(printer, repair=False):   ### check_duplica
         from bibauthorid_rabbit import rabbit
         rabbit(to_reassign)
 
-    return duplicated_conirmed_papers_exist
+    return duplicated_conirmed_papers_found
 
 
 def duplicated_confirmed_signatures_exist(printer, repair=False):   # check_duplicated_signatures
@@ -440,7 +440,7 @@ def duplicated_confirmed_signatures_exist(printer, repair=False):   # check_dupl
     @return: duplicated signatures are found
     @rtype: bool
     '''
-    duplicated_confirmed_signatures_exist = False
+    duplicated_confirmed_signatures_found = False
     paper_confirmed_bibrefs = dict()
     to_reassign = list()
 
@@ -455,7 +455,7 @@ def duplicated_confirmed_signatures_exist(printer, repair=False):   # check_dupl
     for rec, bibrefs in paper_confirmed_bibrefs.iteritems():
 
         if not len(bibrefs) == len(set(bibrefs)):
-            duplicated_confirmed_signatures_exist = True
+            duplicated_confirmed_signatures_found = True
 
             duplicates = sorted(bibrefs)
             duplicates = set([bibref for i, bibref in enumerate(duplicates[:-1]) if bibref == duplicates[i+1]])
@@ -482,7 +482,7 @@ def duplicated_confirmed_signatures_exist(printer, repair=False):   # check_dupl
         from bibauthorid_rabbit import rabbit
         rabbit(to_reassign)
 
-    return duplicated_confirmed_signatures_exist
+    return duplicated_confirmed_signatures_found
 
 
 def wrong_names_exist(printer, repair=False):   ### check_wrong_names
@@ -497,11 +497,11 @@ def wrong_names_exist(printer, repair=False):   ### check_wrong_names
     @return: wrong names are found
     @rtype: bool
     '''
-    wrong_names_exist = False
+    wrong_names_found = False
     wrong_names, wrong_names_count = get_wrong_names()
 
     if wrong_names_count > 0:
-        wrong_names_exist = True
+        wrong_names_found = True
         printer("%d corrupted names in aidPERSONIDPAPERS." % wrong_names_count)
         for wrong_name in wrong_names:
             if wrong_name[2]:
@@ -520,7 +520,7 @@ def wrong_names_exist(printer, repair=False):   ### check_wrong_names
                 else:
                     _delete_from_aidpersonidpapers_where(table=wrong_name[0], ref=wrong_name[1])
 
-    return wrong_names_exist
+    return wrong_names_found
 
 
 def impaired_rejections_exist(printer, repair=False):   ### check_wrong_rejection
@@ -536,7 +536,7 @@ def impaired_rejections_exist(printer, repair=False):   ### check_wrong_rejectio
     @return: damaged records are found
     @rtype: bool
     '''
-    impaired_rejections_exist = False
+    impaired_rejections_found = False
     to_reassign = list()
     to_deal_with = list()
 
@@ -566,7 +566,7 @@ def impaired_rejections_exist(printer, repair=False):   ### check_wrong_rejectio
         to_deal_with.append(paper)
 
     if not_assigned_papers or both_confirmed_and_rejected_papers:
-        impaired_rejections_exist = True
+        impaired_rejections_found = True
 
     if repair and (to_reassign or to_deal_with):
         from bibauthorid_rabbit import rabbit
@@ -595,7 +595,7 @@ def impaired_rejections_exist(printer, repair=False):   ### check_wrong_rejectio
             recs = map(itemgetter(3), to_deal_with)
             rabbit(recs)
 
-    return impaired_rejections_exist
+    return impaired_rejections_found
 
 
 def _delete_from_aidpersonidpapers_where(pid=None, table=None, ref=None, rec=None, name=None, flag=None, lcul=None):
@@ -1313,7 +1313,7 @@ def update_external_ids_of_authors(pids=None, overwrite=False, limit_to_claimed_
         if overwrite:
             for ext_system_id in present.keys():
                 for ext_id in present[ext_system_id]:
-                    _remove_external_id_from_author(pid, ext_system_id, value=ext_id)
+                    _remove_external_id_from_author(pid, ext_system_id, ext_id)
             present = dict()
 
         for ext_system_id in collected.keys():
@@ -1966,11 +1966,11 @@ def empty_authors_exist(printer, repair=False):   ### check_empty_personids
     @return: empty authors are found
     @rtype: bool
     '''
-    empty_authors_exist = False
+    empty_authors_found = False
 
     empty_pids = remove_empty_authors(remove=repair)
     if empty_pids:
-        empty_authors_exist = True
+        empty_authors_found = True
 
     for pid in empty_pids:
         printer("Personid %d has no papers and nothing else than canonical_name." % pid)
@@ -1978,7 +1978,7 @@ def empty_authors_exist(printer, repair=False):   ### check_empty_personids
         if repair:
             printer("Deleting empty person %s." % pid)
 
-    return empty_authors_exist
+    return empty_authors_found
 
 
 def remove_empty_authors(remove=True):   ### delete_empty_persons
@@ -2231,7 +2231,7 @@ def impaired_canonical_names_exist(printer, repair=False):   ### check_canonical
     @return: authors with less/more than one canonical name exist
     @rtype: bool
     '''
-    impaired_canonical_names_exist = False
+    impaired_canonical_names_found = False
 
     authors_cnames = _select_from_aidpersoniddata_where(select=['personid', 'data'], tag='canonical_name')
     authors_cnames = sorted(authors_cnames, key=itemgetter(0))
@@ -2246,19 +2246,19 @@ def impaired_canonical_names_exist(printer, repair=False):   ### check_canonical
             if cnames_count == 0:
                 papers_count = _select_from_aidpersonidpapers_where(select=['count(*)'], pid=pid)[0][0]
                 if papers_count != 0:
-                    impaired_canonical_names_exist = True
+                    impaired_canonical_names_found = True
                     printer("Personid %d does not have a canonical name, but has %d papers." % (pid, papers_count))
                     to_update.append(pid)
             else:
-                impaired_canonical_names_exist = True
+                impaired_canonical_names_found = True
                 printer("Personid %d has %d canonical names.", (pid, cnames_count))
                 to_update.append(pid)
 
-    if repair and impaired_canonical_names_exist:
+    if repair and impaired_canonical_names_found:
         printer("Repairing canonical names for pids: %s" % str(to_update))
         update_canonical_names_of_authors(to_update, overwrite=True)
 
-    return impaired_canonical_names_exist
+    return impaired_canonical_names_found
 
 
 def user_can_modify_paper(uid, sig_str):
@@ -2711,16 +2711,16 @@ def duplicated_tortoise_results_exist():   ### check_results
     @return: duplicated records in the disambiguation algorithm results exist
     @rtype: bool
     '''
-    all_ok = True
+    duplicated_tortoise_results_not_found = True
 
     disambiguation_results = run_sql("""select personid, bibref_table, bibref_value, bibrec
                                         from aidRESULTS""")
     keyfunc = lambda x: x[1:]
     disambiguation_results = sorted(disambiguation_results, key=keyfunc)
-    duplicated_results = [list(sig_holders) for sig, sig_holders in groupby(disambiguation_results, key=keyfunc) if len(list(sig_holders)) > 1]
+    duplicated_results = [list(sig_holders) for _, sig_holders in groupby(disambiguation_results, key=keyfunc) if len(list(sig_holders)) > 1]
 
     for duplicates in duplicated_results:
-        all_ok = False
+        duplicated_tortoise_results_not_found = False
         for duplicate in duplicates:
             print "Duplicated row in aidRESULTS"
             print "%s %s %s %s" % duplicate
@@ -2733,7 +2733,7 @@ def duplicated_tortoise_results_exist():   ### check_results
     faulty_clusters = dict((name, len(recs) - len(set(recs))) for name, recs in clusters.items() if not len(recs) == len(set(recs)))
 
     if faulty_clusters:
-        all_ok = False
+        duplicated_tortoise_results_not_found = False
         print "Recids NOT unique in clusters!"
         print ("A total of %s clusters hold an average of %.2f duplicates" %
                (len(faulty_clusters), (sum(faulty_clusters.values()) / float(len(faulty_clusters)))))
@@ -2741,7 +2741,7 @@ def duplicated_tortoise_results_exist():   ### check_results
         for name in faulty_clusters:
             print "Name: %-20s      Size: %4d      Faulty: %2d" % (name, len(clusters[name]), faulty_clusters[name])
 
-    return all_ok
+    return duplicated_tortoise_results_not_found
 
 
 ##########################################################################################
@@ -3520,7 +3520,7 @@ def _truncate_table(table_name):
     @param table_name: name of the table to truncate
     @type table_name: str
     '''
-    run_sql("truncate %s" % table_name)
+    run_sql("""truncate %s""" % table_name)
 
 
 def flush_data_to_db(table_name, column_names, args):   ### flush_data
@@ -3971,7 +3971,7 @@ def populate_table(table_name, column_names, values, empty_table_first=True):
 
     assert values_len % column_num == 0, 'Trying to populate table %s. Wrong number of arguments passed.' % table_name
 
-    for i in range(values_len/column_num):
+    for i in range(int(values_len/column_num)):
         # it keeps the size for each tuple of values
         values_tuple_size.append(sum([len(str(i)) for i in values[i*column_num:i*column_num+column_num]]))
 
