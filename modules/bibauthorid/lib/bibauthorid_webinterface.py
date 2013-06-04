@@ -1040,7 +1040,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                                                t['pid'],
                                                                t['action'])
         session.dirty = True
-        return self._add_user_data_to_ticket(req)
+        self._add_user_data_to_ticket(req)
         
         if self._can_commit_ticket(req):
             return self._commit_ticket(req)
@@ -1479,16 +1479,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if "upid" in pinfo and pinfo["upid"]:
             upid = pinfo["upid"]
         else:
+            pinfo["upid"] = -1
             dbpid = webapi.get_pid_from_uid(uid)
 
             if dbpid and dbpid[1]:
                 if dbpid[0] and not dbpid[0] == -1:
                     upid = dbpid[0][0]
-                    pinfo["upid"] = upid
-                return self._error_page(req, ln,
-                                        "%s" % str(upid))                    
-        return self._error_page(req, CFG_SITE_LANG,
-                    "xafsdfdsxxxxxxxx")
+                    pinfo["upid"] = upid                   
+
         session.dirty = True
 
     def _can_commit_ticket(self, req):
