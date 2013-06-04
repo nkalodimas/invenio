@@ -1110,11 +1110,11 @@ class BibSched(object):
                 if t[1].startswith('bibupload') and t[3] != 'SLEEPING':
                     to_sleep.append(t)
 
+        active_tasks = [t for t in self.node_relevant_active_tasks if t[5] == self.hostname]
         # Only needed if we are not freeing a spot already
         # So to_stop and to_sleep should be empty
         if not to_stop and not to_sleep and \
-                len(self.node_relevant_active_tasks) == \
-                                      CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS:
+                len(active_tasks) == CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS:
             min_task = minimum_priority_task(task_set)
             if min_task:
                 to_sleep = [min_task]
@@ -1266,7 +1266,7 @@ class BibSched(object):
                     return False
 
             procname = proc.split(':')[0]
-            if not tasks_to_stop and not tasks_to_sleep and len(self.node_relevant_active_tasks) < CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS:
+            if not tasks_to_stop and not tasks_to_sleep:
                 if proc in CFG_BIBTASK_MONOTASKS and self.active_tasks_all_nodes:
                     if debug:
                         Log("Cannot run because this is a monotask and there are other tasks running: %s" % (self.node_relevant_active_tasks, ))
