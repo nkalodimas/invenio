@@ -371,7 +371,7 @@ def fetch_arxiv_version(recid):
                                     identifier='oai:arXiv.org:%s' % arxiv_id)
         # We pass one arxiv id, we are assuming a single response file
         tree = minidom.parse(responses[0])
-        version_tag = tree.getElementsByTagName('version')[0]
+        version_tag = tree.getElementsByTagName('version')[-1]
         version = version_tag.getAttribute('version')
         for file_path in responses:
             os.unlink(file_path)
