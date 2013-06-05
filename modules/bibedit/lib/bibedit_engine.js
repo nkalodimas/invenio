@@ -1037,7 +1037,7 @@ function compareFields(fieldId, indicators, fieldPos, field1, field2){
       } else
       {
         // in case where gRec subfield is normal and HP record's subfield is volatile ignore it
-        if ( (field1[sfPos][1] != field2[sfPos][1]) && (field2[sfPos][1].substring(0,9) != "VOLATILE:")){
+        if ( (field1[sfPos][1].toLowerCase() != field2[sfPos][1].toLowerCase()) && (field2[sfPos][1].substring(0,9) != "VOLATILE:")){
           result.push({"change_type" : "subfield_changed",
             "tag" : fieldId,
             "indicators" : indicators,
@@ -1048,7 +1048,7 @@ function compareFields(fieldId, indicators, fieldPos, field1, field2){
 
         }
         // in case where both gRec and HP record's subfield is volatile ignore them
-        else if ( (field1[sfPos][1] == field2[sfPos][1]) && (field1[sfPos][1].substring(0,9) != "VOLATILE:")) {
+        else if ( (field1[sfPos][1].toLowerCase() == field2[sfPos][1].toLowerCase()) && (field1[sfPos][1].substring(0,9) != "VOLATILE:")) {
           result.push({"change_type" : "subfield_same",
             "tag" : fieldId,
             "indicators" : indicators,
