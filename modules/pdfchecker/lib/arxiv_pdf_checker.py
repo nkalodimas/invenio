@@ -25,6 +25,7 @@ Checks arxiv records for missing pdfs and downloads them from arXiv
 
 import os
 import time
+import re
 from tempfile import NamedTemporaryFile
 from datetime import datetime
 from xml.dom import minidom
@@ -60,7 +61,7 @@ from invenio import oai_harvest_daemon
 
 NAME = 'arxiv-pdf-checker'
 ARXIV_URL_PATTERN = "http://export.arxiv.org/pdf/%sv%s.pdf"
-
+ARXIV_VERSION_PATTERN = re.compile(ur'v\d$', re.UNICODE)
 
 STATUS_OK = 'ok'
 STATUS_MISSING = 'missing'
@@ -110,7 +111,8 @@ def extract_arxiv_ids_from_recid(recid):
             # Extract arxiv id
             if report_number.startswith('arXiv'):
                 report_number = report_number.split(':')[1]
-
+            if ARXIV_VERSION_PATTERN.search(report_number):
+                report_number = report_number[:-2]
             yield report_number
 
 
