@@ -351,24 +351,55 @@ def download_one(recid, version):
         bibupload_ffts(ffts, append=False, interactive=False)
 
 
-def fetch_arxiv_version(recid):
-    repositories = get_oai_src(params={'name': 'arxiv'})
+
+def oai_harvest_query(arxiv_id, prefix='arXivRaw', verb='GetRecord',
+                      max_retries=5, repositories=[]):
+
+    if not repositories:
+        repositories.extend(get_oai_src(params={'name': 'arxiv'}))
+
     try:
         repository = repositories[0]
     except IndexError:
         raise Exception('arXiv repository information missing from database')
+
+    harvestpath = os.path.join(CFG_TMPDIR, "arxiv-pdf-checker-oai-")
+
+    def get():
+        return oai_harvest_daemon.oai_harvest_get(
+                                    prefix=prefix,
+                                    baseurl=repository['baseurl'],
+                                    harvestpath=harvestpath,
+                                    verb=verb,
+                                    identifier='oai:arXiv.org:%s' % arxiv_id)
+    for retry_count in range(1, max_retries + 1):
+        try:
+            responses = get()
+        except (socket.timeout, socket.error):
+            write_message('socket error, arxiv is down?')
+        else:
+            if responses:
+                break
+            else:
+                write_message('no responses from oai server')
+
+        if retry_count <= 2:
+            write_message('sleeping for 10s')
+            time.sleep(10)
+        else:
+            write_message('sleeping for 30 minutes')
+            time.sleep(1800)
+
+    return responses
+
+def fetch_arxiv_version(recid):
 
     for count, arxiv_id in enumerate(extract_arxiv_ids_from_recid(recid)):
         if count != 0:
             write_message("Warning: %s has multiple arxiv #" % recid)
             continue
 
-        responses = oai_harvest_daemon.oai_harvest_get(
-                                    prefix='arXivRaw',
-                                    baseurl=repository['baseurl'],
-                                    harvestpath=os.path.join(CFG_TMPDIR, "arxiv-pdf-checker-oai-"),
-                                    verb='GetRecord',
-                                    identifier='oai:arXiv.org:%s' % arxiv_id)
+        responses = oai_harvest_query(arxiv_id)
         # We pass one arxiv id, we are assuming a single response file
         tree = minidom.parse(responses[0])
         version_tag = tree.getElementsByTagName('version')[-1]
@@ -471,21 +502,22 @@ def task_run_core(name=NAME):
         write_message('processing %s' % recid, verbose=9)
         try:
             process_one(recid)
+            time.sleep(3)
         except AlreadyHarvested:
             write_message('already harvested successfully')
+            time.sleep(1)
         except FoundExistingPdf:
             write_message('pdf already attached (matching md5)')
+            time.sleep(3)
         except PdfNotAvailable:
             write_message("no pdf available")
+            time.sleep(20)
         except InvenioFileDownloadError, e:
             write_message("failed to download: %s" % e)
+            time.sleep(20)
 
         if mod_date:
             store_last_updated(recid, start_date, name)
-
-        # To prevent overloading arxiv
-        if count + 1 != len(recids):
-            time.sleep(60)
 
     return True
 
