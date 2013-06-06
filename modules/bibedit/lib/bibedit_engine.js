@@ -1042,6 +1042,7 @@ function compareFields(fieldId, indicators, fieldPos, field1, field2){
             "tag" : fieldId,
             "indicators" : indicators,
             "field_position" : fieldPos,
+            "field_content" : field2,
             "subfield_position" : sfPos,
             "subfield_code" : field2[sfPos][0],
             "subfield_content" : field2[sfPos][1]});

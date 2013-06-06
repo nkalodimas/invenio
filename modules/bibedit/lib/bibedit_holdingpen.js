@@ -604,8 +604,7 @@ function getFullFieldContentFromHPChange(changeNo){
       content based on the HP change entry.
       The record content might be retrieved from the following
       types of Holdin Pen changes:
-        subfield_changed: a field that contains only one subfield
-                          (the one that has been changed)
+        subfield_changed: a field containing all the new content
         field_changed:    a field containing all the new content
         field_added:      a field containing all the new content
 
@@ -636,11 +635,8 @@ function getFullFieldContentFromHPChange(changeNo){
   result.tag = gHoldingPenChanges[changeNo].tag;
   result.ind1 = (indicators[0] == '_') ? " " : indicators[0];
   result.ind2 = (indicators[1] == '_') ? " " : indicators[1];
-  if (chT == "subfield_changed"){
-    result.subfields = [[gHoldingPenChanges[changeNo].subfield_code,
-                         gHoldingPenChanges[changeNo].subfield_content]];
-  }
-  if (chT == "field_added" || chT == "field_changed"){
+
+  if (chT == "field_added" || chT == "field_changed" || chT == "subfield_changed"){
     result.subfields = subfields = gHoldingPenChanges[changeNo].
       field_content;
   }
@@ -853,9 +849,6 @@ function applyFieldAdded(changeNo){
     addUndoOperation(undoHandler);
     data.undoRedo = undoHandler;
 
-    // createReq(data, function(json){
-    //   updateStatus('report', gRESULT_CODES[json['resultCode']]);
-    // });
     queue_request(data);
     // now adding appropriate controls to the interface
     removeViewedChange(changeNo);
