@@ -195,6 +195,9 @@ TICKET_SENDING_FROM_USER_EMAIL = True
 NAMES_SEPARATOR_CHARACTER_LIST = ",;.=\-\(\)"
 SURNAMES_SEPARATOR_CHARACTER_LIST = ",;"
 
+# create new profile required
+CREATE_NEW_PERSON = -3
+
 #Dict which lists which external identifiers  can be stored on a person profile page, and maps them
 #with their representation in aidPERSONIDDATA
 PERSONID_EXTERNAL_IDENTIFIER_MAP = {'Inspire': 'INSPIREID', 'Orcid': 'ORCID'}

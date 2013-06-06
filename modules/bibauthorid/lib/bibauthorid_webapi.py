@@ -1150,62 +1150,18 @@ def merge_profiles(req, primary_profile, profiles):
     if recids or bibrecrefs:
         auto_claim_papers(req, get_person_id_from_canonical_id(primary_profile), list(set(recids)), list(set(bibrecrefs)))
 
-def auto_claim_papers(req, pid, recids, bibrecrefs):
+def auto_claim_papers(req, pid, recids):
 
     session_bareinit(req)
     session = get_session(req)
-
-
     ticket = session['personinfo']['ticket']
-    
-    recids_from_bibrecrefs = [ bibrec.split(',')[1] for bibrecref in bibrecrefs]
-    recids = list(set (recids) - set(recids_from_bibrecrefs))
     
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
     missing_bibrecs = list(set(recids) - pid_bibrecs)
-    missing_bibrecrefs = [bibrecref for bibrecref in bibrecrefs if bibrecref.split(',')[1] not in pid_bibrecs]
     
-    #pid_bibrecs = [rec[0], rec[1] for rec in get_papers_by_person_id(pid)]
+    add_tickets(pid, missing_bibrecs, 'confirm')
 
     
-    # present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
-
-    # assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
-
-    temp_recids_ticket = []
-    temp_bibrecrefs_ticket = []
-    # now we have to open the tickets...
-    # person_papers contains the papers which are already assigned to the person and came from arxive,
-    # they can be claimed regardless
-    for bibrec in missing_bibrecs:
-        temp_recids_ticket.append({'pid':pid, 'bibref':str(bibrec), 'action':'confirm', 'autoclaim':True})
-
-    for bibrecref in missing_bibrecrefs:
-        temp_bibrecrefs_ticket.append({'pid':pid, 'bibref':bibrecref, 'action':'confirm', 'autoclaim':True})
-        
-    # check if ticket targets (bibref for pid) are already in ticket
-    for t in list(temp_recids_ticket):
-        for e in list(ticket):
-            if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
-                ticket.remove(e)
-        ticket.append(t)
-    
-    for t in list(temp_bibrecrefs_ticket):
-        for e in list(ticket):
-            # if there is already the same bibrecref
-            if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
-                ticket.remove(e)
-            # if there is already the recid of our bibrecref 
-            elif e['pid'] == t['pid'] and e['bibref'] == t['bibref'].split(',')[1]:
-                ticket.remove(e)
-            # if there is already a bibrecref with same recid but with different signature 
-            elif e['pid'] == t['pid'] and len(e['bibref'].split(',')) == 2 and e['bibref'].split(',')[1] == t['bibref'].split(',')[1]:
-                ticket.remove(e)
-
-        ticket.append(t)
-
-    session.dirty = True
-    return tempticket
 
 def get_name_variants_list_from_remote_systems_names(remote_login_systems_info):
     name_variants = []
@@ -1728,8 +1684,8 @@ def execute_action(action, pid, bibref, uid, userinfo='', comment=''):
 
     if not action in ['confirm', 'assign', 'repeal', 'reset']:
         return None
-    elif pid == -3:
-        pid = dbapi.create_new_author_by_uid(uid, uid_is_owner=False)
+    elif pid == bconfig.CREATE_NEW_PERSON:
+        pid = create_new_person(uid, uid_is_owner=False)
     elif pid < 0:
         return None
     elif not is_valid_bibref(bibref):
@@ -1800,6 +1756,41 @@ def get_person_info_by_pid(pid):
     person_info['name'] = most_relevant_name(name_variants)
     person_info['canonical_name'] = get_canonical_id_from_person_id(pid)
     return person_info
+
+############################################
+#           Ticket Functions               #
+############################################
+
+def add_tickets(pid, bibrefs, action):
+    # the user wanted to create a new person to resolve the tickets to it 
+    if pid == bconfig.CREATE_NEW_PERSON:
+        pid = webapi.create_new_person(uid)
+
+    for bibref in bibrefs:
+        tempticket.append({'pid': pid, 'bibref': bibref, 'action': action})
+
+    # check if ticket targets (bibref for pid) are already in ticket
+    for t in tempticket:
+        tempticket_is_valid_bibref = is_valid_bibref(t['bibref'])
+        for e in list(ticket):
+            ticket_is_valid_bibref = is_valid_bibref(e['bibref'])
+            # if they are the same leave ticket as it is and continue to the next tempticket
+            if e['bibref'] == t['bibref']:
+                break
+            # if we are comparing two different bibrefrecs with the same recids we remove the current bibrefrec and we add their recid
+            elif tempticket_is_valid_bibref and ticket_is_valid_bibref and t['bibref'].split(',')[1] == e['bibref'].split(',')[1]:
+                ticket.remove(e)
+                ticket.append({'pid': pid, 'bibref': t['bibref'].split(',')[1], 'action': action})
+                break
+            elif is_valid_bibref(e['bibref']) and e['bibref'] == t['bibref'].split(',')[1]:
+                break
+            elif is_valid_bibref(t['bibref']) and t['bibref'] == e['bibref'].split(',')[1]:
+                ticket.remove(e)
+                ticket.append(t)
+                break
+            
+
+
 
 REMOTE_LOGIN_SYSTEMS_FUNCTIONS = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
 IS_LOGGED_IN_THROUGH = {'arXiv': is_logged_in_through_arxiv, 'orcid': is_logged_in_through_orcid}

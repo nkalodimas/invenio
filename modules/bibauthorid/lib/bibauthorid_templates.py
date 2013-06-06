@@ -33,7 +33,7 @@ from invenio.config import CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL
 from invenio.bibformat import format_record
 from invenio.session import get_session
 from invenio.search_engine_utils import get_fieldvalues
-from invenio.bibauthorid_config import PERSONID_EXTERNAL_IDENTIFIER_MAP
+from invenio.bibauthorid_config import PERSONID_EXTERNAL_IDENTIFIER_MAP, CREATE_NEW_PERSON
 from invenio.bibauthorid_webapi import get_person_redirect_link, get_canonical_id_from_person_id, get_person_names_from_id
 from invenio.bibauthorid_webapi import get_external_ids_of_author
 from invenio.bibauthorid_frontinterface import get_uid_of_author
@@ -1590,7 +1590,7 @@ class Template:
     def tmpl_assigning_search_new_person_generator(self, bibrefs):
         def stub():
             text = self._("Create a new Person")
-            link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, '-3')
+            link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, str(CREATE_NEW_PERSON))
 
             for r in bibrefs:
                 link = link + '&selection=%s' % str(r)
@@ -1864,7 +1864,7 @@ class Template:
                                  "<a rel='nofollow' href=\"mailto:%s\">%s</a>.</strong>") % (query, authemail, authemail))
             h('</div>')
             if new_person_link:
-                link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, '-3')
+                link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, str(CREATE_NEW_PERSON))
                 if search_ticket:
                     for r in search_ticket['bibrefs']:
                         link = link + '&selection=%s' % str(r)
@@ -2020,7 +2020,7 @@ class Template:
         h('</table>')
 
         if new_person_link:
-            link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, '-3')
+            link = "%s/person/action?confirm=True&pid=%s" % (CFG_SITE_URL, str(CREATE_NEW_PERSON))
             if search_ticket:
                 for r in search_ticket['bibrefs']:
                     link = link + '&selection=%s' % str(r)
