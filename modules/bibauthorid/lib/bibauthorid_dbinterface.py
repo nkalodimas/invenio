@@ -3325,7 +3325,7 @@ def get_signatures_from_bibrefs(bibrefs):
     @rtype: iterator ((int, int, int),)
     '''
     sig10x = tuple()
-    bib10x = ifilter(lambda x: x[0] == 100, bibrefs)
+    bib10x = filter(lambda x: x[0] == 100, bibrefs)
     if bib10x:
         bib10x_sqlstr = _get_sqlstr_from_set(bib10x, lambda x: x[1])
         sig10x = run_sql("""select 100, id_bibxxx, id_bibrec
@@ -3334,7 +3334,7 @@ def get_signatures_from_bibrefs(bibrefs):
                             % bib10x_sqlstr )
 
     sig70x = tuple()
-    bib70x = ifilter(lambda x: x[0] == 700, bibrefs)
+    bib70x = filter(lambda x: x[0] == 700, bibrefs)
     if bib70x:
         bib70x_sqlstr = _get_sqlstr_from_set(bib70x, lambda x: x[1])
         sig70x = run_sql("""select 700, id_bibxxx, id_bibrec
@@ -3344,7 +3344,7 @@ def get_signatures_from_bibrefs(bibrefs):
 
     valid_recs = set(get_all_valid_papers())
 
-    return ifilter(lambda x: x[2] in valid_recs, chain(set(sig10x), set(sig70x)))
+    return filter(lambda x: x[2] in valid_recs, chain(set(sig10x), set(sig70x)))
 
 
 def get_resolved_affiliation(ambiguous_aff):   ### resolve_affiliation
