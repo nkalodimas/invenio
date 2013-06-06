@@ -175,6 +175,7 @@ def confirm_papers_to_author(pid, sigs_str, user_level=0):   ### confirm_papers_
     @type sigs_str: list [(str),]
     @param user_level: lcul
     @type user_level: int
+
     @return: confirmation status and message key for each signature [(status, message_key),]
     @rtype: list [(bool, str),]
     '''
@@ -276,6 +277,7 @@ def reject_papers_from_author(pid, sigs_str, user_level=0):   ### reject_papers_
     @type sigs_str: list [(str),]
     @param user_level: lcul
     @type user_level: int
+
     @return: confirmation status and message key for each signature [(status, message_key),]
     @rtype: list [(bool, str),]
     '''
@@ -320,6 +322,7 @@ def reset_papers_of_author(pid, sigs_str):   ### reset_papers_flag
     @type pid: int
     @param sigs_str: signatures to reset (e.g. [('100:7531,9024'),] )
     @type sigs_str: list [(str),]
+
     @return: confirmation status and message key for each signature [(status, message_key),]
     @rtype: list [(bool, str),]
     '''
@@ -376,6 +379,7 @@ def duplicated_conirmed_papers_exist(printer, repair=False):   ### check_duplica
     @type printer: func
     @param repair: fix the duplicated records
     @type repair: bool
+
     @return: duplicated records are found
     @rtype: bool
     '''
@@ -437,6 +441,7 @@ def duplicated_confirmed_signatures_exist(printer, repair=False):   # check_dupl
     @type printer: func
     @param repair: fix the duplicated signatures
     @type repair: bool
+
     @return: duplicated signatures are found
     @rtype: bool
     '''
@@ -494,6 +499,7 @@ def wrong_names_exist(printer, repair=False):   ### check_wrong_names
     @type printer: func
     @param repair: fix the found wrong names
     @type repair: bool
+
     @return: wrong names are found
     @rtype: bool
     '''
@@ -533,6 +539,7 @@ def impaired_rejections_exist(printer, repair=False):   ### check_wrong_rejectio
     @type printer: func
     @param repair: fix the damaged records
     @type repair: bool
+
     @return: damaged records are found
     @rtype: bool
     '''
@@ -679,6 +686,7 @@ def get_papers_of_author(pid, claimed_only=False, include_rejected=False):   ###
     @type claimed_only: bool
     @param include_rejected: include rejected papers (only when claimed_only flag is enabled)
     @type include_rejected: bool
+
     @return: paper identifiers
     @rtype: set set((int),)
     '''
@@ -699,6 +707,7 @@ def get_confirmed_papers_of_authors(pids):   ### get_all_papers_of_pids
 
     @param pids: author identifiers
     @type pids: list [int,]
+
     @return: records ((personid, bibref_table, bibref_value, bibrec, flag),)
     @rtype: generator ((int, str, int, int, int),)
     '''
@@ -720,6 +729,7 @@ def get_confirmed_papers_of_author(pid):   ### get_person_bibrecs
 
     @param pid: author identifier
     @type pid: int
+
     @return: paper identifiers
     @rtype: list [int,]
     '''
@@ -739,6 +749,7 @@ def get_claimed_papers_of_author(pid):   ### get_claimed_papers
 
     @param pid: author identifier
     @type pid: int
+
     @return: signatures ((bibref_table, bibref_value, bibrec),)
     @rtype: tuple ((str, int, int),)
     '''
@@ -755,6 +766,7 @@ def get_claimed_papers_from_papers(recs):
 
     @param recs: paper identifiers
     @type recs: frozenset frozenset(int,)
+
     @return: claimed paper identifiers
     @rtype: tuple ((int),)
     '''
@@ -773,6 +785,7 @@ def get_signatures_of_paper(rec):   ### get_signatures_from_rec
 
     @param rec: paper identifier
     @type rec: int
+
     @return: records with the given paper identifier ((pid, bibref_table, bibref_value, bibrec, name),)
     @rtype: tuple ((int, str, int, int, str),)
     '''
@@ -785,6 +798,7 @@ def get_status_of_signature(sig_str):   ### get_bibref_modification_status
 
     @param sig_str: signature (e.g. '100:7531,9024')
     @type sig_str: str
+
     @return: author-paper association status (flag, lcul)
     @rtype: tuple (int, int)
     '''
@@ -809,6 +823,7 @@ def get_author_and_status_of_signature(sig_str):   ### get_papers_status
 
     @param sig_str: signature (e.g. '100:7531,9024')
     @type sig_str: str
+
     @return: author identifiers and the author-paper association status [(bibref_table, bibref_value, bibrec), personid, flag]
     @rtype: list [[(str, int, int), int, int)],]
     '''
@@ -827,6 +842,7 @@ def get_ordered_author_and_status_of_signature(sig):   ### get_signature_info
 
     @param sig: signature (bibref_table, bibref_value, bibrec)
     @type sig: tuple (str, int, int)
+
     @return: author identifier and author-paper association status
     @rtype: tuple ((int, int),)
     '''
@@ -846,6 +862,7 @@ def get_author_and_status_of_confirmed_paper(sig):   ### personid_from_signature
 
     @param sig: signature (bibref_table, bibref_value, bibrec)
     @type sig: tuple (str, int, int)
+
     @return: author identifier and author-paper association status
     @rtype: tuple ((int, int),)
     '''
@@ -869,6 +886,7 @@ def get_author_info_of_confirmed_paper(sig):   ### personid_name_from_signature
 
     @param sig: signature (bibref_table, bibref_value, bibrec)
     @type sig: tuple (str, int, int)
+
     @return: author identifier and author name
     @rtype: tuple ((int, str),)
     '''
@@ -892,6 +910,7 @@ def get_authors_of_claimed_paper(rec):   ### get_personids_from_bibrec
 
     @param rec: paper identifier
     @type rec: int
+
     @return: author identifiers
     @rtype: set set(int,)
     '''
@@ -945,6 +964,7 @@ def get_names_count_of_author(pid):   ### get_person_names_count
 
     @param pid: author identifier
     @type pid: int
+
     @return: set of names and times each name appears
     @rtype: set set((int, str),)
     '''
@@ -971,6 +991,7 @@ def _get_external_ids_from_papers_of_author(pid, limit_to_claimed_papers=False):
     @type pid: int
     @param limit_to_claimed_papers: take into account only claimed papers
     @type limit_to_claimed_papers: bool
+
     @return: mapping
     @rtype: dict {str: set(str,)}
     '''
@@ -989,8 +1010,11 @@ def _get_external_ids_from_papers_of_author(pid, limit_to_claimed_papers=False):
                           (pid, flag) )
         inspire_ids = set()
         for sig in sigs:
-            inspire_id = get_inspire_id_of_signature(sig)[0]
-            if inspire_id:
+            try:
+                inspire_id = get_inspire_id_of_signature(sig)[0]
+            except IndexError:
+                inspire_id = None
+            if inspire_id is not None:
                 inspire_ids.add(inspire_id)
 
         external_ids[bconfig.PERSONID_EXTERNAL_IDENTIFIER_MAP['Inspire']] = inspire_ids
@@ -1007,6 +1031,7 @@ def get_validated_request_tickets_for_author(pid, tid=None):   ### get_validated
     @type pid: int
     @param tid: ticket identifier
     @type tid: int
+
     @return: validated request tickets (e.g. [[[('confirm', '100:7531,9024'), ('repeal', '100:7532,9025')], 1L],])
     @rtype: list [[[(str, str),], int],]
     '''
@@ -1040,6 +1065,7 @@ def get_authors_by_name_regexp(name_regexp):   ### get_all_personids_by_name
 
     @param name_regexp: SQL regular expression
     @type name_regexp: str
+
     @return: authors whose name satisfies the regexp ((personid, name),)
     @rtype: tuple ((int, str),)
     '''
@@ -1056,6 +1082,7 @@ def get_authors_by_name(name):   ### find_pids_by_exact_name
 
     @param name: author name
     @type name: str
+
     @return: author identifiers
     @rtype: set set((int),)
     '''
@@ -1098,6 +1125,7 @@ def get_author_to_papers_mapping(recs, limit_by_name=None):   ### get_personids_
     @type recs: list [int,]
     @param limit_by_name: author surname
     @type limit_by_name: str
+
     @return: mapping
     @rtype: list [(int, set(int,)),]
     '''
@@ -1143,6 +1171,7 @@ def get_author_to_confirmed_names_mapping(since=None):   ### get_all_modified_na
 
     @param since: consider only authors with modified records after this date
     @type since: str
+
     @return: mapping
     @rtype: generator ((int, set([str,], int)),)
     '''
@@ -1202,6 +1231,7 @@ def get_author_paper_associations(table_name='aidPERSONIDPAPERS'):   ### get_ful
 
     @param table_name: name of the table with the author-paper associations
     @type table_name: str
+
     @return: author-paper associations ((pid, bibref_table, bibref_value, bibrec, name, flag, lcul),)
     @rtype: tuple ((int, str, int, int, str, int, int),)
     '''
@@ -1243,6 +1273,7 @@ def get_signatures_of_paper_and_author(sig, pid):   ### find_conflicts
     @type sig: tuple (int, int, int)
     @param pid: author identifier
     @type pid: int
+
     @return: confirmed signatures
     @rtype: tuple ((bibref_table, bibref_value, bibrec, flag),)
     '''
@@ -1263,6 +1294,7 @@ def paper_affirmed_from_user_input(pid, sig_str):   ### person_bibref_is_touched
     @type pid: int
     @param sig_str: signature (e.g. '100:7531,9024')
     @type sig_str: str
+
     @return: author and signature association is affirmed from user input
     @rtype: bool
     '''
@@ -1349,6 +1381,7 @@ def _select_from_aidpersonidpapers_where(select=None, pid=None, table=None, ref=
     @type flag: int
     @param lcul: lcul
     @type lcul: int
+
     @return: given fields of the records with the specified attributes
     @rtype: tuple
     '''
@@ -1628,6 +1661,7 @@ def get_author_data(pid, tag):   ### get_personid_row
     @type pid: int
     @param tag: data tag
     @type tag: str
+
     @return: records ((data, opt1, opt2, opt3, data),)
     @rtype: tuple ((str, int, int, str, str),)
     '''
@@ -1640,6 +1674,7 @@ def get_canonical_name_of_author(pid):   ### get_canonical_id_from_personid - ge
 
     @param pid: author identifier
     @type pid: int
+
     @return: canonical name
     @rtype: tuple ((str),)
     '''
@@ -1653,6 +1688,7 @@ def get_uid_of_author(pid):   ### get_uid_from_personid
 
     @param pid: author identifier
     @type pid: int
+
     @return: user identifier
     @rtype: str
     '''
@@ -1671,6 +1707,7 @@ def get_external_ids_of_author(pid):   ### get_personiID_external_ids
 
     @param pid: author identifier
     @type pid: int
+
     @return: mapping {ext_system: [ext_id,]}
     @rtype: dict {str: [str,]}
     '''
@@ -1697,6 +1734,7 @@ def get_request_tickets_for_author(pid, tid=None):   ### get_request_ticket
     @type pid: int
     @param tid: ticket identifier
     @type tid: int
+
     @returns: request tickets [[[(tag, value)], tid],]
     @rtype: list [[[(str, str)], int],]
     '''
@@ -1725,6 +1763,7 @@ def get_authors_by_canonical_name_regexp(cname_regexp):   ### get_personids_by_c
 
     @param cname_regexp: SQL regular expression
     @type cname_regexp: str
+
     @return: author identifiers and their canonical name ((pid, canonical_name),)
     @rtype: tuple ((int, str),)
     '''
@@ -1741,6 +1780,7 @@ def get_authors_by_canonical_name(cname):   ### get_person_id_from_canonical_id
 
     @param cname: canonical name
     @type cname: str
+
     @return: author identifier ((pid),)
     @rtype: tuple ((int),)
     '''
@@ -1754,6 +1794,7 @@ def get_author_by_uid(uid):   ### get_personid_from_uid
 
     @param uid: user identifier
     @type uid: tuple ((int),)
+
     @return: author identifier ((pid), uid_owner_exists)
     @rtype: tuple ((int), bool)
     '''
@@ -1774,6 +1815,7 @@ def get_author_by_external_id(ext_id, ext_sys=None):   ### get_person_with_extid
     @type ext_id: str
     @param ext_sys: external system
     @type ext_sys: str
+
     @return: author identifiers set(pid,)
     @rtype: set set(int,)
     '''
@@ -1807,6 +1849,7 @@ def get_author_data_associations(table_name="`aidPERSONIDDATA`"):   ### get_full
 
     @param table_name: name of the table with the author-data associations
     @type table_name: str
+
     @return: author-data associations ((pid, tag, data, opt1, opt2, opt3),)
     @rtype: tuple ((int, str, str, int, int, str),)
     '''
@@ -1821,6 +1864,7 @@ def _get_inspire_id_of_author(pid):   ### get_inspire_ids_by_pids
 
     @param pid: author identifier
     @type pid: int
+
     @return: Inspire external identifier
     @rtype: tuple ((str),)
     '''
@@ -1833,6 +1877,7 @@ def _get_orcid_id_of_author(pid):   ### get_orcids_by_pids
 
     @param pid: author identifier
     @type pid: int
+
     @return: ORCID external identifier
     @rtype: tuple ((str),)
     '''
@@ -1849,6 +1894,7 @@ def create_new_author_by_uid(uid=-1, uid_is_owner=False):   ### create_new_perso
     @type uid: int
     @param uid_is_owner: the author will hold the user identifier as owner, otherwise as creator
     @type uid_is_owner: bool
+
     @return: author identifier
     @rtype: int
     '''
@@ -1875,6 +1921,7 @@ def user_can_modify_data_of_author(uid, pid):   ### user_can_modify_data
     @type uid: int
     @param pid: author identifier
     @type pid: int
+
     @return: user can modify data
     @rtype: bool
     '''
@@ -1907,6 +1954,7 @@ def _select_from_aidpersoniddata_where(select=None, pid=None, tag=None, data=Non
     @type opt2: int
     @param opt3: opt3
     @type opt3: str
+
     @return: given fields of the records with the specified attributes
     @rtype: tuple
     '''
@@ -1963,6 +2011,7 @@ def empty_authors_exist(printer, repair=False):   ### check_empty_personids
     @type printer: func
     @param repair: delete empty authors
     @type repair: bool
+
     @return: empty authors are found
     @rtype: bool
     '''
@@ -1989,6 +2038,7 @@ def remove_empty_authors(remove=True):   ### delete_empty_persons
 
     @param remove: delete empty authors
     @type remove: bool
+
     @return: empty author identifiers set(pid,)
     @rtype: set set(int,)
     '''
@@ -2120,6 +2170,7 @@ def get_existing_authors(with_papers_only=False):   ### get_existing_personids
 
     @param with_papers_only: only authors with papers
     @type with_papers_only: bool
+
     @return: author identifiers set(pid,)
     @rtype: set set(int,)
     '''
@@ -2154,6 +2205,7 @@ def get_data_of_papers(recs, with_alt_names=False, with_all_author_papers=False)
     @type with_alt_names: bool
     @param with_all_author_papers: include all papers for each author
     @type with_all_author_papers: bool
+
     @return: data of the specified papers
     @rtype: tuple ({int: [int,]}, {int: {'str': str,}})
     '''
@@ -2228,6 +2280,7 @@ def impaired_canonical_names_exist(printer, repair=False):   ### check_canonical
     @type printer: func
     @param repair: fix authors with less/more than one canonical name
     @type repair: bool
+
     @return: authors with less/more than one canonical name exist
     @rtype: bool
     '''
@@ -2271,6 +2324,7 @@ def user_can_modify_paper(uid, sig_str):
     @type: int
     @param sig_str: signature in a string form e.g. '100:7531,9024'
     @type sig_str: str
+
     @return: user can modify paper attribution
     @rtype: bool
     '''
@@ -2377,6 +2431,7 @@ def get_papers_affected_since(since):   ### personid_get_recids_affected_since
 
     @param since: consider changes after the specified timestamp
     @type since: datetime.datetime
+
     @return: paper identifiers
     @rtype: list [int,]
     '''
@@ -2436,6 +2491,7 @@ def get_papers_info_of_author(pid, flag,   ### get_person_papers
     @type show_date: bool
     @param show_experiment: show the experiment which the paper is associated with
     @type show_experiment: bool
+
     @return: information for each paper
     @rtype: list [{str: str, str: int, ...}]
     '''
@@ -2458,6 +2514,7 @@ def get_papers_info_of_author(pid, flag,   ### get_person_papers
 
         @param record: author-paper association record
         @type record: tuple
+
         @return: information for the paper
         @rtype: dict {str: str, str: int, ...}
         '''
@@ -2540,6 +2597,7 @@ def get_names_of_author(pid, sort_by_count=True):   ### get_person_db_names_coun
     @type pid: int
     @param sort_by_count: sort in descending order of name count
     @type sort_by_count: bool
+
     @return: author names and count of each name [(name, name_count),]
     @rtype: list [(str, int),]
     '''
@@ -2682,6 +2740,7 @@ def get_clusters_by_surname(surname):   ### get_lastname_results
 
     @param surname: author surname
     @type surname: str
+
     @return: disambiguation algorithm result records ((pid, bibref_table, bibref_value, bibrec),)
     @rtype: tuple ((str, str, int, int),)
     '''
@@ -2774,6 +2833,7 @@ def insert_user_log(userinfo, pid, action, tag, value, comment='', transactionid
     @type timestamp: datetime.datetime
     @param userid: user identifier
     @type userid: int
+
     @return: transaction identifier
     @rtype: int
     '''
@@ -2815,6 +2875,7 @@ def get_user_logs(transactionid=None, userid=None, userinfo=None, pid=None, acti
     @type comment: str
     @param only_most_recent: only most recent log entry
     @type only_most_recent: bool
+
     @return: log entries ((id, transactionid, timestamp, userinfo, pid, action, tag, value, comment),)
     @rtype: tuple ((int, int, datetime.datetime, str, int, str, str, str, str),)
     '''
@@ -2900,6 +2961,7 @@ def get_matching_bibrefs_for_paper(names, rec, always_match=False):   ### get_po
     @type rec: int
     @param always_match: get all bibrefs associated to the given paper
     @type always_match: bool
+
     @return: bibrefs [[bibref_table:bibref_value, name],]
     @rtype: list [[str, str],]
     '''
@@ -2961,6 +3023,7 @@ def get_collaborations_for_paper(rec):   ### get_collaboration
 
     @param rec: paper identifier
     @type rec: int
+
     @return: collaborations
     @rtype: list [str,]
     '''
@@ -2988,6 +3051,7 @@ def get_keywords_for_paper(rec):   ### get_key_words
 
     @param rec: paper identifier
     @type rec: int
+
     @return: keywords
     @rtype: list [str,]
     '''
@@ -3030,6 +3094,7 @@ def get_authors_of_paper(rec):   ### get_all_authors
 
     @param rec: paper identifier
     @type rec: int
+
     @return: author identifiers
     @rtype: list [int,]
     '''
@@ -3068,6 +3133,7 @@ def _get_title_of_paper(rec):   ### get_title_from_rec
 
     @param rec: paper identifier
     @type rec: int
+
     @return: title
     @rtype: str
     '''
@@ -3093,6 +3159,7 @@ def _get_doi_for_paper(recid):   ### get_doi_from_rec
 
     @param recid: paper identifier
     @type recid: int
+
     @return: doi (e.g. '10.1103/PhysRevD.1.1967')
     @rtype: str
     '''
@@ -3136,6 +3203,7 @@ def get_modified_papers_since(since):   ### get_recently_modified_record_ids
 
     @param since: consider only papers which are modified after this date
     @type since: datetime.datetime
+
     @return: paper identifiers
     @rtype: frozenset frozenset(int,)
     '''
@@ -3156,6 +3224,7 @@ def get_modified_papers_before(recs, before):   ### filter_modified_record_ids
     @type recs: list [(_, _, int),]
     @param before: consider only papers which are modified before this date
     @type before: datetime.datetime
+
     @return: paper identifiers
     @rtype: list [int,]
     '''
@@ -3178,6 +3247,7 @@ def _get_author_refs_from_db_of_paper(rec):   ### _get_authors_from_paper_from_d
 
     @param rec: paper identifier
     @type rec: int
+
     @return: author refs
     @rtype: tuple ((int),)
     '''
@@ -3201,6 +3271,7 @@ def _get_coauthor_refs_from_db_of_paper(rec):   ### _get_coauthors_from_paper_fr
 
     @param rec: paper identifier
     @type rec: int
+
     @return: coauthor refs
     @rtype: tuple ((int),)
     '''
@@ -3252,6 +3323,7 @@ def get_authors_data_from_indexable_name_ids(indexable_name_ids):   ### get_inde
 
     @param name_ids: indexable name identifiers
     @type name_ids: list [int,]
+
     @return: real author name and the author identifiers which carry that name ((name, pids),)
     @rtype: tuple ((str, bytes),)
     '''
@@ -3270,6 +3342,7 @@ def _get_grouped_records_from_db(sig, *args):
     @type sig: tuple (str, str, str)
     @param args: tags
     @type args: tuple (str,)
+
     @return: {tag: [extracted_value,]}
     @rtype: dict {str: [str,]}
     '''
@@ -3321,6 +3394,7 @@ def get_signatures_from_bibrefs(bibrefs):
 
     @param bibrefs: bibrefs set((bibref_table, bibref_value),)
     @type bibrefs: set set((int, int),)
+
     @return: signatures ((bibref_table, bibref_value, bibrec),)
     @rtype: iterator ((int, int, int),)
     '''
@@ -3356,6 +3430,7 @@ def get_resolved_affiliation(ambiguous_aff):   ### resolve_affiliation
 
     @param ambiguous_aff_string: ambiguous affiliation
     @type ambiguous_aff_string: str
+
     @return: the normalized version of the affiliation
     @rtype: str
     """
@@ -3379,6 +3454,7 @@ def _get_name_from_db_by_bibref(bibref):   ### _get_name_by_bibrecref_from_db
 
     @param bibref: bibref (bibref_table, bibref_value)
     @type bibref: tuple (int, int)
+
     @return: name
     @rtype: str
     '''
@@ -3419,6 +3495,7 @@ def get_inverted_lists(qgrams):
 
     @param qgrams: contiguous sequences of q chars
     @type qgrams: list [str,]
+
     @return: inverted lists and their cardinality
     @rtype: tuple ((bytes, int),)
     '''
@@ -3560,6 +3637,7 @@ def create_new_author_by_signature(sig, name=None):   ### new_person_from_signat
     @type sig: tuple (int, int, int)
     @param name: author name
     @type name: str
+
     @return: author identifier
     @rtype: int
     '''
@@ -3578,6 +3656,7 @@ def check_author_paper_associations(output_file=None):   ### check_personid_pape
 
     @param output_file: file to write output
     @type output_file: str
+
     @return: damaged records are found
     @rtype: bool
     '''
@@ -3607,6 +3686,7 @@ def repair_author_paper_associations(output_file=None):   ### repair_personid
 
     @param output_file: file to write output
     @type output_file: str
+
     @return: damaged records are found even after the repairing
     @rtype: bool
     '''
@@ -3642,6 +3722,7 @@ def get_author_refs_of_paper(rec):   ### get_authors_from_paper
 
     @param rec: paper identifier
     @type rec: int
+
     @return: author refs
     @rtype: list [(str),]
     '''
@@ -3659,6 +3740,7 @@ def _get_author_refs_from_marc_caches_of_paper(rec):   ### _get_authors_from_pap
 
     @param rec: paper identifier
     @type rec: int
+
     @return: author refs
     @rtype: list [(str),]
     '''
@@ -3677,6 +3759,7 @@ def get_coauthor_refs_of_paper(paper):   ### get_coauthors_from_paper
 
     @param rec: paper identifier
     @type rec: int
+
     @return: coauthor refs
     @rtype: list [(str),]
     '''
@@ -3694,6 +3777,7 @@ def _get_coauthor_refs_from_marc_caches_of_paper(rec):   ### _get_coauthors_from
 
     @param rec: paper identifier
     @type rec: int
+
     @return: coauthor refs
     @rtype: list [(str),]
     '''
@@ -3712,6 +3796,7 @@ def _get_name_by_bibref_from_cache(ref):   ### _get_name_by_bibrecref_from_cache
 
     @param ref: bibref (bibref_table, bibref_value)
     @type ref: tuple (int, int)
+
     @return: name
     @rtype: str
     '''
@@ -3740,6 +3825,7 @@ def get_inspire_id_of_signature(sig):   ### get_inspire_id
 
     @param sig: signature (bibref_table, bibref_value, bibrec)
     @type sig: tuple (int, int, int)
+
     @return: Inspire external identifier
     @rtype: list [str]
     '''
@@ -3754,6 +3840,7 @@ def get_author_names_from_db(pid):   ### get_person_db_names_set
 
     @param pid: author identifier
     @type pid: int
+
     @return: author names
     @rtype: list [(str),]
     '''
@@ -3783,6 +3870,7 @@ def get_name_by_bibref(ref):   ### get_name_by_bibrecref
 
     @param ref: bibref (bibref_table, bibref_value)
     @type ref: tuple (int, int)
+
     @return: name
     @rtype: str
     '''
@@ -3836,6 +3924,7 @@ def _split_signature_string(sig_str):
 
     @param sig_str: signature in a string form e.g. '100:7531,9024'
     @type sig_str: str
+
     @return: signature (bibref_table, bibref_value, bibrec)
     @rtype: tuple (int, int, int)
     '''
@@ -3871,6 +3960,7 @@ def get_paper_access_right(acc):   ### resolve_paper_access_right
 
     @param acc: access right key
     @type acc: str or int
+
     @return: access right value
     @rtype: str or int
     '''
@@ -3917,6 +4007,7 @@ def _get_grouped_records_using_marc_caches(sig, *args):   ### _get_grouped_recor
     @type sig: tuple (int, int, int)
     @param args: tags
     @type args: tuple (str,)
+
     @return: {tag: [extracted_value,]}
     @rtype: dict {str: [str,]}
     '''
@@ -4173,6 +4264,7 @@ def get_authors_by_surname(surname):   ### find_pids_by_name
 
     @param surname: author surname
     @type surname: str
+
     @return: author identifier and name set((pid, name),)
     @rtype: set set((int, str),)
     '''
@@ -4206,6 +4298,7 @@ def get_author_data_associations_for_author(pid):   ### get_specific_personid_fu
 
     @param pid: author identifier
     @type pid: int
+
     @return: author-data associations ((pid, tag, data, opt1, opt2, opt3),)
     @rtype: tuple ((int, str, str, int, int, str),)
     '''
@@ -4218,6 +4311,7 @@ def get_user_id_of_author(pid):   ### get_uids_by_pids
 
     @param pid: author identifier
     @type pid: int
+
     @return: user identifier
     @rtype: tuple ((str),)
     '''
@@ -4387,6 +4481,7 @@ def get_existing_papers_and_refs(table, recs, refs):   ### get_bibrefrec_subset
     @type recs: list [int,]
     @param refs: bibref values
     @type refs: list [int,]
+
     @return: paper identifiers and bibref values set((rec, bibref_value),)
     @rtype: set set((int, int),)
     '''
@@ -4410,6 +4505,7 @@ def export_author(pid):   ### export_person
 
     @param pid: author identifier
     @type pid: int
+
     @return: author info
     @rtype: defaultdict
     '''
@@ -4469,6 +4565,7 @@ def export_author_to_foaf(pid):   ### export_person_to_foaf
 
     @param pid: author identifier
     @type pid: int
+
     @return:
     @rtype:
     '''
@@ -4482,6 +4579,7 @@ def export_author_to_foaf(pid):   ### export_person_to_foaf
         @type val: dict
         @param indent:
         @type indent: int
+
         @return:
         @rtype:
         '''
