@@ -964,6 +964,12 @@ def session_bareinit(req):
         if 'ticket' not in pinfo:
             pinfo["ticket"] = []
             session.dirty = True
+        if 'users_open_tickets_storage' not in pinfo:
+            pinfo["users_open_tickets_storage"] = True
+            session.dirty = True
+        if 'incomplete_autoclaimed_tickets_storage' not in pinfo:
+            pinfo["incomplete_autoclaimed_tickets_storage"] = True
+            session.dirty = True
         if 'remote_login_system' not in pinfo:
             pinfo["remote_login_system"] = dict()
             session.dirty = True
@@ -978,7 +984,9 @@ def session_bareinit(req):
         pinfo = dict()
         session['personinfo'] = pinfo
         pinfo["ticket"] = []
+        pinfo['users_open_tickets_storage'] = []
         pinfo['remote_login_system'] = []
+        pinfo['incomplete_autoclaimed_tickets_storage'] = []
         for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
             pinfo["remote_login_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
         session.dirty = True
@@ -1156,12 +1164,45 @@ def auto_claim_papers(req, pid, recids):
     session = get_session(req)
     ticket = session['personinfo']['ticket']
     
+    # retrieve users existing papers
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
+    # retrieve the papers that need to be imported
     missing_bibrecs = list(set(recids) - pid_bibrecs)
     
+    # store any users open ticket elsewhere until we have processed the autoclaimed tickets
+    store_users_open_tickets(req)
+
+    # add autoclaimed tickets to the session
     add_tickets(pid, missing_bibrecs, 'confirm')
 
-    
+def store_users_open_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    ticket = session['personinfo']['ticket']
+    temp_storage = session['personinfo']['users_open_tickets_storage']
+    for t in list(ticket):
+        temp_storage.add(t)
+        ticket.remove(t)
+
+def store_incomplete_autoclaim_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    ticket = session['personinfo']['ticket']
+    temp_storage = session['personinfo']['incomplete_autoclaimed_tickets_storage']
+    for t in list(ticket):
+        if t not in temp_storage:
+            temp_storage.add(t)
+        ticket.remove(t)
+
+def restore_users_open_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    ticket = session['personinfo']['ticket']
+    temp_storage = session['personinfo']['users_open_tickets_storage']
+
+    for t in list(temp_storage):
+        ticket.add(t)
+        temp_storage.remove(t)
 
 def get_name_variants_list_from_remote_systems_names(remote_login_systems_info):
     name_variants = []
