@@ -275,9 +275,9 @@ def meld_edges(p1, p2):
         i2 = e2[1] * verts2
         inter_cert = i1 + i2
         inter_prob = e1[0] * i1 + e2[0] * i2
-        if inter_cert > 0:
+        try:
             return (inter_prob / inter_cert, inter_cert * invsum)
-        else:
+        except ZeroDivisionError:
             return (0.,0.)
 
     assert len(out_edges1) == len(out_edges2), "Invalid arguments for meld edges"
@@ -285,10 +285,11 @@ def meld_edges(p1, p2):
 
     result = numpy.ndarray(shape=(size, 2), dtype=float, order='C')
     gc.disable()
-    for i in xrange(size):
-        result[i] = median(out_edges1[i], out_edges2[i])
-        assert (result[i][0] >= 0 and result[i][0] <= 1) or result[i][0] in Bib_matrix.special_numbers, PID()+'MELD_EDGES: value %s' % result[i]
-        assert (result[i][1] >= 0 and result[i][1] <= 1) or result[i][1] in Bib_matrix.special_numbers, PID()+'MELD_EDGES: compat %s' % result[i]
+#    for i in xrange(size):
+#        result[i] = median(out_edges1[i], out_edges2[i])
+#        assert (result[i][0] >= 0 and result[i][0] <= 1) or result[i][0] in Bib_matrix.special_numbers, PID()+'MELD_EDGES: value %s' % result[i]
+#        assert (result[i][1] >= 0 and result[i][1] <= 1) or result[i][1] in Bib_matrix.special_numbers, PID()+'MELD_EDGES: compat %s' % result[i]
+    result = [median(x,y) for x,y in izip(out_edges1, out_edges2)]
     gc.enable()
     return (result, vsum)
 
@@ -331,7 +332,7 @@ def convert_cluster_set(cs, prob_matr):
             update_status(float(current) / len(cs.clusters), "Converting the cluster set...")
 
         assert len(c1.bibs) > 0, PID()+"Empty cluster send to wedge"
-        pointers = []
+        pointers = list()
 
         for v1 in c1.bibs:
             pointer = list()

@@ -1103,11 +1103,6 @@ class Template:
             h('<input type="hidden" name="pid" value="%s">' % person_id)
             h('<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>')
 
-            h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
-            h('<input type="hidden" name="rewrite_all_external_ids" value="True">')
-            h('<input type="hidden" name="pid" value="%s">' % person_id)
-            h('<br> <input type="submit" value="rewrite all ids" class="aid_btn_blue"> </form> <br>')
-
             if external_ids:
                 h('<form method="GET" action="%s/person/action" rel="nofollow">' % (CFG_SITE_URL))
                 h('   <input type="hidden" name="delete_external_ids" value="True">')

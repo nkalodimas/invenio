@@ -158,7 +158,7 @@ def tortoise_last_name(name, from_mark=True, pure=False):
         size = sizes[idx]
         cluster_set = cluster()
         bibauthor_print("Found, %s(%s). Total number of bibs: %d." % (name, lname, size))
-        create_matrix(cluster_set, True)
+        create_matrix(cluster_set, False)
         wedge_and_store(cluster_set)
     except (IndexError, ValueError):
         bibauthor_print("Sorry, %s(%s) not found in the last name clusters" % (name, lname))
@@ -200,7 +200,7 @@ def _create_matrix(lname):
         size = sizes[idx]
         bibauthor_print("Found, %s. Total number of bibs: %d." % (lname, size))
         cluster_set = cluster()
-        create_matrix(cluster_set, True)
+        create_matrix(cluster_set, False)
 
         bibs = cluster_set.num_all_bibs
         expected = bibs * (bibs - 1) / 2

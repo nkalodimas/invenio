@@ -373,6 +373,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         @param ulevel: user permission level
         @type ulevel: str
+
         @return: title
         @rtype: str
         '''
@@ -412,6 +413,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @type req: apache request object
         @param form: POST/GET variables of the request
         @type form: dict
+
         @return: menu
         @rtype: str
         '''
@@ -468,6 +470,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @type ulevel: str
         @param req: apache request object
         @type req: apache request object
+
         @return: info box
         @rtype: str
         '''
@@ -521,6 +524,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @type ulevel: str
         @param ln: page display language
         @type ln: str
+
         @return: name info box
         @rtype: str
         '''
@@ -552,6 +556,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @type ulevel: str
         @param req: apache request object
         @type req: apache request object
+
         @return: tabs content
         @rtype: str
         '''
@@ -685,6 +690,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         @param ulevel: user permission level
         @type ulevel: str
+
         @return: footer
         @rtype: str
         '''
@@ -1749,64 +1755,72 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
     def action(self, req, form):
         '''
         Initial step in processing of requests: ticket generation/update.
-        Also acts as action dispatcher for interface mass action requests
+        Also acts as action dispatcher for interface mass action requests.
 
         Valid mass actions are:
-        - confirm: confirm assignments to a person
-        - repeal: repeal assignments from a person
-        - reset: reset assignments of a person
+        - add_external_id: add an external identifier to an author
+        - add_missing_external_ids: add missing external identifiers of an author
+        - bibref_check_submit:
         - cancel: clean the session (erase tickets and so on)
-        - to_other_person: assign a document from a person to another person
+        - cancel_rt_ticket:
+        - cancel_search_ticket:
+        - cancel_stage:
+        - checkout:
+        - checkout_continue_claiming:
+        - checkout_remove_transaction:
+        - checkout_submit:
+        - claim: claim papers for an author
+        - commit_rt_ticket:
+        - confirm: confirm assignments to an author
+        - delete_external_ids: delete external identifiers of an author
+        - repeal: repeal assignments from an author
+        - reset: reset assignments of an author
+        - set_canonical_name: set/swap the canonical name of an author
+        - to_other_person: assign a document from an author to another author
 
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: Parameters sent via GET or POST request
+        @param req: apache request object
+        @type req: apache request object
+        @param form: parameters sent via GET or POST request
         @type form: dict
 
         @return: a full page formatted in HTML
-        @return: string
+        @return: str
         '''
         self._session_bareinit(req)
         session = get_session(req)
         pinfo = session["personinfo"]
 
-        argd = wash_urlargd(
-                     form,
-                     {'canonical_name': (str, None),
-                      'existing_ext_ids': (list, None),
-                      'ext_id': (str, None),
-                      'ext_system': (str, None),
-                      'ln': (str, CFG_SITE_LANG),
-                      'pid': (int, None),
-                      'rt_action': (str, None),
-                      'rt_id': (int, None),
-                      'selection': (list, list()),
-                      'user_comments': (str, None),
-                      'user_email': (str, None),
-                      'user_first_name': (str, None),
-                      'user_last_name': (str, None),
+        argd = wash_urlargd(form,
+                            {'canonical_name': (str, None),
+                             'existing_ext_ids': (list, None),
+                             'ext_id': (str, None),
+                             'ext_system': (str, None),
+                             'ln': (str, CFG_SITE_LANG),
+                             'pid': (int, None),
+                             'rt_action': (str, None),
+                             'rt_id': (int, None),
+                             'selection': (list, None),
 
-                      # permitted actions
-                      'add_external_id': (str, None),
-                      'add_missing_external_ids': (str, None),
-                      'bibref_check_submit': (str, None),
-                      'cancel': (str, None),
-                      'cancel_rt_ticket': (str, None),
-                      'cancel_search_ticket': (str, None),
-                      'cancel_stage': (str, None),
-                      'checkout': (str, None),
-                      'checkout_continue_claiming': (str, None),
-                      'checkout_remove_transaction': (str, None),
-                      'checkout_submit': (str, None),
-                      'claim': (str, None),
-                      'commit_rt_ticket': (str, None),
-                      'confirm': (str, None),
-                      'delete_external_ids': (str, None),
-                      'repeal': (str, None),
-                      'reset': (str, None),
-                      'rewrite_all_external_ids': (str, None),
-                      'set_canonical_name': (str, None),
-                      'to_other_person': (str, None)})
+                             # permitted actions
+                             'add_external_id': (str, None),
+                             'add_missing_external_ids': (str, None),
+                             'bibref_check_submit': (str, None),
+                             'cancel': (str, None),
+                             'cancel_rt_ticket': (str, None),
+                             'cancel_search_ticket': (str, None),
+                             'cancel_stage': (str, None),
+                             'checkout': (str, None),
+                             'checkout_continue_claiming': (str, None),
+                             'checkout_remove_transaction': (str, None),
+                             'checkout_submit': (str, None),
+                             'claim': (str, None),
+                             'commit_rt_ticket': (str, None),
+                             'confirm': (str, None),
+                             'delete_external_ids': (str, None),
+                             'repeal': (str, None),
+                             'reset': (str, None),
+                             'set_canonical_name': (str, None),
+                             'to_other_person': (str, None)})
 
         ulevel = pinfo["ulevel"]
         ticket = pinfo["ticket"]
@@ -1814,7 +1828,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         tempticket = list()
         ln = argd['ln']
         pid = None
-        bibrefs = None
         action = None
 
         permitted_actions = ['add_external_id',
@@ -1834,7 +1847,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                              'delete_external_ids',
                              'repeal',
                              'reset',
-                             'rewrite_all_external_ids',
                              'set_canonical_name',
                              'to_other_person']
 
@@ -1843,145 +1855,140 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if argd[act] is not None:
                 action = act
 
-        ###
-        if (action is None
-            and "bibref_check_required" in pinfo
-            and pinfo["bibref_check_required"]):
-               action = 'bibref_check_submit'
-
         no_access = self._page_access_permission_wall(req, pid)
         if no_access and action not in ["claim"]:
             return no_access
 
+        ###
+        if (action is None
+             and "bibref_check_required" in pinfo
+             and pinfo["bibref_check_required"]):
+
+            if "bibref_check_reviewed_bibrefs" in pinfo:
+                del(pinfo["bibref_check_reviewed_bibrefs"])
+                session.dirty = True
+
+            return self._ticket_dispatch(ulevel, req)
+
+
         def add_external_id():
-            if 'pid' in argd and argd['pid'] > -1:
+            if argd['pid'] > -1:
                 pid = argd['pid']
             else:
-                return self._error_page(req, ln, "Fatal: cannot add external id to unknown person")
+                return self._error_page(req, ln,
+                            "Fatal: cannot add external id to unknown person")
 
-            if 'ext_system' in argd and argd['ext_system']:
+            if argd['ext_system'] is not None:
                 ext_sys = argd['ext_system']
             else:
-                return self._error_page(req, ln, "Fatal: cannot add an external id without specifying the system")
+                return self._error_page(req, ln,
+                            "Fatal: cannot add an external id without specifying the system")
 
-            if 'ext_id' in argd and argd['ext_id']:
+            if argd['ext_id'] is not None:
                 ext_id = argd['ext_id']
             else:
-                return self._error_page(req, ln, "Fatal: cannot add a custom external id without a suggestion")
+                return self._error_page(req, ln,
+                            "Fatal: cannot add a custom external id without a suggestion")
 
-            uid = getUid(req)
             userinfo = "%s||%s" % (uid, req.remote_ip)
             webapi.add_person_external_id(pid, ext_sys, ext_id, userinfo)
 
             return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
 
         def add_missing_external_ids():
-            if 'pid' in argd and argd['pid'] > -1:
+            if argd['pid'] > -1:
                 pid = argd['pid']
             else:
-                return self._error_page(req, ln, "Fatal: cannot recompute external ids for an unknown person")
+                return self._error_page(req, ln,
+                            "Fatal: cannot recompute external ids for an unknown person")
 
             update_external_ids_of_authors([pid], overwrite=False)
 
             return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
 
         def bibref_check_submit():
-            if (action in ['bibref_check_submit']
-                or (action is None
-                    and "bibref_check_required" in pinfo
-                    and pinfo["bibref_check_required"])):
-                if not action in ['bibref_check_submit']:
-                    if "bibref_check_reviewed_bibrefs" in pinfo:
-                        del(pinfo["bibref_check_reviewed_bibrefs"])
-                        session.dirty = True
+            pinfo["bibref_check_reviewed_bibrefs"] = list()
+            add_rev = pinfo["bibref_check_reviewed_bibrefs"].append
 
-                    return self._ticket_dispatch(ulevel, req)
-
-                pinfo["bibref_check_reviewed_bibrefs"] = []
-                add_rev = pinfo["bibref_check_reviewed_bibrefs"].append
+            if ("bibrefs_auto_assigned" in pinfo
+                 or "bibrefs_to_confirm" in pinfo):
+                person_reviews = list()
 
                 if ("bibrefs_auto_assigned" in pinfo
-                    or "bibrefs_to_confirm" in pinfo):
-                    person_reviews = []
+                     and pinfo["bibrefs_auto_assigned"]):
+                    person_reviews.append(pinfo["bibrefs_auto_assigned"])
 
-                    if ("bibrefs_auto_assigned" in pinfo
-                         and pinfo["bibrefs_auto_assigned"]):
-                        person_reviews.append(pinfo["bibrefs_auto_assigned"])
+                if ("bibrefs_to_confirm" in pinfo
+                     and pinfo["bibrefs_to_confirm"]):
+                    person_reviews.append(pinfo["bibrefs_to_confirm"])
 
-                    if ("bibrefs_to_confirm" in pinfo
-                         and pinfo["bibrefs_to_confirm"]):
-                        person_reviews.append(pinfo["bibrefs_to_confirm"])
+                for ref_review in person_reviews:
+                    for person_id in ref_review:
+                        for bibrec in ref_review[person_id]["bibrecs"]:
+                            rec_grp = "bibrecgroup%s" % bibrec
+                            elements = list()
 
-                    for ref_review in person_reviews:
-                        for person_id in ref_review:
-                            for bibrec in ref_review[person_id]["bibrecs"]:
-                                rec_grp = "bibrecgroup%s" % bibrec
-                                elements = []
+                            if rec_grp in form:
+                                if isinstance(form[rec_grp], str):
+                                    elements.append(form[rec_grp])
+                                elif isinstance(form[rec_grp], list):
+                                    elements += form[rec_grp]
+                                else:
+                                    continue
 
-                                if rec_grp in form:
-                                    if isinstance(form[rec_grp], str):
-                                        elements.append(form[rec_grp])
-                                    elif isinstance(form[rec_grp], list):
-                                        elements += form[rec_grp]
-                                    else:
-                                        continue
+                                for element in elements:
+                                    test = element.split("||")
 
-                                    for element in elements:
-                                        test = element.split("||")
+                                    if test and len(test) > 1 and test[1]:
+                                        tref = test[1] + "," + str(bibrec)
+                                        tpid = webapi.wash_integer_id(test[0])
 
-                                        if test and len(test) > 1 and test[1]:
-                                            tref = test[1] + "," + str(bibrec)
-                                            tpid = webapi.wash_integer_id(test[0])
+                                        if (webapi.is_valid_bibref(tref)
+                                             and tpid > -1):
+                                            add_rev(element + "," + str(bibrec))
+            session.dirty = True
 
-                                            if (webapi.is_valid_bibref(tref) and
-                                                tpid > -1):
-                                                add_rev(element + "," + str(bibrec))
-                session.dirty = True
-
-                return self._ticket_dispatch(ulevel, req)
-
-            if action is None:
-                return self._error_page(req, ln, "Fatal: cannot create ticket if no action selected.")
+            return self._ticket_dispatch(ulevel, req)
 
         def cancel():
             self.__session_cleanup(req)
-            # return self._error_page(req, ln,
-            # "Not an error! Session cleaned! but "
-            # "redirect to be implemented")
+
             return self._ticket_dispatch_end(req)
 
         def cancel_rt_ticket():
-            if 'selection' in argd and len(argd['selection']) > 0:
-                bibref = argd['selection']
+            if argd['selection'] is not None:
+                bibrefs = argd['selection']
             else:
                 return self._error_page(req, ln,
-                                        "Fatal: cannot cancel unknown ticket")
-            if 'pid' in argd and argd['pid'] > -1:
+                            "Fatal: cannot cancel unknown ticket")
+
+            if argd['pid'] > -1:
                 pid = argd['pid']
             else:
                 return self._error_page(req, ln,
-                                        "Fatal: cannot cancel unknown ticket")
-            if 'rt_id' in argd and argd['rt_id'] and 'rt_action' in argd and argd['rt_action']:
+                            "Fatal: cannot cancel unknown ticket")
+
+            if argd['rt_id'] is not None and argd['rt_action'] is not None:
                 rt_id = argd['rt_id']
                 rt_action = argd['rt_action']
-                if 'selection' in argd and len(argd['selection']) > 0:
-                    bibrefs = argd['selection']
-                else:
-                    return self._error_page(req, ln,
-                                    "Fatal: no bibref")
-                for b in bibrefs:
-                    self._cancel_transaction_from_rt_ticket(rt_id, pid, rt_action, b)
+
+                for bibref in bibrefs:
+                    self._cancel_transaction_from_rt_ticket(rt_id, pid, rt_action, bibref)
+
                     return redirect_to_url(req, "/person/%s" % webapi.get_person_redirect_link(pid))
 
-            return self._cancel_rt_ticket(req, bibref[0], pid)
+            return self._cancel_rt_ticket(req, bibrefs[0], pid)
 
         def cancel_search_ticket():
             if 'search_ticket' in pinfo:
                 del(pinfo['search_ticket'])
             session.dirty = True
+
             if "claimpaper_admin_last_viewed_pid" in pinfo:
                 pid = pinfo["claimpaper_admin_last_viewed_pid"]
+
                 return redirect_to_url(req, "/person/%s" % webapi.get_person_redirect_link(pid))
+
             return self.search(req, form)
 
         def cancel_stage():
@@ -2006,7 +2013,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             # return self._ticket_final_review(req)
 
         def checkout_continue_claiming():
-            pinfo["checkout_faulty_fields"] = []
+            pinfo["checkout_faulty_fields"] = list()
             self._check_user_fields(req, form)
 
             return self._ticket_dispatch_end(req)
@@ -2015,52 +2022,56 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             bibref = argd['checkout_remove_transaction']
 
             if webapi.is_valid_bibref(bibref):
-                for rmt in [row for row in ticket
-                            if row["bibref"] == bibref]:
+                for rmt in [row for row in ticket if row["bibref"] == bibref]:
                     ticket.remove(rmt)
 
             pinfo["checkout_confirmed"] = False
             session.dirty = True
+
             return self._ticket_dispatch(ulevel, req)
             # return self._ticket_final_review(req)
 
         def checkout_submit():
-            pinfo["checkout_faulty_fields"] = []
+            pinfo["checkout_faulty_fields"] = list()
             self._check_user_fields(req, form)
 
             if not ticket:
                 pinfo["checkout_faulty_fields"].append("tickets")
 
+            pinfo["checkout_confirmed"] = True
             if pinfo["checkout_faulty_fields"]:
                 pinfo["checkout_confirmed"] = False
-            else:
-                pinfo["checkout_confirmed"] = True
 
             session.dirty = True
+
             return self._ticket_dispatch(ulevel, req)
             # return self._ticket_final_review(req)
 
         def claim():
-            if 'selection' in argd and len(argd['selection']) > 0:
+            if argd['selection'] is not None:
                 bibrefs = argd['selection']
             else:
-                return self._error_page(req, ln, "Fatal: cannot create ticket without any bibrefrec")
+                return self._error_page(req, ln,
+                            "Fatal: cannot create ticket without any bibrefrec")
+
             if action == 'claim':
                 return self._ticket_open_claim(req, bibrefs, ln)
-            else:
+            elif action == 'to_other_person':
                 return self._ticket_open_assign_to_other_person(req, bibrefs, form)
 
         def commit_rt_ticket():
-            if 'selection' in argd and len(argd['selection']) > 0:
+            if argd['selection'] is not None:
                 bibref = argd['selection']
             else:
                 return self._error_page(req, ln,
-                                        "Fatal: cannot cancel unknown ticket")
-            if 'pid' in argd and argd['pid'] > -1:
+                            "Fatal: cannot cancel unknown ticket")
+
+            if argd['pid'] > -1:
                 pid = argd['pid']
             else:
                 return self._error_page(req, ln,
-                                        "Fatal: cannot cancel unknown ticket")
+                            "Fatal: cannot cancel unknown ticket")
+
             return self._commit_rt_ticket(req, bibref[0], pid)
 
         def confirm_repeal_reset():
@@ -2096,45 +2107,36 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             # return self.perform(req, form)
 
         def delete_external_ids():
-            if 'pid' in argd and argd['pid'] > -1:
+            if argd['pid'] > -1:
                 pid = argd['pid']
             else:
-                return self._error_page(req, ln, "Fatal: cannot delete external ids from an unknown person")
+                return self._error_page(req, ln,
+                            "Fatal: cannot delete external ids from an unknown person")
 
-            if 'existing_ext_ids' in argd and argd['existing_ext_ids']:
+            if argd['existing_ext_ids'] is not None:
                 existing_ext_ids = argd['existing_ext_ids']
             else:
-                return self._error_page(req, ln, "Fatal: you must select at least one external id in order to delete it!")
+                return self._error_page(req, ln,
+                            "Fatal: you must select at least one external id in order to delete it")
 
-            uid = getUid(req)
             userinfo = "%s||%s" % (uid, req.remote_ip)
             webapi.delete_person_external_ids(pid, existing_ext_ids, userinfo)
 
             return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
 
-        def rewrite_all_external_ids():
-            if 'pid' in argd and argd['pid'] > -1:
-                pid = argd['pid']
-            else:
-                return self._error_page(req, ln, "Fatal: cannot recompute external ids for an unknown person")
-
-            update_external_ids_of_authors([pid], overwrite=True)
-
-            return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
-
         def set_canonical_name():
-            if 'pid' in argd and argd['pid'] > -1:
+            if argd['pid'] > -1:
                 pid = argd['pid']
             else:
                 return self._error_page(req, ln,
-                                        "Fatal: cannot set canonical name to unknown person")
-            if 'canonical_name' in argd and argd['canonical_name']:
+                            "Fatal: cannot set canonical name to unknown person")
+
+            if argd['canonical_name'] is not None:
                 cname = argd['canonical_name']
             else:
                 return self._error_page(req, ln,
-                        "Fatal: cannot set a custom canonical name without a suggestion")
+                            "Fatal: cannot set a custom canonical name without a suggestion")
 
-            uid = getUid(req)
             userinfo = "%s||%s" % (uid, req.remote_ip)
             if swap.match(cname):
                 webapi.swap_person_canonical_name(pid, cname, userinfo)
@@ -2144,8 +2146,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
 
         def none_action():
-            return self._error_page(req, ln, "Fatal: cannot create ticket if no action selected.")
-
+            return self._error_page(req, ln,
+                        "Fatal: cannot create ticket if no action selected.")
 
 
         action_functions = {'add_external_id': add_external_id,
@@ -2165,308 +2167,11 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                             'delete_external_ids': delete_external_ids,
                             'repeal': confirm_repeal_reset,
                             'reset': confirm_repeal_reset,
-                            'rewrite_all_external_ids': rewrite_all_external_ids,
                             'set_canonical_name': set_canonical_name,
                             'to_other_person': claim,
                             None: none_action}
 
         return action_functions[action]()
-
-
-#        if action in ['to_other_person', 'claim']:
-#            if 'selection' in argd and len(argd['selection']) > 0:
-#                bibrefs = argd['selection']
-#            else:
-#                return self._error_page(req, ln,
-#                                        "Fatal: cannot create ticket without any bibrefrec")
-#            if action == 'claim':
-#                return self._ticket_open_claim(req, bibrefs, ln)
-#            else:
-#                return self._ticket_open_assign_to_other_person(req, bibrefs, form)
-#
-#        if action in ["cancel_stage"]:
-#            if 'bibref_check_required' in pinfo:
-#                del(pinfo['bibref_check_required'])
-#
-#            if 'bibrefs_auto_assigned' in pinfo:
-#                del(pinfo['bibrefs_auto_assigned'])
-#
-#            if 'bibrefs_to_confirm' in pinfo:
-#                del(pinfo['bibrefs_to_confirm'])
-#
-#            for tt in [row for row in ticket if 'incomplete' in row]:
-#                ticket.remove(tt)
-#
-#            session.dirty = True
-#
-#            return self._ticket_dispatch_end(req)
-#
-#        if action in ["checkout_submit"]:
-#            pinfo["checkout_faulty_fields"] = []
-#            self._check_user_fields(req, form)
-#
-#            if not ticket:
-#                pinfo["checkout_faulty_fields"].append("tickets")
-#
-#            if pinfo["checkout_faulty_fields"]:
-#                pinfo["checkout_confirmed"] = False
-#            else:
-#                pinfo["checkout_confirmed"] = True
-#
-#            session.dirty = True
-#            return self._ticket_dispatch(ulevel, req)
-#            # return self._ticket_final_review(req)
-#
-#        if action in ["checkout_remove_transaction"]:
-#            bibref = argd['checkout_remove_transaction']
-#
-#            if webapi.is_valid_bibref(bibref):
-#                for rmt in [row for row in ticket
-#                            if row["bibref"] == bibref]:
-#                    ticket.remove(rmt)
-#
-#            pinfo["checkout_confirmed"] = False
-#            session.dirty = True
-#            return self._ticket_dispatch(ulevel, req)
-#            # return self._ticket_final_review(req)
-#
-#        if action in ["checkout_continue_claiming"]:
-#            pinfo["checkout_faulty_fields"] = []
-#            self._check_user_fields(req, form)
-#
-#            return self._ticket_dispatch_end(req)
-#
-#        if (action in ['bibref_check_submit']
-#            or (not action
-#                and "bibref_check_required" in pinfo
-#                and pinfo["bibref_check_required"])):
-#            if not action in ['bibref_check_submit']:
-#                if "bibref_check_reviewed_bibrefs" in pinfo:
-#                    del(pinfo["bibref_check_reviewed_bibrefs"])
-#                    session.dirty = True
-#
-#                return self._ticket_dispatch(ulevel, req)
-#
-#            pinfo["bibref_check_reviewed_bibrefs"] = []
-#            add_rev = pinfo["bibref_check_reviewed_bibrefs"].append
-#
-#            if ("bibrefs_auto_assigned" in pinfo
-#                or "bibrefs_to_confirm" in pinfo):
-#                person_reviews = []
-#
-#                if ("bibrefs_auto_assigned" in pinfo
-#                     and pinfo["bibrefs_auto_assigned"]):
-#                    person_reviews.append(pinfo["bibrefs_auto_assigned"])
-#
-#                if ("bibrefs_to_confirm" in pinfo
-#                     and pinfo["bibrefs_to_confirm"]):
-#                    person_reviews.append(pinfo["bibrefs_to_confirm"])
-#
-#                for ref_review in person_reviews:
-#                    for person_id in ref_review:
-#                        for bibrec in ref_review[person_id]["bibrecs"]:
-#                            rec_grp = "bibrecgroup%s" % bibrec
-#                            elements = []
-#
-#                            if rec_grp in form:
-#                                if isinstance(form[rec_grp], str):
-#                                    elements.append(form[rec_grp])
-#                                elif isinstance(form[rec_grp], list):
-#                                    elements += form[rec_grp]
-#                                else:
-#                                    continue
-#
-#                                for element in elements:
-#                                    test = element.split("||")
-#
-#                                    if test and len(test) > 1 and test[1]:
-#                                        tref = test[1] + "," + str(bibrec)
-#                                        tpid = webapi.wash_integer_id(test[0])
-#
-#                                        if (webapi.is_valid_bibref(tref) and
-#                                            tpid > -1):
-#                                            add_rev(element + "," + str(bibrec))
-#            session.dirty = True
-#
-#            return self._ticket_dispatch(ulevel, req)
-#
-#        if not action:
-#            return self._error_page(req, ln,
-#                                    "Fatal: cannot create ticket if no action selected.")
-#
-#        if action in ['confirm', 'repeal', 'reset']:
-#            if 'pid' in argd:
-#                pid = argd['pid']
-#            else:
-#                return self._error_page(req, ln,
-#                                        "Fatal: cannot create ticket without a person id!")
-#
-#            if 'selection' in argd and len(argd['selection']) > 0:
-#                bibrefs = argd['selection']
-#            else:
-#                if pid == -3:
-#                    return self._error_page(req, ln,
-#                                        "Fatal: Please select a paper to assign to the new person first!")
-#                else:
-#                    return self._error_page(req, ln,
-#                                        "Fatal: cannot create ticket without any paper selected!")
-#            if 'rt_id' in argd and argd['rt_id']:
-#                rt_id = argd['rt_id']
-#                for b in bibrefs:
-#                    self._cancel_transaction_from_rt_ticket(rt_id, pid, action, b)
-#            # create temporary ticket
-#            if pid == -3:
-#                pid = webapi.create_new_person(uid)
-#
-#            for bibref in bibrefs:
-#                tempticket.append({'pid': pid, 'bibref': bibref, 'action': action})
-#
-#            # check if ticket targets (bibref for pid) are already in ticket
-#            for t in tempticket:
-#                for e in list(ticket):
-#                    if e['bibref'] == t['bibref']:
-#                        ticket.remove(e)
-#                ticket.append(t)
-#
-#            if 'search_ticket' in pinfo:
-#                del(pinfo['search_ticket'])
-#
-#            # start ticket processing chain
-#            pinfo["claimpaper_admin_last_viewed_pid"] = pid
-#            session.dirty = True
-#            return self._ticket_dispatch(ulevel, req)
-#            # return self.perform(req, form)
-#
-#        elif action in ['cancel']:
-#            self.__session_cleanup(req)
-#            # return self._error_page(req, ln,
-#            # "Not an error! Session cleaned! but "
-#            # "redirect to be implemented")
-#            return self._ticket_dispatch_end(req)
-#
-#        elif action in ['cancel_search_ticket']:
-#            if 'search_ticket' in pinfo:
-#                del(pinfo['search_ticket'])
-#            session.dirty = True
-#            if "claimpaper_admin_last_viewed_pid" in pinfo:
-#                pid = pinfo["claimpaper_admin_last_viewed_pid"]
-#                return redirect_to_url(req, "/person/%s" % webapi.get_person_redirect_link(pid))
-#            return self.search(req, form)
-#
-#        elif action in ['checkout']:
-#            return self._ticket_dispatch(ulevel, req)
-#            # return self._ticket_final_review(req)
-#
-#        elif action in ['cancel_rt_ticket', 'commit_rt_ticket']:
-#            if 'selection' in argd and len(argd['selection']) > 0:
-#                bibref = argd['selection']
-#            else:
-#                return self._error_page(req, ln,
-#                                        "Fatal: cannot cancel unknown ticket")
-#            if 'pid' in argd and argd['pid'] > -1:
-#                pid = argd['pid']
-#            else:
-#                return self._error_page(req, ln,
-#                                        "Fatal: cannot cancel unknown ticket")
-#            if action == 'cancel_rt_ticket':
-#                if 'rt_id' in argd and argd['rt_id'] and 'rt_action' in argd and argd['rt_action']:
-#                    rt_id = argd['rt_id']
-#                    rt_action = argd['rt_action']
-#                    if 'selection' in argd and len(argd['selection']) > 0:
-#                        bibrefs = argd['selection']
-#                    else:
-#                        return self._error_page(req, ln,
-#                                        "Fatal: no bibref")
-#                    for b in bibrefs:
-#                        self._cancel_transaction_from_rt_ticket(rt_id, pid, rt_action, b)
-#                        return redirect_to_url(req, "/person/%s" % webapi.get_person_redirect_link(pid))
-#                return self._cancel_rt_ticket(req, bibref[0], pid)
-#            elif action == 'commit_rt_ticket':
-#                return self._commit_rt_ticket(req, bibref[0], pid)
-#
-#        elif action == 'set_canonical_name':
-#            if 'pid' in argd and argd['pid'] > -1:
-#                pid = argd['pid']
-#            else:
-#                return self._error_page(req, ln,
-#                                        "Fatal: cannot set canonical name to unknown person")
-#            if 'canonical_name' in argd and argd['canonical_name']:
-#                cname = argd['canonical_name']
-#            else:
-#                return self._error_page(req, ln,
-#                        "Fatal: cannot set a custom canonical name without a suggestion")
-#
-#            uid = getUid(req)
-#            userinfo = "%s||%s" % (uid, req.remote_ip)
-#            if swap.match(cname):
-#                webapi.swap_person_canonical_name(pid, cname, userinfo)
-#            else:
-#                webapi.update_person_canonical_name(pid, cname, userinfo)
-#
-#            return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
-#
-#        elif action == 'add_missing_external_ids':
-#            if 'pid' in argd and argd['pid'] > -1:
-#                pid = argd['pid']
-#            else:
-#                return self._error_page(req, ln, "Fatal: cannot recompute external ids for an unknown person")
-#
-#            update_external_ids_of_authors([pid], overwrite=False)
-#
-#            return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
-#
-#        elif action == 'rewrite_all_external_ids':
-#            if 'pid' in argd and argd['pid'] > -1:
-#                pid = argd['pid']
-#            else:
-#                return self._error_page(req, ln, "Fatal: cannot recompute external ids for an unknown person")
-#
-#            update_external_ids_of_authors([pid], overwrite=True)
-#
-#            return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
-#
-#        elif action == 'delete_external_ids':
-#            if 'pid' in argd and argd['pid'] > -1:
-#                pid = argd['pid']
-#            else:
-#                return self._error_page(req, ln, "Fatal: cannot delete external ids from an unknown person")
-#
-#            if 'existing_ext_ids' in argd and argd['existing_ext_ids']:
-#                existing_ext_ids = argd['existing_ext_ids']
-#            else:
-#                return self._error_page(req, ln, "Fatal: you must select at least one external id in order to delete it!")
-#
-#            uid = getUid(req)
-#            userinfo = "%s||%s" % (uid, req.remote_ip)
-#            webapi.delete_person_external_ids(pid, existing_ext_ids, userinfo)
-#
-#            return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
-#
-#        elif action == 'add_external_id':
-#            if 'pid' in argd and argd['pid'] > -1:
-#                pid = argd['pid']
-#            else:
-#                return self._error_page(req, ln, "Fatal: cannot add external id to unknown person")
-#
-#            if 'ext_system' in argd and argd['ext_system']:
-#                ext_sys = argd['ext_system']
-#            else:
-#                return self._error_page(req, ln, "Fatal: cannot add an external id without specifying the system")
-#
-#            if 'ext_id' in argd and argd['ext_id']:
-#                ext_id = argd['ext_id']
-#            else:
-#                return self._error_page(req, ln, "Fatal: cannot add a custom external id without a suggestion")
-#
-#            uid = getUid(req)
-#            userinfo = "%s||%s" % (uid, req.remote_ip)
-#            webapi.add_person_external_id(pid, ext_sys, ext_id, userinfo)
-#
-#            return redirect_to_url(req, "/person/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
-#
-#        else:
-#            return self._error_page(req, ln,
-#                                    "Fatal: What were I supposed to do?")
 
 
     def _ticket_open_claim(self, req, bibrefs, ln):
