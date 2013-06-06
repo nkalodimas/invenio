@@ -1157,10 +1157,13 @@ def auto_claim_papers(req, pid, recids, bibrecrefs):
 
 
     ticket = session['personinfo']['ticket']
-
+    
+    recids_from_bibrecrefs = [ bibrec.split(',')[1] for bibrecref in bibrecrefs]
+    recids = list(set (recids) - set(recids_from_bibrecrefs))
+    
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
     missing_bibrecs = list(set(recids) - pid_bibrecs)
-    
+    missing_bibrecrefs = [bibrecref for bibrecref in bibrecrefs if bibrecref.split(',')[1] not in pid_bibrecs]
     
     #pid_bibrecs = [rec[0], rec[1] for rec in get_papers_by_person_id(pid)]
 
@@ -1169,18 +1172,36 @@ def auto_claim_papers(req, pid, recids, bibrecrefs):
 
     # assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
 
-    tempticket = []
+    temp_recids_ticket = []
+    temp_bibrecrefs_ticket = []
     # now we have to open the tickets...
     # person_papers contains the papers which are already assigned to the person and came from arxive,
     # they can be claimed regardless
     for bibrec in missing_bibrecs:
-        tempticket.append({'pid':pid, 'bibref':str(bibrec), 'action':'confirm'})
+        temp_recids_ticket.append({'pid':pid, 'bibref':str(bibrec), 'action':'confirm', 'autoclaim':True})
 
+    for bibrecref in missing_bibrecrefs:
+        temp_bibrecrefs_ticket.append({'pid':pid, 'bibref':bibrecref, 'action':'confirm', 'autoclaim':True})
+        
     # check if ticket targets (bibref for pid) are already in ticket
-    for t in list(tempticket):
+    for t in list(temp_recids_ticket):
         for e in list(ticket):
             if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
                 ticket.remove(e)
+        ticket.append(t)
+    
+    for t in list(temp_bibrecrefs_ticket):
+        for e in list(ticket):
+            # if there is already the same bibrecref
+            if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
+                ticket.remove(e)
+            # if there is already the recid of our bibrecref 
+            elif e['pid'] == t['pid'] and e['bibref'] == t['bibref'].split(',')[1]:
+                ticket.remove(e)
+            # if there is already a bibrecref with same recid but with different signature 
+            elif e['pid'] == t['pid'] and len(e['bibref'].split(',')) == 2 and e['bibref'].split(',')[1] == t['bibref'].split(',')[1]:
+                ticket.remove(e)
+
         ticket.append(t)
 
     session.dirty = True
