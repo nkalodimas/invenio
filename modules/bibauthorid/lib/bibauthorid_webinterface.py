@@ -60,6 +60,7 @@ from invenio.access_control_admin import acc_find_user_role_actions, acc_get_use
 from invenio.search_engine import perform_request_search
 from invenio.search_engine_utils import get_fieldvalues
 
+from invenio.bibauthorid_config import CREATE_NEW_PERSON
 import invenio.bibauthorid_webapi as webapi
 from invenio.bibauthorid_frontinterface import get_bibrefrec_name_string
 from invenio.bibauthorid_backinterface import update_external_ids_of_authors
@@ -2083,7 +2084,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if argd['selection'] is not None:
                 bibrefs = argd['selection']
             else:
-                if pid == -3:
+                if pid == CREATE_NEW_PERSON:
                     return self._error_page(req, ln,
                                 "Fatal: Please select a paper to assign to the new person first!")
                 else:
@@ -2092,32 +2093,21 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             if argd['rt_id'] is not None:
                 rt_id = argd['rt_id']
+
                 for bibref in bibrefs:
                     self._cancel_transaction_from_rt_ticket(rt_id, pid, action, bibref)
 
-            if pid == -3:
-                pid = webapi.create_new_person(uid)
-
-            # create temporary ticket
-            for bibref in bibrefs:
-                tempticket.append({'pid': pid, 'bibref': bibref, 'action': action})
-
-            # check if ticket targets (bibref for pid) are already in ticket
-            for t in tempticket:
-                for e in list(ticket):
-                    if e['bibref'] == t['bibref']:
-                        ticket.remove(e)
-                ticket.append(t)
-
+            webapi.add_tickets(pid, bibrefs, 'confirm')
+            
             if 'search_ticket' in pinfo:
                 del(pinfo['search_ticket'])
 
             # start ticket processing chain
             pinfo["claimpaper_admin_last_viewed_pid"] = pid
             session.dirty = True
-
+            
             return self._ticket_dispatch(ulevel, req)
-            # return self.perform(req, form)
+            # return self.perform(req, form) 
 
         def delete_external_ids():
             if argd['pid'] > -1:
