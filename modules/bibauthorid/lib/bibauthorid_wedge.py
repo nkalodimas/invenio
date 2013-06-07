@@ -20,12 +20,11 @@
 from invenio import bibauthorid_config as bconfig
 from itertools import izip, starmap
 from operator import mul
-from invenio.bibauthorid_backinterface import Bib_matrix
 from invenio.bibauthorid_general_utils import update_status \
                                     , update_status_final \
                                     , bibauthor_print \
                                     , wedge_print
-from invenio.bibauthorid_prob_matrix import ProbabilityMatrix
+from invenio.bibauthorid_prob_matrix import ProbabilityMatrix, Bib_matrix
 import numpy
 #mport cPickle as SER
 import msgpack as SER
@@ -306,7 +305,7 @@ def convert_cluster_set(cs, prob_matr):
     #    + Assign a number to each bibrefrec.
     #    + Replace the arrays of bibrefrecs with arrays of numbers.
     #    + Store the result and prepare it to be returned.
-    result_mapping = []
+    result_mapping = list()
     for clus in cs.clusters:
         start = len(result_mapping)
         result_mapping += list(clus.bibs)
