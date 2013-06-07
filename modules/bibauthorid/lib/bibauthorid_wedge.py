@@ -323,6 +323,7 @@ def convert_cluster_set(cs, prob_matr):
     #    + Meld those vectors into one for each cluster.
 
     special_symbols = Bib_matrix.special_symbols #locality optimization
+    pb_getitem_numeric = prob_matr.getitem_numeric
 
     interval = 1000
     current = -1
@@ -343,12 +344,7 @@ def convert_cluster_set(cs, prob_matr):
             for c2 in cs.clusters:
                 if c1 != c2 and not c1.hates(c2):
                     for v2 in c2.bibs:
-                        val = prob_matr[rm, result_mapping[v2]]
-                        #WARNING: assume special values are representet with lenght one string. Strong optimization
-                        if len(val) < 2:
-                                numb = special_symbols[val]
-                                val = (numb, numb)
-                        assert len(val) == 2, "Edge coding failed val: %s, orig: %s "% (str(val), str(prob_matr[rm, result_mapping[v2]]) )
+                        val = pb_getitem_numeric((rm, result_mapping[v2]))
                         pointerappend(val)
                         indexappend(v2)
             real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')

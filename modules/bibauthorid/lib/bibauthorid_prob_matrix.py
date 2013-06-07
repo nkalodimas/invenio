@@ -62,6 +62,9 @@ class ProbabilityMatrix(object):
     def __getitem__(self, bibs):
         return self._bib_matrix[bibs[0], bibs[1]]
 
+    def getitem_numeric(self, bibs):
+        return self._bib_matrix.getitem_numeric(bibs)
+
 
     def __get_up_to_date_bibs(self):
         return frozenset(get_modified_papers_before(

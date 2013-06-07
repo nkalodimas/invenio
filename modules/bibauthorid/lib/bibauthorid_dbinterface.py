@@ -4144,12 +4144,12 @@ class Bib_matrix(object):
         return ret
 
     def _resolve_entry(self, bibs):
-        assert len(bibs) == 2
+        #assert len(bibs) == 2
         first = self._bibmap[bibs[0]]
         second = self._bibmap[bibs[1]]
         if first > second:
             first, second = second, first
-        assert first < second
+        #assert first < second
         return first + ((second - 1) * second) / 2
 
     def __setitem__(self, bibs, val):
@@ -4158,8 +4158,11 @@ class Bib_matrix(object):
 
     def __getitem__(self, bibs):
         entry = self._resolve_entry(bibs)
-        ret = tuple(self._matrix[entry])
+        ret = self._matrix[entry]
         return Bib_matrix.special_numbers.get(ret[0], ret)
+
+    def getitem_numeric(self, bibs):
+        return self._matrix[self._resolve_entry(bibs)]
 
     def __contains__(self, bib):
         return bib in self._bibmap
