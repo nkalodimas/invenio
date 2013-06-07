@@ -338,15 +338,12 @@ def convert_cluster_set(cs, prob_matr):
         for v1 in c1.bibs:
             pointer = list()
             index = list()
-            pointerappend = pointer.append
-            indexappend = index.append
             rm = result_mapping[v1] #locality optimization
             for c2 in cs.clusters:
                 if c1 != c2 and not c1.hates(c2):
-                    for v2 in c2.bibs:
-                        val = pb_getitem_numeric((rm, result_mapping[v2]))
-                        pointerappend(val)
-                        indexappend(v2)
+                    pointer += [pb_getitem_numeric((rm, result_mapping[v2])) for v2 in c2.bibs]
+                    index += c2.bibs
+
             real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
             real_pointer.fill(special_symbols[None])
             real_pointer[index] = pointer
