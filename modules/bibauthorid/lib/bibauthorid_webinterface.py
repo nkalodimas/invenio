@@ -1825,9 +1825,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         ulevel = pinfo["ulevel"]
         ticket = pinfo["ticket"]
         uid = getUid(req)
-        tempticket = list()
         ln = argd['ln']
-        pid = None
         action = None
 
         permitted_actions = ['add_external_id',
@@ -1855,7 +1853,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if argd[act] is not None:
                 action = act
 
-        no_access = self._page_access_permission_wall(req, pid)
+        no_access = self._page_access_permission_wall(req, None)
         if no_access and action not in ["claim"]:
             return no_access
 
@@ -2092,8 +2090,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                         "Fatal: cannot create ticket without any paper selected!")
             if 'rt_id' in argd and argd['rt_id']:
                 rt_id = argd['rt_id']
-                for b in bibrefs:
-                    self._cancel_transaction_from_rt_ticket(rt_id, pid, action, b)
+
+                for bibref in bibrefs:
+                    self._cancel_transaction_from_rt_ticket(rt_id, pid, action, bibref)
 
             webapi.add_tickets(pid, bibrefs, 'confirm')
 
@@ -2103,8 +2102,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             # start ticket processing chain
             pinfo["claimpaper_admin_last_viewed_pid"] = pid
             session.dirty = True
+
             return self._ticket_dispatch(ulevel, req)
-            # return self.perform(req, form)
+            # return self.perform(req, form) 
 
         def delete_external_ids():
             if argd['pid'] > -1:
@@ -2207,6 +2207,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if tpid and tpid[0] and tpid[1] and tpid[0][0]:
                 pid = tpid[0][0]
 
+        last_viewed_pid = False
         if (not no_access
             and "claimpaper_admin_last_viewed_pid" in pinfo
             and pinfo["claimpaper_admin_last_viewed_pid"]):
@@ -2215,12 +2216,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if len(names) > 0:
                 if len(names[0]) > 0:
                     last_viewed_pid = [pinfo["claimpaper_admin_last_viewed_pid"], names[0][0]]
-                else:
-                    last_viewed_pid = False
-            else:
-                last_viewed_pid = False
-        else:
-            last_viewed_pid = False
 
         if no_access:
             search_enabled = False
