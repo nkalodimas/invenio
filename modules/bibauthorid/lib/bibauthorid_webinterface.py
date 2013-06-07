@@ -2208,6 +2208,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if tpid and tpid[0] and tpid[1] and tpid[0][0]:
                 pid = tpid[0][0]
 
+        last_viewed_pid = False
         if (not no_access
             and "claimpaper_admin_last_viewed_pid" in pinfo
             and pinfo["claimpaper_admin_last_viewed_pid"]):
@@ -2216,12 +2217,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if len(names) > 0:
                 if len(names[0]) > 0:
                     last_viewed_pid = [pinfo["claimpaper_admin_last_viewed_pid"], names[0][0]]
-                else:
-                    last_viewed_pid = False
-            else:
-                last_viewed_pid = False
-        else:
-            last_viewed_pid = False
 
         if no_access:
             search_enabled = False
