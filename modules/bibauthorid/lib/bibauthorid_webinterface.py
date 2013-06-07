@@ -1825,9 +1825,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         ulevel = pinfo["ulevel"]
         ticket = pinfo["ticket"]
         uid = getUid(req)
-        tempticket = list()
         ln = argd['ln']
-        pid = None
         action = None
 
         permitted_actions = ['add_external_id',
@@ -1855,7 +1853,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if argd[act] is not None:
                 action = act
 
-        no_access = self._page_access_permission_wall(req, pid)
+        no_access = self._page_access_permission_wall(req, None)
         if no_access and action not in ["claim"]:
             return no_access
 
