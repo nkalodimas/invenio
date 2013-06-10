@@ -1188,7 +1188,7 @@ def get_author_to_confirmed_names_mapping(since=None):   ### get_all_modified_na
     pids_names = run_sql(query, tuple(args) )
 
     if since:
-        pids = set([pid for pid, name in pids_names])
+        pids = set([pid for pid, _ in pids_names])
         pids_sqlstr = _get_sqlstr_from_set(pids)
         pids_names = run_sql("""select personid, name
                                 from aidPERSONIDPAPERS
@@ -1205,6 +1205,26 @@ def get_author_to_confirmed_names_mapping(since=None):   ### get_all_modified_na
             res[pid] = [pid, set([name]), 1]
 
     return (tuple(res[pid]) for pid in res.keys())
+
+def get_all_modified_names_from_personid(since=None):
+    if since:
+        all_pids = run_sql("SELECT DISTINCT personid "
+                           "FROM aidPERSONIDPAPERS "
+                           "WHERE flag > -2 "
+                           "AND last_updated > %s"
+                           % since)
+    else:
+        all_pids = run_sql("SELECT DISTINCT personid "
+                           "FROM aidPERSONIDPAPERS "
+                           "WHERE flag > -2 ")
+
+    return ((name[0][0], set(n[1] for n in name), len(name))
+            for name in (run_sql(
+            "SELECT personid, name "
+            "FROM aidPERSONIDPAPERS "
+            "WHERE personid = %s "
+            "AND flag > -2", p)
+        for p in all_pids))
 
 
 def get_name_to_authors_mapping():   ### get_name_string_to_pid_dictionary
@@ -3208,7 +3228,7 @@ def get_modified_papers_since(since):   ### get_recently_modified_record_ids
     @rtype: frozenset frozenset(int,)
     '''
     modified_recs = run_sql("""select id from bibrec
-                               where modification_date >= '%s'""",
+                               where modification_date >= %s""",
                                (since,) )
     modified_recs = frozenset(rec[0] for rec in modified_recs)
 
