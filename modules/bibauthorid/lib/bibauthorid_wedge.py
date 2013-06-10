@@ -20,12 +20,11 @@
 from invenio import bibauthorid_config as bconfig
 from itertools import izip, starmap
 from operator import mul
-from invenio.bibauthorid_backinterface import Bib_matrix
 from invenio.bibauthorid_general_utils import update_status \
                                     , update_status_final \
                                     , bibauthor_print \
                                     , wedge_print
-from invenio.bibauthorid_prob_matrix import ProbabilityMatrix
+from invenio.bibauthorid_prob_matrix import ProbabilityMatrix, Bib_matrix
 import numpy
 #mport cPickle as SER
 import msgpack as SER
@@ -46,6 +45,9 @@ wedge_thrsh = ''
 
 import os
 PID = lambda : str(os.getpid())
+
+import pyximport; pyximport.install()
+from bibauthorid_meld_edges import meld_edges
 
 def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
     # The lower bound of the edges being processed by the wedge algorithm.
@@ -245,54 +247,6 @@ def do_wedge(cluster_set, deep_debug=False):
     if deep_debug:
         export_to_dot(cluster_set, "/tmp/%sfinal.dot" % cluster_set.last_name, bib_map)
 
-def meld_edges(p1, p2):
-    '''
-    Creates one out_edges set from two.
-    The operation is associative and commutative.
-    The objects are: (out_edges for in a cluster, number of vertices in the same cluster)
-    '''
-    out_edges1, verts1 = p1
-    out_edges2, verts2 = p2
-    assert verts1 > 0 and verts2 > 0, PID()+'MELD_EDGES: verts problem %s %s ' % (str(verts1), str(verts2))
-    vsum = verts1 + verts2
-    invsum = 1. / vsum
-
-    special_numbers = Bib_matrix.special_numbers #local reference optimization
-
-    def median(e1, e2):
-
-    #dirty optimization, should check if value is in dictionary instead
-    # if e1[0] in special_numbers: return e1
-    # if e2[0] in special_numbers: return e2
-        if e1[0] < 0:
-            assert e1[0] in special_numbers, "MELD_EDGES: wrong value for median? %s" % str(e1)
-            return e1
-        if e2[0] < 0:
-            assert e2[0] in special_numbers, "MELD_EDGES: wrong value for median? %s" % str(e2)
-            return e2
-
-        i1 = e1[1] * verts1
-        i2 = e2[1] * verts2
-        inter_cert = i1 + i2
-        inter_prob = e1[0] * i1 + e2[0] * i2
-        try:
-            return (inter_prob / inter_cert, inter_cert * invsum)
-        except ZeroDivisionError:
-            return (0.,0.)
-
-    assert len(out_edges1) == len(out_edges2), "Invalid arguments for meld edges"
-    size = len(out_edges1)
-
-    result = numpy.ndarray(shape=(size, 2), dtype=float, order='C')
-    gc.disable()
-#    for i in xrange(size):
-#        result[i] = median(out_edges1[i], out_edges2[i])
-#        assert (result[i][0] >= 0 and result[i][0] <= 1) or result[i][0] in Bib_matrix.special_numbers, PID()+'MELD_EDGES: value %s' % result[i]
-#        assert (result[i][1] >= 0 and result[i][1] <= 1) or result[i][1] in Bib_matrix.special_numbers, PID()+'MELD_EDGES: compat %s' % result[i]
-    result = [median(x,y) for x,y in izip(out_edges1, out_edges2)]
-    gc.enable()
-    return (result, vsum)
-
 def convert_cluster_set(cs, prob_matr):
     '''
     Convertes a normal cluster set to a wedge cluster set.
@@ -306,7 +260,7 @@ def convert_cluster_set(cs, prob_matr):
     #    + Assign a number to each bibrefrec.
     #    + Replace the arrays of bibrefrecs with arrays of numbers.
     #    + Store the result and prepare it to be returned.
-    result_mapping = []
+    result_mapping = list()
     for clus in cs.clusters:
         start = len(result_mapping)
         result_mapping += list(clus.bibs)
@@ -323,6 +277,7 @@ def convert_cluster_set(cs, prob_matr):
     #    + Meld those vectors into one for each cluster.
 
     special_symbols = Bib_matrix.special_symbols #locality optimization
+    pb_getitem_numeric = prob_matr.getitem_numeric
 
     interval = 1000
     current = -1
@@ -337,20 +292,12 @@ def convert_cluster_set(cs, prob_matr):
         for v1 in c1.bibs:
             pointer = list()
             index = list()
-            pointerappend = pointer.append
-            indexappend = index.append
             rm = result_mapping[v1] #locality optimization
             for c2 in cs.clusters:
                 if c1 != c2 and not c1.hates(c2):
-                    for v2 in c2.bibs:
-                        val = prob_matr[rm, result_mapping[v2]]
-                        #WARNING: assume special values are representet with lenght one string. Strong optimization
-                        if len(val) < 2:
-                                numb = special_symbols[val]
-                                val = (numb, numb)
-                        assert len(val) == 2, "Edge coding failed val: %s, orig: %s "% (str(val), str(prob_matr[rm, result_mapping[v2]]) )
-                        pointerappend(val)
-                        indexappend(v2)
+                    pointer += [pb_getitem_numeric((rm, result_mapping[v2])) for v2 in c2.bibs]
+                    index += c2.bibs
+
             real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
             real_pointer.fill(special_symbols[None])
             real_pointer[index] = pointer

@@ -22,12 +22,14 @@ import gc
 import invenio.bibauthorid_config as bconfig
 from invenio.bibauthorid_comparison import compare_bibrefrecs
 from invenio.bibauthorid_comparison import clear_all_caches as clear_comparison_caches
-from invenio.bibauthorid_backinterface import Bib_matrix
 from invenio.bibauthorid_backinterface import get_modified_papers_before
 from invenio.bibauthorid_general_utils import bibauthor_print \
                                         , update_status \
                                         , update_status_final \
                                         , is_eq
+
+#import pyximport; pyximport.install()
+from invenio.bibauthorid_bib_matrix import Bib_matrix
 
 if bconfig.DEBUG_CHECKS:
     def _debug_is_eq_v(vl1, vl2):
@@ -61,6 +63,9 @@ class ProbabilityMatrix(object):
 
     def __getitem__(self, bibs):
         return self._bib_matrix[bibs[0], bibs[1]]
+
+    def getitem_numeric(self, bibs):
+        return self._bib_matrix.getitem_numeric(bibs)
 
 
     def __get_up_to_date_bibs(self):
@@ -147,3 +152,4 @@ def prepare_matirx(cluster_set, force):
     matr.recalculate(cluster_set)
     matr.store(cluster_set.last_name)
     return True
+

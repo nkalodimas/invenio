@@ -46,7 +46,9 @@ pylib_DATA = \
 	bibauthorid_recipes.py \
 	bibauthorid_templates.py \
 	bibauthorid_wedge.py \
-	bibauthorid_webauthorprofileinterface.py
+	bibauthorid_webauthorprofileinterface.py \
+	bibauthorid_bib_matrix.py \
+	bibauthorid_meld_edges.pyx
 
 jsdir=$(localstatedir)/www/js
 
