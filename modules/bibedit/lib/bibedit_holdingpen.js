@@ -71,6 +71,7 @@ function onHoldingPenPanelRecordIdChanged(recordId){
   /** function that should be called when the edited record identifier changed
   * the functionality consists of reloading the entries using the Ajax call
   */
+
   holdingPenPanelRemoveEntries();
   createReq({recID: recordId, requestType: 'getHoldingPenUpdates'}, holdingPenPanelSetChanges);
 }
@@ -96,9 +97,9 @@ function holdingPenPanelAddEntry(entry){
 
 function holdingPenPanelSetChanges(data){
   /** Setting the Holding Pen panel content.
-   * 	This function can be utilised as a Javascript callback
+   *	This function can be utilised as a Javascript callback
    *
-   * 	Parameter:
+   *	Parameter:
    *  data - The dictionary containing a 'changes' key under which, a list
    *         of changes is stored
    */
@@ -130,7 +131,7 @@ function holdingPenPanelRemoveChangeSet(changesNum){
    */
 
   // removing the control
-  holdingPenPanelRemoveEntry(changesNum)
+  holdingPenPanelRemoveEntry(changesNum);
 
   // now removing the changeset from the database
   // This is an operation that can not be undoed !
@@ -142,10 +143,10 @@ function holdingPenPanelRemoveChangeSet(changesNum){
     requestType: "deleteHoldingPenChangeset",
     changesetNumber : changesNum,
     undoRedo : undoHandler
-  }
+  };
 
   createReq(data, function(json){
-    updateStatus('report', gRESULT_CODES[json['resultCode']])});
+    updateStatus('report', gRESULT_CODES[json['resultCode']]);});
 }
 
 function holdingPenPanelRemoveEntries(){
@@ -203,13 +204,13 @@ function onToggleDetailsVisibility(changesetNumber){
     // showing the details -> the preview used to be closed
 
     if (gHoldingPenLoadedChanges[changesetNumber] == undefined) {
-      // start prealoading the data that will be fileld into the
+      // start prealoading the data that will be filled into the
       // preview box
       createReq({
         changesetNumber: changesetNumber,
         requestType: 'getHoldingPenUpdateDetails',
-        recID: gRecID,
-      }, onHoldingPenPreviewDataRetreived)
+        recID: gRecID
+      }, onHoldingPenPreviewDataRetreived);
     }
     else {
       // showing the preview based on the precached data
@@ -356,7 +357,7 @@ function prepareVisualizeChangeset(changesetNumber, newChangesList, undoHandler)
   /** Makes the retrieved changeset visible in the main BibEdit editor
    *
    * Parameters:
-   * 	changesetNumber: the internal Holding Pen number of the changeset
+   *	changesetNumber: the internal Holding Pen number of the changeset
    *    newRecordData: the value of a record after changing
    *    undoHandler: the handler passed directly throught the AJAX call
    */
@@ -436,11 +437,11 @@ function holdingPenPanelApplyChangeSet(changesNum){
   }
   disableChangesetControls(changesNum);
   if (gHoldingPenLoadedChanges[changesNum] == undefined){
-    createReq({
-      changesetNumber: changesNum,
-      requestType: 'getHoldingPenUpdateDetails',
-      recID: gRecID},
-      onHoldingPenChangesetRetrieved);
+      createReq({
+        changesetNumber: changesNum,
+        requestType: 'getHoldingPenUpdateDetails',
+        recID: gRecID},
+        onHoldingPenChangesetRetrieved);
   }else
   {
     // we can apply the changes directly without waiting for them to be retrieved
@@ -762,9 +763,7 @@ function applySubfieldRemoved(changeNo){
     addUndoOperation(data.undoRedo);
     removeViewedChange(changeNo);
 
-    createReq(data, function(json){
-      updateStatus('report', gRESULT_CODES[json['resultCode']]);
-    });
+    queue_request(data);
   }
 }
 
@@ -782,9 +781,7 @@ function applyFieldRemoved(changeNo){
     data.undoRedo = undoHandler;
     addUndoOperation(undoHandler);
 
-    createReq(data, function(json){
-      updateStatus('report', gRESULT_CODES[json['resultCode']]);
-    });
+    queue_request(data);
 
     // now the position of the fields has changed. We have to fix all teh references inside the gHoldingPenChanges
       for (change in gHoldingPenChanges) {
@@ -1026,14 +1023,14 @@ function onRejectChangeClicked(changeNo){
   var undoHandler = prepareHPRejectChangeUndoHandler(changeNo);
   addUndoOperation(undoHandler);
   removeViewedChange(changeNo);
-  createReq({
+  var data = {
     requestType : "otherUpdateRequest",
     hpChanges : { toDisable: [changeNo]},
     recID : gRecID,
     undoRedo: undoHandler
-  }, function(json){
-    updateStatus('report', gRESULT_CODES[json['resultCode']])
-  });
+  };
+
+  queue_request(data);
 }
 
 
@@ -1405,7 +1402,7 @@ function prepareRemoveAllAppliedChanges(){
   gHoldingPenChanges = [];
   removeAllChangeControls();
   return {recID: gRecID, requestType: "otherUpdateRequest",
-	  hpChanges: {toOverride : []}};
+          hpChanges: {toOverride : []}};
 }
 
 
@@ -1415,9 +1412,7 @@ function onRejectAllChanges(){
   addUndoOperation(undoHandler);
   var ajaxData = prepareRemoveAllAppliedChanges();
   ajaxData.undoRedo = undoHandler;
-
-  createReq(ajaxData, function(json){
-    updateStatus('report', gRESULT_CODES[json['resultCode']])});
+  queue_request(ajaxData);
   adjustGeneralHPControlsVisibility();
   reColorFields();
 }

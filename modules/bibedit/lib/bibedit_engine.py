@@ -1183,7 +1183,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
                 response['resultCode'] = 30
 
         response['cacheMTime'], response['cacheDirty'] = \
-            update_cache_file_contents(recid, uid, record_revision,
+            update_cache_file_contents(recid, uid, record_revision, \
                                        record, \
                                        pending_changes, \
                                        deactivated_hp_changes, \
