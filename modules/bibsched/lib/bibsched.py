@@ -38,7 +38,6 @@ from invenio.bibtask_config import \
     CFG_BIBTASK_VALID_TASKS, \
     CFG_BIBTASK_MONOTASKS, \
     CFG_BIBTASK_FIXEDTIMETASKS
-
 from invenio.config import \
      CFG_PREFIX, \
      CFG_TMPSHAREDDIR, \
@@ -54,7 +53,9 @@ from invenio.config import \
      CFG_SITE_URL, \
      CFG_BIBSCHED_NODE_TASKS, \
      CFG_BIBSCHED_MAX_ARCHIVED_ROWS_DISPLAY, \
-     CFG_INSPIRE_SITE
+     CFG_INSPIRE_SITE, \
+     CFG_BIBSCHED_INCOMPATIBLE_TASKS, \
+     CFG_BIBSCHED_NON_CONCURRENT_TASKS
 from invenio.dbquery import run_sql, real_escape_string
 from invenio.textutils import wrap_text_in_a_box
 from invenio.errorlib import register_exception, register_emergency
@@ -1078,7 +1079,16 @@ class BibSched(object):
     def is_task_compatible(self, proc1, proc2):
         """Return True when the two tasks can run concurrently or can run when
         the other task is sleeping"""
-        return proc1 != proc2 or proc1.startswith('bibupload') and proc2.startswith('bibupload')
+        procname1 = proc1.split(':')[0]
+        procname2 = proc2.split(':')[0]
+        for non_compatible_tasks in CFG_BIBSCHED_INCOMPATIBLE_TASKS:
+            if procname1 in non_compatible_tasks and procname2 in non_compatible_tasks:
+                return False
+
+        if proc1 == proc2 == 'bibupload':
+            return True
+
+        return proc1 != proc2
 
     def get_tasks_to_sleep_and_stop(self, proc, task_set):
         """Among the task_set, return the list of tasks to stop and the list
@@ -1103,12 +1113,16 @@ class BibSched(object):
             if not self.is_task_compatible(t[1], proc):
                 to_stop.append(t)
 
+        procname = proc.split(':')[0]
         if proc in CFG_BIBTASK_MONOTASKS:
             to_sleep = [t for t in task_set if t[3] != 'SLEEPING']
-        elif proc.startswith('bibupload'):
-            for t in task_set:
-                if t[1].startswith('bibupload') and t[3] != 'SLEEPING':
-                    to_sleep.append(t)
+        else:
+            for non_concurrent_tasks in CFG_BIBSCHED_NON_CONCURRENT_TASKS:
+                if procname in non_concurrent_tasks:
+                    for t in task_set:
+                        t_procname = t[1].split(':')[0]
+                        if t_procname in non_concurrent_tasks and t[3] != 'SLEEPING':
+                            to_sleep.append(t)
 
         active_tasks = [t for t in self.node_relevant_active_tasks if t[5] == self.hostname]
         # Only needed if we are not freeing a spot already

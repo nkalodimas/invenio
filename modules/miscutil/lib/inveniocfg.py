@@ -175,7 +175,9 @@ Please, update your invenio-local.conf file accordingly.""" % (option_name, new_
                        'CFG_BIBDOCFILE_DOCUMENT_FILE_MANAGER_MISC',
                        'CFG_BIBDOCFILE_DOCUMENT_FILE_MANAGER_DOCTYPES',
                        'CFG_BIBDOCFILE_DOCUMENT_FILE_MANAGER_RESTRICTIONS',
-                       'CFG_REFEXTRACT_KBS_OVERRIDE']:
+                       'CFG_REFEXTRACT_KBS_OVERRIDE',
+                       'CFG_BIBSCHED_NON_CONCURRENT_TASKS',
+                       'CFG_BIBSCHED_INCOMPATIBLE_TASKS']:
         try:
             option_value = option_value[1:-1]
         except TypeError:
