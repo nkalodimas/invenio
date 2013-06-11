@@ -156,7 +156,7 @@ var gReadOnlyMode = false;
 
 // revisions history
 var gRecRevisionHistory = [];
-
+var gRecRevisionAuthors = {};
 var gUndoList = []; // list of possible undo operations
 var gRedoList = []; // list of possible redo operations
 
@@ -653,6 +653,7 @@ function resetBibeditState(){
   gDisabledHpEntries = {};
   gReadOnlyMode = false;
   gRecRevisionHistory = [];
+  gRecRevisionAuthors = {};
   gUndoList = [];
   gRedoList = [];
   gPhysCopiesNum = 0;
@@ -1356,6 +1357,7 @@ function getRecord(recID, recRev, onSuccess){
   /* Make sure the record revision exists, otherwise default to current */
   if ($.inArray(recRev, gRecRevisionHistory) === -1) {
     recRev = 0;
+
   }
 
   var getRecordPromise = new $.Deferred();
@@ -1463,6 +1465,7 @@ function onGetRecordSuccess(json){
   gReadOnlyMode = (json['inReadOnlyMode'] != undefined) ? json['inReadOnlyMode'] : false;
   gRecLatestRev = (json['lastRevision'] != undefined) ? json['lastRevision'] : null;
   gRecRevisionHistory = (json['revisionsHistory'] != undefined) ? json['revisionsHistory'] : null;
+  gRecRevisionAuthors = (json['revisionsAuthors'] != undefined) ? json['revisionsAuthors'] : null;
 
   if (json["resultCode"] === 103) {
     gReadOnlyMode = true;
@@ -1881,6 +1884,7 @@ function onCancelClick(){
       gRedoList = [];
       gReadOnlyMode = false;
       gRecRevisionHistory = [];
+      gRecRevisionAuthors = {};
       gHoldingPenLoadedChanges = [];
       gHoldingPenChanges = [];
       gPhysCopiesNum = 0;
