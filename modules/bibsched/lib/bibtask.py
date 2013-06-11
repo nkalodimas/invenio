@@ -472,6 +472,8 @@ def task_init(
                 if not ret:
                     write_message("Error occurred.  Exiting.", sys.stderr)
             except Exception, e:
+                if isinstance(e, SystemExit) and e.code == 0:
+                    raise
                 register_exception(alert_admin=True)
                 write_message("Unexpected error occurred: %s." % e, sys.stderr)
                 write_message("Traceback is:", sys.stderr)
