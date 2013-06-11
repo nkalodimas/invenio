@@ -621,9 +621,11 @@ function createHoldingPenChangePreview(record) {
      *     record - A content of the record that should be previewed
      */
 
-    return createRecordPreview(record) +
-        "<br><button onClick=\"onToggleDetailsVisibility(" +
-            changesetNumber + ");\">Hide preview</button>";
+    return "<button onClick=\"onToggleDetailsVisibility(" +
+            changesetNumber + ");\">Hide preview</button><br>" +
+            createRecordPreview(record) +
+            "<button onClick=\"onToggleDetailsVisibility(" +
+            changesetNumber + ");\">Hide preview</button><br>";
 }
 
 
