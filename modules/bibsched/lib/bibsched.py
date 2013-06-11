@@ -351,7 +351,7 @@ class BibSched(object):
             return tuple(t for t in tasks if relevant_task(t))
 
         self.node_relevant_bibupload_tasks = filter_tasks(self.node_relevant_bibupload_tasks)
-        self.node_relevant_waiting_tasks = filter_tasks(self.node_relevant_waiting_tasks)
+        self.node_relevant_waiting_tasks = filter_tasks(self.waiting_tasks_all_nodes)
 
     def is_task_compatible(self, task1, task2):
         """Return True when the two tasks can run concurrently or can run when
@@ -378,7 +378,7 @@ class BibSched(object):
             for t in task_set:
                 if (min_task is None or t.priority < min_task.priority) \
                      and t.status != 'SLEEPING' and t.priority < task.priority \
-                     and task.hostname == t.hostname:
+                     and task.host == t.host:
                     # We don't put to sleep already sleeping task :-)
                     # And it only makes sense to free a spot on the local node
                     min_task = t
@@ -672,7 +672,7 @@ class BibSched(object):
                    ORDER BY FIELD(status, 'SLEEPING', 'WAITING'),
                             id ASC LIMIT 1""", n=1))
         ## The other tasks are sorted by priority
-        self.node_relevant_waiting_tasks = Task.from_resultset(run_sql(
+        self.waiting_tasks_all_nodes = Task.from_resultset(run_sql(
             """SELECT id, proc, runtime, status, priority, host, sequenceid
                FROM schTASK WHERE (status = 'WAITING' AND runtime <= NOW())
                OR status = 'SLEEPING'
@@ -698,7 +698,6 @@ class BibSched(object):
 
         self.node_active_tasks = filter_by_host(self.active_tasks_all_nodes)
         self.node_sleeping_tasks = filter_by_host(self.sleeping_tasks_all_nodes)
-        self.node_relevant_waiting_tasks = filter_by_host(self.node_relevant_waiting_tasks)
 
         self.filter_for_allowed_tasks()
 
