@@ -752,6 +752,12 @@ order to let this task run. The current priority is %s. New value:"
         self.stdscr.refresh()
 
     def update_rows(self):
+        try:
+            selected_row = self.rows[self.selected_line - self.header_lines]
+        except IndexError:
+            selected_id = 0
+        else:
+            selected_id = selected_row[0]
         if self.display == 1:
             table = "schTASK"
             where = "and (status='DONE' or status LIKE 'ACK%')"
@@ -774,9 +780,15 @@ order to let this task run. The current priority is %s. New value:"
                                WHERE status NOT LIKE '%%_DELETED' %s
                                ORDER BY %s
                                %s""" % (table, where, order, limit))
-        # Make sure we are not selecting a line that disappeared
-        self.selected_line = min(self.selected_line,
-                                 len(self.rows) + self.header_lines - 1)
+
+        for row_index, row in enumerate(self.rows):
+            if row[0] == selected_id:
+                self.selected_line = row_index + self.header_lines
+                break
+        else:
+            # Make sure we are not selecting a line that disappeared
+            self.selected_line = min(self.selected_line,
+                                     len(self.rows) + self.header_lines - 1)
 
     def start(self, stdscr):
         os.environ['BIBSCHED_MODE'] = 'manual'
