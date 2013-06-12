@@ -962,10 +962,10 @@ def session_bareinit(req):
             pinfo["ticket"] = []
             session.dirty = True
         if 'users_open_tickets_storage' not in pinfo:
-            pinfo["users_open_tickets_storage"] = True
+            pinfo["users_open_tickets_storage"] = []
             session.dirty = True
         if 'incomplete_autoclaimed_tickets_storage' not in pinfo:
-            pinfo["incomplete_autoclaimed_tickets_storage"] = True
+            pinfo["incomplete_autoclaimed_tickets_storage"] = []
             session.dirty = True
         if 'remote_login_system' not in pinfo:
             pinfo["remote_login_system"] = dict()
@@ -1226,120 +1226,6 @@ def get_profile_suggestion_info(req, pid):
 
 def claim_profile(uid, pid):
     return dbapi.assign_person_to_uid(uid, pid)
-
-
-def arxiv_login(req, picked_profile=None):
-    '''
-    Log in through arxive. If user already associated to a personid, returns the personid.
-    If user has no pid, try to guess which personid to associate based on surname and papers
-    from arxiv. If no compatible person is found, creates a new person.
-    At the end of the process opens a ticket for the user claiming the papers from arxiv.
-    !!! the user will find the open ticket, which will require him to go through the
-    final review before getting committed.
-
-    @param req: Apache request object
-    @type req: Apache request object
-
-    @return: Returns the pid resulting in the process
-    @rtype: int
-    '''
-    def session_bareinit(req):
-        session = get_session(req)
-        try:
-            pinfo = session["personinfo"]
-            if 'ticket' not in pinfo:
-                pinfo["ticket"] = []
-        except KeyError:
-            pinfo = dict()
-            session['personinfo'] = pinfo
-            pinfo["ticket"] = []
-        session.dirty = True
-
-    session_bareinit(req)
-    session = get_session(req)
-
-    pinfo = session['personinfo']
-    ticket = session['personinfo']['ticket']
-
-    uinfo = collect_user_info(req)
-
-    try:
-        name = uinfo['external_firstname']
-    except KeyError:
-        name = ''
-    try:
-        surname = uinfo['external_familyname']
-    except KeyError:
-        surname = ''
-
-    if surname:
-        session['personinfo']['arxiv_name'] = nameapi.create_normalized_name(
-                                          nameapi.split_name_parts(surname + ', ' + name))
-    else:
-        session['personinfo']['arxiv_name'] = ''
-
-    session.dirty = True
-
-    try:
-        arxiv_p_ids = uinfo['external_arxivids'].split(';')
-    except KeyError:
-        arxiv_p_ids = []
-
-    # 'external_arxivids': 'hep-th/0112017;hep-th/0112020',
-    # 'external_familyname': 'Weiler',
-    # 'external_firstname': 'Henning',
-
-    try:
-        found_bibrecs = set(reduce(add, [perform_request_search(p='037:' + str(arx), of='id', rg=0)for arx in arxiv_p_ids]))
-    except (IndexError, TypeError):
-        found_bibrecs = set()
-
-    # found_bibrecs = [567700, 567744]
-
-    uid = getUid(req)
-    pid, pid_found = dbapi.get_author_by_uid([[uid]])
-
-    if pid_found:
-        pid = pid[0]
-    else:
-        if picked_profile == None:
-            top5_list = dbapi.find_top5_personid_for_new_arxiv_user(found_bibrecs,
-                nameapi.create_normalized_name(nameapi.split_name_parts(surname + ', ' + name)))
-            return ("top5_list", top5_list)
-        else:
-            pid = dbapi.check_personids_availability(picked_profile, uid)
-
-    pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
-    missing_bibrecs = found_bibrecs - pid_bibrecs
-    # present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
-
-    # assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
-
-    tempticket = []
-    # now we have to open the tickets...
-    # person_papers contains the papers which are already assigned to the person and came from arxive,
-    # they can be claimed regardless
-
-    for bibrec in missing_bibrecs:
-        tempticket.append({'pid':pid, 'bibref':str(bibrec), 'action':'confirm'})
-
-    # check if ticket targets (bibref for pid) are already in ticket
-    for t in list(tempticket):
-        for e in list(ticket):
-            if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
-                ticket.remove(e)
-        ticket.append(t)
-
-    session.dirty = True
-
-    if picked_profile != None and picked_profile != pid and picked_profile != -1:
-
-        return ("chosen pid not available", pid)
-    elif picked_profile != None and picked_profile == pid and picked_profile != -1:
-        return ("pid assigned by user", pid)
-    else:
-        return ("pid", pid)
-
 
 def external_user_can_perform_action(uid):
     '''
@@ -1784,24 +1670,28 @@ def add_tickets(req, pid, bibrefs, action):
     # check if ticket targets (bibref for pid) are already in ticket
     for t in tempticket:
         tempticket_is_valid_bibref = is_valid_bibref(t['bibref'])
-        if not ticket:
-            ticket.append(t)
+        should_append = True
         for e in list(ticket):
             ticket_is_valid_bibref = is_valid_bibref(e['bibref'])
             # if they are the same leave ticket as it is and continue to the next tempticket
-            if e['bibref'] == t['bibref']:
+            if e['bibref'] == t['bibref'] and e['pid'] == t['pid']:
+                should_append = False
                 break
             # if we are comparing two different bibrefrecs with the same recids we remove the current bibrefrec and we add their recid
             elif tempticket_is_valid_bibref and ticket_is_valid_bibref and t['bibref'].split(',')[1] == e['bibref'].split(',')[1]:
                 ticket.remove(e)
                 ticket.append({'pid': pid, 'bibref': t['bibref'].split(',')[1], 'action': action})
+                should_append = False
                 break
             elif is_valid_bibref(e['bibref']) and e['bibref'] == t['bibref'].split(',')[1]:
+                should_append = False
                 break
             elif is_valid_bibref(t['bibref']) and t['bibref'] == e['bibref'].split(',')[1]:
                 ticket.remove(e)
-                ticket.append(t)
                 break
+
+        if should_append:
+            ticket.append(t)
 
 def manage_tickets(req, autoclaim):
     session = get_session(req)
@@ -1809,16 +1699,18 @@ def manage_tickets(req, autoclaim):
     ticket = pinfo["ticket"]
     redirect_info = dict()
 
-    if is_ticket_review_handling_required(req):
-        handle_ticket_review_results(req, autoclaim)
-    else:
-        is_required, needs_review = is_ticket_review_required(req)
-        if is_required:
-            bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
+
+    is_required, needs_review = is_ticket_review_required(req)
+    if is_required:
+        bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
+        if not autoclaim:
             redirect_info['type'] = 'Submit Attribution'
             redirect_info['title'] = 'Submit Attribution Information'
             redirect_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
             return redirect_info
+
+    if is_ticket_review_handling_required(req):
+        handle_ticket_review_results(req, autoclaim)
         
     uid = getUid(req)
     for t in ticket:
@@ -2303,7 +2195,7 @@ def store_users_open_tickets(req):
     ticket = session['personinfo']['ticket']
     temp_storage = session['personinfo']['users_open_tickets_storage']
     for t in list(ticket):
-        temp_storage.add(t)
+        temp_storage.append(t)
         ticket.remove(t)
 
 # store incomplete autoclaim's tickets elsewhere waiting for user interference in order not to mess with new tickets
@@ -2314,8 +2206,14 @@ def store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets):
 
     for incomplete_ticket in failed_to_autoclaim_tickets:
         if incomplete_ticket not in temp_storage:
-            temp_storage.add(incomplete_ticket)
-        
+            temp_storage.append(incomplete_ticket)
+            
+def get_stored_incomplete_autoclaim_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    temp_storage = session['personinfo']['incomplete_autoclaimed_tickets_storage']
+    return temp_storage
+
 # restore any users open ticket, that is in storage , in session as autoclaiming has finished
 def restore_users_open_tickets(req):
     session_bareinit(req)
@@ -2324,7 +2222,7 @@ def restore_users_open_tickets(req):
     temp_storage = session['personinfo']['users_open_tickets_storage']
 
     for t in list(temp_storage):
-        ticket.add(t)
+        ticket.append(t)
         temp_storage.remove(t)
 
 REMOTE_LOGIN_SYSTEMS_FUNCTIONS = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}

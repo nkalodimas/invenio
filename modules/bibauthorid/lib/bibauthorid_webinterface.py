@@ -1305,7 +1305,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 for bibref in bibrefs:
                     self._cancel_transaction_from_rt_ticket(rt_id, pid, action, bibref)
 
-            webapi.add_tickets(req, pid, bibrefs, 'confirm')
+            webapi.add_tickets(req, pid, bibrefs, action)
 
             if 'search_ticket' in pinfo:
                 del(pinfo['search_ticket'])
@@ -1587,7 +1587,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         pinfo["admin_requested_ticket_id"] = -1
         session.dirty = True
 
-
     def _generate_search_ticket_box(self, req):
         '''
         Generate the search ticket to remember a pending search for Person
@@ -1611,7 +1610,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if not search_ticket:
             return ''
         else:
-            return TEMPLATE.tmpl_search_ticket_box('person_search', 'merge_profiles', search_ticket['bibrefs'])
+            return TEMPLATE.tmpl_search_ticket_box('person_search', 'assign_papers', search_ticket['bibrefs'])
 
     def search_box(self, pid_list, query, shown_element_functions):
 
@@ -2132,7 +2131,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         '''
 
         self._session_bareinit(req)
-
+        
         argd = wash_urlargd(
             form,
             {'ln': (str, CFG_SITE_LANG),
@@ -2178,7 +2177,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         claim_paper_data = self._claim_paper_box(person_id)
         support_data = self._support_box(person_id)
         ext_ids = self.external_ids_box(person_id)
-        autoclaim_data = self._autoclaim_papers()
+        autoclaim_data = self._autoclaim_papers_box(person_id, req, login_info['remote_logged_in_systems'])
 
         user_pid = webapi.get_user_pid(login_info['uid'])
         gpid = user_pid
@@ -2219,10 +2218,31 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         return orcid_data
 
-    def _autoclaim_papers(self):
+    def _autoclaim_papers_box(self, person_id, req, remote_logged_in_systems):
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        ulevel = pinfo["ulevel"]
+        
         autoclaim_data = dict()
-
         autoclaim_data['hidden'] = True
+        recids_to_autoclaim = webapi.get_remote_login_systems_recids(req, remote_logged_in_systems)
+        # get all the ids that arrived from the external systems
+        cached_ids_association = webapi.get_cached_id_association(req)
+
+        # external ids and recids should hava a 1 to 1 relation so the dicionary can be inverted and search by recid as a key
+        inverted_association = {value:key for key, value in cached_ids_association.items()}
+
+        if recids_to_autoclaim:
+            autoclaim_data['hidden'] = False
+            
+            webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
+            self._ticket_dispatch(ulevel, req, True)
+            
+            unsuccessfull_claimed_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
+            autoclaim_data['recids'] = dict()
+            for recid in unsuccessfull_claimed_recids:
+                autoclaim_data['recids'][recid] = inverted_association[recid]
+            
         # this should be hidden if empty
         # if there are papers that could not be autoclaimed
             # show them and give the chance to the user to claim them by himself

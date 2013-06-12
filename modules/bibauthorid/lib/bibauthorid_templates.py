@@ -1786,15 +1786,14 @@ class Template:
             h('</td>')
 
             if show_action_button:
-                #action_button_text, action_button_link = shown_element_functions['button_gen'](pid)
+                action_button_text, action_button_link = shown_element_functions['button_gen'](pid)
                 #Action link
                 h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center">')
                 # h(('<span >'
                 #             '<a rel="nofollow" href="%s" class="confirmlink">'
                 #             '<strong>%s</strong>' + '</a></span>')
                 #             % (action_button_link, action_button_text))
-                h('<input type="checkbox" name="profile" value=%s>' %(str(pid),))
-                #h('<button type="button"><a rel="nofollow" href="%s" class="confirmlink">%s' % (action_button_link, action_button_link))
+                h('<button type="button"><a rel="nofollow" href="%s" class="confirmlink">%s' % (action_button_link, action_button_text))
                 h('</a></button>')
                 h('</td>')
             h('</tr>')
@@ -2581,6 +2580,7 @@ class Template:
         html_claim_paper = self.tmpl_claim_paper_box(claim_paper_data, ln, loading=False)
         html_ext_ids = self.tmpl_ext_ids_box(ext_ids, ln, loading=False)
         html_autoclaim = self.tmpl_autoclaim_box(autoclaim_data, ln, loading=False)
+            
         html_support = self.tmpl_support_box(support_data, ln, loading=False)
 
         g = self._grid
@@ -2704,11 +2704,28 @@ class Template:
 
     def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
+        
+        html_head = None
 
-        html_head = _("<strong> Autoclaim Papers </strong>")
         if not autoclaim_data['hidden']:
-            pass
-        return None
+            html_head = _("<strong> Autoclaim Papers </strong>")
+            html_autoclaim = _("The following papers were unsuccessfully claimed. Do you want to review the claiming now?</br>")
+            html_autoclaim += '</br><div><a href="mpla.com">Review autoclaiming.</br></a></div>'
+            html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
+            html_autoclaim += '<td><strong>' + 'External System Id' +'</strong></td>' + '<td><strong>' + 'Record id' +'</strong></td></tr>'
+
+            for rec in autoclaim_data['recids'].keys()[:5]:
+                html_autoclaim += '<tr><td>' + str(autoclaim_data['recids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
+            html_autoclaim += '</table>'
+        else:
+            return None
+        if loading:
+            html_autoclaim = self.loading_html()
+        if add_box:
+            autoclaim_box = self.tmpl_print_searchresultbox('autoclaim', html_head, html_autoclaim)
+            return autoclaim_box
+        else:
+            return html_autoclaim        
 
     def tmpl_support_box(self, support_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
