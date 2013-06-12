@@ -23,6 +23,8 @@ import os
 import time
 import marshal
 from socket import gethostname
+from datetime import datetime, timedelta
+from itertools import chain
 import signal
 import textwrap
 
@@ -126,7 +128,7 @@ class Manager(object):
         self.helper_modules = CFG_BIBTASK_VALID_TASKS
         self.running = 1
         self.footer_auto_mode = "Automatic Mode [A Manual] [1/2/3 Display] [P Purge] [l/L Log] [O Opts] [E Edit motd] [Q Quit]"
-        self.footer_select_mode = "Manual Mode [A Automatic] [1/2/3 Display Type] [P Purge] [l/L Log] [O Opts] [E Edit motd] [Q Quit]"
+        self.footer_manual_mode = "Manual Mode%s [A Automatic] [1/2/3 Display Type] [P Purge] [l/L Log] [O Opts] [E Edit motd] [Q Quit]"
         self.footer_waiting_item = "[R Run] [D Delete] [N Priority]"
         self.footer_running_item = "[S Sleep] [T Stop] [K Kill]"
         self.footer_stopped_item = "[I Initialise] [D Delete] [K Acknowledge]"
@@ -201,7 +203,7 @@ class Manager(object):
                 self.selected_line = len(self.rows) + self.header_lines - 1
                 self.repaint()
             elif char in (ord("a"), ord("A")):
-                self.change_auto_mode()
+                self.display_change_queue_mode_box()
             elif char == ord("l"):
                 self.openlog()
             elif char == ord("L"):
@@ -292,6 +294,10 @@ class Manager(object):
         if editor:
             previous = self.motd
             self.curses.endwin()
+            if not os.path.isfile(CFG_MOTD_PATH) or not open(CFG_MOTD_PATH).read():
+                f = open(CFG_MOTD_PATH, 'w')
+                f.write('<user>, <reason>')
+                f.close()
             os.system("%s %s" % (editor, CFG_MOTD_PATH))
 
             # We need to redraw the MOTD part
@@ -465,9 +471,9 @@ order to let this task run. The current priority is %s. New value:"
 
     def _display_message_box(self, msg):
         """Utility to display message boxes."""
-        rows = textwrap.wrap(msg, self.width-1)
+        rows = list(chain(*(textwrap.wrap(line, self.width-6) for line in msg.split('\n'))))
         height = len(rows) + 2
-        width = max([len(row) for row in rows]) + 3
+        width = max([len(row) for row in rows]) + 4
         self.win = self.curses.newwin(
             height,
             width,
@@ -486,6 +492,93 @@ order to let this task run. The current priority is %s. New value:"
         self.win.getkey()
         self.curses.noecho()
         self.panel = None
+
+    def display_change_queue_mode_box(self, extend_time=False):
+        """Utility to display confirmation boxes."""
+        # We do not need a confirmation box for putting the queue back
+        # to automatic mode
+        if not self.auto_mode and not extend_time:
+            self.change_auto_mode(True)
+            return
+
+        height = 6
+        width = 38
+
+        options = (
+            (5*60, "5 min"),
+            (3600, "1 hour"),
+            (-1, "forever"),
+        )
+        state = {'selected_option': 5*60}
+
+        def draw_options():
+            msg = "Change queue to manual mode".center(width-3)
+            self.win.addstr(1, 2, msg, self.current_attr)
+            i = 2
+            for value, name in options:
+                row = name.center(11)
+                if value == state['selected_option']:
+                    color = self.curses.color_pair(9)
+                else:
+                    color = self.current_attr
+                self.win.addstr(3, i, row, color)
+                i += len(row)
+                if not value == options[-1][0]:
+                    self.win.addstr(3, i, '|', self.current_attr)
+                i += 1
+            self.win.addstr(4, 2, ' ', self.current_attr)
+
+        def find_selected_index():
+            for i, v in enumerate(options):
+                if v[0] == state['selected_option']:
+                    return i
+
+        def move_selection(offset):
+            selected_index = find_selected_index()
+            requested_index = selected_index + offset
+            if 0 <= requested_index < len(options):
+                state['selected_option'] = options[requested_index][0]
+                draw_options()
+
+        self.win = self.curses.newwin(
+            height,
+            width,
+            (self.height - height) / 2 + 1,
+            (self.width - width) / 2 + 1
+        )
+        self.panel = self.curses.panel.new_panel(self.win)
+        self.panel.top()
+        self.win.border()
+        draw_options()
+        self.win.refresh()
+        try:
+            while True:
+                c = self.win.getch()
+                if c == ord('q'):
+                    return
+                elif c in (self.curses.KEY_RIGHT, 67):
+                    move_selection(1)
+                elif c in (self.curses.KEY_LEFT, 68):
+                    move_selection(-1)
+                elif c in (self.curses.KEY_ENTER, 10):
+                    # Require a motd if the duration is more than 5min
+                    if 0 < state['selected_option'] <= 5*60:
+                        self.change_auto_mode(False, state['selected_option'])
+                        return
+                    else:
+                        self.edit_motd()
+                        self.read_motd()
+                        if self.motd and len(self.motd) > 30:
+                            self.change_auto_mode(False, state['selected_option'])
+                            return
+                        else:
+                            self.win.border()
+                            draw_options()
+                            self.win.addstr(4, 2, 'motd too short', self.current_attr)
+        finally:
+            self.panel = None
+            self.update_rows()
+            self.repaint()
 
     def purge_done(self):
         """Garbage collector."""
@@ -613,13 +706,44 @@ order to let this task run. The current priority is %s. New value:"
         else:
             self.display_in_footer("Cannot initialise running processes")
 
-    def change_auto_mode(self):
-        program = os.path.join(CFG_BINDIR, "bibsched")
-        if self.auto_mode:
-            COMMAND = "%s -q halt" % program
+    def fetch_auto_mode(self):
+        # If the daemon is not running at all, we are in manual mode
+        if not server_pid():
+            status = 0
         else:
+            # Otherwise check the daemon status
+            r = run_sql('SELECT value FROM schSTATUS WHERE name = "auto_mode"')
+            try:
+                status = int(r[0][0])
+            except (ValueError, IndexError):
+                status = 0
+        return status
+
+    def check_auto_mode(self):
+        new_status = self.fetch_auto_mode()
+        if self.auto_mode == 1 and new_status == 0:
+            self.curses.beep()
+        self.auto_mode = new_status
+
+    def change_auto_mode(self, new_mode, duration=None):
+        if not server_pid():
+            program = os.path.join(CFG_BINDIR, "bibsched")
             COMMAND = "%s -q start" % program
-        os.system(COMMAND)
+            os.system(COMMAND)
+
+        # Enable automatic mode
+        if new_mode:
+            run_sql('UPDATE schSTATUS SET value = "" WHERE name = "resume_after"')
+            run_sql('UPDATE schSTATUS SET value = "1" WHERE name = "auto_mode"')
+        # Enable manual mode
+        else:
+            run_sql('UPDATE schSTATUS SET value = "0" WHERE name = "auto_mode"')
+            if duration:
+                resume_after = datetime.now() + timedelta(seconds=duration)
+                resume_after = resume_after.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                resume_after = ""
+            run_sql('REPLACE INTO schSTATUS (name, value) VALUES ("resume_after", %s)', [resume_after])
 
         self.auto_mode = not self.auto_mode
         # We need to refresh the color of the header and footer
@@ -713,20 +837,21 @@ order to let this task run. The current priority is %s. New value:"
         except self.curses.error:
             pass
 
+    def tick(self):
+        self.update_rows()
+        self.repaint()
+        if self.manual_mode_time_left and self.manual_mode_time_left.seconds < 10:
+            self.display_change_queue_mode_box(extend_time=True)
+
     def repaint(self):
-        if server_pid():
-            self.auto_mode = 1
-        else:
-            if self.auto_mode == 1:
-                self.curses.beep()
-            self.auto_mode = 0
+        self.check_auto_mode()
         self.y = 0
         self.stdscr.erase()
         self.height, self.width = self.stdscr.getmaxyx()
         maxy = self.height - 2
         #maxx = self.width
         if len(self.motd) > 0:
-            self.put_line((self.motd.strip().replace("\n", " - ")[:79], "", "", "", "", "", "", "", ""), header=False, motd=True)
+            self.put_line((self.motd.strip().replace("\n", " - ")[:self.width-1], "", "", "", "", "", "", "", ""), header=False, motd=True)
         self.put_line(("ID", "PROC [PRI]", "USER", "RUNTIME", "SLEEP", "STATUS", "HOST", "PROGRESS"), header=True)
         self.put_line(("", "", "", "", "", "", "", ""), header=True)
         if self.selected_line > maxy + self.first_visible_line - 1:
@@ -739,7 +864,11 @@ order to let this task run. The current priority is %s. New value:"
         if self.auto_mode:
             self.display_in_footer(self.footer_auto_mode, print_time_p=1)
         else:
-            self.display_in_footer(self.footer_select_mode, print_time_p=1)
+            if self.manual_mode_time_left:
+                time_left = " %02d:%02d remaining" % (self.manual_mode_time_left.seconds / 60, self.manual_mode_time_left.seconds % 60)
+            else:
+                time_left = ""
+            self.display_in_footer(self.footer_manual_mode % time_left, print_time_p=1)
             footer2 = ""
             if self.item_status.find("DONE") > -1 or self.item_status in ("ERROR", "STOPPED", "KILLED", "ERRORS REPORTED"):
                 footer2 += self.footer_stopped_item
@@ -753,6 +882,15 @@ order to let this task run. The current priority is %s. New value:"
         self.stdscr.refresh()
 
     def update_rows(self):
+        self.manual_mode_time_left = None
+        r = run_sql('SELECT value FROM schSTATUS WHERE name = "resume_after"')
+        if r and r[0] and r[0][0]:
+            date_string = r[0][0]
+            resume_after = datetime(*(time.strptime(date_string, "%Y-%m-%d %H:%M:%S")[0:6]))
+            now = datetime.now()
+            if resume_after > now:
+                self.manual_mode_time_left = resume_after - now
+
         try:
             selected_row = self.rows[self.selected_line - self.header_lines]
         except IndexError:
@@ -795,7 +933,6 @@ order to let this task run. The current priority is %s. New value:"
         os.environ['BIBSCHED_MODE'] = 'manual'
         if self.curses.has_colors():
             self.curses.start_color()
-            self.curses.init_pair(8, self.curses.COLOR_WHITE, self.curses.COLOR_BLACK)
             self.curses.init_pair(1, self.curses.COLOR_WHITE, self.curses.COLOR_RED)
             self.curses.init_pair(2, self.curses.COLOR_GREEN, self.curses.COLOR_BLACK)
             self.curses.init_pair(3, self.curses.COLOR_MAGENTA, self.curses.COLOR_BLACK)
@@ -803,23 +940,23 @@ order to let this task run. The current priority is %s. New value:"
             self.curses.init_pair(5, self.curses.COLOR_BLUE, self.curses.COLOR_BLACK)
             self.curses.init_pair(6, self.curses.COLOR_CYAN, self.curses.COLOR_BLACK)
             self.curses.init_pair(7, self.curses.COLOR_YELLOW, self.curses.COLOR_BLACK)
+            self.curses.init_pair(8, self.curses.COLOR_WHITE, self.curses.COLOR_BLACK)
+            self.curses.init_pair(9, self.curses.COLOR_BLACK, self.curses.COLOR_WHITE)
         self.stdscr = stdscr
         self.base_panel = self.curses.panel.new_panel(self.stdscr)
         self.base_panel.bottom()
         self.curses.panel.update_panels()
         self.height, self.width = stdscr.getmaxyx()
         self.stdscr.erase()
-        if server_pid():
-            self.auto_mode = 1
+        self.check_auto_mode()
         ring = 4
         if len(self.motd) > 0:
             self._display_message_box(self.motd + "\nPress any key to close")
         while self.running:
             if ring == 4:
                 self.read_motd()
-                self.update_rows()
+                self.tick()
                 ring = 0
-                self.repaint()
             ring += 1
             char = -1
             try:

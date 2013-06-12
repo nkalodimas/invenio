@@ -31,6 +31,7 @@ import getopt
 from itertools import chain
 from socket import gethostname
 from subprocess import Popen
+from datetime import datetime
 import signal
 
 from invenio.bibtask_config import \
@@ -707,6 +708,31 @@ class BibSched(object):
 
         self.filter_for_allowed_tasks()
 
+    def check_auto_mode(self):
+        """Check if the queue is in automatic or manual mode"""
+        r = run_sql('SELECT value FROM schSTATUS WHERE name = "auto_mode"')
+        try:
+            status = int(r[0][0])
+        except (ValueError, IndexError):
+            # We insert the missing configuration variable in the DB
+            run_sql('INSERT INTO schSTATUS (name, value) VALUES ("auto_mode", "1")')
+            status = 1
+
+        if not status:
+            r = run_sql('SELECT value FROM schSTATUS WHERE name = "resume_after"')
+            try:
+                date_string = r[0][0]
+            except IndexError:
+                pass
+            else:
+                resume_after = datetime(*(time.strptime(date_string, "%Y-%m-%d %H:%M:%S")[0:6]))
+                if datetime.now() > resume_after:
+                    run_sql('UPDATE schSTATUS SET value = "" WHERE name = "resume_after"')
+                    run_sql('UPDATE schSTATUS SET value = "1" WHERE name = "auto_mode"')
+                    status = 1
+
+        return status
+
     def watch_loop(self):
         ## Cleaning up scheduled task not run because of bibsched being
         ## interrupted in the middle.
@@ -718,6 +744,11 @@ class BibSched(object):
         try:
             while True:
                 Log("New bibsched cycle", self.debug)
+                auto_mode = self.check_auto_mode()
+                if not auto_mode:
+                    time.sleep(CFG_BIBSCHED_REFRESHTIME)
+                    continue
+
                 self.calculate_rows()
                 ## Let's first handle running tasks running on this node.
                 for task in self.node_active_tasks:
