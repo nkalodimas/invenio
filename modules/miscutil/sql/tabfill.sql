@@ -53,6 +53,7 @@ INSERT INTO field VALUES (30,'author count','authorcount');
 INSERT INTO field VALUES (31,'reference to','rawref');
 INSERT INTO field VALUES (33,'refers to excluding self cites','referstoexcludingselfcites');
 INSERT INTO field VALUES (34,'cited by excluding self cites','citedbyexcludingselfcites');
+INSERT INTO field VALUES (35,'cataloguer nickname','cataloguer');
 
 INSERT INTO field_tag VALUES (1,100,10);
 INSERT INTO field_tag VALUES (1,102,10);
