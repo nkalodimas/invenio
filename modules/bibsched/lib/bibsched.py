@@ -317,6 +317,7 @@ class BibSched(object):
         self.node_active_tasks = ()
         ## All tasks of all nodes
         self.sleeping_tasks_all_nodes = ()
+        self.waiting_tasks_all_nodes = ()
         self.active_tasks_all_nodes = ()
         self.mono_tasks_all_nodes = ()
 
