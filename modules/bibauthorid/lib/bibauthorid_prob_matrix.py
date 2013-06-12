@@ -85,7 +85,6 @@ class ProbabilityMatrix(object):
         the matrix.
         '''
         last_cleaned = 0
-        gc.disable()
 
         old_matrix = self._bib_matrix
         cached_bibs = self.__get_up_to_date_bibs()
@@ -133,7 +132,6 @@ class ProbabilityMatrix(object):
 
         clear_comparison_caches()
         update_status_final("Matrix done. %d calc, %d opt." % (cur_calc, opti))
-        gc.enable()
 
 
 def prepare_matirx(cluster_set, force):
