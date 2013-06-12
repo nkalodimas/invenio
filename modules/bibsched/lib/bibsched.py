@@ -555,6 +555,10 @@ class BibSched(object):
                     return False
 
                 if task.status in ("SLEEPING", "ABOUT TO SLEEP"):
+                    # We can't wake up tasks that are not in the same node
+                    if task.host != self.hostname:
+                        return False
+
                     ## We can only wake up tasks that are running on our own host
                     for t in self.node_active_tasks:
                         ## But only if there are not other tasks still going to sleep, otherwise
