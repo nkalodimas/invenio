@@ -760,12 +760,12 @@ order to let this task run. The current priority is %s. New value:"
             selected_id = selected_row[0]
         if self.display == 1:
             table = "schTASK"
-            where = "and (status='DONE' or status LIKE 'ACK%')"
+            where = "status IN ('DONE', 'ACK DONE', 'ACK DONE WITH ERRORS', 'ACK ERROR', 'ACK ERRORS REPORTED')"
             order = "runtime DESC"
-            limit = "limit %s" % CFG_BIBSCHED_MAX_ARCHIVED_ROWS_DISPLAY
+            limit = "LIMIT %s" % CFG_BIBSCHED_MAX_ARCHIVED_ROWS_DISPLAY
         elif self.display == 2:
             table = "schTASK"
-            where = "and (status<>'DONE' and status NOT LIKE 'ACK%')"
+            where = "status IN ('RUNNING', 'CONTINUING', 'SCHEDULED', 'ABOUT TO STOP', 'ABOUT TO SLEEP', 'SLEEPING', 'WAITING', 'ERRORS REPORTED', 'DONE WITH ERRORS', 'ERROR', 'CERROR')"
             order = "runtime ASC"
             limit = ""
         else:
@@ -777,7 +777,7 @@ order to let this task run. The current priority is %s. New value:"
                                status, progress, arguments, priority, host,
                                sequenceid
                                FROM %s
-                               WHERE status NOT LIKE '%%_DELETED' %s
+                               WHERE %s
                                ORDER BY %s
                                %s""" % (table, where, order, limit))
 
