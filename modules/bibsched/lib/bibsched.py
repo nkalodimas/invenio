@@ -555,8 +555,8 @@ class BibSched(object):
                     return False
 
                 if task.status in ("SLEEPING", "ABOUT TO SLEEP"):
-                    # We can't wake up tasks that are not in the same node
                     if task.host != self.hostname:
+                        Log("We can't wake up tasks that are not in the same node", debug)
                         return False
 
                     ## We can only wake up tasks that are running on our own host
@@ -694,7 +694,7 @@ class BibSched(object):
                                              'ABOUT TO SLEEP')"""))
 
         self.mono_tasks_all_nodes = tuple(t for t in
-            chain(self.sleeping_tasks_all_nodes, self.active_tasks_all_nodes)
+            chain(self.waiting_tasks_all_nodes, self.active_tasks_all_nodes)
                                                         if is_monotask(t.proc))
         ## Remove tasks that can not be executed on this host
 
