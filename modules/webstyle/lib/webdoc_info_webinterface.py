@@ -19,15 +19,9 @@
 WebDoc web interface, handling URLs such as </help/foo?ln=el>.
 """
 
-__revision__ = \
-     "$Id$"
-
-__lastupdated__ = """$Date$"""
-
 import cgi
 import os
 import fcntl
-import mimetypes
 
 from invenio.config import CFG_SITE_URL, CFG_SITE_LANG
 from invenio.messages import gettext_set_language
@@ -35,6 +29,7 @@ from invenio.webpage import page
 from invenio.webuser import getUid, collect_user_info, page_not_authorized
 from invenio.webdoc import get_webdoc_parts, webdoc_dirs
 from invenio.webinterface_handler import wash_urlargd, WebInterfaceDirectory
+from invenio.bibdocfile import stream_file
 
 from invenio.jsonutils import json, json_unicode_to_utf8
 
@@ -85,12 +80,11 @@ class WebInterfaceInfoPages(WebInterfaceDirectory):
         argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG)})
         file_requested_ext = os.path.splitext(req.uri)
         if file_requested_ext:
-            mimetype = mimetypes.guess_type(req.uri)
-            file_requested_content = get_file_content(req.uri)
-            if file_requested_content:
-                req.content_type = mimetype[0]
-                req.send_http_header()
-                req.write(file_requested_content)
+            uri_parts = req.uri.split(os.sep)
+            location = INFO_PREFIX + os.sep + os.sep.join(uri_parts[uri_parts.index('info') + 1:])
+            # Make sure that the file to be opened is inside of the info space
+            if file_in_info_space(location) and os.path.isfile(location):
+                stream_file(req, location)
                 return
 
         return display_webdoc_page(self.webdocname, categ="info", ln=argd['ln'], req=req)
@@ -104,7 +98,7 @@ class WebInterfaceInfoPages(WebInterfaceDirectory):
 
         # If it is an Ajax request, extract any JSON data.
         ajax_request = False
-        if form.has_key('jsondata'):
+        if 'jsondata' in form:
             json_data = json.loads(str(form['jsondata']))
             json_data = json_unicode_to_utf8(json_data)
             ajax_request = True
@@ -130,14 +124,13 @@ class WebInterfaceInfoPages(WebInterfaceDirectory):
         if not ajax_request:
             body, errors, warnings = perform_request_init_info_interface()
             title = 'Info Space Manager'
-            return page(title       = title,
-                        body        = body,
-                        errors      = errors,
-                        warnings    = warnings,
-                        uid         = uid,
-                        language    = argd['ln'],
-                        lastupdated = __lastupdated__,
-                        req         = req)
+            return page(title=title,
+                        body=body,
+                        errors=errors,
+                        warnings=warnings,
+                        uid=uid,
+                        language=argd['ln'],
+                        req=req)
         else:
             # Handle AJAX request.
             if json_data["action"] == "listFiles":
@@ -147,7 +140,7 @@ class WebInterfaceInfoPages(WebInterfaceDirectory):
                 except UnicodeDecodeError:
                     # Error decoding, the file can be a pdf, image or any kind
                     # of file non-editable
-                    return json.dumps({"status" : "error_file_not_readable"})
+                    return json.dumps({"status": "error_file_not_readable"})
 
             if json_data["action"] == "saveContent":
                 return json.dumps(perform_request_save_file(json_data["filename"],
@@ -169,7 +162,7 @@ class WebInterfaceInfoPages(WebInterfaceDirectory):
                 if os.path.isdir(ff):
                     file_html_list.append('<li class="directory collapsed"><a href="#" rel="%s/">%s</a></li>' % (argd["dir"] + f, f))
                 else:
-                    e = os.path.splitext(f)[1][1:] # get .ext and remove dot
+                    e = os.path.splitext(f)[1][1:]  # get .ext and remove dot
                     file_html_list.append('<li class="file ext_%s"><a href="#" rel="%s">%s</a></li>' % (e, argd["dir"] + f, f))
             file_html_list.append('</ul>')
         except Exception, e:
@@ -208,20 +201,17 @@ def display_webdoc_page(webdocname, categ="help", ln=CFG_SITE_LANG, req=None):
     page_navtrail = page_parts.get('navtrail', '')
 
     # set page body:
-    page_body = page_parts.get('body' , '')
+    page_body = page_parts.get('body', '')
     if not page_body:
-        page_body = '<p>' + (_("Sorry, page %s does not seem to exist.") % \
+        page_body = '<p>' + (_("Sorry, page %s does not seem to exist.") %
                     ('<strong>' + cgi.escape(webdocname) + '</strong>')) + \
                     '</p>'
 
     # set page description:
-    page_description = page_parts.get('description' , '')
+    page_description = page_parts.get('description', '')
 
     # set page keywords:
-    page_keywords = page_parts.get('keywords' , '')
-
-    # set page last updated timestamp:
-    page_last_updated = page_parts.get('lastupdated' , '')
+    page_keywords = page_parts.get('keywords', '')
 
     # display page:
     return page(title=page_title,
@@ -234,22 +224,12 @@ def display_webdoc_page(webdocname, categ="help", ln=CFG_SITE_LANG, req=None):
                 req=req,
                 navmenuid=categ)
 
-def get_file_content(uri):
-    """ Get file content from disk for the given uri """
-    uri_parts = uri.split(os.sep)
-    location = INFO_PREFIX + os.sep + os.sep.join(uri_parts[uri_parts.index('info') + 1:])
-
-    file_content = None
-    # Make sure that the file to be opened is inside of the info space
-    if file_in_info_space(location) and os.path.isfile(location):
-        file_content = open(location).read()
-    return file_content
 
 ###### Helper functions for web interface manager ######
 
 def perform_request_init_info_interface():
     """ Handle initial page request to the info space manager """
-    errors   = []
+    errors = []
     warnings = []
     body = ''
 
@@ -338,7 +318,7 @@ def perform_request_save_file(filename, filecontent):
     try:
         file_desc = open(file_path, 'w')
         # Lock the file while writing to avoid clashes among users
-        fcntl.lockf(file_desc.fileno(), fcntl.LOCK_EX|fcntl.LOCK_NB)
+        fcntl.lockf(file_desc.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         try:
             file_desc.write(filecontent)
         finally:
