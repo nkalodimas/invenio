@@ -1678,15 +1678,15 @@ def add_tickets(req, pid, bibrefs, action):
                 should_append = False
                 break
             # if we are comparing two different bibrefrecs with the same recids we remove the current bibrefrec and we add their recid
-            elif tempticket_is_valid_bibref and ticket_is_valid_bibref and t['bibref'].split(',')[1] == e['bibref'].split(',')[1]:
+            elif e['pid'] == t['pid'] and tempticket_is_valid_bibref and ticket_is_valid_bibref and t['bibref'].split(',')[1] == e['bibref'].split(',')[1]:
                 ticket.remove(e)
                 ticket.append({'pid': pid, 'bibref': t['bibref'].split(',')[1], 'action': action})
                 should_append = False
                 break
-            elif is_valid_bibref(e['bibref']) and e['bibref'] == t['bibref'].split(',')[1]:
+            elif e['pid'] == t['pid'] and is_valid_bibref(e['bibref']) and str(t['bibref']) == e['bibref'].split(',')[1]:
                 should_append = False
                 break
-            elif is_valid_bibref(t['bibref']) and t['bibref'] == e['bibref'].split(',')[1]:
+            elif e['pid'] == t['pid'] and is_valid_bibref(t['bibref']) and str(e['bibref']) == t['bibref'].split(',')[1]:
                 ticket.remove(e)
                 break
 
@@ -1701,6 +1701,7 @@ def manage_tickets(req, autoclaim):
 
 
     is_required, needs_review = is_ticket_review_required(req)
+
     if is_required:
         bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
         if not autoclaim:
@@ -1765,6 +1766,7 @@ def confirm_valid_ticket(req):
     mark_theirs = [row for row in ticket
                    if ((not str(row["pid"]) == str(upid)) and
                        row["action"] in ["to_other_person", "confirm"])]
+
     mark_not_theirs = [row for row in ticket
                        if ((not str(row["pid"]) == str(upid)) and
                            row["action"] in ["repeal", "reset"])]
@@ -1826,6 +1828,9 @@ def ticket_review(req, needs_review):
         for brr in bibrec_refs:
             # if bibrefrec seems ok add it to the auto assign list
             if len(brr[1]) == 1:
+                tmp = get_bibrefs_from_bibrecs([brr[0]])
+                tmp[0][1].remove(brr[1][0])
+                brr[1] = brr[1] + sorted(tmp[0][1], key=lambda x: x[1])
                 if not pid in bibrefs_auto_assigned:
                     bibrefs_auto_assigned[pid] = {
                         'person_name': person_name,
@@ -1835,14 +1840,14 @@ def ticket_review(req, needs_review):
                     bibrefs_auto_assigned[pid]['bibrecs'][brr[0]] = brr[1]
             else:
                 # if there is no bibreckref try to fix it
-                if not brr[1]:
-                    tmp = get_bibrefs_from_bibrecs([brr[0]])
 
-                    try:
-                        brr[1] = tmp[0][1]
-                    except IndexError:
-                        # No bibrefs on record--discard
-                        continue
+                tmp = get_bibrefs_from_bibrecs([brr[0]])
+
+                try:
+                    brr[1] = sorted(tmp[0][1], key=lambda x: x[1])
+                except IndexError:
+                    # No bibrefs on record--discard
+                    continue
                 # and add it to bibrefs_to_confirm list
                 if not pid in bibrefs_to_confirm:
                     bibrefs_to_confirm[pid] = {
@@ -2188,6 +2193,18 @@ def is_ticket_review_required(req):
         return (False, [])
     return (True, needs_review)
 
+# restore any users open ticket, that is in storage , in session as autoclaiming has finished
+def restore_users_open_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    ticket = session['personinfo']['ticket']
+    temp_storage = session['personinfo']['users_open_tickets_storage']
+
+    for t in list(temp_storage):
+        ticket.append(t)
+        temp_storage.remove(t)
+    temp_storage = []
+
 # store any users open ticket elsewhere until we have processed the autoclaimed tickets
 def store_users_open_tickets(req):
     session_bareinit(req)
@@ -2207,6 +2224,18 @@ def store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets):
     for incomplete_ticket in failed_to_autoclaim_tickets:
         if incomplete_ticket not in temp_storage:
             temp_storage.append(incomplete_ticket)
+
+# restore any users open ticket, that is in storage , in session as autoclaiming has finished
+def restore_incomplete_autoclaim_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    ticket = session['personinfo']['ticket']
+    temp_storage = session['personinfo']['incomplete_autoclaimed_tickets_storage']
+
+    for t in list(temp_storage):
+        ticket.append(t)
+        temp_storage.remove(t)
+    temp_storage = []
             
 def get_stored_incomplete_autoclaim_tickets(req):
     session_bareinit(req)
@@ -2214,16 +2243,7 @@ def get_stored_incomplete_autoclaim_tickets(req):
     temp_storage = session['personinfo']['incomplete_autoclaimed_tickets_storage']
     return temp_storage
 
-# restore any users open ticket, that is in storage , in session as autoclaiming has finished
-def restore_users_open_tickets(req):
-    session_bareinit(req)
-    session = get_session(req)
-    ticket = session['personinfo']['ticket']
-    temp_storage = session['personinfo']['users_open_tickets_storage']
 
-    for t in list(temp_storage):
-        ticket.append(t)
-        temp_storage.remove(t)
 
 REMOTE_LOGIN_SYSTEMS_FUNCTIONS = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
 IS_LOGGED_IN_THROUGH = {'arXiv': is_logged_in_through_arxiv, 'orcid': is_logged_in_through_orcid}

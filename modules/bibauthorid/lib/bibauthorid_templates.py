@@ -1183,7 +1183,9 @@ class Template:
 
                 h(self._("Paper title: ") + fv)
                 h('<select name="bibrecgroup%s">' % (recid))
+                h('<option value="" >-- ' + self._('Ignore') + ' --</option>')
                 h('<option value="" selected>-- Choose author name --</option>')
+
 
                 for bibref in bibrefs_to_confirm[person]["bibrecs"][recid]:
                     h('<option value="%s||%s">%s</option>'
@@ -1232,7 +1234,7 @@ class Template:
 
         h('<div style="text-align:center;">')
         h('  <input type="submit" class="aid_btn_green" name="bibref_check_submit" value="Accept" />')
-        h('  <input type="submit" class="aid_btn_blue" name="cancel_stage" value="Cancel" />')
+        h('  <input type="submit" class="aid_btn_blue" name="cancel_stage" value="Delete all transactions" />')
         h("</div>")
         h('</form>')
 
@@ -2710,7 +2712,7 @@ class Template:
         if not autoclaim_data['hidden']:
             html_head = _("<strong> Autoclaim Papers </strong>")
             html_autoclaim = _("The following papers were unsuccessfully claimed. Do you want to review the claiming now?</br>")
-            html_autoclaim += '</br><div><a href="mpla.com">Review autoclaiming.</br></a></div>'
+            html_autoclaim += '</br><div><a href="%s">Review autoclaiming.</br></a></div>' % (autoclaim_data["link"],)
             html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
             html_autoclaim += '<td><strong>' + 'External System Id' +'</strong></td>' + '<td><strong>' + 'Record id' +'</strong></td></tr>'
 
