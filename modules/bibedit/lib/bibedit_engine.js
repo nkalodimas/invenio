@@ -1011,9 +1011,62 @@ function filterChanges(changeset){
 
 ///// Functions generating easy to display changes list
 
+function checkFields(fieldId, indicators, fields1, fields2) {
+  /*Given 2 sets of fields iterates 1st set and searches for same fields inside the 2nd set.
+    Returns a dictionary which includes pairs of the positions of the same fields.
+  */
+  var toCompare = {};
+
+  for (var fieldPos1 in fields1) {
+      // check if field contains only volatile fields
+      var isVolatile = true;
+      for (var sfPos in fields1[fieldPos1][0]) {
+        if (fields1[fieldPos1][0][sfPos][1].substring(0,9) != "VOLATILE:"){
+          isVolatile = false;
+          break;
+        }
+      }
+      // In case of volatile fields we create a pair with -1 , so that the volatile
+      // fields are not granted as free to be compared fields from the comparison algorithm.
+      if (isVolatile) {
+        toCompare[fieldPos1] = -1;
+      }
+      else {
+          for (var fieldPos2 in fields2) {
+              // check if field to compare with is already inside toCompare dictionary
+              for (var key in toCompare) {
+                if (toCompare[key] == fieldPos2)
+                  continue;
+              }
+              var isSame = true;
+              // if fields have different amount of subfields are not same
+              if ( fields1[fieldPos1][0].length != fields2[fieldPos2][0].length ) {
+                isSame =false;
+                continue;
+              }
+              for (var sfPos1 in fields1[fieldPos1][0]) {
+                      if (fields2[fieldPos2][0][sfPos1][0] != fields1[fieldPos1][0][sfPos1][0] ){
+                          isSame = false;
+                          break;
+                      }
+                      if (fields2[fieldPos2][0][sfPos1][1].toLowerCase() != fields1[fieldPos1][0][sfPos1][1].toLowerCase() ){
+                          isSame = false;
+                          break;
+                      }
+              }
+              if (isSame) {
+                toCompare[fieldPos1] = fieldPos2;
+                break;
+              }
+          }
+      }
+  }
+  return toCompare;
+}
+
 function compareFields(fieldId, indicators, fieldPos, field1, field2){
   result = [];
-  for (sfPos in field2){
+  for (var sfPos in field2){
     if (field1[sfPos] == undefined){
       //  adding the subfield at the end of the record can be treated in a more graceful manner
       result.push(
@@ -1082,50 +1135,48 @@ function compareIndicators(fieldId, indicators, fields1, fields2){
    /*a helper function allowing to compare inside one indicator
     * excluded from compareRecords for the code clarity reason*/
   result = [];
-  for (fieldPos in fields2){
-    if (fields1[fieldPos] == undefined){
-      result.push({"change_type" : "field_added",
-                  "tag" : fieldId,
-                  "indicators" : indicators,
-                  "field_content" : fields2[fieldPos][0]});
-    } else { // comparing the content of the subfields
-      var isVolatile1 = true;
-      for (var sfPos in fields1[fieldPos][0]) {
-        if (fields1[fieldPos][0][sfPos][1].substring(0,9) != "VOLATILE:"){
-          isVolatile1 = false;
+  var toCompare = checkFields(fieldId, indicators, fields1, fields2);
+
+  // Iterate over HP's fields.If field is volatile pass.
+  // If it is same with a field from fields1 compare them.
+  // Else iterate over fields1.
+  // If field from fields1 is free to compare with (not same with any HP's fields)
+  // compare with it.
+  for (var fieldPos2 in fields2) {
+      var isVolatile = true;
+      for (var sfPos in fields2[fieldPos2][0]) {
+        if (fields2[fieldPos2][0][sfPos][1].substring(0,9) != "VOLATILE:"){
+          isVolatile = false;
           break;
         }
       }
-      var isVolatile2 = true;
-      for (var sfPos in fields2[fieldPos][0]) {
-        if (fields2[fieldPos][0][sfPos][1].substring(0,9) != "VOLATILE:"){
-          isVolatile2 = false;
-          break;
-        }
+      if (isVolatile)
+        continue;
+      var fieldPos = -1;
+      for (var key in toCompare) {
+          if (toCompare[key] == fieldPos2)
+            fieldPos = key;
       }
-      // in case where gRec's field is volatile and HP's is not
-      if (isVolatile1 && !isVolatile2){
-      result.push({"change_type" : "field_added",
-                  "tag" : fieldId,
-                  "indicators" : indicators,
-                  "field_content" : fields2[fieldPos][0]});
+      if (fieldPos != -1) {
+          result = result.concat(compareFields(fieldId, indicators, fields1[fieldPos][1], fields1[fieldPos][0], fields2[fieldPos2][0]));
       }
       else {
-        result = result.concat(compareFields(fieldId, indicators, fields1[fieldPos][1], fields1[fieldPos][0], fields2[fieldPos][0]));
+          var isCompared = false;
+          for (var fieldPos1 in fields1) {
+              if (toCompare[fieldPos1] == undefined ) {
+                  result = result.concat(compareFields(fieldId, indicators, fields1[fieldPos1][1], fields1[fieldPos1][0], fields2[fieldPos2][0]));
+                  isCompared = true;
+                  toCompare[fieldPos1] = fieldPos2;
+                  break;
+              }
+          }
+          if (isCompared == false) {
+              result.push({"change_type" : "field_added",
+                    "tag" : fieldId,
+                    "indicators" : indicators,
+                    "field_content" : fields2[fieldPos2][0]});
+          }
       }
-    }
-  }
-
-  if ( gSHOW_HP_REMOVED_FIELDS == 1) {
-    for (fieldPos in fields1){
-      if (fields2[fieldPos] == undefined){
-        fieldPosition = fields1[fieldPos][1];
-        result.push({"change_type" : "field_removed",
-               "tag" : fieldId,
-               "indicators" : indicators,
-               "field_position" : fieldPosition});
-      }
-    }
   }
   return result;
 }
