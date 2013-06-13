@@ -49,7 +49,7 @@ $(document).ready(function() {
         });
 
         $.ajax({
-            url: '/person/comments',
+            url: '/author/claim/comments',
             dataType: 'json',
             data: { 'pid': $('span[id^=pid]').attr('id').substring(3), 'action': 'get_comments' },
             success: processJson
@@ -107,7 +107,7 @@ $(document).ready(function() {
                 $.ajax({
                     dataType: 'json',
                     type: 'POST',
-                    url: '/person/search_box_ajax',
+                    url: '/author/claim/search_box_ajax',
                     data: {jsondata: JSON.stringify(data)},
                     success: onRetrievePapersSuccess,
                     error: errorCallback,
@@ -227,7 +227,7 @@ function onPageChange() {
                 $.ajax({
                     dataType: 'json',
                     type: 'POST',
-                    url: '/person/search_box_ajax',
+                    url: '/author/claim/search_box_ajax',
                     data: {jsondata: JSON.stringify(data)},
                     success: onGetNamesSuccess,
                     error: errorCallback,
@@ -242,7 +242,7 @@ function onPageChange() {
                 $.ajax({
                     dataType: 'json',
                     type: 'POST',
-                    url: '/person/search_box_ajax',
+                    url: '/author/claim/search_box_ajax',
                     data: {jsondata: JSON.stringify(data)},
                     success: onGetIDsSuccess,
                     error: errorCallback,
@@ -256,7 +256,7 @@ function onPageChange() {
                 $.ajax({
                     dataType: 'json',
                     type: 'POST',
-                    url: '/person/search_box_ajax',
+                    url: '/author/claim/search_box_ajax',
                     data: {jsondata: JSON.stringify(data)},
                     success: onIsProfileClaimedSuccess,
                     error: errorCallback,
@@ -403,7 +403,7 @@ function confirm_bibref(claimid) {
     var cid = claimid.replace(/\,/g, "\\," )
     var cid = cid.replace(/\:/g, "\\:")
     $('#bibref'+cid).html('<p><img src="../img/loading" style="background: none repeat scroll 0% 0% transparent;"/></p>');
-    $('#bibref'+cid).load('/person/status', { 'pid': $('span[id^=pid]').attr('id').substring(3),
+    $('#bibref'+cid).load('/author/claim/status', { 'pid': $('span[id^=pid]').attr('id').substring(3),
                                                 'bibref': claimid,
                                                 'action': 'confirm_status' } );
 //    update_action_links();
@@ -415,7 +415,7 @@ function repeal_bibref(claimid) {
     var cid = claimid.replace(/\,/g, "\\," )
     var cid = cid.replace(/\:/g, "\\:")
     $('#bibref'+cid).html('<p><img src="../img/loading" style="background: none repeat scroll 0% 0% transparent;"/></p>');
-    $('#bibref'+cid).load('/person/status', { 'pid': $('span[id^=pid]').attr('id').substring(3),
+    $('#bibref'+cid).load('/author/claim/status', { 'pid': $('span[id^=pid]').attr('id').substring(3),
                                                 'bibref': claimid,
                                                 'action': 'repeal_status' } );
 //    update_action_links();
@@ -426,7 +426,7 @@ function reset_bibref(claimid) {
     var cid = claimid.replace(/\,/g, "\\," )
     var cid = cid.replace(/\:/g, "\\:")
     $('#bibref'+cid).html('<p><img src="../img/loading.gif" style="background: none repeat scroll 0% 0% transparent;"/></p>');
-    $('#bibref'+cid).load('/person/status', { 'pid': $('span[id^=pid]').attr('id').substring(3),
+    $('#bibref'+cid).load('/author/claim/status', { 'pid': $('span[id^=pid]').attr('id').substring(3),
                                                 'bibref': claimid,
                                                 'action': 'reset_status' } );
 //    update_action_links();
@@ -436,7 +436,7 @@ function reset_bibref(claimid) {
 function action_request(claimid, action) {
 // Performs the action of reseting the choice on a paper through an AJAX request
     $.ajax({
-        url: "/person/status",
+        url: "/author/claim/status",
         dataType: 'json',
         data: { 'pid': $('span[id^=pid]').attr('id').substring(3), 'action': 'json_editable', 'bibref': claimid },
         success: function(result){

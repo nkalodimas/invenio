@@ -553,7 +553,7 @@ class Template:
                     else:
                         second_author = 'exactauthor:"%s"' % name
                     rec_query = baid_query + second_author + " -cn:'Collaboration' "
-                    lnk = " <a href='%s/author/%s'> %s </a> (" % (CFG_SITE_URL, canonical, name) + create_html_link(websearch_templates.build_search_url(p=rec_query), {}, "%s" % (frequency,),) + ')'
+                    lnk = " <a href='%s/author/profile/%s/'> %s </a> (" % (CFG_SITE_URL, canonical, name) + create_html_link(websearch_templates.build_search_url(p=rec_query), {}, "%s" % (frequency,),) + ')'
                     content.append("%s" % lnk)
                 return "<br>\n".join(content)
 
@@ -680,7 +680,7 @@ class Template:
                           % (display_name, headernumpapers))
 
             if person_link or person_link == 'None':
-                html_header += ('<div><a href="%s/person/claimstub?person=%s">%s</a></div>'
+                html_header += ('<div><a href="%s/author/claim/claimstub?person=%s">%s</a></div>'
                                % (CFG_SITE_URL, person_link, _("This is me.  Verify my publication list.")))
 
         return html_header
@@ -742,7 +742,7 @@ class Template:
 
         cache_reload_link = ''
         if recompute_allowed:
-            cache_reload_link = ('<a href="%s/author/%s/?recompute=1">%s</a>'
+            cache_reload_link = ('<a href="%s/author/profile/%s/?recompute=1">%s</a>'
                                 % (CFG_SITE_URL, person_link, _("Recompute Now!")))
         html_generated_timestamp = "<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link)
 
@@ -808,7 +808,7 @@ class Template:
 
         cache_reload_link = ''
         if recompute_allowed:
-            cache_reload_link = ('<a href="%s/author/%s/?recompute=1">%s</a>'
+            cache_reload_link = ('<a href="%s/author/profile/%s/?recompute=1">%s</a>'
                                 % (CFG_SITE_URL, person_link, _("Recompute Now!")))
         html_generated_timestamp = "<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link)
 
@@ -876,7 +876,7 @@ class Template:
 
         cache_reload_link = ''
         if recompute_allowed:
-            cache_reload_link = ('<a href="%s/author/%s/?recompute=1">%s</a>'
+            cache_reload_link = ('<a href="%s/author/profile/%s/?recompute=1">%s</a>'
                                 % (CFG_SITE_URL, person_link, _("Recompute Now!")))
         html_generated_timestamp = "<div align='right' font-size:'50%%'> Generated: %s. %s</div>" % (rec_date, cache_reload_link)
 

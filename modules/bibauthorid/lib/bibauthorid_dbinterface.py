@@ -655,7 +655,7 @@ def _delete_from_aidpersonidpapers_where(pid=None, table=None, ref=None, rec=Non
     if not conditions:
         return
 
-    conditions_str = "%s" % " and ".join(conditions)
+    conditions_str = " and ".join(conditions)
     query = """delete from aidPERSONIDPAPERS
                where %s""" % conditions_str
 
@@ -1188,7 +1188,7 @@ def get_author_to_confirmed_names_mapping(since=None):   ### get_all_modified_na
     pids_names = run_sql(query, tuple(args) )
 
     if since:
-        pids = set([pid for pid, name in pids_names])
+        pids = set([pid for pid, _ in pids_names])
         pids_sqlstr = _get_sqlstr_from_set(pids)
         pids_names = run_sql("""select personid, name
                                 from aidPERSONIDPAPERS
@@ -1205,6 +1205,26 @@ def get_author_to_confirmed_names_mapping(since=None):   ### get_all_modified_na
             res[pid] = [pid, set([name]), 1]
 
     return (tuple(res[pid]) for pid in res.keys())
+
+def get_all_modified_names_from_personid(since=None):
+    if since:
+        all_pids = run_sql("SELECT DISTINCT personid "
+                           "FROM aidPERSONIDPAPERS "
+                           "WHERE flag > -2 "
+                           "AND last_updated > %s"
+                           % since)
+    else:
+        all_pids = run_sql("SELECT DISTINCT personid "
+                           "FROM aidPERSONIDPAPERS "
+                           "WHERE flag > -2 ")
+
+    return ((name[0][0], set(n[1] for n in name), len(name))
+            for name in (run_sql(
+            "SELECT personid, name "
+            "FROM aidPERSONIDPAPERS "
+            "WHERE personid = %s "
+            "AND flag > -2", p)
+        for p in all_pids))
 
 
 def get_name_to_authors_mapping():   ### get_name_string_to_pid_dictionary
@@ -1416,8 +1436,8 @@ def _select_from_aidpersonidpapers_where(select=None, pid=None, table=None, ref=
         add_condition('lcul=%s')
         add_arg(lcul)
 
-    select_fields_str = "%s" % ", ".join(select)
-    conditions_str = "%s" % " and ".join(conditions)
+    select_fields_str = ", ".join(select)
+    conditions_str = " and ".join(conditions)
     query = """select %s
                from aidPERSONIDPAPERS
                where %s""" % (select_fields_str, conditions_str)
@@ -1644,7 +1664,7 @@ def _delete_from_aidpersoniddata_where(pid=None, tag=None, data=None, opt1=None,
     if not conditions:
         return
 
-    conditions_str = "%s" % " and ".join(conditions)
+    conditions_str = " and ".join(conditions)
     query = """delete from aidPERSONIDDATA
                where %s""" % conditions_str
 
@@ -1986,8 +2006,8 @@ def _select_from_aidpersoniddata_where(select=None, pid=None, tag=None, data=Non
         add_condition('opt3=%s')
         add_arg(opt3)
 
-    select_fields_str = "%s" % ", ".join(select)
-    conditions_str = "%s" % " and ".join(conditions)
+    select_fields_str = ", ".join(select)
+    conditions_str = " and ".join(conditions)
     query = """select %s
                from aidPERSONIDDATA
                where %s""" % (select_fields_str, conditions_str)
@@ -2499,7 +2519,7 @@ def get_papers_info_of_author(pid, flag,   ### get_person_papers
     if show_author_name:
         select.append('name')
 
-    select_fields_str = "%s" % ", ".join(select)
+    select_fields_str = ", ".join(select)
 
     records = run_sql("""select """ + select_fields_str + """
                          from aidPERSONIDPAPERS
@@ -2909,7 +2929,7 @@ def get_user_logs(transactionid=None, userid=None, userinfo=None, pid=None, acti
         add_condition('comment=%s')
         add_arg(str(comment))
 
-    conditions_str = "%s" % " and ".join(conditions)
+    conditions_str = " and ".join(conditions)
     query = """select id, transactionid, timestamp, userinfo, personid, action, tag, value, comment
                from aidUSERINPUTLOG
                where %s""" % (conditions_str)
@@ -3208,7 +3228,7 @@ def get_modified_papers_since(since):   ### get_recently_modified_record_ids
     @rtype: frozenset frozenset(int,)
     '''
     modified_recs = run_sql("""select id from bibrec
-                               where modification_date >= '%s'""",
+                               where modification_date >= %s""",
                                (since,) )
     modified_recs = frozenset(rec[0] for rec in modified_recs)
 
@@ -4434,9 +4454,9 @@ def export_author(pid):   ### export_person
     canonical_names = get_canonical_name_of_author(pid)
     if canonical_names:
         author_info['identifiers']['INSPIRE_canonical_name'] = (str(canonical_names[0][0]),)
-        author_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/%s' % (CFG_SITE_URL, canonical_names[0][0]),)
+        author_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/profile/%s' % (CFG_SITE_URL, canonical_names[0][0]),)
     else:
-        author_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/%s' % (CFG_SITE_URL, str(pid)),)
+        author_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/profile/%s' % (CFG_SITE_URL, str(pid)),)
 
     orcids = _get_orcid_id_of_author(pid)
     if orcids:

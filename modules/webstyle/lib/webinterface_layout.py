@@ -219,6 +219,12 @@ except:
     register_exception(alert_admin=True, subject='EMERGENCY')
     WebInterfaceBibAuthorIDPages = WebInterfaceDumbPages
 
+#try:
+#    from invenio.bibauthorid_webinterface import WebInterfaceBibAuthorIDSearchPages
+#except:
+#    register_exception(alert_admin=True, subject='EMERGENCY')
+#    WebInterfaceBibAuthorIDSearchPages = WebInterfaceDumbPages
+
 try:
     from invenio.bibcirculationadmin_webinterface import \
          WebInterfaceBibCirculationAdminPages
@@ -279,6 +285,19 @@ if CFG_DEVEL_SITE:
 else:
     test_exports = []
 
+class WebInterfaceAuthor(WebInterfaceSearchInterfacePages):
+    """ The global URL layout is composed of the search API plus all
+    the other modules."""
+
+    _exports = ['claim',
+                'profile',
+                #'search'
+                ]
+
+    claim = WebInterfaceBibAuthorIDPages()
+    profile = WebInterfaceWebAuthorPages()
+    #search = WebInterfaceBibAuthorIDSearchPages()
+
 class WebInterfaceAdminPages(WebInterfaceDirectory):
     """This class implements /admin2 admin pages."""
     _exports = ['index', 'bibcirculation', 'bibsched']
@@ -317,7 +336,6 @@ class WebInterfaceInvenio(WebInterfaceSearchInterfacePages):
                    'batchuploader',
                    'bibsword',
                    'ping',
-                   'person',
                    'admin2',
                    'linkbacks',
                    'author',
@@ -355,14 +373,12 @@ class WebInterfaceInvenio(WebInterfaceSearchInterfacePages):
     batchuploader = WebInterfaceBatchUploaderPages()
     bibsword = WebInterfaceSword()
     ping = WebInterfacePingPages()
-    person = WebInterfaceBibAuthorIDPages()
     linkbacks = WebInterfaceRecentLinkbacksPages()
-    #redirects author to the new webauthor
-    author = WebInterfaceWebAuthorPages()
-    #author = WebInterfaceAuthorPages()
+    author = WebInterfaceAuthor()
     textmining = WebInterfaceDocExtract()
     yourcomments = WebInterfaceYourCommentsPages()
     goto = WebInterfaceGotoPages()
+
 
 # This creates the 'handler' function, which will be invoked directly
 # by mod_python.

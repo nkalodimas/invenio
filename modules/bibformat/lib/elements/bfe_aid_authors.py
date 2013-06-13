@@ -144,7 +144,7 @@ def format_element(bfo, limit, separator='; ',
                 author['display'] = '<a class="authorlink" target="_blank" ' + \
                                     'href="' + \
                                     CFG_SITE_URL + \
-                                    '/person/search?q=' + bibrec_id + ':' + \
+                                    '/author/claim/search?q=' + bibrec_id + ':' + \
                                     quote(author['a']) + \
                                     '&ln=' + bfo.lang + \
                                     '">' + escape(author['display']) + '</a>' + \
