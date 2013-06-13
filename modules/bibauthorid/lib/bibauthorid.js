@@ -166,7 +166,7 @@ $(document).ready(function() {
                     ],
                 "aaSorting": [[0,'asc']],
                 "iDisplayLength": 5,
-                "aLengthMenu": [5, 10, 20],
+                "aLengthMenu": [5, 10, 20, 100, 500, 1000],
                 "oLanguage": {
                     "sSearch": "Filter: "
                 }

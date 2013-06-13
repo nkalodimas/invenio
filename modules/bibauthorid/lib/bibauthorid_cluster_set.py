@@ -104,7 +104,7 @@ class ClusterSet(object):
             if hate:
                 self.hate = set(hate)
             else:
-                self.hate = set([])
+                self.hate = set(list())
             self.personid = None
 
         def hates(self, other):
