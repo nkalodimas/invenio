@@ -380,10 +380,9 @@ def oai_harvest_query(arxiv_id, prefix='arXivRaw', verb='GetRecord',
         except (socket.timeout, socket.error):
             write_message('socket error, arxiv is down?')
         else:
-            if responses:
-                break
-            else:
+            if not responses:
                 write_message('no responses from oai server')
+            break
 
         if retry_count <= 2:
             write_message('sleeping for 10s')
@@ -402,6 +401,8 @@ def fetch_arxiv_version(recid):
             continue
 
         responses = oai_harvest_query(arxiv_id)
+        if not responses:
+            return None
         # We pass one arxiv id, we are assuming a single response file
         tree = minidom.parse(responses[0])
         version_tag = tree.getElementsByTagName('version')[-1]
@@ -422,7 +423,11 @@ def process_one(recid):
         write_message(msg)
         raise PdfNotAvailable(msg)
 
+    write_message('harvested_version %s' % harvest_version)
+    write_message('arxiv_version %s' % arxiv_version)
+
     if record_has_fulltext(recid) and harvest_version == arxiv_version:
+        write_message('our version matches arxiv')
         raise AlreadyHarvested(status=harvest_status)
 
     if harvest_status == STATUS_MISSING and harvest_version == arxiv_version:
@@ -504,13 +509,13 @@ def task_run_core(name=NAME):
         write_message('processing %s' % recid, verbose=9)
         try:
             process_one(recid)
-            time.sleep(3)
+            time.sleep(5)
         except AlreadyHarvested:
             write_message('already harvested successfully')
-            time.sleep(1)
+            time.sleep(5)
         except FoundExistingPdf:
             write_message('pdf already attached (matching md5)')
-            time.sleep(3)
+            time.sleep(5)
         except PdfNotAvailable:
             write_message("no pdf available")
             time.sleep(20)
