@@ -21,6 +21,7 @@ Bibauthorid_webapi
 Point of access to the documents clustering facility.
 Provides utilities to safely interact with stored data.
 '''
+from copy import deepcopy
 
 import invenio.bibauthorid_config as bconfig
 import invenio.bibauthorid_frontinterface as dbapi
@@ -39,7 +40,7 @@ from invenio.access_control_engine import acc_authorize_action
 from invenio.access_control_admin import acc_get_role_id, acc_get_user_roles
 from invenio.external_authentication_robot import ExternalAuthRobot
 from invenio.external_authentication_robot import load_robot_keys
-from invenio.config import CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL, CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
+from invenio.config import CFG_INSPIRE_SITE, CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL, CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
 from invenio.config import CFG_SITE_URL
 from invenio.mailutils import send_email
 from invenio.bibauthorid_name_utils import most_relevant_name
@@ -48,131 +49,24 @@ from operator import add
 
 from invenio.bibauthorid_dbinterface import get_external_ids_of_author  # pylint: disable-msg=W0614
 
-def get_person_redirect_link(pid):
+
+
+############################################
+#           DB Data Accessors              #
+############################################
+
+def get_bibrefs_from_bibrecs(bibreclist):
     '''
-    Returns the canonical name of a pid if found, the pid itself otherwise
-    @param pid: int
+    Retrieve all bibrefs for all the recids in the list
+
+    @param bibreclist: list of record IDs
+    @type bibreclist: list of int
+
+    @return: a list of record->bibrefs
+    @return: list of lists
     '''
-    cname = dbapi.get_canonical_name_of_author(pid)
-    if len(cname) > 0:
-        return str(cname[0][0])
-    else:
-        return str(pid)
-
-def update_person_canonical_name(person_id, canonical_name, userinfo=''):
-    '''
-    Updates a person's canonical name
-    @param person_id: person id
-    @param canonical_name: string
-    '''
-    if userinfo.count('||'):
-        uid = userinfo.split('||')[0]
-    else:
-        uid = ''
-    dbapi.update_canonical_names_of_authors([person_id], overwrite=True, suggested=canonical_name)
-    dbapi.insert_user_log(userinfo, person_id, 'data_update', 'CMPUI_changecanonicalname', '', 'Canonical name manually updated.', userid=uid)
-
-def swap_person_canonical_name(person_id, desired_cname, userinfo=''):
-    '''
-    Swaps the canonical names of person_id and the person who withholds the desired canonical name.
-    @param person_id: int
-    @param desired_cname: string
-    '''
-    personid_with_desired_cname = get_person_id_from_canonical_id(desired_cname)
-    if personid_with_desired_cname == person_id:
-        return
-
-    if userinfo.count('||'):
-        uid = userinfo.split('||')[0]
-    else:
-        uid = ''
-
-    current_cname = get_canonical_id_from_person_id(person_id)
-    create_log_personid_with_desired_cname = False
-
-    # nobody withholds the desired canonical name
-    if personid_with_desired_cname == -1:
-        dbapi.modify_canonical_name_of_authors([(person_id, desired_cname)])
-    # person_id doesn't own a canonical name
-    elif not isinstance(current_cname, str):
-        dbapi.modify_canonical_name_of_authors([(person_id, desired_cname)])
-        dbapi.update_canonical_names_of_authors([personid_with_desired_cname], overwrite=True)
-        create_log_personid_with_desired_cname = True
-    # both person_id and personid_with_desired_cname own a canonical name
-    else:
-        dbapi.modify_canonical_name_of_authors([(person_id, desired_cname), (personid_with_desired_cname, current_cname)])
-        create_log_personid_with_desired_cname = True
-
-    dbapi.insert_user_log(userinfo, person_id, 'data_update', 'CMPUI_changecanonicalname', '', 'Canonical name manually updated.', userid=uid)
-    if create_log_personid_with_desired_cname:
-        dbapi.insert_user_log(userinfo, personid_with_desired_cname, 'data_update', 'CMPUI_changecanonicalname', '', 'Canonical name manually updated.', userid=uid)
-
-def delete_person_external_ids(person_id, existing_ext_ids, userinfo=''):
-    '''
-    Deletes external ids of the person
-    @param person_id: person id
-    @type person_id: int
-    @param existing_ext_ids: external ids to delete
-    @type existing_ext_ids: list
-    '''
-    if userinfo.count('||'):
-        uid = userinfo.split('||')[0]
-    else:
-        uid = ''
-
-    deleted_ids = []
-    for el in existing_ext_ids:
-        if el.count('||'):
-            ext_sys = el.split('||')[0]
-            ext_id = el.split('||')[1]
-        else:
-            continue
-        tag = 'extid:%s' % ext_sys
-        dbapi.del_person_data(tag, person_id, ext_id)
-        deleted_ids.append((person_id, tag, ext_id))
-
-    dbapi.insert_user_log(userinfo, person_id, 'data_deletion', 'CMPUI_deleteextid', '', 'External ids manually deleted: ' + str(deleted_ids), userid=uid)
-
-def add_person_external_id(person_id, ext_sys, ext_id, userinfo=''):
-    '''
-    Adds an external id for the person
-    @param person_id: person id
-    @type person_id: int
-    @param ext_sys: external system
-    @type ext_sys: str
-    @param ext_id: external id
-    @type ext_id: str
-    '''
-    if userinfo.count('||'):
-        uid = userinfo.split('||')[0]
-    else:
-        uid = ''
-
-    tag = 'extid:%s' % ext_sys
-    dbapi.set_person_data(person_id, tag, ext_id)
-
-    log_value = '%s %s %s' % (person_id, tag, ext_id)
-    dbapi.insert_user_log(userinfo, person_id, 'data_insertion', 'CMPUI_addexternalid', log_value, 'External id manually added.', userid=uid)
-
-
-def get_external_ids_from_person_id(pid):
-    '''
-    Finds the person  external ids (doi, arxivids, ..) from personid (e.g. 1)
-
-    @param person_id: person id
-    @type person_id: int
-
-    @return: dictionary of external ids
-    @rtype: dict()
-    '''
-    if not pid or not (isinstance(pid, str) or isinstance(pid, (int, long))):
-        return dict()
-
-    if isinstance(pid, str):
-        return None
-
-    external_ids = dbapi.get_external_ids_of_author(pid)
-    return external_ids
+    return [[bibrec, dbapi.get_matching_bibrefs_for_paper([''], bibrec, always_match=True)]
+            for bibrec in bibreclist]
 
 def get_canonical_id_from_person_id(person_id):
     '''
@@ -196,264 +90,24 @@ def get_canonical_id_from_person_id(person_id):
 
     return canonical_name
 
-def get_person_id_from_canonical_id(canonical_id):
+def get_external_ids_from_person_id(pid):
     '''
-    Finds the person id from a canonical name (e.g. Ellis_J_R_1)
+    Finds the person  external ids (doi, arxivids, ..) from personid (e.g. 1)
 
-    @param canonical_id: the canonical ID
-    @type canonical_id: string
-
-    @return: result from the request or -1 on failure
-    @rtype: int
-    '''
-    if not canonical_id or not isinstance(canonical_id, str):
-        return -1
-
-    pid = -1
-
-    try:
-        pid = dbapi.get_authors_by_canonical_name(canonical_id)[0][0]
-    except IndexError:
-        pass
-
-    return pid
-
-
-def get_bibrefs_from_bibrecs(bibreclist):
-    '''
-    Retrieve all bibrefs for all the recids in the list
-
-    @param bibreclist: list of record IDs
-    @type bibreclist: list of int
-
-    @return: a list of record->bibrefs
-    @return: list of lists
-    '''
-    return [[bibrec, dbapi.get_matching_bibrefs_for_paper([''], bibrec, always_match=True)]
-            for bibrec in bibreclist]
-
-def get_possible_bibrefs_from_pid_bibrec(pid, bibreclist, always_match=False, additional_names=None):
-    '''
-    Returns for each bibrec a list of bibrefs for which the surname matches.
-    @param pid: person id to gather the names strings from
-    @param bibreclist: list of bibrecs on which to search
-    @param always_match: match all bibrefs no matter the name
-    @param additional_names: [n1,...,nn] names to match other then the one from personid
-    '''
-    pid = wash_integer_id(pid)
-
-    pid_names = dbapi.get_author_names_from_db(pid)
-    if additional_names:
-        pid_names += zip(additional_names)
-    lists = []
-    for bibrec in bibreclist:
-        lists.append([bibrec, dbapi.get_matching_bibrefs_for_paper([n[0] for n in pid_names], bibrec,
-                                                        always_match)])
-    return lists
-
-
-def get_pid_from_uid(uid):
-    '''
-    Return the PID associated with the uid
-
-    @param uid: the internal ID of a user
-    @type uid: int
-
-    @return: the Person ID attached to the user or -1 if none found
-    '''
-    if not isinstance(uid, tuple):
-        uid = ((uid,),)
-
-    return dbapi.get_author_by_uid(uid)
-
-
-def get_uid_from_personid(pid):
-    '''
-    Return the uid associated with the pid
-
-    @param pid: the person id
-    @type uid: int
-
-    @return: the internal ID of a user or -1 if none found
-    '''
-    result = dbapi.get_uid_of_author(pid)
-
-    if not result:
-        return -1
-    return result
-
-def get_user_level(uid):
-    '''
-    Finds and returns the aid-universe-internal numeric user level
-
-    @param uid: the user's id
-    @type uid: int
-
-    @return: A numerical representation of the maximum access level of a user
-    @rtype: int
-    '''
-    actions = [row[1] for row in acc_find_user_role_actions({'uid': uid})]
-    return max([dbapi.get_paper_access_right(acc) for acc in actions])
-
-
-def get_person_id_from_paper(bibref=None):
-    '''
-    Returns the id of the person who wrote the paper
-
-    @param bibref: the bibref,bibrec pair that identifies the person
-    @type bibref: str
-
-    @return: the person id
-    @rtype: int
-    '''
-    if not is_valid_bibref(bibref):
-        return -1
-
-    person_id = -1
-    db_data = dbapi.get_author_and_status_of_signature(bibref)
-
-    try:
-        person_id = db_data[0][1]
-    except (IndexError):
-        pass
-
-    return person_id
-
-
-def get_papers_by_person_id(person_id= -1, rec_status= -2, ext_out=False):
-    '''
-    Returns all the papers written by the person
-
-    @param person_id: identifier of the person to retrieve papers from
-    @type person_id: int
-    @param rec_status: minimal flag status a record must have to be displayed
-    @type rec_status: int
-    @param ext_out: Extended output (w/ author aff and date)
-    @type ext_out: boolean
-
-    @return: list of record info
-    @rtype: list of lists of info
-    '''
-    if not isinstance(person_id, (int, long)):
-        try:
-            person_id = int(person_id)
-        except (ValueError, TypeError):
-            return []
-
-    if person_id < 0:
-        return []
-
-    if not isinstance(rec_status, int):
-        return []
-
-    records = []
-    db_data = dbapi.get_papers_info_of_author(person_id,
-                                              rec_status,
-                                              show_author_name=True,
-                                              show_title=False,
-                                              show_rt_status=True,
-                                              show_affiliations=ext_out,
-                                              show_date=ext_out,
-                                              show_experiment=ext_out)
-    if not ext_out:
-        records = [[int(row["data"].split(",")[1]), row["data"], row["flag"],
-                    row["authorname"]] for row in db_data]
-    else:
-        for row in db_data:
-            recid = row["data"].split(",")[1]
-            bibref = row["data"]
-            flag = row["flag"]
-            authorname = row["authorname"]
-            rt_status = row['rt_status']
-            authoraff = ", ".join(row['affiliation'])
-
-            try:
-                date = sorted(row['date'], key=len)[0]
-            except IndexError:
-                date = "Not available"
-
-            exp = ", ".join(row['experiment'])
-            # date = ""
-            records.append([int(recid), bibref, flag, authorname,
-                            authoraff, date, rt_status, exp])
-
-
-    return records
-
-
-def get_papers_cluster(bibref):
-    '''
-    Returns the cluster of documents connected with this one
-
-    @param bibref: the table:bibref,bibrec pair to look for
-    @type bibref: str
-
-    @return: a list of record IDs
-    @rtype: list of int
-    '''
-    papers = []
-    person_id = get_person_id_from_paper(bibref)
-
-    if person_id > -1:
-        papers = get_papers_by_person_id(person_id)
-
-    return papers
-
-def get_person_request_ticket(pid= -1, tid=None):
-    '''
-    Returns the list of request tickets associated to a person.
-    @param pid: person id
-    @param tid: ticket id, to select if want to retrieve only a particular one
-    @return: tickets [[],[]]
-    '''
-    if pid < 0:
-        return []
-    else:
-        return dbapi.get_validated_request_tickets_for_author(pid, tid)
-
-def get_persons_with_open_tickets_list():
-    '''
-    Finds all the persons with open tickets and returns pids and count of tickets
-    @return: [[pid,ticket_count]]
-    '''
-    return dbapi.get_authors_with_open_tickets()
-
-def get_person_names_from_id(person_id= -1):
-    '''
-    Finds and returns the names associated with this person along with the
-    frequency of occurrence (i.e. the number of papers)
-
-    @param person_id: an id to find the names for
+    @param person_id: person id
     @type person_id: int
 
-    @return: name and number of occurrences of the name
-    @rtype: tuple of tuple
+    @return: dictionary of external ids
+    @rtype: dict()
     '''
-    ##retrieve all rows for the person
-    if (not person_id > -1) or (not isinstance(person_id, (int, long))):
-        return []
+    if not pid or not (isinstance(pid, str) or isinstance(pid, (int, long))):
+        return dict()
 
-    return dbapi.get_names_count_of_author(person_id)
+    if isinstance(pid, str):
+        return None
 
-
-def get_person_db_names_from_id(person_id= -1):
-    '''
-    Finds and returns the names associated with this person as stored in the
-    meta data of the underlying data set along with the
-    frequency of occurrence (i.e. the number of papers)
-
-    @param person_id: an id to find the names for
-    @type person_id: int
-
-    @return: name and number of occurrences of the name
-    @rtype: tuple of tuple
-    '''
-    ##retrieve all rows for the person
-    if (not person_id > -1) or (not isinstance(person_id, (int, long))):
-        return []
-
-    return dbapi.get_names_of_author(person_id)
-
+    external_ids = dbapi.get_external_ids_of_author(pid)
+    return external_ids
 
 def get_longest_name_from_pid(person_id= -1):
     '''
@@ -516,6 +170,83 @@ def get_most_frequent_name_from_pid(person_id= -1, allow_none=False):
         else:
             return "This person does not seem to have a name!"
 
+def get_papers_by_person_id(person_id= -1, rec_status= -2, ext_out=False):
+    '''
+    Returns all the papers written by the person
+
+    @param person_id: identifier of the person to retrieve papers from
+    @type person_id: int
+    @param rec_status: minimal flag status a record must have to be displayed
+    @type rec_status: int
+    @param ext_out: Extended output (w/ author aff and date)
+    @type ext_out: boolean
+
+    @return: list of record info
+    @rtype: list of lists of info
+    '''
+    if not isinstance(person_id, (int, long)):
+        try:
+            person_id = int(person_id)
+        except (ValueError, TypeError):
+            return []
+
+    if person_id < 0:
+        return []
+
+    if not isinstance(rec_status, int):
+        return []
+
+    records = []
+    db_data = dbapi.get_papers_info_of_author(person_id,
+                                              rec_status,
+                                              show_author_name=True,
+                                              show_title=False,
+                                              show_rt_status=True,
+                                              show_affiliations=ext_out,
+                                              show_date=ext_out,
+                                              show_experiment=ext_out)
+    if not ext_out:
+        records = [[int(row["data"].split(",")[1]), row["data"], row["flag"],
+                    row["authorname"]] for row in db_data]
+    else:
+        for row in db_data:
+            recid = row["data"].split(",")[1]
+            bibref = row["data"]
+            flag = row["flag"]
+            authorname = row["authorname"]
+            rt_status = row['rt_status']
+            authoraff = ", ".join(row['affiliation'])
+
+            try:
+                date = sorted(row['date'], key=len)[0]
+            except IndexError:
+                date = "Not available"
+
+            exp = ", ".join(row['experiment'])
+            # date = ""
+            records.append([int(recid), bibref, flag, authorname,
+                            authoraff, date, rt_status, exp])
+
+
+    return records
+
+def get_papers_cluster(bibref):
+    '''
+    Returns the cluster of documents connected with this one
+
+    @param bibref: the table:bibref,bibrec pair to look for
+    @type bibref: str
+
+    @return: a list of record IDs
+    @rtype: list of int
+    '''
+    papers = []
+    person_id = get_person_id_from_paper(bibref)
+
+    if person_id > -1:
+        papers = get_papers_by_person_id(person_id)
+
+    return papers
 
 def get_paper_status(bibref):
     '''
@@ -537,6 +268,468 @@ def get_paper_status(bibref):
 
     return status
 
+def get_person_redirect_link(pid):
+    '''
+    Returns the canonical name of a pid if found, the pid itself otherwise
+    @param pid: int
+    '''
+    cname = dbapi.get_canonical_name_of_author(pid)
+    if len(cname) > 0:
+        return str(cname[0][0])
+    else:
+        return str(pid)
+
+def get_person_id_from_canonical_id(canonical_id):
+    '''
+    Finds the person id from a canonical name (e.g. Ellis_J_R_1)
+
+    @param canonical_id: the canonical ID
+    @type canonical_id: string
+
+    @return: result from the request or -1 on failure
+    @rtype: int
+    '''
+    if not canonical_id or not isinstance(canonical_id, str):
+        return -1
+
+    pid = -1
+
+    try:
+        pid = dbapi.get_authors_by_canonical_name(canonical_id)[0][0]
+    except IndexError:
+        pass
+
+    return pid
+
+def get_person_id_from_paper(bibref=None):
+    '''
+    Returns the id of the person who wrote the paper
+
+    @param bibref: the bibref,bibrec pair that identifies the person
+    @type bibref: str
+
+    @return: the person id
+    @rtype: int
+    '''
+    if not is_valid_bibref(bibref):
+        return -1
+
+    person_id = -1
+    db_data = dbapi.get_author_and_status_of_signature(bibref)
+
+    try:
+        person_id = db_data[0][1]
+    except (IndexError):
+        pass
+
+    return person_id
+
+def get_person_comments(person_id):
+    '''
+    Get all comments from a person
+
+    @param person_id: person id to get the comments from
+    @type person_id: int
+
+    @return the message incl. the metadata if everything was fine, False on err
+    @rtype: string or boolean
+    '''
+    pid = -1
+    comments = []
+
+    try:
+        pid = int(person_id)
+    except (ValueError, TypeError):
+        return False
+
+    for row in dbapi.get_person_data(pid, "comment"):
+        comments.append(row[1])
+
+    return comments
+
+def get_person_db_names_from_id(person_id= -1):
+    '''
+    Finds and returns the names associated with this person as stored in the
+    meta data of the underlying data set along with the
+    frequency of occurrence (i.e. the number of papers)
+
+    @param person_id: an id to find the names for
+    @type person_id: int
+
+    @return: name and number of occurrences of the name
+    @rtype: tuple of tuple
+    '''
+    ##retrieve all rows for the person
+    if (not person_id > -1) or (not isinstance(person_id, (int, long))):
+        return []
+
+    return dbapi.get_names_of_author(person_id)
+
+def get_person_names_from_id(person_id= -1):
+    '''
+    Finds and returns the names associated with this person along with the
+    frequency of occurrence (i.e. the number of papers)
+
+    @param person_id: an id to find the names for
+    @type person_id: int
+
+    @return: name and number of occurrences of the name
+    @rtype: tuple of tuple
+    '''
+    ##retrieve all rows for the person
+    if (not person_id > -1) or (not isinstance(person_id, (int, long))):
+        return []
+
+    return dbapi.get_names_count_of_author(person_id)
+
+def get_person_request_ticket(pid= -1, tid=None):
+    '''
+    Returns the list of request tickets associated to a person.
+    @param pid: person id
+    @param tid: ticket id, to select if want to retrieve only a particular one
+    @return: tickets [[],[]]
+    '''
+    if pid < 0:
+        return []
+    else:
+        return dbapi.get_validated_request_tickets_for_author(pid, tid)
+
+def get_persons_with_open_tickets_list():
+    '''
+    Finds all the persons with open tickets and returns pids and count of tickets
+    @return: [[pid,ticket_count]]
+    '''
+    return dbapi.get_authors_with_open_tickets()
+
+def get_pid_from_uid(uid):
+    '''
+    Return the PID associated with the uid
+
+    @param uid: the internal ID of a user
+    @type uid: int
+
+    @return: the Person ID attached to the user or -1 if none found
+    '''
+    if not isinstance(uid, tuple):
+        uid = ((uid,),)
+
+    return dbapi.get_author_by_uid(uid)
+
+
+def get_possible_bibrefs_from_pid_bibrec(pid, bibreclist, always_match=False, additional_names=None):
+    '''
+    Returns for each bibrec a list of bibrefs for which the surname matches.
+    @param pid: person id to gather the names strings from
+    @param bibreclist: list of bibrecs on which to search
+    @param always_match: match all bibrefs no matter the name
+    @param additional_names: [n1,...,nn] names to match other then the one from personid
+    '''
+    pid = wash_integer_id(pid)
+
+    pid_names = dbapi.get_author_names_from_db(pid)
+    if additional_names:
+        pid_names += zip(additional_names)
+    lists = []
+    for bibrec in bibreclist:
+        lists.append([bibrec, dbapi.get_matching_bibrefs_for_paper([n[0] for n in pid_names], bibrec,
+                                                        always_match)])
+    return lists
+
+def get_processed_external_recids(pid):
+    '''
+    Get list of records that have been processed from external identifiers
+
+    @param pid: Person ID to look up the info for
+    @type pid: int
+
+    @return: list of record IDs
+    @rtype: list of strings
+    '''
+
+    list_str = dbapi.get_processed_external_recids(pid)
+
+    return list_str.split(";")
+
+def get_review_needing_records(pid):
+    '''
+    Returns list of records associated to pid which are in need of review
+    (only bibrec ma no bibref selected)
+    @param pid: pid
+    '''
+    pid = wash_integer_id(pid)
+    db_data = dbapi.get_person_papers_to_be_manually_reviewed(pid)
+
+    return [int(row[1]) for row in db_data if row[1]]
+
+def get_uid_from_personid(pid):
+    '''
+    Return the uid associated with the pid
+
+    @param pid: the person id
+    @type uid: int
+
+    @return: the internal ID of a user or -1 if none found
+    '''
+    result = dbapi.get_uid_of_author(pid)
+
+    if not result:
+        return -1
+    return result
+
+def get_user_level(uid):
+    '''
+    Finds and returns the aid-universe-internal numeric user level
+
+    @param uid: the user's id
+    @type uid: int
+
+    @return: A numerical representation of the maximum access level of a user
+    @rtype: int
+    '''
+    actions = [row[1] for row in acc_find_user_role_actions({'uid': uid})]
+    return max([dbapi.get_paper_access_right(acc) for acc in actions])
+
+def search_person_ids_by_name(namequery):
+    '''
+    Prepares the search to search in the database
+
+    @param namequery: the search query the user enquired
+    @type namequery: string
+
+    @return: information about the result w/ probability and occurrence
+    @rtype: tuple of tuple
+    '''
+    query = ""
+    escaped_query = ""
+
+    try:
+        query = str(namequery)
+    except (ValueError, TypeError):
+        return []
+
+    if query:
+        escaped_query = escape(query, quote=True)
+    else:
+        return []
+
+    return dbapi.find_personIDs_by_name_string(escaped_query)
+
+############################################
+#           DB Data Mutators               #
+############################################
+
+def add_person_comment(person_id, message):
+    '''
+    Adds a comment to a person after enriching it with meta-data (date+time)
+
+    @param person_id: person id to assign the comment to
+    @type person_id: int
+    @param message: defines the comment to set
+    @type message: string
+
+    @return the message incl. the metadata if everything was fine, False on err
+    @rtype: string or boolean
+    '''
+    msg = ""
+    pid = -1
+    try:
+        msg = str(message)
+        pid = int(person_id)
+    except (ValueError, TypeError):
+        return False
+
+    strtimestamp = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+    msg = escape(msg, quote=True)
+    dbmsg = "%s;;;%s" % (strtimestamp, msg)
+    dbapi.set_person_data(pid, "comment", dbmsg)
+
+    return dbmsg
+
+def add_person_external_id(person_id, ext_sys, ext_id, userinfo=''):
+    '''
+    Adds an external id for the person
+    @param person_id: person id
+    @type person_id: int
+    @param ext_sys: external system
+    @type ext_sys: str
+    @param ext_id: external id
+    @type ext_id: str
+    '''
+    if userinfo.count('||'):
+        uid = userinfo.split('||')[0]
+    else:
+        uid = ''
+
+    tag = 'extid:%s' % ext_sys
+    dbapi.set_person_data(person_id, tag, ext_id)
+
+    log_value = '%s %s %s' % (person_id, tag, ext_id)
+    dbapi.insert_user_log(userinfo, person_id, 'data_insertion', 'CMPUI_addexternalid', log_value, 'External id manually added.', userid=uid)
+
+def add_review_needing_record(pid, bibrec_id):
+    '''
+    Add record in need of review to a person
+    @param pid: pid
+    @param bibrec_id: bibrec
+    '''
+    pid = wash_integer_id(pid)
+    bibrec_id = wash_integer_id(bibrec_id)
+    dbapi.add_person_paper_needs_manual_review(pid, bibrec_id)
+
+def delete_person_external_ids(person_id, existing_ext_ids, userinfo=''):
+    '''
+    Deletes external ids of the person
+    @param person_id: person id
+    @type person_id: int
+    @param existing_ext_ids: external ids to delete
+    @type existing_ext_ids: list
+    '''
+    if userinfo.count('||'):
+        uid = userinfo.split('||')[0]
+    else:
+        uid = ''
+
+    deleted_ids = []
+    for el in existing_ext_ids:
+        if el.count('||'):
+            ext_sys = el.split('||')[0]
+            ext_id = el.split('||')[1]
+        else:
+            continue
+        tag = 'extid:%s' % ext_sys
+        dbapi.del_person_data(tag, person_id, ext_id)
+        deleted_ids.append((person_id, tag, ext_id))
+
+    dbapi.insert_user_log(userinfo, person_id, 'data_deletion', 'CMPUI_deleteextid', '', 'External ids manually deleted: ' + str(deleted_ids), userid=uid)
+
+def del_review_needing_record(pid, bibrec_id):
+    '''
+    Removes a record in need of review from a person
+    @param pid: personid
+    @param bibrec_id: bibrec
+    '''
+    pid = wash_integer_id(pid)
+    bibrec_id = wash_integer_id(bibrec_id)
+    dbapi.del_person_papers_needs_manual_review(pid, bibrec_id)
+
+def insert_log(userinfo, personid, action, tag, value, comment='', transactionid=0):
+    '''
+    Log an action performed by a user
+
+    Examples (in the DB):
+    1 2010-09-30 19:30  admin||10.0.0.1  1  assign  paper  1133:4442 'from 23'
+    1 2010-09-30 19:30  admin||10.0.0.1  1  assign  paper  8147:4442
+    2 2010-09-30 19:35  admin||10.0.0.1  1  reject  paper  72:4442
+
+    @param userinfo: information about the user [UID|IP]
+    @type userinfo: string
+    @param personid: ID of the person this action is targeting
+    @type personid: int
+    @param action: intended action
+    @type action: string
+    @param tag: A tag to describe the data entered
+    @type tag: string
+    @param value: The value of the action described by the tag
+    @type value: string
+    @param comment: Optional comment to describe the transaction
+    @type comment: string
+    @param transactionid: May group bulk operations together
+    @type transactionid: int
+
+    @return: Returns the current transactionid
+    @rtype: int
+    '''
+    userinfo = escape(str(userinfo))
+    action = escape(str(action))
+    tag = escape(str(tag))
+    value = escape(str(value))
+    comment = escape(str(comment))
+
+    if not isinstance(personid, int):
+        try:
+            personid = int(personid)
+        except (ValueError, TypeError):
+            return -1
+
+    if not isinstance(transactionid, int):
+        try:
+            transactionid = int(transactionid)
+        except (ValueError, TypeError):
+            return -1
+
+    if userinfo.count('||'):
+        uid = userinfo.split('||')[0]
+    else:
+        uid = ''
+
+    return dbapi.insert_user_log(userinfo, personid, action, tag,
+                       value, comment, transactionid, userid=uid)
+
+def set_processed_external_recids(pid, recid_list):
+    '''
+    Set list of records that have been processed from external identifiers
+
+    @param pid: Person ID to set the info for
+    @type pid: int
+    @param recid_list: list of recids
+    @type recid_list: list of int
+    '''
+    if isinstance(recid_list, list):
+        recid_list_str = ";".join(recid_list)
+
+    dbapi.set_processed_external_recids(pid, recid_list_str)
+
+def swap_person_canonical_name(person_id, desired_cname, userinfo=''):
+    '''
+    Swaps the canonical names of person_id and the person who withholds the desired canonical name.
+    @param person_id: int
+    @param desired_cname: string
+    '''
+    personid_with_desired_cname = get_person_id_from_canonical_id(desired_cname)
+    if personid_with_desired_cname == person_id:
+        return
+
+    if userinfo.count('||'):
+        uid = userinfo.split('||')[0]
+    else:
+        uid = ''
+
+    current_cname = get_canonical_id_from_person_id(person_id)
+    create_log_personid_with_desired_cname = False
+
+    # nobody withholds the desired canonical name
+    if personid_with_desired_cname == -1:
+        dbapi.modify_canonical_name_of_authors([(person_id, desired_cname)])
+    # person_id doesn't own a canonical name
+    elif not isinstance(current_cname, str):
+        dbapi.modify_canonical_name_of_authors([(person_id, desired_cname)])
+        dbapi.update_canonical_names_of_authors([personid_with_desired_cname], overwrite=True)
+        create_log_personid_with_desired_cname = True
+    # both person_id and personid_with_desired_cname own a canonical name
+    else:
+        dbapi.modify_canonical_name_of_authors([(person_id, desired_cname), (personid_with_desired_cname, current_cname)])
+        create_log_personid_with_desired_cname = True
+
+    dbapi.insert_user_log(userinfo, person_id, 'data_update', 'CMPUI_changecanonicalname', '', 'Canonical name manually updated.', userid=uid)
+    if create_log_personid_with_desired_cname:
+        dbapi.insert_user_log(userinfo, personid_with_desired_cname, 'data_update', 'CMPUI_changecanonicalname', '', 'Canonical name manually updated.', userid=uid)
+
+def update_person_canonical_name(person_id, canonical_name, userinfo=''):
+    '''
+    Updates a person's canonical name
+    @param person_id: person id
+    @param canonical_name: string
+    '''
+    if userinfo.count('||'):
+        uid = userinfo.split('||')[0]
+    else:
+        uid = ''
+    dbapi.update_canonical_names_of_authors([person_id], overwrite=True, suggested=canonical_name)
+    dbapi.insert_user_log(userinfo, person_id, 'data_update', 'CMPUI_changecanonicalname', '', 'Canonical name manually updated.', userid=uid)
+
+############################################
+#           NOT TAGGED YET                 #
+############################################
 
 def wash_integer_id(param_id):
     '''
@@ -556,7 +749,6 @@ def wash_integer_id(param_id):
         return (-1)
 
     return pid
-
 
 def is_valid_bibref(bibref):
     '''
@@ -647,138 +839,6 @@ def author_has_papers(pid):
     return False
 
 
-def add_person_comment(person_id, message):
-    '''
-    Adds a comment to a person after enriching it with meta-data (date+time)
-
-    @param person_id: person id to assign the comment to
-    @type person_id: int
-    @param message: defines the comment to set
-    @type message: string
-
-    @return the message incl. the metadata if everything was fine, False on err
-    @rtype: string or boolean
-    '''
-    msg = ""
-    pid = -1
-    try:
-        msg = str(message)
-        pid = int(person_id)
-    except (ValueError, TypeError):
-        return False
-
-    strtimestamp = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-    msg = escape(msg, quote=True)
-    dbmsg = "%s;;;%s" % (strtimestamp, msg)
-    dbapi.set_person_data(pid, "comment", dbmsg)
-
-    return dbmsg
-
-
-def get_person_comments(person_id):
-    '''
-    Get all comments from a person
-
-    @param person_id: person id to get the comments from
-    @type person_id: int
-
-    @return the message incl. the metadata if everything was fine, False on err
-    @rtype: string or boolean
-    '''
-    pid = -1
-    comments = []
-
-    try:
-        pid = int(person_id)
-    except (ValueError, TypeError):
-        return False
-
-    for row in dbapi.get_person_data(pid, "comment"):
-        comments.append(row[1])
-
-    return comments
-
-
-def search_person_ids_by_name(namequery):
-    '''
-    Prepares the search to search in the database
-
-    @param namequery: the search query the user enquired
-    @type namequery: string
-
-    @return: information about the result w/ probability and occurrence
-    @rtype: tuple of tuple
-    '''
-    query = ""
-    escaped_query = ""
-
-    try:
-        query = str(namequery)
-    except (ValueError, TypeError):
-        return []
-
-    if query:
-        escaped_query = escape(query, quote=True)
-    else:
-        return []
-
-    return dbapi.find_personIDs_by_name_string(escaped_query)
-
-
-def insert_log(userinfo, personid, action, tag, value, comment='', transactionid=0):
-    '''
-    Log an action performed by a user
-
-    Examples (in the DB):
-    1 2010-09-30 19:30  admin||10.0.0.1  1  assign  paper  1133:4442 'from 23'
-    1 2010-09-30 19:30  admin||10.0.0.1  1  assign  paper  8147:4442
-    2 2010-09-30 19:35  admin||10.0.0.1  1  reject  paper  72:4442
-
-    @param userinfo: information about the user [UID|IP]
-    @type userinfo: string
-    @param personid: ID of the person this action is targeting
-    @type personid: int
-    @param action: intended action
-    @type action: string
-    @param tag: A tag to describe the data entered
-    @type tag: string
-    @param value: The value of the action described by the tag
-    @type value: string
-    @param comment: Optional comment to describe the transaction
-    @type comment: string
-    @param transactionid: May group bulk operations together
-    @type transactionid: int
-
-    @return: Returns the current transactionid
-    @rtype: int
-    '''
-    userinfo = escape(str(userinfo))
-    action = escape(str(action))
-    tag = escape(str(tag))
-    value = escape(str(value))
-    comment = escape(str(comment))
-
-    if not isinstance(personid, int):
-        try:
-            personid = int(personid)
-        except (ValueError, TypeError):
-            return -1
-
-    if not isinstance(transactionid, int):
-        try:
-            transactionid = int(transactionid)
-        except (ValueError, TypeError):
-            return -1
-
-    if userinfo.count('||'):
-        uid = userinfo.split('||')[0]
-    else:
-        uid = ''
-
-    return dbapi.insert_user_log(userinfo, personid, action, tag,
-                       value, comment, transactionid, userid=uid)
-
-
 def user_can_modify_data(uid, pid):
     '''
     Determines if a user may modify the data of a person
@@ -857,70 +917,6 @@ def person_bibref_is_touched_old(pid, bibref):
 
     return dbapi.paper_affirmed_from_user_input(pid, bibref)
 
-def get_review_needing_records(pid):
-    '''
-    Returns list of records associated to pid which are in need of review
-    (only bibrec ma no bibref selected)
-    @param pid: pid
-    '''
-    pid = wash_integer_id(pid)
-    db_data = dbapi.get_person_papers_to_be_manually_reviewed(pid)
-
-    return [int(row[1]) for row in db_data if row[1]]
-
-
-def add_review_needing_record(pid, bibrec_id):
-    '''
-    Add record in need of review to a person
-    @param pid: pid
-    @param bibrec_id: bibrec
-    '''
-    pid = wash_integer_id(pid)
-    bibrec_id = wash_integer_id(bibrec_id)
-    dbapi.add_person_paper_needs_manual_review(pid, bibrec_id)
-
-
-def del_review_needing_record(pid, bibrec_id):
-    '''
-    Removes a record in need of review from a person
-    @param pid: personid
-    @param bibrec_id: bibrec
-    '''
-    pid = wash_integer_id(pid)
-    bibrec_id = wash_integer_id(bibrec_id)
-    dbapi.del_person_papers_needs_manual_review(pid, bibrec_id)
-
-
-def get_processed_external_recids(pid):
-    '''
-    Get list of records that have been processed from external identifiers
-
-    @param pid: Person ID to look up the info for
-    @type pid: int
-
-    @return: list of record IDs
-    @rtype: list of strings
-    '''
-
-    list_str = dbapi.get_processed_external_recids(pid)
-
-    return list_str.split(";")
-
-
-def set_processed_external_recids(pid, recid_list):
-    '''
-    Set list of records that have been processed from external identifiers
-
-    @param pid: Person ID to set the info for
-    @type pid: int
-    @param recid_list: list of recids
-    @type recid_list: list of int
-    '''
-    if isinstance(recid_list, list):
-        recid_list_str = ";".join(recid_list)
-
-    dbapi.set_processed_external_recids(pid, recid_list_str)
-
 def is_logged_in_through_arxiv(req):
     '''
     Checks if the user is logged in through the arXiv.
@@ -987,10 +983,10 @@ def session_bareinit(req):
             pinfo["ticket"] = []
             session.dirty = True
         if 'users_open_tickets_storage' not in pinfo:
-            pinfo["users_open_tickets_storage"] = True
+            pinfo["users_open_tickets_storage"] = []
             session.dirty = True
         if 'incomplete_autoclaimed_tickets_storage' not in pinfo:
-            pinfo["incomplete_autoclaimed_tickets_storage"] = True
+            pinfo["incomplete_autoclaimed_tickets_storage"] = []
             session.dirty = True
         if 'remote_login_system' not in pinfo:
             pinfo["remote_login_system"] = dict()
@@ -1041,7 +1037,6 @@ def get_arxiv_info(req, uinfo):
     return arXiv_info
     # {the dictionary we define in _webinterface}
 
-
 # all teh get_info methods should standardize the content:
 def get_orcid_info(req, uinfo):
     return dict()
@@ -1068,9 +1063,7 @@ def get_remote_login_systems_info(req, remote_logged_in_systems):
     return user_remote_logged_in_systems_info
 
 def get_arxivids(req):
-    session = get_session(req)
     uinfo = collect_user_info(req)
-    pinfo = session['personinfo']
     current_external_ids = []
 
     if 'external_arxivids' in uinfo.keys() and uinfo['external_arxivids']:
@@ -1162,69 +1155,37 @@ def get_user_pid(uid):
 
     return pid[0]
 
-def merge_profiles(req, primary_profile, profiles):
-    records = dbapi.defaultdict(list)
-    for p in profiles:
-        papers = get_papers_by_person_id(get_person_id_from_canonical_id(p))
-        if papers:
-            for rec_info in papers:
-                records[rec_info[0]] += [rec_info[1]]
+#def merge_profiles(req, primary_profile, profiles):
+#    records = dbapi.defaultdict(list)
+#    for p in profiles:
+#        papers = get_papers_by_person_id(get_person_id_from_canonical_id(p))
+#        if papers:
+#            for rec_info in papers:
+#                records[rec_info[0]] += [rec_info[1]]
 
-    recids = []
-    bibrecrefs = []
-    for recid in records.keys():
-        if len(records[recid]) > 1:
-            recids.append(recid)
-        else:
-            bibrecrefs.append(records[recid][0])
-    if recids or bibrecrefs:
-        auto_claim_papers(req, get_person_id_from_canonical_id(primary_profile), list(set(recids)), list(set(bibrecrefs)))
+#    recids = []
+#    bibrecrefs = []
+#    for recid in records.keys():
+#        if len(records[recid]) > 1:
+#            recids.append(recid)
+#        else:
+#            bibrecrefs.append(records[recid][0])
+#    if recids or bibrecrefs:
+#        auto_claim_papers(req, get_person_id_from_canonical_id(primary_profile), list(set(recids)), list(set(bibrecrefs)))
 
 def auto_claim_papers(req, pid, recids):
-
     session_bareinit(req)
-    session = get_session(req)
-    ticket = session['personinfo']['ticket']
-
+    
     # retrieve users existing papers
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
     # retrieve the papers that need to be imported
     missing_bibrecs = list(set(recids) - pid_bibrecs)
-
+    
     # store any users open ticket elsewhere until we have processed the autoclaimed tickets
     store_users_open_tickets(req)
 
     # add autoclaimed tickets to the session
-    add_tickets(pid, missing_bibrecs, 'confirm')
-
-def store_users_open_tickets(req):
-    session_bareinit(req)
-    session = get_session(req)
-    ticket = session['personinfo']['ticket']
-    temp_storage = session['personinfo']['users_open_tickets_storage']
-    for t in list(ticket):
-        temp_storage.add(t)
-        ticket.remove(t)
-
-def store_incomplete_autoclaim_tickets(req):
-    session_bareinit(req)
-    session = get_session(req)
-    ticket = session['personinfo']['ticket']
-    temp_storage = session['personinfo']['incomplete_autoclaimed_tickets_storage']
-    for t in list(ticket):
-        if t not in temp_storage:
-            temp_storage.add(t)
-        ticket.remove(t)
-
-def restore_users_open_tickets(req):
-    session_bareinit(req)
-    session = get_session(req)
-    ticket = session['personinfo']['ticket']
-    temp_storage = session['personinfo']['users_open_tickets_storage']
-
-    for t in list(temp_storage):
-        ticket.add(t)
-        temp_storage.remove(t)
+    add_tickets(req, pid, missing_bibrecs, 'confirm')
 
 def get_name_variants_list_from_remote_systems_names(remote_login_systems_info):
     name_variants = []
@@ -1282,120 +1243,6 @@ def get_profile_suggestion_info(req, pid):
 
 def claim_profile(uid, pid):
     return dbapi.assign_person_to_uid(uid, pid)
-
-
-def arxiv_login(req, picked_profile=None):
-    '''
-    Log in through arxive. If user already associated to a personid, returns the personid.
-    If user has no pid, try to guess which personid to associate based on surname and papers
-    from arxiv. If no compatible person is found, creates a new person.
-    At the end of the process opens a ticket for the user claiming the papers from arxiv.
-    !!! the user will find the open ticket, which will require him to go through the
-    final review before getting committed.
-
-    @param req: Apache request object
-    @type req: Apache request object
-
-    @return: Returns the pid resulting in the process
-    @rtype: int
-    '''
-    def session_bareinit(req):
-        session = get_session(req)
-        try:
-            pinfo = session["personinfo"]
-            if 'ticket' not in pinfo:
-                pinfo["ticket"] = []
-        except KeyError:
-            pinfo = dict()
-            session['personinfo'] = pinfo
-            pinfo["ticket"] = []
-        session.dirty = True
-
-    session_bareinit(req)
-    session = get_session(req)
-
-    pinfo = session['personinfo']
-    ticket = session['personinfo']['ticket']
-
-    uinfo = collect_user_info(req)
-
-    try:
-        name = uinfo['external_firstname']
-    except KeyError:
-        name = ''
-    try:
-        surname = uinfo['external_familyname']
-    except KeyError:
-        surname = ''
-
-    if surname:
-        session['personinfo']['arxiv_name'] = nameapi.create_normalized_name(
-                                          nameapi.split_name_parts(surname + ', ' + name))
-    else:
-        session['personinfo']['arxiv_name'] = ''
-
-    session.dirty = True
-
-    try:
-        arxiv_p_ids = uinfo['external_arxivids'].split(';')
-    except KeyError:
-        arxiv_p_ids = []
-
-    # 'external_arxivids': 'hep-th/0112017;hep-th/0112020',
-    # 'external_familyname': 'Weiler',
-    # 'external_firstname': 'Henning',
-
-    try:
-        found_bibrecs = set(reduce(add, [perform_request_search(p='037:' + str(arx), of='id', rg=0)for arx in arxiv_p_ids]))
-    except (IndexError, TypeError):
-        found_bibrecs = set()
-
-    # found_bibrecs = [567700, 567744]
-
-    uid = getUid(req)
-    pid, pid_found = dbapi.get_author_by_uid([[uid]])
-
-    if pid_found:
-        pid = pid[0]
-    else:
-        if picked_profile == None:
-            top5_list = dbapi.find_top5_personid_for_new_arxiv_user(found_bibrecs,
-                nameapi.create_normalized_name(nameapi.split_name_parts(surname + ', ' + name)))
-            return ("top5_list", top5_list)
-        else:
-            pid = dbapi.check_personids_availability(picked_profile, uid)
-
-    pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
-    missing_bibrecs = found_bibrecs - pid_bibrecs
-    # present_bibrecs = found_bibrecs.intersection(pid_bibrecs)
-
-    # assert len(found_bibrecs) == len(missing_bibrecs) + len(present_bibrecs)
-
-    tempticket = []
-    # now we have to open the tickets...
-    # person_papers contains the papers which are already assigned to the person and came from arxive,
-    # they can be claimed regardless
-
-    for bibrec in missing_bibrecs:
-        tempticket.append({'pid':pid, 'bibref':str(bibrec), 'action':'confirm'})
-
-    # check if ticket targets (bibref for pid) are already in ticket
-    for t in list(tempticket):
-        for e in list(ticket):
-            if e['pid'] == t['pid'] and e['bibref'] == t['bibref']:
-                ticket.remove(e)
-        ticket.append(t)
-
-    session.dirty = True
-
-    if picked_profile != None and picked_profile != pid and picked_profile != -1:
-
-        return ("chosen pid not available", pid)
-    elif picked_profile != None and picked_profile == pid and picked_profile != -1:
-        return ("pid assigned by user", pid)
-    else:
-        return ("pid", pid)
-
 
 def external_user_can_perform_action(uid):
     '''
@@ -1824,34 +1671,595 @@ def get_person_info_by_pid(pid):
 #           Ticket Functions               #
 ############################################
 
-def add_tickets(pid, bibrefs, action):
-    # the user wanted to create a new person to resolve the tickets to it
-    if pid == bconfig.CREATE_NEW_PERSON:
-        pid = webapi.create_new_person(uid)
 
+def add_tickets(req, pid, bibrefs, action):
+    session = get_session(req)
+    pinfo = session["personinfo"]
+    ticket = pinfo["ticket"]
+    # the user wanted to create a new person to resolve the tickets to it 
+    if pid == bconfig.CREATE_NEW_PERSON:
+        uid = getUid(req)
+        pid = create_new_person(uid)
+
+    tempticket = []
     for bibref in bibrefs:
         tempticket.append({'pid': pid, 'bibref': bibref, 'action': action})
 
     # check if ticket targets (bibref for pid) are already in ticket
     for t in tempticket:
         tempticket_is_valid_bibref = is_valid_bibref(t['bibref'])
+        should_append = True
         for e in list(ticket):
             ticket_is_valid_bibref = is_valid_bibref(e['bibref'])
             # if they are the same leave ticket as it is and continue to the next tempticket
-            if e['bibref'] == t['bibref']:
+            if e['bibref'] == t['bibref'] and e['pid'] == t['pid']:
+                should_append = False
                 break
             # if we are comparing two different bibrefrecs with the same recids we remove the current bibrefrec and we add their recid
-            elif tempticket_is_valid_bibref and ticket_is_valid_bibref and t['bibref'].split(',')[1] == e['bibref'].split(',')[1]:
+            elif e['pid'] == t['pid'] and tempticket_is_valid_bibref and ticket_is_valid_bibref and t['bibref'].split(',')[1] == e['bibref'].split(',')[1]:
                 ticket.remove(e)
                 ticket.append({'pid': pid, 'bibref': t['bibref'].split(',')[1], 'action': action})
+                should_append = False
                 break
-            elif is_valid_bibref(e['bibref']) and e['bibref'] == t['bibref'].split(',')[1]:
+            elif e['pid'] == t['pid'] and is_valid_bibref(e['bibref']) and str(t['bibref']) == e['bibref'].split(',')[1]:
+                should_append = False
                 break
-            elif is_valid_bibref(t['bibref']) and t['bibref'] == e['bibref'].split(',')[1]:
+            elif e['pid'] == t['pid'] and is_valid_bibref(t['bibref']) and str(e['bibref']) == t['bibref'].split(',')[1]:
                 ticket.remove(e)
-                ticket.append(t)
                 break
 
+        if should_append:
+            ticket.append(t)
+
+def manage_tickets(req, autoclaim):
+    session = get_session(req)
+    pinfo = session["personinfo"]
+    ticket = pinfo["ticket"]
+    redirect_info = dict()
+
+
+    is_required, needs_review = is_ticket_review_required(req)
+
+    if is_required:
+        bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
+        if not autoclaim:
+            redirect_info['type'] = 'Submit Attribution'
+            redirect_info['title'] = 'Submit Attribution Information'
+            redirect_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
+            return redirect_info
+
+    if is_ticket_review_handling_required(req):
+        handle_ticket_review_results(req, autoclaim)
+        
+    uid = getUid(req)
+    for t in ticket:
+        t['status'] = check_transaction_permissions(uid,
+                                                       t['bibref'],
+                                                       t['pid'],
+                                                       t['action'])
+    session.dirty = True
+    add_user_data_to_ticket(req)
+
+    if not can_commit_ticket(req):
+        mark_yours, mark_not_yours, mark_theirs, mark_not_theirs = confirm_valid_ticket(req)
+        redirect_info['type'] = 'review actions'
+        redirect_info['title'] = 'Please review your actions'
+        redirect_info['body_params'] = [mark_yours, mark_not_yours, mark_theirs, mark_not_theirs]
+        return redirect_info
+
+
+    ticket_commit(req)
+    redirect_info['type'] = 'dispatch end'
+    return redirect_info    
+
+
+def confirm_valid_ticket(req):
+    '''
+    displays the user what can/cannot finally be done
+    '''
+    session = get_session(req)
+    pinfo = session["personinfo"]
+    ticket = pinfo["ticket"]
+    ticket = [row for row in ticket if not "execution_result" in row]
+    upid = pinfo["upid"]
+
+    for tt in list(ticket):
+        if not 'bibref' in tt or not 'pid' in tt:
+            del(ticket[tt])
+            continue
+
+        tt['authorname_rec'] = dbapi.get_bibrefrec_name_string(tt['bibref'])
+        tt['person_name'] = get_most_frequent_name_from_pid(tt['pid'])
+
+    mark_yours = []
+    mark_not_yours = []
+
+    if upid >= 0:
+        mark_yours = [row for row in ticket
+                      if (str(row["pid"]) == str(upid) and
+                          row["action"] in ["to_other_person", "confirm"])]
+        mark_not_yours = [row for row in ticket
+                          if (str(row["pid"]) == str(upid) and
+                              row["action"] in ["repeal", "reset"])]
+    mark_theirs = [row for row in ticket
+                   if ((not str(row["pid"]) == str(upid)) and
+                       row["action"] in ["to_other_person", "confirm"])]
+
+    mark_not_theirs = [row for row in ticket
+                       if ((not str(row["pid"]) == str(upid)) and
+                           row["action"] in ["repeal", "reset"])]
+
+    session.dirty = True
+
+    return mark_yours, mark_not_yours, mark_theirs, mark_not_theirs
+
+def ticket_review(req, needs_review):
+    session = get_session(req)
+    pinfo = session["personinfo"]
+
+    if 'arxiv_name' in pinfo:
+        arxiv_name = [pinfo['arxiv_name']]
+    else:
+        arxiv_name = None
+
+
+    bibrefs_auto_assigned = {}
+    bibrefs_to_confirm = {}
+
+    # if ("bibrefs_auto_assigned" in pinfo and pinfo["bibrefs_auto_assigned"]):
+    #     bibrefs_auto_assigned = pinfo["bibrefs_auto_assigned"]
+    #
+    # if ("bibrefs_to_confirm" in pinfo and pinfo["bibrefs_to_confirm"]):
+    #     bibrefs_to_confirm = pinfo["bibrefs_to_confirm"]
+
+    for transaction in needs_review:
+        # convert recid from string to int
+        recid = wash_integer_id(transaction['bibref'])
+
+        if recid < 0:
+            # this doesn't look like a recid--discard!
+            continue
+
+        pid = transaction['pid']
+
+        if ((pid in bibrefs_auto_assigned
+             and 'bibrecs' in bibrefs_auto_assigned[pid]
+             and recid in bibrefs_auto_assigned[pid]['bibrecs'])
+            or
+            (pid in bibrefs_to_confirm
+             and 'bibrecs' in bibrefs_to_confirm[pid]
+             and recid in bibrefs_to_confirm[pid]['bibrecs'])):
+            # we already accessed those bibrefs.
+            continue
+
+        # access to possible bibrefs by arxiv  name and pid's name variants
+        fctptr = get_possible_bibrefs_from_pid_bibrec
+        bibrec_refs = fctptr(pid, [recid], additional_names=arxiv_name)
+        person_name = get_most_frequent_name_from_pid(pid, allow_none=True)
+
+        if not person_name:
+            if arxiv_name:
+                person_name = ''.join(arxiv_name)
+            else:
+                person_name = " "
+
+        for brr in bibrec_refs:
+            # if bibrefrec seems ok add it to the auto assign list
+            if len(brr[1]) == 1:
+                tmp = get_bibrefs_from_bibrecs([brr[0]])
+                tmp[0][1].remove(brr[1][0])
+                brr[1] = brr[1] + sorted(tmp[0][1], key=lambda x: x[1])
+                if not pid in bibrefs_auto_assigned:
+                    bibrefs_auto_assigned[pid] = {
+                        'person_name': person_name,
+                        'canonical_id': "TBA",
+                        'bibrecs': {brr[0]: brr[1]}}
+                else:
+                    bibrefs_auto_assigned[pid]['bibrecs'][brr[0]] = brr[1]
+            else:
+                # if there is no bibreckref try to fix it
+
+                tmp = get_bibrefs_from_bibrecs([brr[0]])
+
+                try:
+                    brr[1] = sorted(tmp[0][1], key=lambda x: x[1])
+                except IndexError:
+                    # No bibrefs on record--discard
+                    continue
+                # and add it to bibrefs_to_confirm list
+                if not pid in bibrefs_to_confirm:
+                    bibrefs_to_confirm[pid] = {
+                        'person_name': person_name,
+                        'canonical_id': "TBA",
+                        'bibrecs': {brr[0]: brr[1]}}
+                else:
+                    bibrefs_to_confirm[pid]['bibrecs'][brr[0]] = brr[1]
+
+    if bibrefs_to_confirm or bibrefs_auto_assigned:
+        pinfo["bibref_check_required"] = True
+        baa = deepcopy(bibrefs_auto_assigned)
+        btc = deepcopy(bibrefs_to_confirm)
+
+        for pid in baa:
+            for rid in baa[pid]['bibrecs']:
+                baa[pid]['bibrecs'][rid] = []
+
+        for pid in btc:
+            for rid in btc[pid]['bibrecs']:
+                btc[pid]['bibrecs'][rid] = []
+
+        pinfo["bibrefs_auto_assigned"] = baa
+        pinfo["bibrefs_to_confirm"] = btc
+    else:
+        pinfo["bibref_check_required"] = False
+
+    session.dirty = True
+    return bibrefs_auto_assigned, bibrefs_to_confirm
+
+def add_user_data_to_ticket(req):
+    session = get_session(req)
+    uid = getUid(req)
+    userinfo = collect_user_info(uid)
+    pinfo = session["personinfo"]
+    upid = -1
+    user_first_name = ""
+    user_first_name_sys = False
+    user_last_name = ""
+    user_last_name_sys = False
+    user_email = ""
+    user_email_sys = False
+
+    if ("external_firstname" in userinfo
+          and userinfo["external_firstname"]):
+        user_first_name = userinfo["external_firstname"]
+        user_first_name_sys = True
+    elif "user_first_name" in pinfo and pinfo["user_first_name"]:
+        user_first_name = pinfo["user_first_name"]
+
+    if ("external_familyname" in userinfo
+          and userinfo["external_familyname"]):
+        user_last_name = userinfo["external_familyname"]
+        user_last_name_sys = True
+    elif "user_last_name" in pinfo and pinfo["user_last_name"]:
+        user_last_name = pinfo["user_last_name"]
+
+    if ("email" in userinfo
+          and not userinfo["email"] == "guest"):
+        user_email = userinfo["email"]
+        user_email_sys = True
+    elif "user_email" in pinfo and pinfo["user_email"]:
+        user_email = pinfo["user_email"]
+
+    pinfo["user_first_name"] = user_first_name
+    pinfo["user_first_name_sys"] = user_first_name_sys
+    pinfo["user_last_name"] = user_last_name
+    pinfo["user_last_name_sys"] = user_last_name_sys
+    pinfo["user_email"] = user_email
+    pinfo["user_email_sys"] = user_email_sys
+
+    # get pid by user id
+    if "upid" in pinfo and pinfo["upid"]:
+        upid = pinfo["upid"]
+    else:
+        pinfo["upid"] = -1
+        dbpid = get_pid_from_uid(uid)
+
+        if dbpid and dbpid[1]:
+            if dbpid[0] and not dbpid[0] == -1:
+                upid = dbpid[0][0]
+                pinfo["upid"] = upid
+
+    session.dirty = True
+
+def can_commit_ticket(req):
+    session = get_session(req)
+    pinfo = session["personinfo"]
+    ticket = pinfo["ticket"]
+    ticket = [row for row in ticket if not "execution_result" in row]
+    skip_checkout_page = True
+    skip_checkout_page2 = True
+
+    if not (pinfo["user_first_name"] or pinfo["user_last_name"] or pinfo["user_email"]):
+        skip_checkout_page = False
+
+    if [row for row in ticket
+        if row["status"] in ["denied", "warning_granted",
+                             "warning_denied"]]:
+        skip_checkout_page2 = False
+
+    if 'external_first_entry_skip_review' in pinfo and pinfo['external_first_entry_skip_review']:
+        del(pinfo["external_first_entry_skip_review"])
+        skip_checkout_page = True
+        session.dirty = True
+
+    if (not ticket or skip_checkout_page2
+        or ("checkout_confirmed" in pinfo
+            and pinfo["checkout_confirmed"]
+            and "checkout_faulty_fields" in pinfo
+            and not pinfo["checkout_faulty_fields"]
+            and skip_checkout_page)):
+        return True
+    return False
+
+def clean_ticket(req):
+    '''
+    Removes from a ticket the transactions with an execution_result flag
+    '''
+    session = get_session(req)
+    pinfo = session["personinfo"]
+    ticket = pinfo["ticket"]
+    for t in list(ticket):
+        if 'execution_result' in t:
+            ticket.remove(t)
+    session.dirty = True
+
+def ticket_commit(req):
+    '''
+    Executes/Creates the tickets for the specified user permission level.
+
+    @param ulevel: user permission level
+    @type ulevel: str
+    @param req: apache request object
+    @type req: apache request object
+    '''
+    def ticket_commit_guest(req):
+        clean_ticket(req)
+        uid = getUid(req)
+        userinfo = {'uid-ip': "userid: %s (from %s)" % (uid, req.remote_ip)}
+
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        if "user_ticket_comments" in pinfo:
+            if pinfo["user_ticket_comments"]:
+                userinfo['comments'] = pinfo["user_ticket_comments"]
+            else:
+                userinfo['comments'] = "No comments submitted."
+        if "user_first_name" in pinfo:
+            userinfo['firstname'] = pinfo["user_first_name"]
+        if "user_last_name" in pinfo:
+            userinfo['lastname'] = pinfo["user_last_name"]
+        if "user_email" in pinfo:
+            userinfo['email'] = pinfo["user_email"]
+
+        ticket = pinfo['ticket']
+        create_request_ticket(userinfo, ticket)
+
+        for t in ticket:
+            t['execution_result'] = [(True, ''), ]
+
+        session.dirty = True
+
+
+    def ticket_commit_user(req):
+        clean_ticket(req)
+        uid = getUid(req)
+        userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
+    
+        session = get_session(req)
+        pinfo = session["personinfo"]
+    
+        if "user_ticket_comments" in pinfo:
+            userinfo['comments'] = pinfo["user_ticket_comments"]
+        if "user_first_name" in pinfo:
+            userinfo['firstname'] = pinfo["user_first_name"]
+        if "user_last_name" in pinfo:
+            userinfo['lastname'] = pinfo["user_last_name"]
+        if "user_email" in pinfo:
+            userinfo['email'] = pinfo["user_email"]
+    
+        ticket = pinfo["ticket"]
+        ok_tickets = list()
+        for t in list(ticket):
+            if t['status'] in ['granted', 'warning_granted']:
+                t['execution_result'] = execute_action(t['action'],
+                                                    t['pid'], t['bibref'], uid,
+                                                    userinfo['uid-ip'], str(userinfo))
+                ok_tickets.append(t)
+                ticket.remove(t)
+    
+        if ticket:
+            create_request_ticket(userinfo, ticket)
+    
+        if CFG_INSPIRE_SITE and ok_tickets:
+            send_user_commit_notification_email(userinfo, ok_tickets)
+    
+        for t in ticket:
+            t['execution_result'] = [(True, ''), ]
+    
+        ticket[:] = ok_tickets
+        session.dirty = True
+    
+    def ticket_commit_admin(req):
+        clean_ticket(req)
+        uid = getUid(req)
+        userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
+    
+        session = get_session(req)
+        pinfo = session["personinfo"]
+    
+        if "user_ticket_comments" in pinfo:
+            userinfo['comments'] = pinfo["user_ticket_comments"]
+        if "user_first_name" in pinfo:
+            userinfo['firstname'] = pinfo["user_first_name"]
+        if "user_last_name" in pinfo:
+            userinfo['lastname'] = pinfo["user_last_name"]
+        if "user_email" in pinfo:
+            userinfo['email'] = pinfo["user_email"]
+    
+        ticket = pinfo["ticket"]
+        for t in ticket:
+            t['execution_result'] = execute_action(t['action'], t['pid'], t['bibref'], uid,
+                                                          userinfo['uid-ip'], str(userinfo))
+        session.dirty = True
+    
+    commit = {'guest': ticket_commit_guest,
+                     'user': ticket_commit_user,
+                     'admin': ticket_commit_admin}
+    
+    
+    session = get_session(req)
+    pinfo = session["personinfo"]
+    ulevel = pinfo["ulevel"]
+
+    commit[ulevel](req)
+
+    if "checkout_confirmed" in pinfo:
+        del(pinfo["checkout_confirmed"])
+
+    if "checkout_faulty_fields" in pinfo:
+        del(pinfo["checkout_faulty_fields"])
+
+    if "bibref_check_required" in pinfo:
+        del(pinfo["bibref_check_required"])
+
+    session.dirty = True
+
+def is_ticket_review_handling_required(req):
+    '''
+    checks if the results of ticket reviewing should be handled
+    @param req: Apache request object
+    @type req: Apache request object
+    '''
+
+    session = get_session(req)
+    pinfo = session["personinfo"]
+
+    # if check is needed
+    if ("bibref_check_required" in pinfo and pinfo["bibref_check_required"]
+                                and "bibref_check_reviewed_bibrefs" in pinfo):
+        return True
+    return False
+
+def handle_ticket_review_results(req, autoclaim):
+    '''
+    handle the results of ticket reviewing by either fixing tickets or removing them based on the review performed
+    @param req: Apache request object
+    @type req: Apache request object
+    '''
+
+    session = get_session(req)
+    pinfo = session["personinfo"]
+    ticket = pinfo["ticket"]
+
+    # for every bibref in need of review
+    for rbibreft in pinfo["bibref_check_reviewed_bibrefs"]:
+        # if it's not in proper form skip it ( || delimiter is being added in bibauthorid_templates:tmpl_bibref_check function, coma delimiter
+        # are being added in bibauthorid_webinterface: action function )
+        # rbibreft ex: 'pid||bibrecref','8||100:4,45'
+        if not rbibreft.count("||") or not rbibreft.count(","):
+            continue
+
+        # get pid and bibrecref
+        rpid, rbibref = rbibreft.split("||")
+        # get recid out of bibrecref
+        rrecid = rbibref.split(",")[1]
+        # convert string pid to int
+        rpid = wash_integer_id(rpid)
+
+        # updating ticket status with fixed bibrefs
+        # and removing them from incomplete
+        for ticket_update in [row for row in ticket
+                              if (row['bibref'] == str(rrecid) and
+                                  row['pid'] == rpid)]:
+            ticket_update["bibref"] = rbibref
+            if "incomplete" in ticket_update:
+                del(ticket_update["incomplete"])
+    # tickets that could't be fixed will be removed or if they were to be autoclaimed they will be stored elsewhere
+    if autoclaim:
+        failed_to_autoclaim_tickets = []
+
+        for ticket_remove in [row for row in ticket
+                              if ('incomplete' in row)]:
+            failed_to_autoclaim_tickets.append(ticket_remove)
+            ticket.remove(ticket_remove)
+        store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets)       
+    else:
+        for ticket_remove in [row for row in ticket
+                              if ('incomplete' in row)]:
+            ticket.remove(ticket_remove)
+
+    # delete also all bibrefs_auto_assigned, bibrefs_to_confirm and bibref_check_reviewed_bibrefs since the have been handled
+    if ("bibrefs_auto_assigned" in pinfo):
+        del(pinfo["bibrefs_auto_assigned"])
+
+    if ("bibrefs_to_confirm" in pinfo):
+        del(pinfo["bibrefs_to_confirm"])
+
+    del(pinfo["bibref_check_reviewed_bibrefs"])
+    # now there is no check required
+    pinfo["bibref_check_required"] = False
+    session.dirty = True
+
+def is_ticket_review_required(req):
+    '''
+    checks if there are transactions inside ticket in need for review
+    @param req: Apache request object
+    @type req: Apache request object
+    '''
+    session = get_session(req)
+    pinfo = session["personinfo"]
+    ticket = pinfo["ticket"]
+    needs_review = []
+
+    # for every transaction in tickets check if there ara transaction that require review
+    for transaction in ticket:
+        if not is_valid_bibref(transaction['bibref']):
+            transaction['incomplete'] = True
+            needs_review.append(transaction)
+
+    if not needs_review:
+        return (False, [])
+    return (True, needs_review)
+
+# restore any users open ticket, that is in storage , in session as autoclaiming has finished
+def restore_users_open_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    ticket = session['personinfo']['ticket']
+    temp_storage = session['personinfo']['users_open_tickets_storage']
+
+    for t in list(temp_storage):
+        ticket.append(t)
+        temp_storage.remove(t)
+    temp_storage = []
+
+# store any users open ticket elsewhere until we have processed the autoclaimed tickets
+def store_users_open_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    ticket = session['personinfo']['ticket']
+    temp_storage = session['personinfo']['users_open_tickets_storage']
+    for t in list(ticket):
+        temp_storage.append(t)
+        ticket.remove(t)
+
+# store incomplete autoclaim's tickets elsewhere waiting for user interference in order not to mess with new tickets
+def store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets):
+    session_bareinit(req)
+    session = get_session(req)
+    temp_storage = session['personinfo']['incomplete_autoclaimed_tickets_storage']
+
+    for incomplete_ticket in failed_to_autoclaim_tickets:
+        if incomplete_ticket not in temp_storage:
+            temp_storage.append(incomplete_ticket)
+
+# restore any users open ticket, that is in storage , in session as autoclaiming has finished
+def restore_incomplete_autoclaim_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    ticket = session['personinfo']['ticket']
+    temp_storage = session['personinfo']['incomplete_autoclaimed_tickets_storage']
+
+    for t in list(temp_storage):
+        ticket.append(t)
+        temp_storage.remove(t)
+    temp_storage = []
+            
+def get_stored_incomplete_autoclaim_tickets(req):
+    session_bareinit(req)
+    session = get_session(req)
+    temp_storage = session['personinfo']['incomplete_autoclaimed_tickets_storage']
+    return temp_storage
 
 
 
