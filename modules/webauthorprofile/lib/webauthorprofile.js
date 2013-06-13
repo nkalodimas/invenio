@@ -47,7 +47,7 @@ $(document).ready(function() {
       $.ajax({
         dataType: 'json',
         type: 'POST',
-        url: '/author/' + funcs[i],
+        url: '/author/profile/' + funcs[i],
         data: {jsondata: JSON.stringify(data)},
         success: onAjaxSuccess,
         async: true

@@ -625,6 +625,28 @@ def is_valid_canonical_id(cid):
     else:
         return False
 
+def author_has_papers(pid):
+    '''
+    Checks if the given author identifier has papers.
+
+    @param pid: author identifier
+    @type pid: int
+
+    @return: author has papers
+    @rtype: bool
+    '''
+    try:
+        pid = int(pid)
+    except ValueError:
+        return False
+
+    papers = dbapi.get_papers_of_author(pid)
+    if papers:
+        return True
+
+    return False
+
+
 def add_person_comment(person_id, message):
     '''
     Adds a comment to a person after enriching it with meta-data (date+time)
@@ -1163,12 +1185,12 @@ def auto_claim_papers(req, pid, recids):
     session_bareinit(req)
     session = get_session(req)
     ticket = session['personinfo']['ticket']
-    
+
     # retrieve users existing papers
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
     # retrieve the papers that need to be imported
     missing_bibrecs = list(set(recids) - pid_bibrecs)
-    
+
     # store any users open ticket elsewhere until we have processed the autoclaimed tickets
     store_users_open_tickets(req)
 
@@ -1601,7 +1623,7 @@ def create_request_ticket(userinfo, ticket):
         dbapi.update_request_ticket_for_author(pid, data)
         pidlink = get_person_redirect_link(pid)
 
-        m("%s/person/%s?open_claim=True#tabTickets" % (CFG_SITE_URL, pidlink))
+        m("%s/author/claim/%s?open_claim=True#tabTickets" % (CFG_SITE_URL, pidlink))
 
     m("\nPlease remember that you have to be logged in "
       "in order to see the ticket of a person.\n")
@@ -1803,7 +1825,7 @@ def get_person_info_by_pid(pid):
 ############################################
 
 def add_tickets(pid, bibrefs, action):
-    # the user wanted to create a new person to resolve the tickets to it 
+    # the user wanted to create a new person to resolve the tickets to it
     if pid == bconfig.CREATE_NEW_PERSON:
         pid = webapi.create_new_person(uid)
 
@@ -1829,7 +1851,7 @@ def add_tickets(pid, bibrefs, action):
                 ticket.remove(e)
                 ticket.append(t)
                 break
-            
+
 
 
 

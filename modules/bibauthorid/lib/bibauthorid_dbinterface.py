@@ -655,7 +655,7 @@ def _delete_from_aidpersonidpapers_where(pid=None, table=None, ref=None, rec=Non
     if not conditions:
         return
 
-    conditions_str = "%s" % " and ".join(conditions)
+    conditions_str = " and ".join(conditions)
     query = """delete from aidPERSONIDPAPERS
                where %s""" % conditions_str
 
@@ -1436,8 +1436,8 @@ def _select_from_aidpersonidpapers_where(select=None, pid=None, table=None, ref=
         add_condition('lcul=%s')
         add_arg(lcul)
 
-    select_fields_str = "%s" % ", ".join(select)
-    conditions_str = "%s" % " and ".join(conditions)
+    select_fields_str = ", ".join(select)
+    conditions_str = " and ".join(conditions)
     query = """select %s
                from aidPERSONIDPAPERS
                where %s""" % (select_fields_str, conditions_str)
@@ -1664,7 +1664,7 @@ def _delete_from_aidpersoniddata_where(pid=None, tag=None, data=None, opt1=None,
     if not conditions:
         return
 
-    conditions_str = "%s" % " and ".join(conditions)
+    conditions_str = " and ".join(conditions)
     query = """delete from aidPERSONIDDATA
                where %s""" % conditions_str
 
@@ -2006,8 +2006,8 @@ def _select_from_aidpersoniddata_where(select=None, pid=None, tag=None, data=Non
         add_condition('opt3=%s')
         add_arg(opt3)
 
-    select_fields_str = "%s" % ", ".join(select)
-    conditions_str = "%s" % " and ".join(conditions)
+    select_fields_str = ", ".join(select)
+    conditions_str = " and ".join(conditions)
     query = """select %s
                from aidPERSONIDDATA
                where %s""" % (select_fields_str, conditions_str)
@@ -2519,7 +2519,7 @@ def get_papers_info_of_author(pid, flag,   ### get_person_papers
     if show_author_name:
         select.append('name')
 
-    select_fields_str = "%s" % ", ".join(select)
+    select_fields_str = ", ".join(select)
 
     records = run_sql("""select """ + select_fields_str + """
                          from aidPERSONIDPAPERS
@@ -2929,7 +2929,7 @@ def get_user_logs(transactionid=None, userid=None, userinfo=None, pid=None, acti
         add_condition('comment=%s')
         add_arg(str(comment))
 
-    conditions_str = "%s" % " and ".join(conditions)
+    conditions_str = " and ".join(conditions)
     query = """select id, transactionid, timestamp, userinfo, personid, action, tag, value, comment
                from aidUSERINPUTLOG
                where %s""" % (conditions_str)
@@ -4454,9 +4454,9 @@ def export_author(pid):   ### export_person
     canonical_names = get_canonical_name_of_author(pid)
     if canonical_names:
         author_info['identifiers']['INSPIRE_canonical_name'] = (str(canonical_names[0][0]),)
-        author_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/%s' % (CFG_SITE_URL, canonical_names[0][0]),)
+        author_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/profile/%s' % (CFG_SITE_URL, canonical_names[0][0]),)
     else:
-        author_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/%s' % (CFG_SITE_URL, str(pid)),)
+        author_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/profile/%s' % (CFG_SITE_URL, str(pid)),)
 
     orcids = _get_orcid_id_of_author(pid)
     if orcids:
