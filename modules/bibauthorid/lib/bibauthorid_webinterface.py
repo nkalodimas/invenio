@@ -1340,12 +1340,12 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                     "Fatal: cannot create ticket without any profiles selected!")
 
             bibrefs = webapi.merge_profiles(primary_profile, profiles_to_merge)
-            webapi.add_tickets(req, pid, bibrefs, 'confirm')
+            webapi.add_tickets(req, primary_profile, bibrefs, 'confirm')
 
             # start ticket processing chain
-            pinfo["claimpaper_admin_last_viewed_pid"] = pid
+            pinfo["claimpaper_admin_last_viewed_pid"] = primary_profile
             session.dirty = True
-            return self._ticket_dispatch(ulevel, req, false, false)
+            return self._ticket_dispatch(ulevel, req, False, False)
             # return self.perform(req, form)             
 
         def set_canonical_name():
