@@ -1155,23 +1155,23 @@ def get_user_pid(uid):
 
     return pid[0]
 
-#def merge_profiles(req, primary_profile, profiles):
-#    records = dbapi.defaultdict(list)
-#    for p in profiles:
-#        papers = get_papers_by_person_id(get_person_id_from_canonical_id(p))
-#        if papers:
-#            for rec_info in papers:
-#                records[rec_info[0]] += [rec_info[1]]
+def merge_profiles(primary_profile, profiles):
+    records = dbapi.defaultdict(list)
+    for p in profiles:
+        papers = get_papers_by_person_id(get_person_id_from_canonical_id(p))
+        if papers:
+            for rec_info in papers:
+                records[rec_info[0]] += [rec_info[1]]
 
-#    recids = []
-#    bibrecrefs = []
-#    for recid in records.keys():
-#        if len(records[recid]) > 1:
-#            recids.append(recid)
-#        else:
-#            bibrecrefs.append(records[recid][0])
-#    if recids or bibrecrefs:
-#        auto_claim_papers(req, get_person_id_from_canonical_id(primary_profile), list(set(recids)), list(set(bibrecrefs)))
+    recs_to_merge = []
+    for recid in records.keys():
+        # if more than one with the same recid we append only the recid and we let the user to solve tha problem in ticket_review
+        if len(records[recid]) > 1:
+            recs_to_merge.append(recid)
+        else:
+            recs_to_merge.append(records[recid][0])
+
+    return recs_to_merge
 
 def auto_claim_papers(req, pid, recids):
     session_bareinit(req)
@@ -2253,7 +2253,6 @@ def restore_incomplete_autoclaim_tickets(req):
     for t in list(temp_storage):
         ticket.append(t)
         temp_storage.remove(t)
-    temp_storage = []
             
 def get_stored_incomplete_autoclaim_tickets(req):
     session_bareinit(req)

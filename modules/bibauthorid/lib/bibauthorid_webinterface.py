@@ -330,6 +330,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 pinfo["ln"] = 'en'
             if 'ticket' not in pinfo:
                 pinfo["ticket"] = []
+            if 'merge_ticket' not in pinfo:
+                pinfo['merge_ticket'] = dict()
             session.dirty = True
         except KeyError:
             pinfo = dict()
@@ -338,6 +340,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             pinfo["claimpaper_admin_last_viewed_pid"] = -2
             pinfo["ln"] = 'en'
             pinfo["ticket"] = []
+            pinfo['merge_ticket'] = dict()
             session.dirty = True
 
 
@@ -791,6 +794,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if 'claim_in_process' in pinfo:
             pinfo['claim_in_process'] = False
 
+        if "merge_ticket" in pinfo and pinfo['merge_ticket']:
+            pinfo['merge_ticket'] = []
+            
         uinfo = collect_user_info(req)
         uinfo['precached_viewclaimlink'] = True
         uid = getUid(req)
@@ -836,7 +842,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         return role
 
-
+    # need review if should be deleted
     def __user_is_authorized(self, req, action):
         '''
         Determines if a given user is authorized to perform a specified action
@@ -1003,6 +1009,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                              'commit_rt_ticket': (str, None),
                              'confirm': (str, None),
                              'delete_external_ids': (str, None),
+                             'merge': (str, None),
                              'repeal': (str, None),
                              'reset': (str, None),
                              'set_canonical_name': (str, None),
@@ -1029,6 +1036,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                              'commit_rt_ticket',
                              'confirm',
                              'delete_external_ids',
+                             'merge'
                              'repeal',
                              'reset',
                              'set_canonical_name',
@@ -1054,7 +1062,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 session.dirty = True
 
             return self._ticket_dispatch(ulevel, req)
-
 
         def add_external_id():
             if argd['pid'] > -1:
@@ -1314,6 +1321,33 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             return redirect_to_url(req, "/author/claim/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
 
+        def none_action():
+            return self._error_page(req, ln,
+                        "Fatal: cannot create ticket if no action selected.")
+
+        def merge():
+            if 'pid' in argd:
+                primary_profile = argd['pid']
+            else:
+                return self._error_page(req, ln,
+                                        "Fatal: cannot create ticket without a person id!")
+            profiles_to_merge = None
+
+            if ('selection' in argd and argd['selection'] and len(argd['selection']) > 0):
+                profiles_to_merge = argd['selection']
+            else:
+                return self._error_page(req, ln,
+                                    "Fatal: cannot create ticket without any profiles selected!")
+
+            bibrefs = webapi.merge_profiles(primary_profile, profiles_to_merge)
+            webapi.add_tickets(req, pid, bibrefs, 'confirm')
+
+            # start ticket processing chain
+            pinfo["claimpaper_admin_last_viewed_pid"] = pid
+            session.dirty = True
+            return self._ticket_dispatch(ulevel, req, false, false)
+            # return self.perform(req, form)             
+
         def set_canonical_name():
             if argd['pid'] > -1:
                 pid = argd['pid']
@@ -1335,11 +1369,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             return redirect_to_url(req, "/author/claim/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
 
-        def none_action():
-            return self._error_page(req, ln,
-                        "Fatal: cannot create ticket if no action selected.")
-
-
         action_functions = {'add_external_id': add_external_id,
                             'add_missing_external_ids': add_missing_external_ids,
                             'bibref_check_submit': bibref_check_submit,
@@ -1355,6 +1384,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                             'commit_rt_ticket': commit_rt_ticket,
                             'confirm': confirm_repeal_reset,
                             'delete_external_ids': delete_external_ids,
+                            'merge': merge,
                             'repeal': confirm_repeal_reset,
                             'reset': confirm_repeal_reset,
                             'set_canonical_name': set_canonical_name,
@@ -1706,7 +1736,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             form,
             {'ln': (str, CFG_SITE_LANG),
              'search_param': (str, None),
-             'primary_profile':(str, None)})
+             'primary_profile':(str, None),
+             'selection': (list, []),})
 
         ln = argd['ln']
         # ln = wash_language(argd['ln'])
@@ -1733,17 +1764,16 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         if 'merge_ticket' not in pinfo and not primary_profile:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
-        elif 'merge_ticket' not in pinfo:
-            pinfo['merge_ticket'] = dict()
         elif not primary_profile:
-            primary_profile = pinfo['merge_ticket']['primary_profile']
+            primary_profile = pinfo['merge_ticket'].keys()[0]
+            profiles_to_merge = pinfo['merge_ticket'][primary_profile]
         else:
-            pinfo['merge_ticket']['primary_profile'] = primary_profile
+            pinfo['merge_ticket'][primary_profile] = argd['selection']
+            
 
         merge_ticket = pinfo['merge_ticket']
-        merge_ticket['profiles'] = ['M.P.Hobson.1']
 
-        for p in merge_ticket['profiles']:
+        for p in merge_ticket[primary_profile]:
             profiles.append(webapi.get_canonical_id_from_person_id(p))
 
         merge_power = False
@@ -1751,7 +1781,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             merge_power = True
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
         body=''
-        body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, pinfo['merge_ticket']['profiles'], merge_power)
+        body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, merge_ticket[primary_profile], merge_power)
 
 
         pid_canditates_list = []
