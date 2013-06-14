@@ -28,14 +28,55 @@ from itertools import chain
 from invenio.bibauthorid_cluster_set import ClusterSet
 from invenio.bibauthorid_bib_matrix import Bib_matrix
 
-class Test_probability_matrix(unittest.TestCase):
+class Test_Bib_matrix(unittest.TestCase):
 
     def setUp(self):
-        pass
+        self.bm = Bib_matrix()
+        self.css = ClusterSet()
+        self.css.clusters = [ClusterSet.Cluster(range(i*10,i*10+10)) for i in range(10)]
+        self.css.update_bibs()
+        self.bmcs0 = Bib_matrix(self.css)
 
-    def test_one(self):
-        pass
+    def test_resolve_entry_simmetry(self):
+        for j in range(100):
+            for k in range(100):
+                self.assertTrue( self.bmcs0._resolve_entry((j,k))==self.bmcs0._resolve_entry((k,j)) )
 
+    def test_resolve_entry_unicity(self):
+        '''
+        resolve_entry should produce unuque indexes for any couple of values
+        '''
+        testvalues = set((i,j) for i in range(10) for j in range(10))
+        for k in range(10):
+            for z in range(10):
+                tvalues = testvalues - set([(k,z)]) - set([(z,k)])
+                val = self.bmcs0._resolve_entry((k,z))
+                allvalues = set(self.bmcs0._resolve_entry(v) for v in tvalues)
+                self.assertFalse( val in allvalues , str(val)+' is in, from '+str((k,z)))
+
+    def test_matrix_content(self):
+        '''
+        The matrix is simmetric, and values should be preserved
+        '''
+        for i in range(100):
+            for j in range(i+1):
+                self.bmcs0[i,j] = (i,j)
+
+        for i in range(100):
+            for j in range(100):
+                val = self.bmcs0[i,j]
+                if i < j:
+                    k,z = j,i
+                else:
+                    k,z = i,j
+                self.assertTrue(val[0] == k)
+                self.assertTrue(val[1] == z)
+
+    def test_create_empty_matrix(self):
+        for i in range(9,10):
+            for j in range(i*10,i*10+10):
+                for k in range(i*10,i*10+10):
+                        self.assertTrue(self.bmcs0[(j,k)] == None)
 
 
 if __name__ == '__main__':

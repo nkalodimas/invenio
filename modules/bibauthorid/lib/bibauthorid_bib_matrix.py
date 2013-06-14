@@ -21,7 +21,7 @@ class Bib_matrix(object):
         if cluster_set:
             self._bibmap = dict((b[1], b[0]) for b in enumerate(cluster_set.all_bibs()))
             width = len(self._bibmap)
-            size = ((width - 1) * width) / 2
+            size = ((width + 1) * width) / 2
             self._matrix = Bib_matrix.create_empty_matrix(size)
         else:
             self._bibmap = dict()
@@ -35,13 +35,11 @@ class Bib_matrix(object):
         return ret
 
     def _resolve_entry(self, bibs):
-        #assert len(bibs) == 2
         first = self._bibmap[bibs[0]]
         second = self._bibmap[bibs[1]]
         if first > second:
             first, second = second, first
-        #assert first < second
-        return first + ((second - 1) * second) / 2
+        return first + ((second + 1) * second) / 2
 
     def __setitem__(self, bibs, val):
         entry = self._resolve_entry(bibs)
