@@ -1688,8 +1688,8 @@ class Template:
             h('</form>')
             if 'new_person_gen' in shown_element_functions.keys():
                 new_person_text, new_person_link = shown_element_functions['new_person_gen']()
-                h('<button type="button" id="new_person_link"><a rel="nofollow" href="%s" >%s' % (new_person_link, new_person_text))
-                h('</a></button>')
+                h('<a rel="nofollow" href="%s" ><button type="button" id="new_person_link">%s' % (new_person_link, new_person_text))
+                h('</button></a>')
             h('</div>')
 
         if not results and not query:
@@ -1738,9 +1738,6 @@ class Template:
 
             pid = result['pid']
             canonical_id = result['canonical_id']
-            names = result['name_variants']
-
-            external_ids = result['external_ids']
 
             # person row
             h('<tr id="pid'+ str(pid) + '">')
@@ -1795,8 +1792,8 @@ class Template:
                 #             '<a rel="nofollow" href="%s" class="confirmlink">'
                 #             '<strong>%s</strong>' + '</a></span>')
                 #             % (action_button_link, action_button_text))
-                h('<button type="button"><a rel="nofollow" href="%s" class="confirmlink">%s' % (action_button_link, action_button_text))
-                h('</a></button>')
+                h('<a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s' % (action_button_link, action_button_text))
+                h('</button></a>')
                 h('</td>')
             h('</tr>')
         h('</tbody>')
@@ -2078,13 +2075,12 @@ class Template:
         """
         html = []
         h = html.append
-        delimiter = ";"
 
         if external_ids:
             h('<table id="externalIDsTable">')
             for key, value in external_ids.iteritems():
                 h('<tr>')
-                h('<td style="margin-top:5px; width:1px;  padding-right:2px;">%s:</td>' % key) #white-space:nowrap;
+                h('<td style="margin-top:5px; width:1px;  padding-right:2px;">%s:</td>' % key)
                 h('<td style="padding-left:5px;width:1px;">')
                 for i, item in enumerate(value):
                     if i == 0:

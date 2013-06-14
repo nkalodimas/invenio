@@ -1618,11 +1618,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
     def search_box(self, pid_list, query, shown_element_functions):
 
         search_results = []
-        for index, pid in enumerate(pid_list):
+        for pid in pid_list:
             result = defaultdict(list)
             result['pid'] = pid
-
-            #if index < PERSONS_PER_PAGE:
             result['canonical_id'] = webapi.get_canonical_id_from_person_id(pid)
             result['name_variants'] = webapi.get_person_names_from_id(pid)
             result['external_ids'] = webapi.get_external_ids_from_person_id(pid)
@@ -1766,10 +1764,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return page_not_authorized(req, text=_("This page in not accessible directly."))
         elif not primary_profile:
             primary_profile = pinfo['merge_ticket'].keys()[0]
-            profiles_to_merge = pinfo['merge_ticket'][primary_profile]
         else:
             pinfo['merge_ticket'][primary_profile] = argd['selection']
-            
 
         merge_ticket = pinfo['merge_ticket']
 
@@ -1782,7 +1778,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
         body=''
         body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, merge_ticket[primary_profile], merge_power)
-
 
         pid_canditates_list = []
 
@@ -1852,7 +1847,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if req_type == 'getPapers':
                 if json_data.has_key('personId'):
                     pId = json_data['personId']
-                    max_num_show_papers = 5
                     papers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(int(pId), -1)],
 
                                           key=itemgetter(0))

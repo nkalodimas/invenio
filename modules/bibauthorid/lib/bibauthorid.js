@@ -122,22 +122,22 @@ $(document).ready(function() {
         // gResultsPerPage = 3;
         // gCurPage = 1;
         // showPage(gCurPage);
-        var targets = [2,3,4,5,6];
+        var targets = [3,4,5,6];
         if ($('#personsTable th').length == 6 ) {
-            targets = [2,3,4,5];
+            targets = [3,4,5];
         }
         var pTable = $('#personsTable').dataTable({
                 "bJQueryUI": true,
                 "sPaginationType": "full_numbers",
                 "aoColumnDefs": [
                     { "bSortable": false, "aTargets": targets },
-                    { "bSortable": true, "aTargets": [0,1] },
+                    { "bSortable": true, "aTargets": [0,1,2] },
                     { "sType": "numeric", "aTargets": [0] },
-                    { "sType": "string", "aTargets": [1] }
+                    { "sType": "string", "aTargets": [1,2] }
                     ],
                 "aaSorting": [[0,'asc']],
+                "aLengthMenu": [[5, 10, 20, -1], [5, 10, 20 , "All"]],
                 "iDisplayLength": 5,
-                "aLengthMenu": [5, 10, 20],
                 "oLanguage": {
                     "sSearch": "Filter: "
                 }
