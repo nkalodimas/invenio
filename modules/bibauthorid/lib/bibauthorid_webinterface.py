@@ -1036,7 +1036,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                              'commit_rt_ticket',
                              'confirm',
                              'delete_external_ids',
-                             'merge'
+                             'merge',
                              'repeal',
                              'reset',
                              'set_canonical_name',
@@ -1245,7 +1245,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             else:
                 return self._error_page(req, ln,
                             "Fatal: cannot create ticket without any bibrefrec")
-
+            
             if action == 'claim':
                 return self._ticket_open_claim(req, bibrefs, ln)
             elif action == 'to_other_person':
