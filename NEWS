@@ -6,6 +6,8 @@ releases.  For more information about the current release, please
 consult RELEASE-NOTES.  For more information about changes, please
 consult ChangeLog.
 
+FIXME: add note for bibedit --clean-revisions '*' when upgrading to 1.2
+
 Invenio v1.1.1 -- released 2012-12-21
 -------------------------------------
 
