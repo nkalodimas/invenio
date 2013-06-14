@@ -448,7 +448,7 @@ class BibSched(object):
                     # Sleep ourselves
                     if task.status not in ('ABOUT TO STOP', 'ABOUT TO SLEEP', 'SCHEDULED'):
                         Log("Sleeping ourselves because of a monotask: %s" % t, debug)
-                        sleep_task(t)
+                        sleep_task(task)
                         return True
                     else:
                         Log("A monotask is running but already going to sleep/stop", debug)
