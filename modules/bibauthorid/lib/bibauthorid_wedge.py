@@ -198,7 +198,7 @@ def do_wedge(cluster_set, deep_debug=False):
     bibauthor_print("Sorting the value edges.")
     edges = sorted(edges, key=_edge_sorting, reverse=True)
 
-    interval = 500000
+    interval = 50000
     wedge_print("Wedge: New wedge, %d edges." % len(edges))
     current = -1
     for  v1, v2, unused in edges:

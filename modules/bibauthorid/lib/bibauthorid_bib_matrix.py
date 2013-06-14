@@ -35,11 +35,11 @@ class Bib_matrix(object):
         return ret
 
     def _resolve_entry(self, bibs):
-        first = self._bibmap[bibs[0]]
-        second = self._bibmap[bibs[1]]
+        first, second = bibs
+        first, second = self._bibmap[first], self._bibmap[second]
         if first > second:
             first, second = second, first
-        return first + ((second + 1) * second) / 2
+        return first + (second * second + second) / 2
 
     def __setitem__(self, bibs, val):
         entry = self._resolve_entry(bibs)

@@ -31,6 +31,9 @@ from invenio.bibauthorid_bib_matrix import Bib_matrix
 class Test_Bib_matrix(unittest.TestCase):
 
     def setUp(self):
+        """
+        Set up an empty bibmatrix and one filled with ten clusters of 10 elements each.
+        """
         self.bm = Bib_matrix()
         self.css = ClusterSet()
         self.css.clusters = [ClusterSet.Cluster(range(i*10,i*10+10)) for i in range(10)]
@@ -46,9 +49,10 @@ class Test_Bib_matrix(unittest.TestCase):
         '''
         resolve_entry should produce unuque indexes for any couple of values
         '''
-        testvalues = set((i,j) for i in range(10) for j in range(10))
-        for k in range(10):
-            for z in range(10):
+        ntests = 30
+        testvalues = set((i,j) for i in range(ntests) for j in range(ntests))
+        for k in range(ntests):
+            for z in range(ntests):
                 tvalues = testvalues - set([(k,z)]) - set([(z,k)])
                 val = self.bmcs0._resolve_entry((k,z))
                 allvalues = set(self.bmcs0._resolve_entry(v) for v in tvalues)
@@ -56,7 +60,7 @@ class Test_Bib_matrix(unittest.TestCase):
 
     def test_matrix_content(self):
         '''
-        The matrix is simmetric, and values should be preserved
+        The matrix should be simmetric, and values should be preserved
         '''
         for i in range(100):
             for j in range(i+1):
@@ -73,6 +77,9 @@ class Test_Bib_matrix(unittest.TestCase):
                 self.assertTrue(val[1] == z)
 
     def test_create_empty_matrix(self):
+        """
+        All elements should be None
+        """
         for i in range(9,10):
             for j in range(i*10,i*10+10):
                 for k in range(i*10,i*10+10):
