@@ -1627,7 +1627,7 @@ class Template:
         return stub
 
     def tmpl_general_search_bar(self):
-        def stub(search_param):
+        def stub(search_param,):
             activated = True
             parameters = [('q', search_param)]
             link = "/author/claim/search"
@@ -1635,10 +1635,10 @@ class Template:
 
         return stub
 
-    def tmpl_merge_profiles_search_bar(self):
+    def tmpl_merge_profiles_search_bar(self, primary_profile):
         def stub(search_param):
             activated = True
-            parameters = [('search_param', search_param)]
+            parameters = [('search_param', search_param), ('primary_profile', primary_profile)]
             link = "/author/claim/merge_profiles"
             return activated, parameters, link
 

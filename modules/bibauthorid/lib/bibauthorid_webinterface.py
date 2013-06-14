@@ -1762,10 +1762,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         if 'merge_ticket' not in pinfo and not primary_profile:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
-        elif not primary_profile:
-            primary_profile = pinfo['merge_ticket'].keys()[0]
-        else:
+        elif primary_profile:
             pinfo['merge_ticket'][primary_profile] = argd['selection']
+        else:
+            primary_profile = pinfo['merge_ticket'].keys()[0]
 
         merge_ticket = pinfo['merge_ticket']
 
@@ -1802,7 +1802,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             pid_canditates_list.append(result[0])
 
 
-        shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar()
+        shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile)
         # show search results to the user
 
         body  = body + self.search_box(pid_canditates_list, search_param, shown_element_functions)
@@ -2256,7 +2256,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
     def _support_box(self, person_id):
         support_info = dict()
-        support_info['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (webapi.get_canonical_id_from_person_id(person_id),
+        name_variants = [element[0] for element in webapi.get_person_names_from_id(person_id)]
+        support_info['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (most_relevant_name(name_variants).split(",")[0],
                                                                                                 webapi.get_canonical_id_from_person_id(person_id))
         support_info['problem_link'] = "mpla.com"
         support_info['help_link'] = "mpla.com"
