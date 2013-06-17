@@ -122,27 +122,34 @@ $(document).ready(function() {
         // gResultsPerPage = 3;
         // gCurPage = 1;
         // showPage(gCurPage);
-        var targets = [3,4,5,6];
-        if ($('#personsTable th').length == 6 ) {
-            targets = [3,4,5];
-        }
+        var columns = {};
+        $('#personsTable th').each(function(index) {
+            columns[$(this).attr('id')] = index;
+        });
+         // var targets = [3,4,5,6];
+         var targets = [columns['IDs'], columns['Papers'], columns['Link']];
+         if (columns['Action'] !== undefined) {
+            targets.push(columns['Action']);
+         }
+         if (columns['Merge'] !== undefined) {
+            targets.push(columns['Merge']);
+         }
         var pTable = $('#personsTable').dataTable({
                 "bJQueryUI": true,
                 "sPaginationType": "full_numbers",
                 "aoColumnDefs": [
                     { "bSortable": false, "aTargets": targets },
-                    { "bSortable": true, "aTargets": [0,1,2] },
-                    { "sType": "numeric", "aTargets": [0] },
-                    { "sType": "string", "aTargets": [1,2] }
+                    { "bSortable": true, "aTargets": [columns['Number'], columns['Identifier'], columns['Names']] },
+                    { "sType": "numeric", "aTargets": [columns['Number']] },
+                    { "sType": "string", "aTargets": [columns['Identifier'], columns['Names']] }
                     ],
-                "aaSorting": [[0,'asc']],
+                "aaSorting": [[columns['Number'],'asc']],
                 "aLengthMenu": [[5, 10, 20, -1], [5, 10, 20 , "All"]],
                 "iDisplayLength": 5,
                 "oLanguage": {
                     "sSearch": "Filter: "
                 }
         });
-        // { "sType": "numeric", "aTargets": [ 0 ] }
         // draw first page
         onPageChange();
         // on page change

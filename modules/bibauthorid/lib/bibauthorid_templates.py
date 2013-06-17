@@ -1710,21 +1710,27 @@ class Template:
         if 'button_gen' in shown_element_functions.keys():
             show_action_button = True
 
+        show_check_box = False
+        if 'check_box_column' in shown_element_functions.keys():
+            show_check_box = True
+
         # base_color = 100
         # row_color = 0
         # html table
         h('<table id="personsTable">')
         h('<!-- Table header -->\
                 <thead>\
-                    <tr>\
-                        <th scope="col" id="" style="width:85px;">Number</th>\
-                        <th scope="col" id="">Identifier</th>\
-                        <th scope="col" id="">Names</th>\
-                        <th scope="col" id="">IDs</th>\
-                        <th scope="col" id="" style="width:350px">Papers</th>\
-                        <th scope="col" id="">Link</th>')
+                    <tr>')
+        if show_check_box:
+            h('         <th scope="col" id="Merge" style="width:85px;">Merge</th>')
+        h('             <th scope="col" id="Number" style="width:85px;">Number</th>\
+                        <th scope="col" id="Identifier">Identifier</th>\
+                        <th scope="col" id="Names">Names</th>\
+                        <th scope="col" id="IDs">IDs</th>\
+                        <th scope="col" id="Papers" style="width:350px">Papers</th>\
+                        <th scope="col" id="Link">Link</th>')
         if show_action_button:
-            h('         <th scope="col" id="">Action</th>')
+            h('         <th scope="col" id="Action">Action</th>')
         h('         </tr>\
                 </thead>\
            <!-- Table body -->\
@@ -1742,6 +1748,9 @@ class Template:
             # person row
             h('<tr id="pid'+ str(pid) + '">')
             # (TODO pageNum - 1) * personsPerPage + 1
+            if show_check_box:
+                h('<td style="text-align:center; vertical-align:middle;"><input type="checkbox" style="width:15px;height:15px;" name="' + canonical_id + '" value="' + str(pid) + '"></td>')
+
             h('<td>%s</td>' % (index + 1))
 
 #            for nindex, name in enumerate(names):

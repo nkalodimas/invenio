@@ -1776,7 +1776,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if"ulevel" in pinfo and pinfo["ulevel"] == "admin":
             merge_power = True
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
-        body=''
+        body = ''
         body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, merge_ticket[primary_profile], merge_power)
 
         pid_canditates_list = []
@@ -1804,6 +1804,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile)
         # show search results to the user
+        shown_element_functions['check_box_column'] = 'True'
 
         body  = body + self.search_box(pid_canditates_list, search_param, shown_element_functions)
 
