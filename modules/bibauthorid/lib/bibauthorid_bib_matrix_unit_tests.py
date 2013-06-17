@@ -85,6 +85,15 @@ class Test_Bib_matrix(unittest.TestCase):
                 for k in range(i*10,i*10+10):
                         self.assertTrue(self.bmcs0[(j,k)] == None)
 
+    def test_save_matrix(self):
+        self.bmcs0.store('testmatrix')
+        loaded = Bib_matrix()
+        loaded.load('testmatrix')
+        bmcs0 = self.bmcs0
+        for i in range(100):
+            for  j in range(100):
+                self.assertTrue(bmcs0[i,j] == loaded[i,j])
+
 
 if __name__ == '__main__':
     #run_test_suite(TEST_SUITE)

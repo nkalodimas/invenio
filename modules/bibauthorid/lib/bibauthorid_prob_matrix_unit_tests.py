@@ -32,11 +32,6 @@ class Test_probability_matrix(unittest.TestCase):
     def setUp(self):
         pass
 
-    def test_one(self):
-        pass
-
-
-
 if __name__ == '__main__':
     #run_test_suite(TEST_SUITE)
     unittest.main(verbosity=2)
