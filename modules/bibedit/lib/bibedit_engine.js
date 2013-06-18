@@ -485,7 +485,7 @@ function onBulkReqError(data) {
             console.log("Error while processing:");
             console.log(data);
             updateStatus("ready");
-          }
+          };
 }
 
 
