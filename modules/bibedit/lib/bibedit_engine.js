@@ -3320,7 +3320,10 @@ function onContentClick(cell) {
       $(cell).trigger('click');
     }
   }
-
+  if ( ($(event.target).parent().hasClass('bibeditHPCorrection') && !$(event.target).parent().hasClass('bibeditHPSame'))
+        || ($(event.target).hasClass('bibeditHPCorrection') && !$(event.target).hasClass('bibeditHPSame')) ) {
+    return false;
+  }
   if ($(".edit_area textarea").length > 0) {
     /* There is another textarea open, wait for it to close */
     $(".edit_area textarea").parent().submit(function() {
