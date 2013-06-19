@@ -310,7 +310,7 @@ class BibCatalogSystemRT(BibCatalogSystem):
         tdict = {}
         for line in command_out.split("\n"):
             if line.count(": ") > 0:
-                tattr, tvaluen = line.split(": ")
+                tattr, tvaluen = line.split(": ")[0], ": ".join(line.split(": ")[1:])
                 tvalue = tvaluen.rstrip()
                 tdict[tattr] = tvalue
 
