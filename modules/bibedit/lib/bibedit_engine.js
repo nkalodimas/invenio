@@ -1829,6 +1829,8 @@ function onTextMarcClick() {
           textmarc_box.addClass("bibedit_input");
           textmarc_box.html(json['textmarc']);
           $('#bibEditTable').remove();
+          $('#bibEditHoldingPenAddedFields').remove();
+          $('#bibeditHoldingPenGC').remove();
           $('#bibEditContentTable').append(textmarc_box);
 
           // Avoids having two different scrollbars
