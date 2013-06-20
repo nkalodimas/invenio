@@ -55,6 +55,14 @@ from invenio.bibauthorid_dbinterface import get_external_ids_of_author  # pylint
 #           DB Data Accessors              #
 ############################################
 
+
+def is_profile_available(pid):
+    uid = get_uid_from_personid(pid)
+
+    if uid == -1:
+        return True
+    return False
+
 def get_bibrefs_from_bibrecs(bibreclist):
     '''
     Retrieve all bibrefs for all the recids in the list
@@ -1003,7 +1011,7 @@ def session_bareinit(req):
         session['personinfo'] = pinfo
         pinfo["ticket"] = []
         pinfo['users_open_tickets_storage'] = []
-        pinfo['remote_login_system'] = []
+        pinfo['remote_login_system'] = dict()
         pinfo['incomplete_autoclaimed_tickets_storage'] = []
         for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
             pinfo["remote_login_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
@@ -1210,14 +1218,13 @@ def match_profile(req, recids, remote_login_systems_info):
     pinfo['most_compatible_person'] = most_compatible_person
     return most_compatible_person
 
-
 def get_profile_suggestion_info(req, pid):
     session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
     profile_suggestion_info = pinfo['profile_suggestion_info']
 
-    if profile_suggestion_info != None:
+    if profile_suggestion_info != None and pid == profile_suggestion_info['pid']:
         return profile_suggestion_info
 
     profile_suggestion_info = dict()

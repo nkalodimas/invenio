@@ -77,26 +77,28 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
     Supplies the methods:
         /author/claim/<string>
         /author/claim/action
+        /author/claim/choose_profile
         /author/claim/claimstub
         /author/claim/export
+        /author/claim/generate_autoclaim_data
         /author/claim/manage_profile
         /author/claim/merge_profiles
-        /author/claim/search_box_ajax
+        /search_box_ajax
         /author/claim/tickets_admin
-        /author/claim/welcome
         /author/claim/you -> /author/claim/<string>
 
         /author/claim/search
     '''
     _exports = ['',
                 'action',
+                'choose_profile',
                 'claimstub',
                 'export',
+                'generate_autoclaim_data',
                 'manage_profile',
                 'merge_profiles',
                 'search_box_ajax',
                 'tickets_admin',
-                'welcome',
                 'you',
 
                 'search']
@@ -330,8 +332,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 pinfo["ln"] = 'en'
             if 'ticket' not in pinfo:
                 pinfo["ticket"] = []
-            if 'merge_ticket' not in pinfo:
-                pinfo['merge_ticket'] = dict()
             session.dirty = True
         except KeyError:
             pinfo = dict()
@@ -340,7 +340,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             pinfo["claimpaper_admin_last_viewed_pid"] = -2
             pinfo["ln"] = 'en'
             pinfo["ticket"] = []
-            pinfo['merge_ticket'] = dict()
             session.dirty = True
 
 
@@ -982,7 +981,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         pinfo = session["personinfo"]
 
         argd = wash_urlargd(form,
-                            {'autoclaim_show_review':(bool, False),
+                            {'autoclaim_show_review':(str, None),
                              'canonical_name': (str, None),
                              'existing_ext_ids': (list, None),
                              'ext_id': (str, None),
@@ -996,6 +995,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                              # permitted actions
                              'add_external_id': (str, None),
                              'add_missing_external_ids': (str, None),
+                             'associate_profile': (str, None),
                              'bibref_check_submit': (str, None),
                              'cancel': (str, None),
                              'cancel_rt_ticket': (str, None),
@@ -1023,6 +1023,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         permitted_actions = ['add_external_id',
                              'add_missing_external_ids',
+                             'associate_profile',
                              'bibref_check_submit',
                              'cancel',
                              'cancel_rt_ticket',
@@ -1097,6 +1098,37 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             update_external_ids_of_authors([pid], overwrite=False)
 
             return redirect_to_url(req, "/author/claim/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
+
+        def associate_profile():
+            ### TO DOOOO
+            pid_in_cookie = 10
+            if 'pid' in argd:
+                try:
+                    pid = int(argd['pid'])
+                except ValueError:
+                    return self._error_page(req, ln,
+                            "Fatal: cannot associate profile without a person id.")
+            else:
+                return self._error_page(req, ln,
+                        "Fatal: cannot associate profile without a person id.")
+            if pid_in_cookie != -1:
+                redirect_pid = pid_in_cookie
+            else:
+                redirect_pid = pid
+
+            uid = getUid(req)
+
+            pid, profile_claimed = webapi.claim_profile(uid, pid)
+
+            if pid_in_cookie != -1:
+                redirect_pid = pid_in_cookie
+            else:
+                redirect_pid = pid
+
+            if profile_claimed:
+                redirect_to_url(req, '%s/author/claim/manage_profile?pid=%s' % (CFG_SITE_URL, redirect_pid))
+            else:
+                redirect_to_url(req, '%s/author/claim/choose_profile?failed=%s' % (CFG_SITE_URL, True))
 
         def bibref_check_submit():
             pinfo["bibref_check_reviewed_bibrefs"] = list()
@@ -1245,7 +1277,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             else:
                 return self._error_page(req, ln,
                             "Fatal: cannot create ticket without any bibrefrec")
-            
+
             if action == 'claim':
                 return self._ticket_open_claim(req, bibrefs, ln)
             elif action == 'to_other_person':
@@ -1277,7 +1309,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if ('selection' in argd and argd['selection'] and len(argd['selection']) > 0):
                 bibrefs = argd['selection']
             elif 'autoclaim_show_review' in argd:
-                autoclaim_show_review = argd['autoclaim_show_review']
+                autoclaim_show_review = True
             else:
                 if pid == CREATE_NEW_PERSON:
                     return self._error_page(req, ln,
@@ -1371,6 +1403,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         action_functions = {'add_external_id': add_external_id,
                             'add_missing_external_ids': add_missing_external_ids,
+                            'associate_profile': associate_profile,
                             'bibref_check_submit': bibref_check_submit,
                             'cancel': cancel,
                             'cancel_rt_ticket': cancel_rt_ticket,
@@ -1757,27 +1790,37 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return page_not_authorized(req, text=_("This page in not accessible directly."))
 
         pinfo = session["personinfo"]
-        merge_ticket = None
-        profiles = []
+        profiles_to_merged = []
 
-        if 'merge_ticket' not in pinfo and not primary_profile:
+        if not primary_profile:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
-        elif primary_profile:
-            pinfo['merge_ticket'][primary_profile] = argd['selection']
         else:
-            primary_profile = pinfo['merge_ticket'].keys()[0]
+            # convert pid if exist to canonical ids
+            try:
+                primary_profile = int(primary_profile)
+                webapi.get_canonical_id_from_person_id(primary_profile)
+            except ValueError:
+                pass
+            # collect profiles to be merged in primary profile
+            profiles = argd['selection']
 
-        merge_ticket = pinfo['merge_ticket']
-
-        for p in merge_ticket[primary_profile]:
-            profiles.append(webapi.get_canonical_id_from_person_id(p))
+        # convert pid if exist to canonical ids
+        for profile in profiles:
+            try:
+                profile_id = int(profile)
+                profiles_to_merged.remove(profile)
+                profile = webapi.get_canonical_id_from_person_id(profile_id)
+                profiles_to_merged.append(profile)
+            except ValueError:
+                profiles_to_merged.append(profile)
+            profiles_to_merged.append(webapi.get_canonical_id_from_person_id(p))
 
         merge_power = False
         if"ulevel" in pinfo and pinfo["ulevel"] == "admin":
             merge_power = True
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
         body = ''
-        body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, merge_ticket[primary_profile], merge_power)
+        body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, profiles_to_merged, merge_power)
 
         pid_canditates_list = []
 
@@ -1801,11 +1844,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         for result in sorted_results:
             pid_canditates_list.append(result[0])
 
-
+        # this is a function generating search's bar link and if it should be activated or not
         shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile)
         # show search results to the user
         shown_element_functions['check_box_column'] = 'True'
-
         body  = body + self.search_box(pid_canditates_list, search_param, shown_element_functions)
 
         req.write('<script type="text/javascript">var gMergeProfile = "%s"; </script>' % (primary_profile))
@@ -1934,135 +1976,80 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     req=req,
                     language=ln)
 
-    # This function is handling user connections to inspire through various external systems (arXiv, orcid etc)
-    def welcome(self, req, form):
+
+    def choose_profile(self, req, form):
         '''
-        Generate SSO landing/welcome page
+        Generate SSO landing/choose_profile page
 
         @param req: Apache request object
         @type req: Apache request object
         @param form: GET/POST request params
         @type form: dict
         '''
-
-        self._session_bareinit(req)
-
         argd = wash_urlargd(
             form,
             {'ln': (str, CFG_SITE_LANG),
-             'action': (str, None),
-             'pid': (int, None),
-             'search_param': (str, None)})
-
+             'search_param': (str, None),
+             'failed': (str, None)})
         ln = argd['ln']
-        action = argd['action']
-        selected_pid = argd['pid']
         search_param = argd['search_param']
-
-        # ln = wash_language(argd['ln'])
+        failed = True
+        if not argd['failed']:
+            failed = False
+        
         _ = gettext_set_language(ln)
 
         if not CFG_INSPIRE_SITE:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
 
-        # if the action given is not among the following produce eror
-        if action != None and action != 'select' and action != 'search':
-            return page_not_authorized(req, text=_("This page in not accessible directly."))
+        ################REMEMBEEERRR##################
+        pid_in_cookie = 9
 
         # login_status checks if the user is logged in and returns a dictionary contain if he is logged in
         # his uid and the external systems that he is logged in through.
         # the dictionary of the following form: {'logged_in': True, 'uid': 2, 'remote_logged_in_systems':['Arxiv', ...]}
         login_info = webapi.login_status(req)
-        # get name strings and email addresses from SSO/Oauth logins: {'system':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
-        remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_info['remote_logged_in_systems'])
-        # print initial standar text to the user and urge him to login through as many external systems as possible
-        self._welcome_general_initial_text(req, login_info, remote_login_systems_info, ln)
 
-        if login_info['logged_in']:
+        if 'arXiv' not in login_info['remote_logged_in_systems']:
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
+
+        pid = webapi.get_user_pid(login_info['uid'])
+        body = TEMPLATE.tmpl_choose_profile(failed)
+        if pid != -1:
+            redirect_pid = pid
+            if pid_in_cookie:
+                redirect_pid = pid_in_cookie
+            redirect_to_url(req, '%s/author/claim/manage_profile?pid=%s' % (CFG_SITE_URL, str(redirect_pid)))
+        else:
+            # get name strings and email addresses from SSO/Oauth logins: {'system':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
+            remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_info['remote_logged_in_systems'])
             # get union of recids that are associated to the ids from all the external systems: set(inspire_recids_list)
             recids = webapi.get_remote_login_systems_recids(req, login_info['remote_logged_in_systems'])
-            pid = webapi.get_user_pid(login_info['uid'])
-
-            if action == None or pid >= 0:
-                # execute and show the main things to the user such as recommended profile and search profile if he has no profile
-                # or autoclaim papers if he does.
-                self._welcome_main_functionality(req, form, login_info, recids, remote_login_systems_info, pid, '')
-            elif action == 'search':
-                # execute and show the main things to the user such as recommended profile and search (with given parameters) profile if he has no profile
-                self._welcome_main_functionality(req, form, login_info, recids, remote_login_systems_info, pid, search_param)
-            elif action == 'select':
-                # show the outcome of the profile tha he selected a link to his publications and the status of the records that arrived from the external systems
-                self._welcome_profile_selection(req, remote_login_systems_info, login_info, selected_pid, recids)
-        req.write(TEMPLATE.tmpl_welcome_end())
-        req.write(pagefooteronly(req=req))
-
-
-    def _welcome_general_initial_text(self, req, login_info, remote_login_systems_info, ln):
-        _ = gettext_set_language(ln)
-        title_message = _('Welcome!')
-
-        # start continuous writing to the browser...
-        req.content_type = "text/html"
-        req.send_http_header()
-        ssl_param = 0
-
-        if req.is_https():
-            ssl_param = 1
-
-        req.write(pageheaderonly(req=req, title=title_message, uid=login_info["uid"],
-                               language=ln, secure_page_p=ssl_param, metaheaderadd=self._scripts(kill_browser_cache=True)))
-        req.write(TEMPLATE.tmpl_welcome_start())
-
-        if not login_info['logged_in']:
-            req.write(TEMPLATE.tmpl_welcome_not_logged_in())
-            suggested_systems = CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS
-        else:
-            body = ""
-
-            body = TEMPLATE.tmpl_welcome_remote_login_systems(remote_login_systems_info, login_info["uid"])
-
-            req.write(body)
-
-            # warmly suggest the user to log in through all the others available systems if possible so we gather all papers for him for free!
-            suggested_systems = list(set(CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS) - set(login_info['remote_logged_in_systems']))
-
-        if suggested_systems:
-            req.write(TEMPLATE.tmpl_suggest_not_remote_logged_in_systems(suggested_systems))
-
-
-    def _welcome_main_functionality(self, req, form, login_status, recids, remote_login_systems_info, pid, search_param ):
-        # check if a profile is already associated
-        cached_ids_association = webapi.get_cached_id_association(req)
-        # get all the ids that arrived from the external systems
-        remote_login_systems_papers = webapi.get_remote_login_systems_ids(req, remote_login_systems_info)
-
-        # if the user has already a profile then:
-        if pid != -1:
-            # we first show a link to his publications
-            link = TEMPLATE.tmpl_welcome_link()
-            req.write(link)
-            req.write("<br><br>")
-
-            # then we find which of the records that came from the external systems are able( that means that they resolve to a recid and
-            # are not currently in user's profile ) to be autoclaimed
-            webapi.auto_claim_papers(req, pid, recids)
-            auto_claim_paper_list = [] ## review
-            req.write(TEMPLATE.tmpl_welcome_autoclaim_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association, auto_claim_paper_list))
-            # explain to the user which one is his profile
-            req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
-            # show the user the list of papers we got for each system (info box)req.write(TEMPLATE.tmpl_welcome_papers(paper_dict))
-        else:
-
             # this is the profile with the biggest intersection of papers  so it's more probable that this is the profile the user seeks
             probable_pid = webapi.match_profile(req, recids, remote_login_systems_info)
+            probable_pid = 10
 
-            if probable_pid > -1:
+            if not search_param and probable_pid > -1 and probable_pid == pid_in_cookie:
+                # try to assign the user to the profile he chose. If for some reason the profile is not available we assign him to an empty profile
+                redirect_pid, profile_claimed = webapi.claim_profile(login_info['uid'], probable_pid)
+                if profile_claimed:
+                    redirect_to_url(req, '%s/author/claim/action?associate_profile=True&redirect_pid=%s' % (CFG_SITE_URL, str(redirect_pid)))
+
+            probable_profile_suggestion_info = None
+            last_viewed_profile_suggestion_info = None
+
+            if pid_in_cookie > -1 and webapi.is_profile_available(pid_in_cookie):
                 # get information about the most probable profile and show it to the user
-                profile_suggestion_info = webapi.get_profile_suggestion_info(req, probable_pid)
-                req.write(TEMPLATE.tmpl_welcome_probable_profile_suggestion(profile_suggestion_info))
+                last_viewed_profile_suggestion_info = webapi.get_profile_suggestion_info(req, pid_in_cookie)
 
-            # if there is no search parameter from the user, we prefil the search with most relevant among the names that we get from external systems
+            if probable_pid > -1 and webapi.is_profile_available(probable_pid):
+                # get information about the most probable profile and show it to the user
+                probable_profile_suggestion_info = webapi.get_profile_suggestion_info(req, probable_pid)
+
+            body = body + TEMPLATE.tmpl_welcome_probable_profile_suggestion(probable_profile_suggestion_info, last_viewed_profile_suggestion_info)
+
             if not search_param:
+                # we prefil the search with most relevant among the names that we get from external systems
                 name_variants = webapi.get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
                 search_param = most_relevant_name(name_variants)
 
@@ -2089,36 +2076,18 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 pid_canditates_list.append(result[0])
 
             shown_element_functions = dict()
-            shown_element_functions['button_gen'] = TEMPLATE.tmpl_welcome_search_button_generator()
-            shown_element_functions['new_person_gen'] = TEMPLATE.tmpl_welcome_search_new_person_generator()
-            shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_welcome_search_bar()
+            shown_element_functions['button_gen'] = TEMPLATE.tmpl_choose_profile_search_button_generator()
+            shown_element_functions['new_person_gen'] = TEMPLATE.tmpl_choose_profile_search_new_person_generator()
+            shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_choose_profile_search_bar()
             # show search results to the user
-            req.write(self.search_box(pid_canditates_list, search_param, shown_element_functions))
+            body = body + self.search_box(pid_canditates_list, search_param, shown_element_functions)
 
-            # so external systems'paper association to recids
-            return TEMPLATE.tmpl_welcome_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association)
-
-
-    def _welcome_profile_selection(self, req, remote_login_systems_info, login_status, selected_pid, recids):
-        # try to assign the user to the profile he chose. If for some reason the profile is not available we assign him to an empty profile
-        pid, profile_claimed = webapi.claim_profile(login_status['uid'], selected_pid)
-        link = TEMPLATE.tmpl_welcome_link()
-        req.write(link)
-        req.write("<br><br>")
-
-        if  profile_claimed or selected_pid == -1 :
-            req.write(TEMPLATE.tmpl_profile_assigned_by_user())
-        else:
-            req.write(TEMPLATE.tmpl_profile_not_available())
-
-        # we already have a profile! let's claim papers!
-        cached_ids_association = webapi.get_cached_id_association(req)
-        remote_login_systems_papers = webapi.get_remote_login_systems_ids(req, remote_login_systems_info)
-        webapi.auto_claim_papers(req, pid, recids)
-        auto_claim_paper_list = [] # review
-        req.write(TEMPLATE.tmpl_welcome_autoclaim_remote_login_systems_papers(remote_login_systems_papers, cached_ids_association, auto_claim_paper_list))
-        # explain the user which one is his profile
-        req.write(TEMPLATE.tmpl_welcome_personid_association(pid))
+            title = _('Choose profile')
+            return page(title=title,
+                        metaheaderadd=self._scripts(kill_browser_cache=True),
+                        body=body,
+                        req=req,
+                        language=ln)
 
     def manage_profile(self, req, form):
         '''
@@ -2131,7 +2100,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         '''
 
         self._session_bareinit(req)
-        
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        ulevel = None
+
+        if "ulevel" in pinfo:
+            ulevel = pinfo['ulevel']
+
         argd = wash_urlargd(
             form,
             {'ln': (str, CFG_SITE_LANG),
@@ -2150,8 +2125,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if not CFG_INSPIRE_SITE or person_id == None or person_id == -1:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
 
-        # mocking
-        #person_id = 9
         # login_status checks if the user is logged in and returns a dictionary contain if he is logged in
         # his uid and the external systems that he is logged in through.
         # the dictionary of the following form: {'logged_in': True, 'uid': 2, 'remote_logged_in_systems':['Arxiv', ...]}
@@ -2169,48 +2142,59 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         req.write(pageheaderonly(req=req, title=title_message, uid=login_info["uid"],
                                language=ln, secure_page_p=ssl_param, metaheaderadd=self._scripts(kill_browser_cache=True)))
+        req.write(TEMPLATE.tmpl_message_form())
         req.write(TEMPLATE.tmpl_welcome_start())
 
+        user_pid = webapi.get_user_pid(login_info['uid'])
         person_data = webapi.get_person_info_by_pid(person_id)
-        arxiv_data = self._arxiv_box(login_info, person_id)
-        orcid_data = self._orcid_box(arxiv_data['login'], person_id)
+        arxiv_data = self._arxiv_box(login_info, person_id, user_pid)
+        orcid_data = self._orcid_box(arxiv_data['login'], person_id, ulevel)
         claim_paper_data = self._claim_paper_box(person_id)
         support_data = self._support_box(person_id)
         ext_ids = self.external_ids_box(person_id)
-        autoclaim_data = self._autoclaim_papers_box(person_id, req, login_info['remote_logged_in_systems'])
+        autoclaim_data = self._autoclaim_papers_box(req, person_id, user_pid, login_info['remote_logged_in_systems'])
 
-        user_pid = webapi.get_user_pid(login_info['uid'])
         gpid = user_pid
         # if False not in beval:
         gboxstatus = 'noAjax'
         req.write('<script type="text/javascript">var gBOX_STATUS = "%s";var gPID = "%s"; </script>' % (gboxstatus, gpid))
         req.write(TEMPLATE.tmpl_profile_managment(ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids, autoclaim_data, support_data))
 
-
-    def _arxiv_box(self, login_info, person_id):
+    def _arxiv_box(self, login_info, person_id, user_pid):
         arxiv_data = dict()
         arxiv_data['login'] = False
         arxiv_data['view_own_profile'] = False
-        arxiv_data['user_pid'] = -1
-        if login_info['logged_in'] and 'arXiv' in login_info['remote_logged_in_systems']:
+        arxiv_data['logout_link'] = "mpla.com"
+        arxiv_data['logout_text'] = "Logout"
+        arxiv_data['login_link'] = "mpla.com"
+        arxiv_data['login_text'] = "Login into Inspire through arXiv.org"
+
+        if login_info['logged_in'] and 'arXiv' in login_info['remote_logged_in_systems'] and user_pid != -1:
             arxiv_data['login'] = True
             arxiv_data['user_pid'] = webapi.get_user_pid(login_info['uid'])
 
             # check if the profile you are logged in is the same with the profile you are
-            if arxiv_data['user_pid'] == person_id:
+            if user_pid == person_id:
                 arxiv_data['view_own_profile'] = True
-
+            else:
+                arxiv_data['own_profile_link'] =  "manage_profile?pid=%s" % (user_pid)
+                arxiv_data['own_profile_text'] = "Manage your profile"
         return arxiv_data
 
 
-    def _orcid_box(self, arxiv_logged_in, person_id):
+    def _orcid_box(self, arxiv_logged_in, person_id, ulevel):
         orcid_data = dict()
         orcid_data['arxiv_login'] = arxiv_logged_in
         orcid_data['orcids'] = None
+        orcid_data['add_link'] = "mpla.com"
+        orcid_data['add_text'] = "Connect an orcid to this profile"
+        orcid_data['suggest_link'] = "mpla.com"
+        orcid_data['suggest_text'] = "Suggest an orcid for this profile"
+        orcid_data['add_power'] = False
 
-        if arxiv_logged_in == False:
-            return orcid_data
-            # write pleose connect via arXiv to be able to alter orcid connections
+        if ulevel == "admin":
+            orcid_data['add_power'] = True
+
         orcids = webapi.get_orcids_by_pid(person_id)
 
         if orcids:
@@ -2218,32 +2202,56 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         return orcid_data
 
-    def _autoclaim_papers_box(self, person_id, req, remote_logged_in_systems):
+
+    def generate_autoclaim_data(self, req, person_id):
         session = get_session(req)
         pinfo = session["personinfo"]
         ulevel = pinfo["ulevel"]
-        
+
         autoclaim_data = dict()
-        autoclaim_data['hidden'] = True
+        autoclaim_data['hidden'] = False
+
         recids_to_autoclaim = webapi.get_remote_login_systems_recids(req, remote_logged_in_systems)
         # get all the ids that arrived from the external systems
         cached_ids_association = webapi.get_cached_id_association(req)
 
         # external ids and recids should hava a 1 to 1 relation so the dicionary can be inverted and search by recid as a key
         inverted_association = {value:key for key, value in cached_ids_association.items()}
-        recids_to_autoclaim = [69]
-        if recids_to_autoclaim or True:
-            autoclaim_data["link"] = "%s/person/action?confirm=True&pid=%s&autoclaim_show_review = True" % (CFG_SITE_URL, person_id)
-            autoclaim_data['hidden'] = False
-            
-            webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
-            self._ticket_dispatch(ulevel, req, True)
-            
-            unsuccessfull_claimed_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
-            autoclaim_data['recids'] = dict()
-            for recid in unsuccessfull_claimed_recids:
-                autoclaim_data['recids'][recid] = inverted_association[recid]
-            autoclaim_data['recids'] = {69:'fefsfaese'}
+        login_info = webapi.login_status(req)
+        remote_logged_in_systems = login_info['remote_logged_in_systems']
+
+        autoclaim_data["link"] = "%s/author/claim/action?confirm=True&pid=%s&autoclaim_show_review = True" % (CFG_SITE_URL, person_id)
+        autoclaim_data['text'] = "Review autoclaiming"
+
+        webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
+        self._ticket_dispatch(ulevel, req, True)
+
+        unsuccessfull_claimed_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
+        autoclaim_data['recids'] = dict()
+        autoclaim_data["num_of_unsuccessfull_recids"] = len(unsuccessfull_claimed_recids)
+
+        for recid in unsuccessfull_claimed_recids:
+            autoclaim_data['unsuccesfull_recids'][recid] = inverted_association[recid]
+
+        successfull_recids = list(set(recids_to_autoclaim) - set(unsuccessfull_claimed_recids))
+        autoclaim_data["num_of_successfull_recids"] = len(successfull_recids)
+
+        for recid in successfull_recids:
+            autoclaim_data['succesfull_recids'][recid] = inverted_association[recid]
+
+        autoclaim_data['recids'] = {69:'fefsfaese'}
+
+    def _autoclaim_papers_box(self, req, person_id, user_pid, remote_logged_in_systems):
+        autoclaim_data = dict()
+        autoclaim_data['hidden'] = True
+        recids_to_autoclaim = []
+
+        if person_id == user_pid:
+            recids_to_autoclaim = webapi.get_remote_login_systems_recids(req, remote_logged_in_systems)
+            if recids_to_autoclaim or True:
+                autoclaim_data['hidden'] = False
+                autoclaim_data['num_of_claims'] = len(recids_to_autoclaim)
+
         # this should be hidden if empty
         # if there are papers that could not be autoclaimed
             # show them and give the chance to the user to claim them by himself
@@ -2259,11 +2267,20 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
     def _support_box(self, person_id):
         support_info = dict()
+        search_param = webapi.get_canonical_id_from_person_id(person_id)
         name_variants = [element[0] for element in webapi.get_person_names_from_id(person_id)]
-        support_info['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (most_relevant_name(name_variants).split(",")[0],
+        relevant_name = most_relevant_name(name_variants)
+
+        if relevant_name:
+            search_param = relevant_name.split(",")[0]
+
+        support_info['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (search_param,
                                                                                                 webapi.get_canonical_id_from_person_id(person_id))
+        support_info['merge_text'] = "Merge profiles"
         support_info['problem_link'] = "mpla.com"
+        support_info['problem_text'] = "Report a problem"        
         support_info['help_link'] = "mpla.com"
+        support_info['help_text'] = "Get help!"
         # report a problem page
         # get help page
         return support_info
@@ -2388,7 +2405,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
 
     index = __call__
-    me = welcome
-    you = welcome
+    me = manage_profile
+    you = manage_profile
 # pylint: enable=C0301
 # pylint: enable=W0613
