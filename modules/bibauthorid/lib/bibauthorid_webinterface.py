@@ -2097,7 +2097,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         '''
 
         self._session_bareinit(req)
-        
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        ulevel = None
+
+        if "ulevel" in pinfo:
+            ulevel = pinfo['ulevel']
+
         argd = wash_urlargd(
             form,
             {'ln': (str, CFG_SITE_LANG),
@@ -2133,12 +2139,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         req.write(pageheaderonly(req=req, title=title_message, uid=login_info["uid"],
                                language=ln, secure_page_p=ssl_param, metaheaderadd=self._scripts(kill_browser_cache=True)))
+        req.write(TEMPLATE.tmpl_message_form())
         req.write(TEMPLATE.tmpl_welcome_start())
 
         user_pid = webapi.get_user_pid(login_info['uid'])
         person_data = webapi.get_person_info_by_pid(person_id)
         arxiv_data = self._arxiv_box(login_info, person_id, user_pid)
-        orcid_data = self._orcid_box(arxiv_data['login'], person_id)
+        orcid_data = self._orcid_box(arxiv_data['login'], person_id, ulevel)
         claim_paper_data = self._claim_paper_box(person_id)
         support_data = self._support_box(person_id)
         ext_ids = self.external_ids_box(person_id)
@@ -2172,7 +2179,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         return arxiv_data
 
 
-    def _orcid_box(self, arxiv_logged_in, person_id):
+    def _orcid_box(self, arxiv_logged_in, person_id, ulevel):
         orcid_data = dict()
         orcid_data['arxiv_login'] = arxiv_logged_in
         orcid_data['orcids'] = None
@@ -2180,17 +2187,18 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         orcid_data['add_text'] = "Connect an orcid to this profile"
         orcid_data['suggest_link'] = "mpla.com"
         orcid_data['suggest_text'] = "Suggest an orcid for this profile"
+        orcid_data['add_power'] = False
+
+        if ulevel == "admin":
+            orcid_data['add_power'] = True
 
         orcids = webapi.get_orcids_by_pid(person_id)
 
         if orcids:
             orcid_data['orcids'] = orcids
 
-        if arxiv_logged_in == False:
-            return orcid_data
-            # write pleose connect via arXiv to be able to alter orcid connections
-
         return orcid_data
+
 
     def generate_autoclaim_data(self, req, person_id):
         session = get_session(req)

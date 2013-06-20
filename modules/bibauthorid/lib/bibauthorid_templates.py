@@ -2689,7 +2689,7 @@ class Template:
             html_orcid += _('This profile is already connected to the following orcid: %s</br>' % (orcid_data[0],))
             html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Orcid publication list") )
         else:
-            if orcid_data['arxiv_login'] and orcid_data['own_profile']:
+            if orcid_data['arxiv_login'] and (orcid_data['own_profile'] or orcid_data['add_power']):
                 html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['add_link'],
                                                                                                                              _(orcid_data['add_text']) )
             else:
@@ -2862,6 +2862,18 @@ class Template:
             return '\n'.join(out)
         return cont
 
+    def tmpl_message_form(self):
+        html = []
+        h = html.append
+        #h('<div style="display: block; width: 600px; text-align: left;">')
+        h('<form action="mailto:tkarampe@cern.ch" enctype="text/plain" method="post">')
+        h('<p>Name: <input type="text" name="Name1" size="40"> </p>')
+        h('<p>E-mail address: <input type="text" name="E-mail" size="40"> </p>')
+        h('<p>Comment:</p>')
+        h('<p><textarea name="Coment: cols="55" rows="5"></textarea></p>')
+        h('<p><input type="submit" name="Submit" value="Submit"></p>')
+        h('</form>')
+        return ' '.join(html)
     # pylint: enable=C0301
 
 verbiage_dict = {'guest': {'confirmed': 'Papers',
