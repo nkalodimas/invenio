@@ -1576,10 +1576,10 @@ class Template:
 
         return "\n".join(html)
 
-    def tmpl_welcome_search_new_person_generator(self):
+    def tmpl_choose_profile_search_new_person_generator(self):
         def stub():
             text = self._("Create new profile")
-            link = "%s/author/claim/welcome?action=%s&pid=%s" % (CFG_SITE_URL, 'select', str(-1))
+            link = "%s/author/claim/action?associate_profile=True&pid=%s" % (CFG_SITE_URL, str(-1))
             return text, link
 
         return stub
@@ -1596,11 +1596,10 @@ class Template:
 
         return stub
 
-
-    def tmpl_welcome_search_button_generator(self):
+    def tmpl_choose_profile_search_button_generator(self):
         def stub(pid):
             text = self._("This is my profile")
-            link = "%s/author/claim/welcome?action=%s&pid=%s" % (CFG_SITE_URL, 'select', str(pid))
+            link = "%s/author/claim/action?associate_profile=True&pid=%s" % (CFG_SITE_URL, str(pid))
             return text, link
 
         return stub
@@ -1617,11 +1616,11 @@ class Template:
 
         return stub
 
-    def tmpl_welcome_search_bar(self):
+    def tmpl_choose_profile_search_bar(self):
         def stub(search_param):
             activated = True
-            parameters = [('search_param', search_param), ('action', 'search')]
-            link = "/author/claim/welcome"
+            parameters = [('search_param', search_param)]
+            link = "/author/claim/choose_profile"
             return activated, parameters, link
 
         return stub
@@ -2297,25 +2296,44 @@ class Template:
         h('</br>')
         return "\n".join(html)
 
-    def tmpl_welcome_probable_profile_suggestion(self, profile_suggestion_info):
+    def tmpl_welcome_probable_profile_suggestion(self, probable_profile_suggestion_info, last_viewed_profile_suggestion_info):
         '''
         Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through.
         '''
         html = []
         h = html.append
-        message = self._("We strongly believe that your profile is the profile below. If you agree please claim this profile.")
-        h('<p>%s</p>' % message)
-        h('<table border="0"> <tr>')
+        last_viewed_profile_message = self._("The following profile is the one you were viewing before logging in: ")
+        probable_profile_message = self._("We strongly believe that your profile is the following: ")
 
-        h('<td>')
-        h('%s ' % (profile_suggestion_info['name_string']))
-        h('<a href="%s/author/profile/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, profile_suggestion_info['canonical_id'], profile_suggestion_info['canonical_name_string']))
-        h('</td>')
-        h('<td>')
-        h('<INPUT TYPE="BUTTON" VALUE="This is my profile" ONCLICK="window.location.href=\'welcome?action=%s&pid=%s\'">' % ('select', str(profile_suggestion_info['pid'])))
-        h('</td>')
-        h('</tr>')
-        h('</table>')
+        h('<table border="0">')
+        if probable_profile_suggestion_info:
+            h('<tr>')
+            h('<td>')
+            h('%s %s ' % (probable_profile_message, probable_profile_suggestion_info['name_string']))
+            h('<a href="%s/author/profile/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, probable_profile_suggestion_info['canonical_id'], 
+                                                                           probable_profile_suggestion_info['canonical_name_string']))
+            h('</td>')
+            h('<td>')
+            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s" class="confirmlink"><button type="button">%s' % (str(probable_profile_suggestion_info['pid']), 'This is my profile'))
+            h('</td>')
+            h('</tr>')
+        if not last_viewed_profile_suggestion_info:
+            last_viewed_profile_message = self._("Unfortunately the profile you were viewing before logging in is not available.")
+            h('</table>')
+            h('%s' % (last_viewed_profile_message))
+        else:
+            h('<tr>')
+            h('<td>')
+            h('%s %s ' % (last_viewed_profile_message, last_viewed_profile_suggestion_info['name_string']))
+            h('<a href="%s/author/profile/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, last_viewed_profile_suggestion_info['canonical_id'], 
+                                                                           last_viewed_profile_suggestion_info['canonical_name_string']))
+            h('</td>')
+            h('<td>')
+            
+            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s" class="confirmlink"><button type="button">%s' % (str(last_viewed_profile_suggestion_info['pid']), 'This is my profile'))
+            h('</td>')
+            h('</tr>')      
+            h('</table>')
         h('</br>')
         return "\n".join(html)
 
@@ -2526,6 +2544,27 @@ class Template:
         '''
         return '</div></div>'
 
+
+    def tmpl_choose_profile(self, failed):
+        '''
+        SSO landing/choose_profile page.
+        '''
+        html = []
+        h = html.append
+        if failed:
+            h('<p><strong><font color="red">Unfortunately the profile you chose is no longer available.</font></strong></p>')
+            h('<p>We apologise for the inconvenience. Please select another one.</br>Keep in mind that you can create an empty profile and then claim all of your papers in it.')
+        else:
+            h('<p><b>Congratulations! You have now successfully connected to INSPIRE via arXiv.org!</b></p>')
+            h('<p>Before you proceed you need to help us locating your profile.')
+        h('If you have '
+          'any questions or encounter any problems please contact us here: '
+          '<a rel="nofollow" href="mailto:%s">%s</a></p>'
+          % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+             CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
+
+        return "\n".join(html)
+
     def tmpl_tickets_admin(self, tickets=[]):
         '''
         Open tickets short overview for operators.
@@ -2577,13 +2616,13 @@ class Template:
         html_orcid = self.tmpl_orcid_box(orcid_data, ln, loading=False)
         html_claim_paper = self.tmpl_claim_paper_box(claim_paper_data, ln, loading=False)
         html_ext_ids = self.tmpl_ext_ids_box(ext_ids, ln, loading=False)
-        html_autoclaim = self.tmpl_autoclaim_box(autoclaim_data, ln, loading=False)
+        html_autoclaim = self.tmpl_autoclaim_box(autoclaim_data, ln, loading=True)
             
         html_support = self.tmpl_support_box(support_data, ln, loading=False)
 
         g = self._grid
 
-        if html_autoclaim:
+        if not autoclaim_data['hidden']:
             left_g = g(3, 1)(
                               g(1, 1, cell_padding=5)(html_arxiv),
                               g(1, 1, cell_padding=5)(html_claim_paper),
@@ -2616,20 +2655,20 @@ class Template:
         _ = gettext_set_language(ln)
         html_head = _("<strong> Login with your arXiv.org account </strong>")
 
-        if arxiv_data['login'] == True and arxiv_data['view_own_profile'] == True:
-
+        if arxiv_data['login'] == True:
             if arxiv_data['view_own_profile'] == True:
                 html_arxiv = _("You have succesfully logged in through arXiv. You can now manage your profile accordingly.</br>")
             else:
-                html_arxiv = _("You have succesfully logged in through arXiv. However the profile you are currently viewing is not your profile.</br>")
-                html_arxiv += ('</br><div><a href="mpla.com">Manage your profile/a></div>')
-            html_arxiv += ('</br><div><a href="mpla.com">Logout/a></div>')
+                html_arxiv = _("You have succesfully logged in through arXiv.</br><div><font color='red'>However the profile you are currently viewing is not your profile.</font>")
+                html_arxiv += '<a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['own_profile_link'], _(arxiv_data['own_profile_text']) )
+
+            html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['logout_link'], _(arxiv_data['logout_text']))
         else:
             html_arxiv = _("Please login through arXiv.org to verify that you are the owner of this"
                             " profile and update your paper list automatically. You may also proceed"
                             " as a guest user, then your input will be processed by our staff and "
                             "thus might take longer to display.</br>")
-            html_arxiv += ('</br><div><a href="mpla.com">Login into Inspire through arXiv.org</a></div>')
+            html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['login_link'], _(arxiv_data['login_text']) )
         if loading:
             html_arxiv = self.loading_html()
         if add_box:
@@ -2647,9 +2686,15 @@ class Template:
                        "automated linkages between you and your professional activities.</br>")
 
         if orcid_data['orcids']:
-            html_orcid += _('This profile is already connected to an orcid. Do you believe this is wrong?</br>')
-
-        html_orcid += '</br><div><a href="mpla.com">Add/connect an orcid  to this profile.</a></div>'
+            html_orcid += _('This profile is already connected to the following orcid: %s</br>' % (orcid_data[0],))
+            html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Orcid publication list") )
+        else:
+            if orcid_data['arxiv_login'] and orcid_data['own_profile']:
+                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['add_link'],
+                                                                                                                             _(orcid_data['add_text']) )
+            else:
+                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['suggest_link'],
+                                                                                                                         _(orcid_data['suggest_text']) )                
         if loading:
             html_orcid = self.loading_html()
         if add_box:
@@ -2667,7 +2712,9 @@ class Template:
                        "authors and colleagues - that way you can also help us providing more accurate publication"
                        " and citations statistics on INSPIRE.</br>")
 
-        html_claim_paper += '</br><div><a href=%s>%s</a></div>' % (claim_paper_data['link'], claim_paper_data['text'])
+        html_claim_paper += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (claim_paper_data['link'], 
+                                                                                                                                _(claim_paper_data['text']))
+
         if loading:
             html_claim_paper = self.loading_html()
         if add_box:
@@ -2699,31 +2746,49 @@ class Template:
             return etx_ids_box
         else:
             return html_etx_ids
-
-    def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True):
+    # for ajax requests add_box and loading are false
+    def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True): 
         _ = gettext_set_language(ln)
         
         html_head = None
 
-        if not autoclaim_data['hidden']:
-            html_head = _("<strong> Autoclaim Papers </strong>")
-            html_autoclaim = _("The following papers were unsuccessfully claimed. Do you want to review the claiming now?</br>")
-            html_autoclaim += '</br><div><a href="%s">Review autoclaiming.</br></a></div>' % (autoclaim_data["link"],)
-            html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
-            html_autoclaim += '<td><strong>' + 'External System Id' +'</strong></td>' + '<td><strong>' + 'Record id' +'</strong></td></tr>'
-
-            for rec in autoclaim_data['recids'].keys()[:5]:
-                html_autoclaim += '<tr><td>' + str(autoclaim_data['recids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
-            html_autoclaim += '</table>'
-        else:
+        if autoclaim_data['hidden']:
             return None
         if loading:
-            html_autoclaim = self.loading_html()
+            html_head = _("<strong> Autoclaim Papers </strong>")
+            html_autoclaim = _("<span id=\"autoClaimMessage\">Please wait as we are claiming %s papers from external systems to your"
+                               " Inspire profile</span></br>"% (str(autoclaim_data["num_of_claims"])))
+            
+            html_autoclaim += self.loading_html();
+        else:
+            html_autoclaim = ''
+            if autoclaim_data["successfull_claims"]:
+                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\">The following %s papers were successfully claimed to your"
+                                   " profile</span></br>"% (str(autoclaim_data["num_of_successfull_claims"])))
+                html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
+                html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
+
+                for rec in autoclaim_data['successfull_recids'].keys()[:5]:
+                    html_autoclaim += '<tr><td>' + str(autoclaim_data['successfull_recids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
+                html_autoclaim += '</table>'
+            
+            if autoclaim_data["unsuccessfull_claims"]:
+                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s papers were unsuccessfully claimed. Do you want"
+                                   " to review the claiming now?</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_claims"])))
+                html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
+                html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
+
+                for rec in autoclaim_data['unsuccessfull_recids'].keys()[:5]:
+                    html_autoclaim += '<tr><td>' + str(autoclaim_data['unsuccessfull_recids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
+                html_autoclaim += '</table>'    
+                html_autoclaim += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (autoclaim_data["link"], 
+                                                                                                                                _(autoclaim_data['text']))
+
         if add_box:
             autoclaim_box = self.tmpl_print_searchresultbox('autoclaim', html_head, html_autoclaim)
             return autoclaim_box
         else:
-            return html_autoclaim        
+            return html_autoclaim
 
     def tmpl_support_box(self, support_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
@@ -2732,9 +2797,14 @@ class Template:
         html_support = _("Please, contact our support if you need any kind of help or if you want to suggest"
                        " us  new ideas. We will get back to you quickly.</br>")
 
-        html_support += '</br><div><a href=%s>Merge profiles</a></div>' % (support_data['merge_link'],)
-        html_support += '<div><a href=%s>Report a problem</a></div>' % (support_data['problem_link'],)
-        html_support += '<div><a href=%s>Get help!</a></div>' % (support_data['help_link'],)
+        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['merge_link'], 
+                                                                                                                                  _(support_data['merge_text'])) 
+                                                                                                                            
+
+        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['problem_link'], 
+                                                                                                                            _(support_data['problem_text']))
+        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['help_link'], 
+                                                                                                                            _(support_data['help_text']))
         if loading:
             html_support = self.loading_html()
         if add_box:
