@@ -1808,6 +1808,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         body  = body + self.search_box(pid_canditates_list, search_param, shown_element_functions)
 
+        req.write('<script type="text/javascript">var gMergeProfile = "%s"; </script>' % (primary_profile))
+
         return page(title=title,
                     metaheaderadd=self._scripts(kill_browser_cache=True),
                     body=body,

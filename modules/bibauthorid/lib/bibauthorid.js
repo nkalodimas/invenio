@@ -181,6 +181,21 @@ $(document).ready(function() {
         $('.idsAssociationTable').siblings('.ui-toolbar').css({ "width": "45.4%", "font-size": "12px" });
     }
 
+    if (gMergeProfile !== undefined ) {
+        //TODO if gMergeList is not defined in web storage
+        gMergeList = {};
+        // initiate merge list from the html
+        $('#mergeList').find('a[class="profile"][id!="primaryProfile"]').each(function(){
+            var profile = $(this).text();
+            if (gMergeList[profile] === undefined)
+                gMergeList[profile] = profile;
+            $('.mergeBox[name="' + profile + '"]').prop('checked',true);
+        });
+        $('.mergeBox').change(function(event) {
+            onMergeBoxClick($(this));
+        });
+    }
+
     // Activate Tabs
     $("#aid_tabbing").tabs();
 
@@ -270,6 +285,53 @@ function onPageChange() {
                     async: true
                 });
     });
+}
+
+function onMergeBoxClick(box) {
+    var profile = box.attr('name').toString();
+    if( $(box).is(':checked') ) {
+        addToMergeList(profile);
+    }
+    else {
+        removeFromMergeList(profile);
+    }
+}
+
+function addToMergeList(profile) {
+    // TODO check if is already a primary profile
+    if (gMergeList[profile] === undefined) {
+        gMergeList[profile] = profile;
+        var $profileHtml = $('<li><a href=\"' + profile + '\" target=\"_blank\" class=\"profile\">' + profile + '</a>' +
+         '<a class=\"setPrimaryProfile\" href=\"\" >Set as primary</a> <a class=\"removeProfile\" href=\"\" >Remove</a></li>');
+        $('#mergeList').append($profileHtml);
+        $profileHtml.find('.setPrimaryProfile').on('click', { pProfile: profile}, function(event){
+            console.log('bind primary profile: ' + event.data.pProfile);
+            setAsPrimary(event.data.pProfile);
+            event.preventDefault();
+        });
+        $profileHtml.find('.removeProfile').on('click', { pProfile: profile}, function(event){
+            removeFromMergeList(event.data.pProfile);
+            //console.log('bind remove profile: ' + profile);
+            $('.mergeBox[name="' + event.data.pProfile + '"]').prop('checked',false);
+            event.preventDefault();
+        });
+    }
+}
+
+function removeFromMergeList(profile) {
+    if( gMergeList[profile] !== undefined) {
+        delete gMergeList[profile];
+    }
+    $('#mergeList').find('a[href="' + profile + '"][id!="primaryProfile"]').parent().remove();
+}
+
+function setAsPrimary(profile) {
+    removeFromMergeList(profile);
+    var primary = gMergeProfile;
+    addToMergeList(primary);
+    gMergeProfile = profile;
+    $('#primaryProfile').parent().replaceWith('<li><a id=\"primaryProfile\" href=\"' + profile +
+     '\" target=\"_blank\">' + profile + '</a> <strong>(primary profile)</strong></li>');
 }
 
 function onGetIDsSuccess(json){
