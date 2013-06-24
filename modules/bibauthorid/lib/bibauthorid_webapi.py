@@ -1723,18 +1723,19 @@ def manage_tickets(req, autoclaim):
     ticket = pinfo["ticket"]
     redirect_info = dict()
 
-
-    is_required, needs_review = is_ticket_review_required(req)
-
-    if is_required:
-        bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
-        if not autoclaim:
-            redirect_info['type'] = 'Submit Attribution'
-            redirect_info['title'] = 'Submit Attribution Information'
-            redirect_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
-            return redirect_info
-
-    if is_ticket_review_handling_required(req):
+    reviews_to_handle = is_ticket_review_handling_required(req)
+    
+    if not reviews_to_handle:
+        is_required, needs_review = is_ticket_review_required(req)
+    
+        if is_required:
+            bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
+            if not autoclaim:
+                redirect_info['type'] = 'Submit Attribution'
+                redirect_info['title'] = 'Submit Attribution Information'
+                redirect_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
+                return redirect_info
+    else:
         handle_ticket_review_results(req, autoclaim)
         
     uid = getUid(req)

@@ -708,6 +708,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if autoclaim_show_review:
                 webapi.store_users_open_tickets(req)
                 webapi.restore_incomplete_autoclaim_tickets(req)
+            
             if redirect_info['type'] == 'Submit Attribution':
                 if autoclaim:
                     pass
@@ -1153,7 +1154,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                      and pinfo["bibrefs_to_confirm"]):
                     person_reviews.append(pinfo["bibrefs_to_confirm"])
                 
-                return str(person_reviews)
                 for ref_review in person_reviews:
                     for person_id in ref_review:
                         for bibrec in ref_review[person_id]["bibrecs"]:
