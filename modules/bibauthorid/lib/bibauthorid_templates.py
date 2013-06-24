@@ -340,12 +340,12 @@ class Template:
         h('  <div style="margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">')
         h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
         h('    <strong>%s</strong> </br>%s ' % (teaser, message))
-        h("<ul>")
+        h("<ul id=\"mergeList\">")
 
-        h("<li><a href='%s'target='_blank'>%s</a> <strong>(primary profile)</strong></li>"
+        h("<li><a id=\"primaryProfile\" href='%s'target='_blank'>%s</a> <strong>(primary profile)</strong></li>"
           % (primary_profile, primary_profile))
         for profile in profiles:
-            h("<li><a href='%s'target='_blank'>%s</a></li>"
+            h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
                    % (profile, profile))
         h("</ul>")
         h('<a rel="nofollow" id="checkout" href="manage_profile?pid=%s">' % (str(primary_profile),) + self._('Stop merging.') + '</a>' )
@@ -565,16 +565,16 @@ class Template:
             bibs = bibs + 'selection=' + str(paper)
 
         if pid > -1:
-            h('<a rel="nofollow" id="clam_for_myself" href="%s/author/claim/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(pid)))
-            h(self._('Claim for yourself') + ' </a> <br>')
+            h('<div><a rel="nofollow" id="clam_for_myself" href="%s/author/claim/action?confirm=True&%s&pid=%s" '
+                    'class="confirmlink"><button type="button">%s</div></br>' % (CFG_SITE_URL, bibs, str(pid), self._("Claim for yourself")))
 
         if last_viewed_pid:
-            h('<a rel="nofollow" id="clam_for_last_viewed" href="%s/author/claim/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(last_viewed_pid[0])))
-            h(self._('Attribute to') + ' %s </a> <br>' % (last_viewed_pid[1]))
+            h('<div><a rel="nofollow" id="clam_for_last_viewed" href="%s/author/claim/action?confirm=True&%s&pid=%s" '
+                    'class="confirmlink"><button type="button">%s</div></br>' % (CFG_SITE_URL, bibs, str(last_viewed_pid[0]), self._('Attribute to') + str(last_viewed_pid[1])))
 
         if search_enabled:
-            h('<a rel="nofollow" id="claim_search" href="%s/author/claim/action?to_other_person=True&%s"> ' % (CFG_SITE_URL, bibs))
-            h(self._('Search for a person to attribute the paper to') + ' </a> <br>')
+            h('<div><a rel="nofollow" id="claim_search" href="%s/author/claim/action?to_other_person=True&%s" '
+                    'class="confirmlink"><button type="button">%s</div></br>' % (CFG_SITE_URL, bibs, self._('Search for a person to attribute the paper to')))
 
         return "\n".join(t_html)
 
@@ -1292,7 +1292,7 @@ class Template:
         return "\n".join(html)
 
     def tmpl_ticket_final_review(self, req, mark_yours=[], mark_not_yours=[],
-                                 mark_theirs=[], mark_not_theirs=[]):
+                                 mark_theirs=[], mark_not_theirs=[], autoclaim=False):
         '''
         Generate final review page. Displaying transactions if they
         need confirmation.
@@ -1338,7 +1338,7 @@ class Template:
             return "\n".join(html)
 
 
-        def mk_ticket_row(ticket):
+        def mk_ticket_row(ticket, autoclaim = False):
             recid = -1
             rectitle = ""
             recauthor = "No Name Found."
@@ -1486,8 +1486,9 @@ class Template:
         h("<p>&nbsp;</p>")
 
         h('<div style="text-align: center;">')
-        h(('  <input type="submit" name="checkout_continue_claiming" class="aid_btn_green" value="%s" />')
-          % self._("Continue claiming*"))
+        if not autoclaim:
+            h(('  <input type="submit" name="checkout_continue_claiming" class="aid_btn_green" value="%s" />')
+              % self._("Continue claiming*"))
         h(('  <input type="submit" name="checkout_submit" class="aid_btn_green" value="%s" />')
           % self._("Confirm these changes**"))
         h('<span style="margin-left:150px;">')
@@ -1511,7 +1512,7 @@ class Template:
             if mark_yours:
                 for idx, ticket in enumerate(mark_yours):
                     h('<tr id="aid_result%s">' % ((idx + 1) % 2))
-                    h(mk_ticket_row(ticket))
+                    h(mk_ticket_row(ticket, autoclaim))
                     h('</tr>')
             else:
                 h('<tr>')
@@ -1526,7 +1527,7 @@ class Template:
             if mark_not_yours:
                 for idx, ticket in enumerate(mark_not_yours):
                     h('<tr id="aid_result%s">' % ((idx + 1) % 2))
-                    h(mk_ticket_row(ticket))
+                    h(mk_ticket_row(ticket, autoclaim))
                     h('</tr>')
             else:
                 h('<tr>')
@@ -1541,7 +1542,7 @@ class Template:
         if mark_theirs:
             for idx, ticket in enumerate(mark_theirs):
                 h('<tr id="aid_result%s">' % ((idx + 1) % 2))
-                h(mk_ticket_row(ticket))
+                h(mk_ticket_row(ticket, autoclaim))
                 h('</tr>')
         else:
             h('<tr>')
@@ -1556,7 +1557,7 @@ class Template:
         if mark_not_theirs:
             for idx, ticket in enumerate(mark_not_theirs):
                 h('<tr id="aid_result%s">' % ((idx + 1) % 2))
-                h(mk_ticket_row(ticket))
+                h(mk_ticket_row(ticket, autoclaim))
                 h('</tr>')
         else:
             h('<tr>')
@@ -1709,21 +1710,27 @@ class Template:
         if 'button_gen' in shown_element_functions.keys():
             show_action_button = True
 
+        show_check_box = False
+        if 'check_box_column' in shown_element_functions.keys():
+            show_check_box = True
+
         # base_color = 100
         # row_color = 0
         # html table
         h('<table id="personsTable">')
         h('<!-- Table header -->\
                 <thead>\
-                    <tr>\
-                        <th scope="col" id="" style="width:85px;">Number</th>\
-                        <th scope="col" id="">Identifier</th>\
-                        <th scope="col" id="">Names</th>\
-                        <th scope="col" id="">IDs</th>\
-                        <th scope="col" id="" style="width:350px">Papers</th>\
-                        <th scope="col" id="">Link</th>')
+                    <tr>')
+        if show_check_box:
+            h('         <th scope="col" id="Merge" style="width:85px;">Merge</th>')
+        h('             <th scope="col" id="Number" style="width:85px;">Number</th>\
+                        <th scope="col" id="Identifier">Identifier</th>\
+                        <th scope="col" id="Names">Names</th>\
+                        <th scope="col" id="IDs">IDs</th>\
+                        <th scope="col" id="Papers" style="width:350px">Papers</th>\
+                        <th scope="col" id="Link">Link</th>')
         if show_action_button:
-            h('         <th scope="col" id="">Action</th>')
+            h('         <th scope="col" id="Action">Action</th>')
         h('         </tr>\
                 </thead>\
            <!-- Table body -->\
@@ -1741,6 +1748,9 @@ class Template:
             # person row
             h('<tr id="pid'+ str(pid) + '">')
             # (TODO pageNum - 1) * personsPerPage + 1
+            if show_check_box:
+                h('<td style="text-align:center; vertical-align:middle;"><input type="checkbox" class="mergeBox" style="width:15px;height:15px;" name="' + canonical_id + '" value="' + str(pid) + '"></td>')
+
             h('<td>%s</td>' % (index + 1))
 
 #            for nindex, name in enumerate(names):
@@ -2762,24 +2772,24 @@ class Template:
             html_autoclaim += self.loading_html();
         else:
             html_autoclaim = ''
-            if autoclaim_data["successfull_claims"]:
+            if "succesfull_recids" in autoclaim_data.keys() and autoclaim_data["succesfull_recids"]:
                 html_autoclaim += _("<span id=\"autoClaimSuccessMessage\">The following %s papers were successfully claimed to your"
-                                   " profile</span></br>"% (str(autoclaim_data["num_of_successfull_claims"])))
+                                   " profile</span></br>"% (str(autoclaim_data["num_of_successfull_recids"])))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
 
-                for rec in autoclaim_data['successfull_recids'].keys()[:5]:
+                for rec in autoclaim_data['succesfull_recids'].keys()[:5]:
                     html_autoclaim += '<tr><td>' + str(autoclaim_data['successfull_recids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
                 html_autoclaim += '</table>'
             
-            if autoclaim_data["unsuccessfull_claims"]:
+            if "unsuccessfull_recids" in autoclaim_data.keys() and autoclaim_data["unsuccessfull_recids"]:
                 html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s papers were unsuccessfully claimed. Do you want"
-                                   " to review the claiming now?</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_claims"])))
+                                   " to review the claiming now?</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_recids"])))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
 
-                for rec in autoclaim_data['unsuccessfull_recids'].keys()[:5]:
-                    html_autoclaim += '<tr><td>' + str(autoclaim_data['unsuccessfull_recids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
+                for rec in autoclaim_data['unsuccessfull_recids'][:5]:
+                    html_autoclaim += '<tr><td>' + str(rec) +'</td>' + '<td>' + str(rec) +'</td></tr>' # 2nd rec is probably the index
                 html_autoclaim += '</table>'    
                 html_autoclaim += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (autoclaim_data["link"], 
                                                                                                                                 _(autoclaim_data['text']))

@@ -423,6 +423,11 @@
 .confirmlink {
     text-decoration: none;
 }
+
+.searchresultsbox th {
+    text-align: left;
+}
+
 /*.new_person_link {
     background-color: lightgreen!important;
     color: blue;

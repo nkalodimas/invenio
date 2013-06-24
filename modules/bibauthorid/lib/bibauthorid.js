@@ -122,27 +122,34 @@ $(document).ready(function() {
         // gResultsPerPage = 3;
         // gCurPage = 1;
         // showPage(gCurPage);
-        var targets = [3,4,5,6];
-        if ($('#personsTable th').length == 6 ) {
-            targets = [3,4,5];
-        }
+        var columns = {};
+        $('#personsTable th').each(function(index) {
+            columns[$(this).attr('id')] = index;
+        });
+         // var targets = [3,4,5,6];
+         var targets = [columns['IDs'], columns['Papers'], columns['Link']];
+         if (columns['Action'] !== undefined) {
+            targets.push(columns['Action']);
+         }
+         if (columns['Merge'] !== undefined) {
+            targets.push(columns['Merge']);
+         }
         var pTable = $('#personsTable').dataTable({
                 "bJQueryUI": true,
                 "sPaginationType": "full_numbers",
                 "aoColumnDefs": [
                     { "bSortable": false, "aTargets": targets },
-                    { "bSortable": true, "aTargets": [0,1,2] },
-                    { "sType": "numeric", "aTargets": [0] },
-                    { "sType": "string", "aTargets": [1,2] }
+                    { "bSortable": true, "aTargets": [columns['Number'], columns['Identifier'], columns['Names']] },
+                    { "sType": "numeric", "aTargets": [columns['Number']] },
+                    { "sType": "string", "aTargets": [columns['Identifier'], columns['Names']] }
                     ],
-                "aaSorting": [[0,'asc']],
+                "aaSorting": [[columns['Number'],'asc']],
                 "aLengthMenu": [[5, 10, 20, -1], [5, 10, 20 , "All"]],
                 "iDisplayLength": 5,
                 "oLanguage": {
                     "sSearch": "Filter: "
                 }
         });
-        // { "sType": "numeric", "aTargets": [ 0 ] }
         // draw first page
         onPageChange();
         // on page change
@@ -172,6 +179,35 @@ $(document).ready(function() {
                 }
         });
         $('.idsAssociationTable').siblings('.ui-toolbar').css({ "width": "45.4%", "font-size": "12px" });
+    }
+
+    if (typeof gMergeProfile !== 'undefined' ) {
+        //TODO if gMergeList is not defined in web storage
+        gMergeList = {};
+        // initiate merge list from the html
+        $('#mergeList').find('a[class="profile"][id!="primaryProfile"]').each(function(){
+            var profile = $(this).text();
+            if (gMergeList[profile] === undefined)
+                gMergeList[profile] = profile;
+            $('.mergeBox[name="' + profile + '"]').prop('checked',true);
+        });
+        $('.mergeBox').change(function(event) {
+            onMergeBoxClick($(this));
+        });
+    }
+
+    if ($('#autoclaim').length) {
+            var data = { 'personId': gPID.toString()};
+            var errorCallback = onRetrieveAutoClaimedPapersError(gPID);
+            $.ajax({
+                dataType: 'json',
+                type: 'POST',
+                url: '/author/claim/generate_autoclaim_data',
+                data: {jsondata: JSON.stringify(data)},
+                success: onRetrieveAutoClaimedPapersSuccess,
+                error: errorCallback,
+                async: true
+            });
     }
 
     // Activate Tabs
@@ -265,6 +301,53 @@ function onPageChange() {
     });
 }
 
+function onMergeBoxClick(box) {
+    var profile = box.attr('name').toString();
+    if( $(box).is(':checked') ) {
+        addToMergeList(profile);
+    }
+    else {
+        removeFromMergeList(profile);
+    }
+}
+
+function addToMergeList(profile) {
+    // TODO check if is already a primary profile
+    if (gMergeList[profile] === undefined) {
+        gMergeList[profile] = profile;
+        var $profileHtml = $('<li><a href=\"' + profile + '\" target=\"_blank\" class=\"profile\">' + profile + '</a>' +
+         '<a class=\"setPrimaryProfile\" href=\"\" >Set as primary</a> <a class=\"removeProfile\" href=\"\" >Remove</a></li>');
+        $('#mergeList').append($profileHtml);
+        $profileHtml.find('.setPrimaryProfile').on('click', { pProfile: profile}, function(event){
+            console.log('bind primary profile: ' + event.data.pProfile);
+            setAsPrimary(event.data.pProfile);
+            event.preventDefault();
+        });
+        $profileHtml.find('.removeProfile').on('click', { pProfile: profile}, function(event){
+            removeFromMergeList(event.data.pProfile);
+            //console.log('bind remove profile: ' + profile);
+            $('.mergeBox[name="' + event.data.pProfile + '"]').prop('checked',false);
+            event.preventDefault();
+        });
+    }
+}
+
+function removeFromMergeList(profile) {
+    if( gMergeList[profile] !== undefined) {
+        delete gMergeList[profile];
+    }
+    $('#mergeList').find('a[href="' + profile + '"][id!="primaryProfile"]').parent().remove();
+}
+
+function setAsPrimary(profile) {
+    removeFromMergeList(profile);
+    var primary = gMergeProfile;
+    addToMergeList(primary);
+    gMergeProfile = profile;
+    $('#primaryProfile').parent().replaceWith('<li><a id=\"primaryProfile\" href=\"' + profile +
+     '\" target=\"_blank\">' + profile + '</a> <strong>(primary profile)</strong></li>');
+}
+
 function onGetIDsSuccess(json){
     if(json['resultCode'] == 1) {
         $('.emptyIDs' + json['pid']).html(json['result']).addClass('retreivedIDs').removeClass('emptyIDs' + json['pid']);
@@ -342,6 +425,22 @@ function onRetrievePapersError(pid){
    return function (XHR, textStatus, errorThrown) {
       var pID = pid;
       $('.more-mpid' + pID).text('Papers could not be retrieved');
+    };
+}
+
+function onRetrieveAutoClaimedPapersSuccess(json) {
+    if(json['resultCode'] == 1) {
+        $('#autoclaim').replaceWith(json['result']);
+    }
+    else {
+        $('#autoclaim').replaceWith(json['result']);
+    }
+}
+
+function onRetrieveAutoClaimedPapersError(pid) {
+    return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('#autoclaim').replaceWith('<span>Error occured while retrieving papers</span>');
     };
 }
 

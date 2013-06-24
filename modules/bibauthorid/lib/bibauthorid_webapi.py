@@ -1699,7 +1699,7 @@ def add_tickets(req, pid, bibrefs, action):
             ticket_is_valid_bibref = is_valid_bibref(e['bibref'])
             # if they are the same leave ticket as it is and continue to the next tempticket
             if e['bibref'] == t['bibref'] and e['pid'] == t['pid']:
-                should_append = False
+                ticket.remove(e)
                 break
             # if we are comparing two different bibrefrecs with the same recids we remove the current bibrefrec and we add their recid
             elif e['pid'] == t['pid'] and tempticket_is_valid_bibref and ticket_is_valid_bibref and t['bibref'].split(',')[1] == e['bibref'].split(',')[1]:
@@ -1717,7 +1717,7 @@ def add_tickets(req, pid, bibrefs, action):
         if should_append:
             ticket.append(t)
 
-def manage_tickets(req, autoclaim):
+def manage_tickets(req, autoclaim_show_review, autoclaim):
     session = get_session(req)
     pinfo = session["personinfo"]
     ticket = pinfo["ticket"]
@@ -1730,7 +1730,7 @@ def manage_tickets(req, autoclaim):
     
         if is_required:
             bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
-            if not autoclaim:
+            if not autoclaim and not autoclaim_show_review:
                 redirect_info['type'] = 'Submit Attribution'
                 redirect_info['title'] = 'Submit Attribution Information'
                 redirect_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]

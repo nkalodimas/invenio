@@ -704,33 +704,30 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @rtype: str
         '''
         def ticket_dispatch_guest(req, autoclaim_show_review = False, autoclaim = False):
-            redirect_info = webapi.manage_tickets(req, autoclaim)
+            redirect_info = webapi.manage_tickets(req, autoclaim_show_review, autoclaim)
             if autoclaim_show_review:
                 webapi.store_users_open_tickets(req)
                 webapi.restore_incomplete_autoclaim_tickets(req)
             
             if redirect_info['type'] == 'Submit Attribution':
-                if autoclaim:
-                    pass
-                    # redirect to new tmpl
-                else:
-                    body = TEMPLATE.tmpl_bibref_check(redirect_info['body_params'][0],
-                                                  redirect_info['body_params'][1])
-                    body = TEMPLATE.tmpl_person_detail_layout(body)
-                
-                    metaheaderadd = self._scripts(kill_browser_cache=True)
-                    title = _(redirect_info['title'])
-                
-                    return page(title=title,
-                        metaheaderadd=metaheaderadd,
-                        body=body,
-                        req=req,
-                        language=ln)
+
+                body = TEMPLATE.tmpl_bibref_check(redirect_info['body_params'][0],
+                                              redirect_info['body_params'][1])
+                body = TEMPLATE.tmpl_person_detail_layout(body)
+            
+                metaheaderadd = self._scripts(kill_browser_cache=True)
+                title = _(redirect_info['title'])
+            
+                return page(title=title,
+                    metaheaderadd=metaheaderadd,
+                    body=body,
+                    req=req,
+                    language=ln)
             elif redirect_info['type'] == 'review actions':
                 body = TEMPLATE.tmpl_ticket_final_review(req, redirect_info['body_params'][0],
                                                          redirect_info['body_params'][1],
                                                          redirect_info['body_params'][2],
-                                                         redirect_info['body_params'][3])
+                                                         redirect_info['body_params'][3], autoclaim)
                 body = TEMPLATE.tmpl_person_detail_layout(body)
                 metaheaderadd = self._scripts(kill_browser_cache=True)
                 title = _(redirect_info['title'])
@@ -1830,7 +1827,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if"ulevel" in pinfo and pinfo["ulevel"] == "admin":
             merge_power = True
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
-        body=''
+        body = ''
         body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, profiles_to_merged, merge_power)
 
         pid_canditates_list = []
@@ -1858,7 +1855,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # this is a function generating search's bar link and if it should be activated or not
         shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile)
         # show search results to the user
+        shown_element_functions['check_box_column'] = 'True'
         body  = body + self.search_box(pid_canditates_list, search_param, shown_element_functions)
+
+        req.write('<script type="text/javascript">var gMergeProfile = "%s"; </script>' % (primary_profile))
 
         return page(title=title,
                     metaheaderadd=self._scripts(kill_browser_cache=True),
@@ -2165,7 +2165,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         gpid = user_pid
         # if False not in beval:
         gboxstatus = 'noAjax'
-        req.write('<script type="text/javascript">var gBOX_STATUS = "%s";var gPID = "%s"; </script>' % (gboxstatus, gpid))
+        req.write('<script type="text/javascript">var gPID = "%s"; </script>' % (user_pid))
         req.write(TEMPLATE.tmpl_profile_managment(ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids, autoclaim_data, support_data))
 
     def _arxiv_box(self, login_info, person_id, user_pid):
@@ -2213,50 +2213,83 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         return orcid_data
 
 
-    def generate_autoclaim_data(self, req, person_id):
-        session = get_session(req)
-        pinfo = session["personinfo"]
-        ulevel = pinfo["ulevel"]
+    def generate_autoclaim_data(self, req, form):
+        # Abort if the simplejson module isn't available
+        if not CFG_JSON_AVAILABLE:
+            print "Json not configurable"
 
-        autoclaim_data = dict()
-        autoclaim_data['hidden'] = False
+        # If it is an Ajax request, extract any JSON data.
+        ajax_request = False
+        if form.has_key('jsondata'):
+            json_data = json.loads(str(form['jsondata']))
+            # Deunicode all strings (Invenio doesn't have unicode
+            # support).
+            json_data = json_unicode_to_utf8(json_data)
+            ajax_request = True
+            json_response = {'resultCode': 0}
 
-        recids_to_autoclaim = webapi.get_remote_login_systems_recids(req, remote_logged_in_systems)
-        # get all the ids that arrived from the external systems
-        cached_ids_association = webapi.get_cached_id_association(req)
+        # Handle request.
+        if ajax_request:
+            if json_data.has_key('personId'):
+                person_id = json_data['personId']
 
-        # external ids and recids should hava a 1 to 1 relation so the dicionary can be inverted and search by recid as a key
-        inverted_association = {value:key for key, value in cached_ids_association.items()}
-        login_info = webapi.login_status(req)
-        remote_logged_in_systems = login_info['remote_logged_in_systems']
+                session = get_session(req)
+                pinfo = session["personinfo"]
+                ulevel = pinfo["ulevel"]
 
-        autoclaim_data["link"] = "%s/author/claim/action?confirm=True&pid=%s&autoclaim_show_review = True" % (CFG_SITE_URL, person_id)
-        autoclaim_data['text'] = "Review autoclaiming"
+                autoclaim_data = dict()
+                autoclaim_data['hidden'] = False
 
-        webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
-        self._ticket_dispatch(ulevel, req, False, True)
+                login_info = webapi.login_status(req)
+                remote_logged_in_systems = login_info['remote_logged_in_systems']
+                recids_to_autoclaim = webapi.get_remote_login_systems_recids(req, remote_logged_in_systems)
+                autoclaim_data['num_of_claims'] = len(recids_to_autoclaim)
+                # get all the ids that arrived from the external systems
+                cached_ids_association = webapi.get_cached_id_association(req)
 
-        unsuccessfull_claimed_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
-        autoclaim_data['recids'] = dict()
-        autoclaim_data["num_of_unsuccessfull_recids"] = len(unsuccessfull_claimed_recids)
+                # external ids and recids should hava a 1 to 1 relation so the dicionary can be inverted and search by recid as a key
+                inverted_association = dict((value,key) for key, value in cached_ids_association.items())
 
-        for recid in unsuccessfull_claimed_recids:
-            autoclaim_data['unsuccesfull_recids'][recid] = inverted_association[recid]
+                autoclaim_data["link"] = "%s/author/claim/action?confirm=True&pid=%s&autoclaim_show_review = True" % (CFG_SITE_URL, person_id)
+                autoclaim_data['text'] = "Review autoclaiming"
 
-        successfull_recids = list(set(recids_to_autoclaim) - set(unsuccessfull_claimed_recids))
-        autoclaim_data["num_of_successfull_recids"] = len(successfull_recids)
+                webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
+                self._ticket_dispatch(ulevel, req, True)
 
-        for recid in successfull_recids:
-            autoclaim_data['succesfull_recids'][recid] = inverted_association[recid]
+                self._ticket_dispatch(ulevel, req, False, True)
+                unsuccessfull_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
+                unsuccessfull_recids = [69]
+                autoclaim_data["num_of_unsuccessfull_recids"] = len(unsuccessfull_recids)
+                inverted_association = {69:'fefsfaese'}
+                autoclaim_data['unsuccessfull_recids'] = []
+                
+                for recid in unsuccessfull_recids:
+                    autoclaim_data['unsuccessfull_recids'].append(inverted_association[recid])
 
-        autoclaim_data['recids'] = {69:'fefsfaese'}
+                successfull_recids = list(set(recids_to_autoclaim) - set(unsuccessfull_recids))
+                autoclaim_data["num_of_successfull_recids"] = len(successfull_recids)
+
+                for recid in successfull_recids:
+                    autoclaim_data['successfull_recids'][recid] = inverted_association[recid]
+
+
+
+                data_html = TEMPLATE.tmpl_autoclaim_box(autoclaim_data, ln='en', add_box=False, loading=False)
+
+                json_response.update({'result': data_html})
+                json_response.update({'resultCode': 1})
+                json_response.update({'pid': str(person_id)})
+            else:
+                json_response.update({'result': 'Error: Missing person id'})
+
+        return json.dumps(json_response)
 
     def _autoclaim_papers_box(self, req, person_id, user_pid, remote_logged_in_systems):
         autoclaim_data = dict()
         autoclaim_data['hidden'] = True
         recids_to_autoclaim = []
 
-        if person_id == user_pid:
+        if person_id == user_pid or True:
             recids_to_autoclaim = webapi.get_remote_login_systems_recids(req, remote_logged_in_systems)
             if recids_to_autoclaim or True:
                 autoclaim_data['hidden'] = False
