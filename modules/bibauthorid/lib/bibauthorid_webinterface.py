@@ -710,10 +710,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     body = TEMPLATE.tmpl_bibref_check(redirect_info['body_params'][0],
                                                   redirect_info['body_params'][1])
                     body = TEMPLATE.tmpl_person_detail_layout(body)
-                
+
                     metaheaderadd = self._scripts(kill_browser_cache=True)
                     title = _(redirect_info['title'])
-                
+
                     return page(title=title,
                         metaheaderadd=metaheaderadd,
                         body=body,
@@ -727,7 +727,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 body = TEMPLATE.tmpl_person_detail_layout(body)
                 metaheaderadd = self._scripts(kill_browser_cache=True)
                 title = _(redirect_info['title'])
-            
+
                 # body = body + '<pre>' + pformat(pinfo) + '</pre>'
                 return page(title=title,
                     metaheaderadd=metaheaderadd,
@@ -767,12 +767,12 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                            'admin': ticket_dispatch_admin}
         session = get_session(req)
         pinfo = session["personinfo"]
-        
+
         if 'ln' in pinfo:
             ln = pinfo["ln"]
         else:
             ln = CFG_SITE_LANG
-            
+
         if autoclaim_show_review and not autoclaim:
             return self._error_page(req, ln,
                             "Fatal: cannot show autoclaim review without autoclaiming.")
@@ -1283,7 +1283,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
                 for bibref in bibrefs:
                     self._cancel_transaction_from_rt_ticket(rt_id, pid, action, bibref)
-            
+
             if bibrefs:
                 webapi.add_tickets(req, pid, bibrefs, action)
 
@@ -1294,7 +1294,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             pinfo["claimpaper_admin_last_viewed_pid"] = pid
             session.dirty = True
             return self._ticket_dispatch(ulevel, req, autoclaim_show_review, autoclaim_show_review)
-            # return self.perform(req, form) 
+            # return self.perform(req, form)
 
         def delete_external_ids():
             if argd['pid'] > -1:
@@ -2104,7 +2104,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         '''
 
         self._session_bareinit(req)
-        
+
         argd = wash_urlargd(
             form,
             {'ln': (str, CFG_SITE_LANG),
@@ -2195,7 +2195,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         session = get_session(req)
         pinfo = session["personinfo"]
         ulevel = pinfo["ulevel"]
-        
+
         autoclaim_data = dict()
         autoclaim_data['hidden'] = True
         recids_to_autoclaim = webapi.get_remote_login_systems_recids(req, remote_logged_in_systems)
@@ -2203,15 +2203,15 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         cached_ids_association = webapi.get_cached_id_association(req)
 
         # external ids and recids should hava a 1 to 1 relation so the dicionary can be inverted and search by recid as a key
-        inverted_association = {value:key for key, value in cached_ids_association.items()}
+        inverted_association = dict((value,key) for key, value in cached_ids_association.items())
         recids_to_autoclaim = [69]
         if recids_to_autoclaim or True:
             autoclaim_data["link"] = "%s/person/action?confirm=True&pid=%s&autoclaim_show_review = True" % (CFG_SITE_URL, person_id)
             autoclaim_data['hidden'] = False
-            
+
             webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
             self._ticket_dispatch(ulevel, req, True)
-            
+
             unsuccessfull_claimed_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
             autoclaim_data['recids'] = dict()
             for recid in unsuccessfull_claimed_recids:
