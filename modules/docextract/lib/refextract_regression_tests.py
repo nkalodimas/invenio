@@ -2845,7 +2845,7 @@ class TaskTest(unittest.TestCase):
 
     def test_task_run_core(self):
         from invenio.refextract_task import task_run_core
-        task_run_core(1)
+        task_run_core(1, [])
 
 TEST_SUITE = make_test_suite(RefextractTest)
 if __name__ == '__main__':
