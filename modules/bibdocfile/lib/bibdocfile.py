@@ -117,7 +117,8 @@ from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, \
     CFG_BIBDOCFILE_MD5_CHECK_PROBABILITY, \
     CFG_SITE_RECORD, \
     CFG_BIBUPLOAD_FFT_ALLOWED_EXTERNAL_URLS, \
-    CFG_BIBDOCFILE_ENABLE_BIBDOCFSINFO_CACHE
+    CFG_BIBDOCFILE_ENABLE_BIBDOCFSINFO_CACHE, \
+    CFG_BIBDOCFILE_ADDITIONAL_KNOWN_MIMETYPES
 
 from invenio.bibdocfile_config import CFG_BIBDOCFILE_ICON_SUBFORMAT_RE, \
     CFG_BIBDOCFILE_DEFAULT_ICON_SUBFORMAT
@@ -156,6 +157,11 @@ _CFG_BIBUPLOAD_FFT_ALLOWED_EXTERNAL_URLS = [(re.compile(_regex), _headers)
 _mimes = MimeTypes(strict=False)
 _mimes.suffix_map.update({'.tbz2' : '.tar.bz2'})
 _mimes.encodings_map.update({'.bz2' : 'bzip2'})
+
+if CFG_BIBDOCFILE_ADDITIONAL_KNOWN_MIMETYPES:
+    for key, value in CFG_BIBDOCFILE_ADDITIONAL_KNOWN_MIMETYPES.iteritems():
+        _mimes.add_type(key, value)
+del key, value
 
 _magic_cookies = {}
 
