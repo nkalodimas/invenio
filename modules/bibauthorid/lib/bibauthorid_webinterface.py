@@ -333,6 +333,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if 'ticket' not in pinfo:
                 pinfo["ticket"] = []
             session.dirty = True
+            if not 'autoclaim' in pinfo:
+                # first variable shows if we want to review the failed ones in the profile management page while the other
+                # shows if we are creating and try to claim tickets that come from external systems
+                pinfo['autoclaim'] = (False, False)
         except KeyError:
             pinfo = dict()
             session['personinfo'] = pinfo
@@ -738,7 +742,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     language=ln)
             else:
                 if autoclaim or autoclaim_show_review:
+                    # restoring the user opened tickets and leave autoclaim mode
                     webapi.restore_users_open_tickets(req)
+                    pinfo['autoclaim'] = (False,False)
+                    session.dirty = True
                 return self._ticket_dispatch_end(req)
 
 #            bibref_check_required = self._ticket_review_bibref_check(req)
@@ -1061,8 +1068,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if "bibref_check_reviewed_bibrefs" in pinfo:
                 del(pinfo["bibref_check_reviewed_bibrefs"])
                 session.dirty = True
-
-            return self._ticket_dispatch(ulevel, req)
+            
+            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
 
         def add_external_id():
             if argd['pid'] > -1:
@@ -1117,15 +1124,15 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 redirect_pid = pid
 
             uid = getUid(req)
-
-            pid, profile_claimed = webapi.claim_profile(uid, pid)
+            
+            #pid, profile_claimed = webapi.claim_profile(uid, pid)
 
             if pid_in_cookie != -1:
                 redirect_pid = pid_in_cookie
             else:
                 redirect_pid = pid
 
-            if profile_claimed:
+            if False:#if profile_claimed and False:
                 redirect_to_url(req, '%s/author/claim/manage_profile?pid=%s' % (CFG_SITE_URL, redirect_pid))
             else:
                 redirect_to_url(req, '%s/author/claim/choose_profile?failed=%s' % (CFG_SITE_URL, True))
@@ -1145,7 +1152,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 if ("bibrefs_to_confirm" in pinfo
                      and pinfo["bibrefs_to_confirm"]):
                     person_reviews.append(pinfo["bibrefs_to_confirm"])
-
+                
+                return str(person_reviews)
                 for ref_review in person_reviews:
                     for person_id in ref_review:
                         for bibrec in ref_review[person_id]["bibrecs"]:
@@ -1172,7 +1180,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                             add_rev(element + "," + str(bibrec))
             session.dirty = True
 
-            return self._ticket_dispatch(ulevel, req)
+            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
 
         def cancel():
             self.__session_cleanup(req)
@@ -1233,7 +1241,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return self._ticket_dispatch_end(req)
 
         def checkout():
-            return self._ticket_dispatch(ulevel, req)
+            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
             # return self._ticket_final_review(req)
 
         def checkout_continue_claiming():
@@ -1252,7 +1260,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             pinfo["checkout_confirmed"] = False
             session.dirty = True
 
-            return self._ticket_dispatch(ulevel, req)
+            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
             # return self._ticket_final_review(req)
 
         def checkout_submit():
@@ -1268,7 +1276,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             session.dirty = True
 
-            return self._ticket_dispatch(ulevel, req)
+            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
             # return self._ticket_final_review(req)
 
         def claim():
@@ -1306,10 +1314,12 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                                         "Fatal: cannot create ticket without a person id!")
             bibrefs = None
             autoclaim_show_review = False
+            autoclaim = False
             if ('selection' in argd and argd['selection'] and len(argd['selection']) > 0):
                 bibrefs = argd['selection']
             elif 'autoclaim_show_review' in argd:
                 autoclaim_show_review = True
+                autoclaim = True
             else:
                 if pid == CREATE_NEW_PERSON:
                     return self._error_page(req, ln,
@@ -1331,8 +1341,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             # start ticket processing chain
             pinfo["claimpaper_admin_last_viewed_pid"] = pid
+            pinfo['autoclaim'] = (autoclaim_show_review, autoclaim)
             session.dirty = True
-            return self._ticket_dispatch(ulevel, req, autoclaim_show_review, autoclaim_show_review)
+            return self._ticket_dispatch(ulevel, req, autoclaim_show_review, autoclaim)
             # return self.perform(req, form) 
 
         def delete_external_ids():
@@ -1553,7 +1564,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         session.dirty = True
         # start ticket processing chain
         webapi.delete_request_ticket(pid, bibref)
-        return self._ticket_dispatch(ulevel, req)
+        return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
 
 
     def _error_page(self, req, ln=CFG_SITE_LANG, message=None, intro=True):
@@ -2139,13 +2150,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         req.write(pageheaderonly(req=req, title=title_message, uid=login_info["uid"],
                                language=ln, secure_page_p=ssl_param, metaheaderadd=self._scripts(kill_browser_cache=True)))
-        req.write(TEMPLATE.tmpl_message_form())
+        #req.write(TEMPLATE.tmpl_message_form())
         req.write(TEMPLATE.tmpl_welcome_start())
 
         user_pid = webapi.get_user_pid(login_info['uid'])
         person_data = webapi.get_person_info_by_pid(person_id)
         arxiv_data = self._arxiv_box(login_info, person_id, user_pid)
-        orcid_data = self._orcid_box(arxiv_data['login'], person_id, ulevel)
+        orcid_data = self._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
         claim_paper_data = self._claim_paper_box(person_id)
         support_data = self._support_box(person_id)
         ext_ids = self.external_ids_box(person_id)
@@ -2179,7 +2190,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         return arxiv_data
 
 
-    def _orcid_box(self, arxiv_logged_in, person_id, ulevel):
+    def _orcid_box(self, arxiv_logged_in, person_id, user_pid, ulevel):
         orcid_data = dict()
         orcid_data['arxiv_login'] = arxiv_logged_in
         orcid_data['orcids'] = None
@@ -2188,7 +2199,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         orcid_data['suggest_link'] = "mpla.com"
         orcid_data['suggest_text'] = "Suggest an orcid for this profile"
         orcid_data['add_power'] = False
-
+        orcid_data['own_profile'] = False
+        if person_id == user_pid:
+            orcid_data['own_profile'] = True
         if ulevel == "admin":
             orcid_data['add_power'] = True
 
@@ -2221,7 +2234,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         autoclaim_data['text'] = "Review autoclaiming"
 
         webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
-        self._ticket_dispatch(ulevel, req, True)
+        self._ticket_dispatch(ulevel, req, False, True)
 
         unsuccessfull_claimed_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
         autoclaim_data['recids'] = dict()

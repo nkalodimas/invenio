@@ -1247,7 +1247,6 @@ def get_profile_suggestion_info(req, pid):
     pinfo['profile_suggestion_info'] = profile_suggestion_info
     return profile_suggestion_info
 
-
 def claim_profile(uid, pid):
     return dbapi.assign_person_to_uid(uid, pid)
 
