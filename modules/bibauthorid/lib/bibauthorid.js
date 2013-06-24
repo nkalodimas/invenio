@@ -181,7 +181,7 @@ $(document).ready(function() {
         $('.idsAssociationTable').siblings('.ui-toolbar').css({ "width": "45.4%", "font-size": "12px" });
     }
 
-    if (gMergeProfile !== undefined ) {
+    if (typeof gMergeProfile !== 'undefined' ) {
         //TODO if gMergeList is not defined in web storage
         gMergeList = {};
         // initiate merge list from the html
@@ -194,6 +194,20 @@ $(document).ready(function() {
         $('.mergeBox').change(function(event) {
             onMergeBoxClick($(this));
         });
+    }
+
+    if ($('#autoclaim').length) {
+            var data = { 'personId': gPID.toString()};
+            var errorCallback = onRetrieveAutoClaimedPapersError(gPID);
+            $.ajax({
+                dataType: 'json',
+                type: 'POST',
+                url: '/author/claim/generate_autoclaim_data',
+                data: {jsondata: JSON.stringify(data)},
+                success: onRetrieveAutoClaimedPapersSuccess,
+                error: errorCallback,
+                async: true
+            });
     }
 
     // Activate Tabs
@@ -411,6 +425,22 @@ function onRetrievePapersError(pid){
    return function (XHR, textStatus, errorThrown) {
       var pID = pid;
       $('.more-mpid' + pID).text('Papers could not be retrieved');
+    };
+}
+
+function onRetrieveAutoClaimedPapersSuccess(json) {
+    if(json['resultCode'] == 1) {
+        $('#autoclaim').replaceWith(json['result']);
+    }
+    else {
+        $('#autoclaim').replaceWith(json['result']);
+    }
+}
+
+function onRetrieveAutoClaimedPapersError(pid) {
+    return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('#autoclaim').replaceWith('<span>Error occured while retrieving papers</span>');
     };
 }
 
