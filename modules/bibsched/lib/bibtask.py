@@ -918,7 +918,7 @@ def _task_run(task_run_fnc):
         return False
 
     time_now = datetime.datetime.now()
-    if _TASK_PARAMS['runtime_limit'] is not None and os.environ.get('BIBSCHED_MODE', 'manual') != 'manual':
+    if _TASK_PARAMS['runtime_limit'] is not None:
         if not _TASK_PARAMS['runtime_limit'][0][0] <= time_now <= _TASK_PARAMS['runtime_limit'][0][1]:
             if time_now <= _TASK_PARAMS['runtime_limit'][0][0]:
                 new_runtime = _TASK_PARAMS['runtime_limit'][0][0].strftime("%Y-%m-%d %H:%M:%S")
