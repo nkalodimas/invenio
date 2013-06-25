@@ -28,7 +28,6 @@ import time
 import re
 from datetime import datetime
 from tempfile import NamedTemporaryFile
-from datetime import datetime
 from xml.dom import minidom
 import urllib2
 import socket
@@ -50,7 +49,8 @@ from invenio.bibtask import task_init, \
 from invenio.search_engine_utils import get_fieldvalues
 from invenio.config import CFG_VERSION, \
                            CFG_TMPSHAREDDIR, \
-                           CFG_TMPDIR
+                           CFG_TMPDIR, \
+                           ARXIV_URL_PATTERN
 # Help message is the usage() print out of how to use Refextract
 from invenio.refextract_cli import HELP_MESSAGE, DESCRIPTION
 from invenio.docextract_record import get_record
@@ -62,7 +62,6 @@ from invenio import oai_harvest_daemon
 
 
 NAME = 'arxiv-pdf-checker'
-ARXIV_URL_PATTERN = "http://export.arxiv.org/pdf/%sv%s.pdf"
 ARXIV_VERSION_PATTERN = re.compile(ur'v\d$', re.UNICODE)
 
 STATUS_OK = 'ok'
