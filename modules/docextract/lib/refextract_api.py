@@ -149,7 +149,7 @@ def extract_references_from_string(source,
     return parse_references(reflines, recid=recid)
 
 
-def extract_references_from_record_xml(recid):
+def extract_references_from_record(recid):
     """Extract references from a record id
 
     The single parameter is the document
@@ -159,7 +159,16 @@ def extract_references_from_record_xml(recid):
     if not path:
         raise FullTextNotAvailable()
 
-    return extract_references_from_file_xml(path, recid=recid)
+    return extract_references_from_file(path, recid=recid)
+
+
+def extract_references_from_record_xml(recid):
+    """Extract references from a record id
+
+    The single parameter is the document
+    The result is given in marcxml.
+    """
+    return extract_references_from_record(recid).to_xml()
 
 
 def replace_references(recid):
