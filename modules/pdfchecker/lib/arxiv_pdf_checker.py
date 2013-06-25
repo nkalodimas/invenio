@@ -26,6 +26,7 @@ Checks arxiv records for missing pdfs and downloads them from arXiv
 import os
 import time
 import re
+from datetime import datetime
 from tempfile import NamedTemporaryFile
 from datetime import datetime
 from xml.dom import minidom
@@ -38,7 +39,8 @@ from invenio.docextract_task import store_last_updated, \
 from invenio.shellutils import split_cli_ids_arg
 from invenio.dbquery import run_sql
 from invenio.bibtask import task_low_level_submission
-from invenio.refextract_api import record_has_fulltext
+from invenio.refextract_api import record_has_fulltext, \
+                                   check_record_for_refextract
 from invenio.bibtask import task_init, \
                             write_message, \
                             task_update_progress, \
@@ -433,6 +435,8 @@ def process_one(recid):
     if harvest_status == STATUS_MISSING and harvest_version == arxiv_version:
         raise PdfNotAvailable()
 
+    needs_refextract = False
+
     try:
         download_one(recid, arxiv_version)
     except PdfNotAvailable:
@@ -443,32 +447,20 @@ def process_one(recid):
         raise
     else:
         store_arxiv_pdf_status(recid, STATUS_OK, arxiv_version)
-        submit_refextract_task(recid)
+        needs_refextract = True
+
+    return needs_refextract
 
 
-def submit_refextract_task(recid):
+def submit_refextract_task(recids):
     """Submit a refextract task if needed"""
+    # First filter out recids we cannot safely extract references from
+    # (mostly because they have been curated)
+    recids = [recid for recid in recids if check_record_for_refextract(recid)]
 
-    if get_fieldvalues(recid, '999C6v'):
-        # References extracted by refextract
-        if get_fieldvalues(recid, '999C59'):
-            # They have been curated
-            # To put in the HP and create ticket in the future
-            needs_submitting = False
-        else:
-            # They haven't been curated, we safely extract from the new pdf
-            needs_submitting = True
-    elif not get_fieldvalues(recid, '999C5_'):
-        # No references in the record, we can safely extract
-        # new references
-        needs_submitting = True
-    else:
-        # Old record, with either no curated references or references
-        # curated by SLAC. We cannot distinguish, so we do nothing
-        needs_submitting = False
-
-    if needs_submitting:
-        task_low_level_submission('refextract', NAME, '-r', str(recid))
+    if recids:
+        recids_str = ','.join(str(recid) for recid in recids)
+        task_low_level_submission('refextract', NAME, '-r', recids_str)
 
 
 def fetch_updated_arxiv_records(date):
@@ -499,6 +491,8 @@ def task_run_core(name=NAME):
     else:
         recids = fetch_updated_arxiv_records(last_date)
 
+    recids_to_refextract = set()
+
     for count, (recid, mod_date) in enumerate(recids):
         if count % 50 == 0:
             write_message('done %s of %s' % (count, len(recids)))
@@ -508,7 +502,8 @@ def task_run_core(name=NAME):
 
         write_message('processing %s' % recid, verbose=9)
         try:
-            process_one(recid)
+            if process_one(recid):
+                recids_to_refextract.add(recid)
             time.sleep(5)
         except AlreadyHarvested:
             write_message('already harvested successfully')
@@ -523,8 +518,10 @@ def task_run_core(name=NAME):
             write_message("failed to download: %s" % e)
             time.sleep(20)
 
-        if mod_date:
-            store_last_updated(recid, start_date, name)
+    if recids_to_refextract:
+        submit_refextract_task(recids_to_refextract)
+
+    store_last_updated(recid, start_date, name)
 
     return True
 
