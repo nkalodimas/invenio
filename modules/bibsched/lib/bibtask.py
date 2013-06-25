@@ -62,7 +62,7 @@ from socket import gethostname
 
 from invenio.dbquery import run_sql, _db_login
 from invenio.access_control_engine import acc_authorize_action
-from invenio.config import CFG_PREFIX, CFG_BINDIR, CFG_LOGDIR, \
+from invenio.config import CFG_PREFIX, CFG_BINDIR, \
     CFG_BIBSCHED_PROCESS_USER, CFG_TMPDIR, CFG_SITE_SUPPORT_EMAIL
 from invenio.errorlib import register_exception
 
@@ -886,8 +886,8 @@ runtime: %s
 options: %s
 status: %s
 """ % (task_name, _TASK_PARAMS['task_id'], runtime, _OPTIONS, status)
-    err_file = os.path.join(CFG_LOGDIR, 'bibsched_task_%d.err' % _TASK_PARAMS['task_id'])
-    log_file = os.path.join(CFG_LOGDIR, 'bibsched_task_%d.log' % _TASK_PARAMS['task_id'])
+    err_file = os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.err' % _TASK_PARAMS['task_id'])
+    log_file = os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.log' % _TASK_PARAMS['task_id'])
     return send_email(CFG_SITE_SUPPORT_EMAIL, email_logs_to, title, body, attachments=[(log_file, 'text/plain'), (err_file, 'text/plain')])
 
 def _task_run(task_run_fnc):
