@@ -425,7 +425,7 @@ function onRetrievePapersError(pid){
    return function (XHR, textStatus, errorThrown) {
       var pID = pid;
       $('.more-mpid' + pID).text('Papers could not be retrieved');
-    };
+    }
 }
 
 function onRetrieveAutoClaimedPapersSuccess(json) {
@@ -441,7 +441,7 @@ function onRetrieveAutoClaimedPapersError(pid) {
     return function (XHR, textStatus, errorThrown) {
       var pID = pid;
       $('#autoclaim').replaceWith('<span>Error occured while retrieving papers</span>');
-    };
+    }
 }
 
 function showPage(pageNum) {

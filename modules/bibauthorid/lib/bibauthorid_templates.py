@@ -1071,7 +1071,8 @@ class Template:
             full_canonical_name = str(get_canonical_id_from_person_id(person_id))
             if '.' in str(full_canonical_name) and not isinstance(full_canonical_name, int):
                 canonical_name = full_canonical_name[0:full_canonical_name.rindex('.')]
-            h('<div><div> <strong> Person id </strong> <br> %s <br>' % person_id)
+
+            h('<div> <strong> Person id </strong> <br> %s <br>' % person_id)
             h('<strong> <br> Canonical name setup </strong>')
             h('<div style="margin-top: 15px;"> Current canonical name: %s' % full_canonical_name)
             h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % CFG_SITE_URL)
@@ -1083,7 +1084,7 @@ class Template:
             h('<br>NOTE: If the canonical ID is without any number (e.g. J.Ellis), it will take the first available number. ')
             h('If the canonical ID is complete (e.g. J.Ellis.1) that ID will be assigned to the current person ')
             h('and if another person had that ID, he will lose it and get a new one. </form>')
-
+            h('</div>')
             userid = get_uid_of_author(person_id)
             h('<div> <br>')
             h('<strong> Internal IDs </strong> <br>')
@@ -1117,8 +1118,6 @@ class Template:
                 h('        <br> <br> <input type="submit" value="delete selected ids" class="aid_btn_blue"> <br> </form>')
             else:
                 h('UserID: There are no external users associated to this profile!')
-
-
 
             h('<br> <br>')
             h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
@@ -2612,7 +2611,7 @@ class Template:
         return html_header
 
 
-    def tmpl_profile_managment(self, ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids, autoclaim_data, support_data):
+    def tmpl_profile_managment(self, ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data):
         '''
         '''
         _ = gettext_set_language(ln)
@@ -2625,7 +2624,7 @@ class Template:
         html_arxiv = self.tmpl_arxiv_box(arxiv_data, ln, loading=False)
         html_orcid = self.tmpl_orcid_box(orcid_data, ln, loading=False)
         html_claim_paper = self.tmpl_claim_paper_box(claim_paper_data, ln, loading=False)
-        html_ext_ids = self.tmpl_ext_ids_box(ext_ids, ln, loading=False)
+        html_ext_ids = self.tmpl_ext_ids_box(ext_ids_data, ln, loading=False)
         html_autoclaim = self.tmpl_autoclaim_box(autoclaim_data, ln, loading=True)
             
         html_support = self.tmpl_support_box(support_data, ln, loading=False)
@@ -2696,8 +2695,9 @@ class Template:
                        "automated linkages between you and your professional activities.</br>")
 
         if orcid_data['orcids']:
-            html_orcid += _('This profile is already connected to the following orcid: %s</br>' % (orcid_data[0],))
-            html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Orcid publication list") )
+                html_orcid += _('This profile is already connected to the following orcid(s): <strong>%s</strong></br>' % (",".join(orcid_data['orcids']),))
+                if orcid_data['arxiv_login'] and orcid_data['own_profile']:
+                    html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Orcid publication list") )
         else:
             if orcid_data['arxiv_login'] and (orcid_data['own_profile'] or orcid_data['add_power']):
                 html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['add_link'],
@@ -2733,29 +2733,54 @@ class Template:
         else:
             return html_claim_paper
 
-    def tmpl_ext_ids_box(self, ext_ids, ln, add_box=True, loading=True):
+    def tmpl_ext_ids_box(self, ext_ids_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
 
         html_head = _("<strong> External Ids </strong>")
-        html_etx_ids = ''
-        if ext_ids:
-            html_etx_ids = '<tr>'
+
+        html_ext_ids = '<div>'
+
+        html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+        html_ext_ids += '<input type="hidden" name="add_missing_external_ids" value="True">'
+        html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+        html_ext_ids += '<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>'
+
+        if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
+            html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+            html_ext_ids += '   <input type="hidden" name="delete_external_ids" value="True">'
+            html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+            for key in ext_ids_data['ext_ids']:
+                try:
+                    sys = [system for system in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[system] == key][0]
+                except (IndexError):
+                    sys = ''
+                for id_value in ext_ids_data['ext_ids'][key]:
+                    html_ext_ids += '<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (key, id_value, sys, id_value)
+            html_ext_ids += '        <br> <br> <input type="submit" value="delete selected ids" class="aid_btn_blue"> <br> </form>'
         else:
-            html_etx_ids = _("There are no available external ids")
+            html_ext_ids += 'UserID: There are no external users associated to this profile!'
 
-        for idType in ext_ids.keys():
-            html_etx_ids += '<td>' + str(idType) +'</td>' + '<td>' + str(ext_ids[idType]) +'</td>'
-
-        if ext_ids:
-            html_etx_ids = '</tr>'
+        html_ext_ids += '<br> <br>'
+        html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+        html_ext_ids += '   <input type="hidden" name="add_external_id" value="True">'
+        html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+        html_ext_ids += '   <select name="ext_system">'
+        html_ext_ids += '      <option value="" selected>-- ' + self._('Choose system') + ' --</option>'
+        for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
+            html_ext_ids += '  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el)
+        html_ext_ids += '   </select>'
+        html_ext_ids += '   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">'
+        html_ext_ids += '   <input type="submit" value="add external id" class="aid_btn_blue">'
+        # html_ext_ids += '<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
+        html_ext_ids += '<br> </form> </div>'
 
         if loading:
-            html_etx_ids = self.loading_html()
+            html_ext_ids += self.loading_html()
         if add_box:
-            etx_ids_box = self.tmpl_print_searchresultbox('external_ids', html_head, html_etx_ids)
-            return etx_ids_box
+            ext_ids_box = self.tmpl_print_searchresultbox('external_ids', html_head, html_ext_ids)
+            return ext_ids_box
         else:
-            return html_etx_ids
+            return html_ext_ids
     # for ajax requests add_box and loading are false
     def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True): 
         _ = gettext_set_language(ln)
@@ -2791,7 +2816,7 @@ class Template:
                 for rec in autoclaim_data['unsuccessfull_recids'][:5]:
                     html_autoclaim += '<tr><td>' + str(rec) +'</td>' + '<td>' + str(rec) +'</td></tr>' # 2nd rec is probably the index
                 html_autoclaim += '</table>'    
-                html_autoclaim += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (autoclaim_data["link"], 
+                html_autoclaim += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</button></a></div>'  % (autoclaim_data["link"], 
                                                                                                                                 _(autoclaim_data['text']))
 
         if add_box:

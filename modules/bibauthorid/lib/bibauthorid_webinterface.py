@@ -219,6 +219,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         content += self._generate_ticket_box(ulevel, req)
         content += self._generate_person_info_box(ulevel, ln)
         content += self._generate_tabs(ulevel, req)
+        #assert False, ("%s") % (self._generate_tabs(ulevel, req),)
         content += self._generate_footer(ulevel)
 
         title = self._generate_title(ulevel)
@@ -1123,14 +1124,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             uid = getUid(req)
             
-            #pid, profile_claimed = webapi.claim_profile(uid, pid)
+            pid, profile_claimed = webapi.claim_profile(uid, pid)
 
             if pid_in_cookie != -1:
                 redirect_pid = pid_in_cookie
             else:
                 redirect_pid = pid
 
-            if False:#if profile_claimed and False:
+            if profile_claimed:
                 redirect_to_url(req, '%s/author/claim/manage_profile?pid=%s' % (CFG_SITE_URL, redirect_pid))
             else:
                 redirect_to_url(req, '%s/author/claim/choose_profile?failed=%s' % (CFG_SITE_URL, True))
@@ -1656,8 +1657,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         else:
             return TEMPLATE.tmpl_search_ticket_box('person_search', 'assign_papers', search_ticket['bibrefs'])
 
-    def search_box(self, pid_list, query, shown_element_functions):
-
+    def search_box(self, query, shown_element_functions):
+        pid_list = perform_search(query)
         search_results = []
         for pid in pid_list:
             result = defaultdict(list)
@@ -1665,7 +1666,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             result['canonical_id'] = webapi.get_canonical_id_from_person_id(pid)
             result['name_variants'] = webapi.get_person_names_from_id(pid)
             result['external_ids'] = webapi.get_external_ids_from_person_id(pid)
-
+            if 'show_status' in shown_element_functions:
+                result['status'] = is_profile_available(pid)
             search_results.append(result)
 
         body = TEMPLATE.tmpl_author_search(query, search_results, shown_element_functions)
@@ -1731,37 +1733,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if argd['q']:
                 query = escape(argd['q'])
 
-        pid_canditates_list = []
-
-        if query:
-            if query.count(":"):
-                try:
-                    left, right = query.split(":")
-                    try:
-                        recid = int(left)
-                        nquery = str(right)
-                    except (ValueError, TypeError):
-                        try:
-                            recid = int(right)
-                            nquery = str(left)
-                        except (ValueError, TypeError):
-                            recid = None
-                            nquery = query
-                except ValueError:
-                    recid = None
-                    nquery = query
-            else:
-                nquery = query
-
-            sorted_results = webapi.search_person_ids_by_name(nquery)
-
-            for result in sorted_results:
-                pid_canditates_list.append(result[0])
-
         if recid and (len(pid_canditates_list) == 1):
             return redirect_to_url(req, "/author/claim/%s" % search_results[0])
 
-        body  = body + self.search_box(pid_canditates_list, query, shown_element_functions)
+        body  = body + self.search_box(query, shown_element_functions)
 
         return page(title=title,
                     metaheaderadd=self._scripts(kill_browser_cache=True),
@@ -1821,7 +1796,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 profiles_to_merged.append(profile)
             except ValueError:
                 profiles_to_merged.append(profile)
-            profiles_to_merged.append(webapi.get_canonical_id_from_person_id(p))
 
         merge_power = False
         if"ulevel" in pinfo and pinfo["ulevel"] == "admin":
@@ -1830,8 +1804,25 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         body = ''
         body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, profiles_to_merged, merge_power)
 
-        pid_canditates_list = []
+        # this is a function generating search's bar link and if it should be activated or not
+        shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile)
+       
+        shown_element_functions['check_box_column'] = 'True'
+        # show if profile is bound to a user or not
+        shown_element_functions['show_status'] = 'True'
+        body  = body + self.search_box(search_param, shown_element_functions)
 
+        req.write('<script type="text/javascript">var gMergeProfile = "%s"; </script>' % (primary_profile))
+
+        return page(title=title,
+                    metaheaderadd=self._scripts(kill_browser_cache=True),
+                    body=body,
+                    req=req,
+                    language=ln)
+
+    def perform_search(search_param):
+        pid_canditates_list = []
+        
         if search_param.count(":"):
             try:
                 left, right = search_param.split(":")
@@ -1846,27 +1837,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 nsearch_param = search_param
         else:
             nsearch_param = search_param
-
+        
         sorted_results = webapi.search_person_ids_by_name(nsearch_param)
-
+        
         for result in sorted_results:
-            pid_canditates_list.append(result[0])
-
-        # this is a function generating search's bar link and if it should be activated or not
-        shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile)
-        # show search results to the user
-        shown_element_functions['check_box_column'] = 'True'
-        body  = body + self.search_box(pid_canditates_list, search_param, shown_element_functions)
-
-        req.write('<script type="text/javascript">var gMergeProfile = "%s"; </script>' % (primary_profile))
-
-        return page(title=title,
-                    metaheaderadd=self._scripts(kill_browser_cache=True),
-                    body=body,
-                    req=req,
-                    language=ln)
-
-
+           pid_canditates_list.append(result[0])
+        return pid_canditates_list
+            
 
     def search_box_ajax(self, req, form):
         '''
@@ -2061,34 +2038,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 name_variants = webapi.get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
                 search_param = most_relevant_name(name_variants)
 
-            pid_canditates_list = []
-
-            if search_param.count(":"):
-                try:
-                    left, right = search_param.split(":")
-                    try:
-                        nsearch_param = str(right)
-                    except (ValueError, TypeError):
-                        try:
-                            nsearch_param = str(left)
-                        except (ValueError, TypeError):
-                            nsearch_param = search_param
-                except ValueError:
-                    nsearch_param = search_param
-            else:
-                nsearch_param = search_param
-
-            sorted_results = webapi.search_person_ids_by_name(nsearch_param)
-
-            for result in sorted_results:
-                pid_canditates_list.append(result[0])
-
             shown_element_functions = dict()
             shown_element_functions['button_gen'] = TEMPLATE.tmpl_choose_profile_search_button_generator()
             shown_element_functions['new_person_gen'] = TEMPLATE.tmpl_choose_profile_search_new_person_generator()
             shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_choose_profile_search_bar()
+            # show if profile is bound to a user or not
+            shown_element_functions['show_status'] = 'True'
             # show search results to the user
-            body = body + self.search_box(pid_canditates_list, search_param, shown_element_functions)
+            body = body + self.search_box(search_param, shown_element_functions)
 
             title = _('Choose profile')
             return page(title=title,
@@ -2137,7 +2094,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # his uid and the external systems that he is logged in through.
         # the dictionary of the following form: {'logged_in': True, 'uid': 2, 'remote_logged_in_systems':['Arxiv', ...]}
         login_info = webapi.login_status(req)
-
         title_message = _('Profile Managment')
 
         # start continuous writing to the browser...
@@ -2159,14 +2115,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         orcid_data = self._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
         claim_paper_data = self._claim_paper_box(person_id)
         support_data = self._support_box(person_id)
-        ext_ids = self.external_ids_box(person_id)
+        ext_ids_data = self.external_ids_box(person_id)
         autoclaim_data = self._autoclaim_papers_box(req, person_id, user_pid, login_info['remote_logged_in_systems'])
 
-        gpid = user_pid
         # if False not in beval:
         gboxstatus = 'noAjax'
-        req.write('<script type="text/javascript">var gPID = "%s"; </script>' % (user_pid))
-        req.write(TEMPLATE.tmpl_profile_managment(ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids, autoclaim_data, support_data))
+        req.write('<script type="text/javascript">var gPID = "%s"; </script>' % (person_id))
+        req.write(TEMPLATE.tmpl_profile_managment(ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data))
 
     def _arxiv_box(self, login_info, person_id, user_pid):
         arxiv_data = dict()
@@ -2277,7 +2232,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 data_html = TEMPLATE.tmpl_autoclaim_box(autoclaim_data, ln='en', add_box=False, loading=False)
 
                 json_response.update({'result': data_html})
-                json_response.update({'resultCode': 1})
+                json_response.update({'resultCode': '1'})
                 json_response.update({'pid': str(person_id)})
             else:
                 json_response.update({'result': 'Error: Missing person id'})
@@ -2309,7 +2264,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         return claim_paper_data
 
     def _support_box(self, person_id):
-        support_info = dict()
+        support_data = dict()
         search_param = webapi.get_canonical_id_from_person_id(person_id)
         name_variants = [element[0] for element in webapi.get_person_names_from_id(person_id)]
         relevant_name = most_relevant_name(name_variants)
@@ -2317,20 +2272,28 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         if relevant_name:
             search_param = relevant_name.split(",")[0]
 
-        support_info['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (search_param,
+        support_data['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (search_param,
                                                                                                 webapi.get_canonical_id_from_person_id(person_id))
-        support_info['merge_text'] = "Merge profiles"
-        support_info['problem_link'] = "mpla.com"
-        support_info['problem_text'] = "Report a problem"        
-        support_info['help_link'] = "mpla.com"
-        support_info['help_text'] = "Get help!"
+        support_data['merge_text'] = "Merge profiles"
+        support_data['problem_link'] = "mpla.com"
+        support_data['problem_text'] = "Report a problem"        
+        support_data['help_link'] = "mpla.com"
+        support_data['help_text'] = "Get help!"
         # report a problem page
         # get help page
-        return support_info
+        return support_data
 
-    def external_ids_box(self, person_id):
-        external_ids = webapi.get_external_ids_from_person_id(person_id)
-        return external_ids
+    def external_ids_box(self, person_id, user_pid, ulevel):
+        external_ids_data = dict()
+        external_ids_data['ext_ids'] = webapi.get_external_ids_from_person_id(person_id)
+        external_ids_data['person_id'] = person_id
+        external_ids_data['add_power'] = False
+        external_ids_data['own_profile'] = False
+        if person_id == user_pid:
+            external_ids_data['own_profile'] = True
+        if ulevel == "admin":
+            external_ids_data['add_power'] = True
+        return external_ids_data
 
     def tickets_admin(self, req, form):
         '''
