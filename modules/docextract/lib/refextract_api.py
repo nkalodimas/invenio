@@ -296,3 +296,25 @@ def search_from_reference(text):
                 break
 
     return field, pattern.encode('utf-8')
+
+
+def check_record_for_refextract(recid):
+    if get_fieldvalues(recid, '999C6v'):
+        # References extracted by refextract
+        if get_fieldvalues(recid, '999C59'):
+            # They have been curated
+            # To put in the HP and create ticket in the future
+            needs_submitting = False
+        else:
+            # They haven't been curated, we safely extract from the new pdf
+            needs_submitting = True
+    elif not get_fieldvalues(recid, '999C5_'):
+        # No references in the record, we can safely extract
+        # new references
+        needs_submitting = True
+    else:
+        # Old record, with either no curated references or references
+        # curated by SLAC. We cannot distinguish, so we do nothing
+        needs_submitting = False
+
+    return needs_submitting
