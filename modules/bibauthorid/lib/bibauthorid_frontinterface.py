@@ -133,21 +133,20 @@ def assign_person_to_uid(uid, pid):
     '''
     Assigns a person to a userid. If person already assigned to someone else, create new person.
     Returns two value. Firstly the person id assigned and secondly if uid was succesfully assigned to given pid.
+    If parameter pid equals to -1 then we assign the uid to a new person
     @param uid: user id, int
     @param pid: person id, int, if -1 creates new person.
     @return: pid int, bool
     '''
     if pid == -1:
         pid = dbinter.create_new_author_by_uid(uid, uid_is_owner=True)
-        return pid, False
+        return pid, True
     else:
         current_uid = get_person_data(pid, 'uid')
         if len(current_uid) == 0:
             set_person_data(pid, 'uid', str(uid))
             return pid, True
-        else:
-            pid = dbinter.create_new_author_by_uid(uid, uid_is_owner=True)
-            return pid, False
+        return -1, False
 
 def get_processed_external_recids(pid):
     '''

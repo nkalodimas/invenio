@@ -55,6 +55,14 @@ from invenio.bibauthorid_dbinterface import get_external_ids_of_author  # pylint
 #           DB Data Accessors              #
 ############################################
 
+
+def is_profile_available(pid):
+    uid = get_uid_from_personid(pid)
+
+    if uid == -1:
+        return True
+    return False
+
 def get_bibrefs_from_bibrecs(bibreclist):
     '''
     Retrieve all bibrefs for all the recids in the list
@@ -1003,7 +1011,7 @@ def session_bareinit(req):
         session['personinfo'] = pinfo
         pinfo["ticket"] = []
         pinfo['users_open_tickets_storage'] = []
-        pinfo['remote_login_system'] = []
+        pinfo['remote_login_system'] = dict()
         pinfo['incomplete_autoclaimed_tickets_storage'] = []
         for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
             pinfo["remote_login_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
@@ -1155,32 +1163,32 @@ def get_user_pid(uid):
 
     return pid[0]
 
-#def merge_profiles(req, primary_profile, profiles):
-#    records = dbapi.defaultdict(list)
-#    for p in profiles:
-#        papers = get_papers_by_person_id(get_person_id_from_canonical_id(p))
-#        if papers:
-#            for rec_info in papers:
-#                records[rec_info[0]] += [rec_info[1]]
+def merge_profiles(primary_profile, profiles):
+    records = dbapi.defaultdict(list)
+    for p in profiles:
+        papers = get_papers_by_person_id(get_person_id_from_canonical_id(p))
+        if papers:
+            for rec_info in papers:
+                records[rec_info[0]] += [rec_info[1]]
 
-#    recids = []
-#    bibrecrefs = []
-#    for recid in records.keys():
-#        if len(records[recid]) > 1:
-#            recids.append(recid)
-#        else:
-#            bibrecrefs.append(records[recid][0])
-#    if recids or bibrecrefs:
-#        auto_claim_papers(req, get_person_id_from_canonical_id(primary_profile), list(set(recids)), list(set(bibrecrefs)))
+    recs_to_merge = []
+    for recid in records.keys():
+        # if more than one with the same recid we append only the recid and we let the user to solve tha problem in ticket_review
+        if len(records[recid]) > 1:
+            recs_to_merge.append(recid)
+        else:
+            recs_to_merge.append(records[recid][0])
+
+    return recs_to_merge
 
 def auto_claim_papers(req, pid, recids):
     session_bareinit(req)
-    
+
     # retrieve users existing papers
     pid_bibrecs = set([i[0] for i in dbapi.get_all_personids_recs(pid, claimed_only=True)])
     # retrieve the papers that need to be imported
     missing_bibrecs = list(set(recids) - pid_bibrecs)
-    
+
     # store any users open ticket elsewhere until we have processed the autoclaimed tickets
     store_users_open_tickets(req)
 
@@ -1210,14 +1218,13 @@ def match_profile(req, recids, remote_login_systems_info):
     pinfo['most_compatible_person'] = most_compatible_person
     return most_compatible_person
 
-
 def get_profile_suggestion_info(req, pid):
     session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
     profile_suggestion_info = pinfo['profile_suggestion_info']
 
-    if profile_suggestion_info != None:
+    if profile_suggestion_info != None and pid == profile_suggestion_info['pid']:
         return profile_suggestion_info
 
     profile_suggestion_info = dict()
@@ -1239,7 +1246,6 @@ def get_profile_suggestion_info(req, pid):
     profile_suggestion_info['pid'] = pid
     pinfo['profile_suggestion_info'] = profile_suggestion_info
     return profile_suggestion_info
-
 
 def claim_profile(uid, pid):
     return dbapi.assign_person_to_uid(uid, pid)
@@ -1676,7 +1682,7 @@ def add_tickets(req, pid, bibrefs, action):
     session = get_session(req)
     pinfo = session["personinfo"]
     ticket = pinfo["ticket"]
-    # the user wanted to create a new person to resolve the tickets to it 
+    # the user wanted to create a new person to resolve the tickets to it
     if pid == bconfig.CREATE_NEW_PERSON:
         uid = getUid(req)
         pid = create_new_person(uid)
@@ -1693,7 +1699,7 @@ def add_tickets(req, pid, bibrefs, action):
             ticket_is_valid_bibref = is_valid_bibref(e['bibref'])
             # if they are the same leave ticket as it is and continue to the next tempticket
             if e['bibref'] == t['bibref'] and e['pid'] == t['pid']:
-                should_append = False
+                ticket.remove(e)
                 break
             # if we are comparing two different bibrefrecs with the same recids we remove the current bibrefrec and we add their recid
             elif e['pid'] == t['pid'] and tempticket_is_valid_bibref and ticket_is_valid_bibref and t['bibref'].split(',')[1] == e['bibref'].split(',')[1]:
@@ -1711,26 +1717,27 @@ def add_tickets(req, pid, bibrefs, action):
         if should_append:
             ticket.append(t)
 
-def manage_tickets(req, autoclaim):
+def manage_tickets(req, autoclaim_show_review, autoclaim):
     session = get_session(req)
     pinfo = session["personinfo"]
     ticket = pinfo["ticket"]
     redirect_info = dict()
 
+    reviews_to_handle = is_ticket_review_handling_required(req)
 
-    is_required, needs_review = is_ticket_review_required(req)
+    if not reviews_to_handle:
+        is_required, needs_review = is_ticket_review_required(req)
 
-    if is_required:
-        bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
-        if not autoclaim:
-            redirect_info['type'] = 'Submit Attribution'
-            redirect_info['title'] = 'Submit Attribution Information'
-            redirect_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
-            return redirect_info
-
-    if is_ticket_review_handling_required(req):
+        if is_required:
+            bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
+            if not autoclaim and not autoclaim_show_review:
+                redirect_info['type'] = 'Submit Attribution'
+                redirect_info['title'] = 'Submit Attribution Information'
+                redirect_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
+                return redirect_info
+    else:
         handle_ticket_review_results(req, autoclaim)
-        
+
     uid = getUid(req)
     for t in ticket:
         t['status'] = check_transaction_permissions(uid,
@@ -1750,7 +1757,7 @@ def manage_tickets(req, autoclaim):
 
     ticket_commit(req)
     redirect_info['type'] = 'dispatch end'
-    return redirect_info    
+    return redirect_info
 
 
 def confirm_valid_ticket(req):
@@ -2034,10 +2041,10 @@ def ticket_commit(req):
         clean_ticket(req)
         uid = getUid(req)
         userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
-    
+
         session = get_session(req)
         pinfo = session["personinfo"]
-    
+
         if "user_ticket_comments" in pinfo:
             userinfo['comments'] = pinfo["user_ticket_comments"]
         if "user_first_name" in pinfo:
@@ -2046,7 +2053,7 @@ def ticket_commit(req):
             userinfo['lastname'] = pinfo["user_last_name"]
         if "user_email" in pinfo:
             userinfo['email'] = pinfo["user_email"]
-    
+
         ticket = pinfo["ticket"]
         ok_tickets = list()
         for t in list(ticket):
@@ -2056,27 +2063,27 @@ def ticket_commit(req):
                                                     userinfo['uid-ip'], str(userinfo))
                 ok_tickets.append(t)
                 ticket.remove(t)
-    
+
         if ticket:
             create_request_ticket(userinfo, ticket)
-    
+
         if CFG_INSPIRE_SITE and ok_tickets:
             send_user_commit_notification_email(userinfo, ok_tickets)
-    
+
         for t in ticket:
             t['execution_result'] = [(True, ''), ]
-    
+
         ticket[:] = ok_tickets
         session.dirty = True
-    
+
     def ticket_commit_admin(req):
         clean_ticket(req)
         uid = getUid(req)
         userinfo = {'uid-ip': "%s||%s" % (uid, req.remote_ip)}
-    
+
         session = get_session(req)
         pinfo = session["personinfo"]
-    
+
         if "user_ticket_comments" in pinfo:
             userinfo['comments'] = pinfo["user_ticket_comments"]
         if "user_first_name" in pinfo:
@@ -2085,18 +2092,18 @@ def ticket_commit(req):
             userinfo['lastname'] = pinfo["user_last_name"]
         if "user_email" in pinfo:
             userinfo['email'] = pinfo["user_email"]
-    
+
         ticket = pinfo["ticket"]
         for t in ticket:
             t['execution_result'] = execute_action(t['action'], t['pid'], t['bibref'], uid,
                                                           userinfo['uid-ip'], str(userinfo))
         session.dirty = True
-    
+
     commit = {'guest': ticket_commit_guest,
                      'user': ticket_commit_user,
                      'admin': ticket_commit_admin}
-    
-    
+
+
     session = get_session(req)
     pinfo = session["personinfo"]
     ulevel = pinfo["ulevel"]
@@ -2172,7 +2179,7 @@ def handle_ticket_review_results(req, autoclaim):
                               if ('incomplete' in row)]:
             failed_to_autoclaim_tickets.append(ticket_remove)
             ticket.remove(ticket_remove)
-        store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets)       
+        store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets)
     else:
         for ticket_remove in [row for row in ticket
                               if ('incomplete' in row)]:
@@ -2253,8 +2260,7 @@ def restore_incomplete_autoclaim_tickets(req):
     for t in list(temp_storage):
         ticket.append(t)
         temp_storage.remove(t)
-    temp_storage = []
-            
+
 def get_stored_incomplete_autoclaim_tickets(req):
     session_bareinit(req)
     session = get_session(req)
