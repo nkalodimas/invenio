@@ -743,8 +743,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 if autoclaim or autoclaim_show_review:
                     # restoring the user opened tickets and leave autoclaim mode
                     webapi.restore_users_open_tickets(req)
-                    pinfo['autoclaim'] = (False,False)
-                    session.dirty = True
                 return self._ticket_dispatch_end(req)
 
 #            bibref_check_required = self._ticket_review_bibref_check(req)
@@ -780,7 +778,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             ln = pinfo["ln"]
         else:
             ln = CFG_SITE_LANG
-            
+
+        pinfo['autoclaim'] = (autoclaim_show_review, autoclaim)
+        session.dirty = True
+
         if autoclaim_show_review and not autoclaim:
             return self._error_page(req, ln,
                             "Fatal: cannot show autoclaim review without autoclaiming.")
@@ -812,7 +813,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             del(pinfo["referer"])
             session.dirty = True
             return redirect_to_url(req, referer)
+        print 'autoclaim' in pinfo, pinfo['autoclaim']
+        if 'autoclaim' in pinfo and pinfo['autoclaim'][0] == False and pinfo['autoclaim'][1] == True:
+            pinfo['autoclaim'] = (False,False)
+            session.dirty = True
+            return
 
+        pinfo['autoclaim'] = (False,False)
+        session.dirty = True
         return redirect_to_url(req, "%s/author/claim/%s?open_claim=True" % (CFG_SITE_URL,
                                  webapi.get_person_redirect_link(
                                    pinfo["claimpaper_admin_last_viewed_pid"])))
@@ -2181,13 +2189,13 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             # support).
             json_data = json_unicode_to_utf8(json_data)
             ajax_request = True
-            json_response = {'resultCode': 0}
+            json_response = {'resultCode': '0'}
 
         # Handle request.
         if ajax_request:
             if json_data.has_key('personId'):
                 person_id = json_data['personId']
-
+                print "debug"
                 session = get_session(req)
                 pinfo = session["personinfo"]
                 ulevel = pinfo["ulevel"]
@@ -2204,22 +2212,21 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
                 # external ids and recids should hava a 1 to 1 relation so the dicionary can be inverted and search by recid as a key
                 inverted_association = dict((value,key) for key, value in cached_ids_association.items())
-
+                print person_id
                 autoclaim_data["link"] = "%s/author/claim/action?confirm=True&pid=%s&autoclaim_show_review = True" % (CFG_SITE_URL, person_id)
                 autoclaim_data['text'] = "Review autoclaiming"
 
                 webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
-                self._ticket_dispatch(ulevel, req, True)
-
                 self._ticket_dispatch(ulevel, req, False, True)
                 unsuccessfull_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
                 unsuccessfull_recids = [69]
                 autoclaim_data["num_of_unsuccessfull_recids"] = len(unsuccessfull_recids)
                 inverted_association = {69:'fefsfaese'}
+                autoclaim_data['recids_to_external_ids'] = inverted_association
                 autoclaim_data['unsuccessfull_recids'] = []
                 
                 for recid in unsuccessfull_recids:
-                    autoclaim_data['unsuccessfull_recids'].append(inverted_association[recid])
+                    autoclaim_data['unsuccessfull_recids'].append(recid)
 
                 successfull_recids = list(set(recids_to_autoclaim) - set(unsuccessfull_recids))
                 autoclaim_data["num_of_successfull_recids"] = len(successfull_recids)

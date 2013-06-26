@@ -2782,7 +2782,7 @@ class Template:
         else:
             return html_ext_ids
     # for ajax requests add_box and loading are false
-    def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True): 
+    def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
         
         html_head = None
@@ -2798,23 +2798,29 @@ class Template:
         else:
             html_autoclaim = ''
             if "succesfull_recids" in autoclaim_data.keys() and autoclaim_data["succesfull_recids"]:
-                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\">The following %s papers were successfully claimed to your"
-                                   " profile</span></br>"% (str(autoclaim_data["num_of_successfull_recids"])))
+                suffix = ''
+                if autoclaim_data["num_of_successfull_recids"] > 1:
+                    suffix = 's'
+                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\">The following %s paper%s were successfully claimed to your"
+                                   " profile</span></br>"% (str(autoclaim_data["num_of_successfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
 
                 for rec in autoclaim_data['succesfull_recids'].keys()[:5]:
-                    html_autoclaim += '<tr><td>' + str(autoclaim_data['successfull_recids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
+                    html_autoclaim += '<tr><td>' + str(autoclaim_data['recids_to_external_ids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
                 html_autoclaim += '</table>'
-            
+
             if "unsuccessfull_recids" in autoclaim_data.keys() and autoclaim_data["unsuccessfull_recids"]:
-                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s papers were unsuccessfully claimed. Do you want"
-                                   " to review the claiming now?</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_recids"])))
+                suffix = ''
+                if autoclaim_data["num_of_unsuccessfull_recids"] > 1:
+                    suffix = 's'
+                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s paper%s were unsuccessfully claimed. Do you want"
+                                   " to review the claiming now?</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
 
                 for rec in autoclaim_data['unsuccessfull_recids'][:5]:
-                    html_autoclaim += '<tr><td>' + str(rec) +'</td>' + '<td>' + str(rec) +'</td></tr>' # 2nd rec is probably the index
+                    html_autoclaim += '<tr><td>' + str(autoclaim_data['recids_to_external_ids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>' # 2nd rec is probably the index
                 html_autoclaim += '</table>'    
                 html_autoclaim += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</button></a></div>'  % (autoclaim_data["link"], 
                                                                                                                                 _(autoclaim_data['text']))
