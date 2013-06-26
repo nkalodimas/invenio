@@ -81,6 +81,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         /author/claim/claimstub
         /author/claim/export
         /author/claim/generate_autoclaim_data
+        /author/claim/help
         /author/claim/manage_profile
         /author/claim/merge_profiles
         /search_box_ajax
@@ -95,6 +96,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 'claimstub',
                 'export',
                 'generate_autoclaim_data',
+                'help',
                 'manage_profile',
                 'merge_profiles',
                 'search_box_ajax',
@@ -814,16 +816,21 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             session.dirty = True
             return redirect_to_url(req, referer)
         print 'autoclaim' in pinfo, pinfo['autoclaim']
-        if 'autoclaim' in pinfo and pinfo['autoclaim'][0] == False and pinfo['autoclaim'][1] == True:
-            pinfo['autoclaim'] = (False,False)
-            session.dirty = True
-            return
 
+        should_redirect = True
+
+        # if we are coming fromt he autoclaim box we should not redirect and just return to the caller function
+        if 'autoclaim' in pinfo and pinfo['autoclaim'][0] == False and pinfo['autoclaim'][1] == True:
+            should_redirect = False
+            
         pinfo['autoclaim'] = (False,False)
         session.dirty = True
-        return redirect_to_url(req, "%s/author/claim/%s?open_claim=True" % (CFG_SITE_URL,
-                                 webapi.get_person_redirect_link(
-                                   pinfo["claimpaper_admin_last_viewed_pid"])))
+
+        if should_redirect:
+            return redirect_to_url(req, "%s/author/claim/%s?open_claim=True" % (CFG_SITE_URL,
+                                     webapi.get_person_redirect_link(
+                                       pinfo["claimpaper_admin_last_viewed_pid"])))
+
 
     def __get_user_role(self, req):
         '''
@@ -2114,7 +2121,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         req.write(pageheaderonly(req=req, title=title_message, uid=login_info["uid"],
                                language=ln, secure_page_p=ssl_param, metaheaderadd=self._scripts(kill_browser_cache=True)))
-        #req.write(TEMPLATE.tmpl_message_form())
+
         req.write(TEMPLATE.tmpl_welcome_start())
 
         user_pid = webapi.get_user_pid(login_info['uid'])
@@ -2123,7 +2130,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         orcid_data = self._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
         claim_paper_data = self._claim_paper_box(person_id)
         support_data = self._support_box(person_id)
-        ext_ids_data = self.external_ids_box(person_id, user_pid, ulevel)
+        ext_ids_data = self._external_ids_box(person_id, user_pid, ulevel)
         autoclaim_data = self._autoclaim_papers_box(req, person_id, user_pid, login_info['remote_logged_in_systems'])
 
         # if False not in beval:
@@ -2282,7 +2289,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         support_data['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (search_param,
                                                                                                 webapi.get_canonical_id_from_person_id(person_id))
         support_data['merge_text'] = "Merge profiles"
-        support_data['problem_link'] = "mpla.com"
+        support_data['problem_link'] = "help"
         support_data['problem_text'] = "Report a problem"        
         support_data['help_link'] = "mpla.com"
         support_data['help_text'] = "Get help!"
@@ -2290,7 +2297,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # get help page
         return support_data
 
-    def external_ids_box(self, person_id, user_pid, ulevel):
+    def _external_ids_box(self, person_id, user_pid, ulevel):
         external_ids_data = dict()
         external_ids_data['ext_ids'] = webapi.get_external_ids_from_person_id(person_id)
         external_ids_data['person_id'] = person_id
@@ -2333,6 +2340,26 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     metaheaderadd=self._scripts(),
                     body=body,
                     req=req)
+
+    def help(self,req, form):
+        argd = wash_urlargd(
+            form,
+            {'ln': (str, CFG_SITE_LANG)})
+
+        ln = argd['ln']
+        # ln = wash_language(argd['ln'])
+        _ = gettext_set_language(ln)        
+        if not CFG_INSPIRE_SITE:
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
+
+        body = TEMPLATE.tmpl_message_form()
+
+        title = _('Help!')
+        return page(title=title,
+                    metaheaderadd=self._scripts(kill_browser_cache=True),
+                    body=body,
+                    req=req,
+                    language=ln)        
 
     def export(self, req, form):
         '''
