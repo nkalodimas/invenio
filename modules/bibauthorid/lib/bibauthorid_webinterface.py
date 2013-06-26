@@ -2115,7 +2115,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         orcid_data = self._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
         claim_paper_data = self._claim_paper_box(person_id)
         support_data = self._support_box(person_id)
-        ext_ids_data = self.external_ids_box(person_id)
+        ext_ids_data = self.external_ids_box(person_id, user_pid, ulevel)
         autoclaim_data = self._autoclaim_papers_box(req, person_id, user_pid, login_info['remote_logged_in_systems'])
 
         # if False not in beval:
