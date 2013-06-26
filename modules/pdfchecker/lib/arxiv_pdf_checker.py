@@ -350,9 +350,6 @@ def download_one(recid, version):
                                   docname="arXiv:%s" % filename_arxiv_id)
         else:
             raise FoundExistingPdf()
-        ffts = {recid: [{'doctype' : 'FIX-MARC'}]}
-        bibupload_ffts(ffts, append=False, interactive=False)
-
 
 
 def oai_harvest_query(arxiv_id, prefix='arXivRaw', verb='GetRecord',
@@ -434,7 +431,7 @@ def process_one(recid):
     if harvest_status == STATUS_MISSING and harvest_version == arxiv_version:
         raise PdfNotAvailable()
 
-    needs_refextract = False
+    updated = False
 
     try:
         download_one(recid, arxiv_version)
@@ -446,9 +443,17 @@ def process_one(recid):
         raise
     else:
         store_arxiv_pdf_status(recid, STATUS_OK, arxiv_version)
-        needs_refextract = True
+        updated = True
 
-    return needs_refextract
+    return updated
+
+
+def submit_fixmarc_task(recids):
+    field = [{'doctype' : 'FIX-MARC'}]
+    ffts = {}
+    for recid in recids:
+        ffts[recid] = field
+    bibupload_ffts(ffts, append=False, interactive=False)
 
 
 def submit_refextract_task(recids):
@@ -490,7 +495,7 @@ def task_run_core(name=NAME):
     else:
         recids = fetch_updated_arxiv_records(last_date)
 
-    recids_to_refextract = set()
+    updated_recids = set()
 
     for count, (recid, mod_date) in enumerate(recids):
         if count % 50 == 0:
@@ -502,7 +507,7 @@ def task_run_core(name=NAME):
         write_message('processing %s' % recid, verbose=9)
         try:
             if process_one(recid):
-                recids_to_refextract.add(recid)
+                updated_recids.add(recid)
             time.sleep(5)
         except AlreadyHarvested:
             write_message('already harvested successfully')
@@ -517,8 +522,9 @@ def task_run_core(name=NAME):
             write_message("failed to download: %s" % e)
             time.sleep(20)
 
-    if recids_to_refextract:
-        submit_refextract_task(recids_to_refextract)
+    if updated_recids:
+        submit_fixmarc_task(updated_recids)
+        submit_refextract_task(updated_recids)
 
     store_last_updated(recid, start_date, name)
 
