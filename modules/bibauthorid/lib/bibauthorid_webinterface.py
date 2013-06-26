@@ -1658,7 +1658,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return TEMPLATE.tmpl_search_ticket_box('person_search', 'assign_papers', search_ticket['bibrefs'])
 
     def search_box(self, query, shown_element_functions):
-        pid_list = perform_search(query)
+        pid_list = self._perform_search(query)
         search_results = []
         for pid in pid_list:
             result = defaultdict(list)
@@ -1820,7 +1820,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     req=req,
                     language=ln)
 
-    def perform_search(search_param):
+    def _perform_search(self, search_param):
         pid_canditates_list = []
         
         if search_param.count(":"):
