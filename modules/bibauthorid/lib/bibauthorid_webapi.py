@@ -685,6 +685,26 @@ def insert_log(userinfo, personid, action, tag, value, comment='', transactionid
     return dbapi.insert_user_log(userinfo, personid, action, tag,
                        value, comment, transactionid, userid=uid)
 
+def author_has_papers(pid):
+    '''
+    Checks if the given author identifier has papers.
+
+    @param pid: author identifier
+    @type pid: int
+
+    @return: author has papers
+    @rtype: bool
+    '''
+    try:
+        pid = int(pid)
+    except ValueError:
+        return False
+
+    papers = dbapi.get_all_paper_records(pid)
+    if papers:
+        return True
+
+    return False
 
 def user_can_modify_data(uid, pid):
     '''

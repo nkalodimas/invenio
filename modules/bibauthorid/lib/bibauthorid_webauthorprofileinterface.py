@@ -30,7 +30,9 @@ from invenio.bibauthorid_webapi import get_papers_by_person_id #emitting #pylint
 from invenio.bibauthorid_dbinterface import get_person_db_names_count #emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_dbinterface import get_existing_personids #emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_webapi import get_person_redirect_link #emitting #pylint: disable-msg=W0611
+from invenio.bibauthorid_webapi import author_has_papers #emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_webapi import is_valid_canonical_id #emitting #pylint: disable-msg=W0611
+from invenio.bibauthorid_webapi import is_valid_bibref #emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_webapi import get_person_id_from_paper #emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_webapi import get_person_id_from_canonical_id #emitting #pylint: disable-msg=W0611
 from invenio.bibauthorid_dbinterface import  get_person_names_count #emitting #pylint: disable-msg=W0611

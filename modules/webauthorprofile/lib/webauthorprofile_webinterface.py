@@ -30,8 +30,9 @@ from operator import itemgetter
 from datetime import datetime, timedelta
 
 from invenio.bibauthorid_webauthorprofileinterface import is_valid_canonical_id, \
-    get_person_id_from_paper, get_person_id_from_canonical_id, \
-    search_person_ids_by_name, get_papers_by_person_id, get_person_redirect_link
+    get_person_id_from_paper, get_person_id_from_canonical_id, author_has_papers, \
+    search_person_ids_by_name, get_papers_by_person_id, get_person_redirect_link, \
+    is_valid_bibref
 
 from invenio.webauthorprofile_corefunctions import get_pubs, get_person_names_dicts, \
     get_institute_pubs, get_pubs_per_year, get_coauthors, get_summarize_records, \
@@ -85,234 +86,186 @@ class WebAuthorPages(WebInterfaceDirectory):
         if not component in self._exports:
             return WebAuthorPages(component), path
 
-    def __init__(self, person_id=None):
-        '''
-        Constructor of the web interface.
-        @param person_id: The identifier of a user. Can be one of:
-            - a bibref: e.g. "100:1442,155"
-            - a person id: e.g. "14"
-            - a canonical id: e.g. "Ellis_J_1"
-        @type person_id: string
-        @return: will return an empty object if the identifier is of wrong type
-        @rtype: None (if something is not right)
-        '''
-        self.person_id = None
-        self.cid = None
-        self.original_search_parameter = person_id
-
         if not CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID:
             return
 
-        if (not person_id) or (not isinstance(person_id, str)):
+    def __init__(self, identifier=None):
+        '''
+        Constructor of the web interface.
+
+        @param identifier: identifier of an author. Can be one of:
+            - an author id: e.g. "14"
+            - a canonical id: e.g. "J.R.Ellis.1"
+            - a bibrefrec: e.g. "100:1442,155"
+        @type identifier: str
+        '''
+        self.person_id = -1   # -1 is a not valid author identifier
+        self.cid = None
+        self.original_search_parameter = identifier
+
+        if (not CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID or
+            identifier is None or
+            not isinstance(identifier, str)):
             return
 
-        try:
-            self.person_id = int(person_id)
+        # check if it's a canonical id: e.g. "J.R.Ellis.1"
+        pid = int(get_person_id_from_canonical_id(identifier))
+        if pid >= 0:
+            self.person_id = pid
             self.cid = get_person_redirect_link(self.person_id)
             return
-        except (TypeError, ValueError):
-            pass
 
+        # check if it's an author id: e.g. "14"
         try:
-            self.person_id = int(get_person_id_from_canonical_id(person_id))
-            if self.person_id < 0:
-                if is_valid_canonical_id(person_id):
-                    self.cid = None
-                    return
-                else:
-                    raise ValueError
-            self.cid = get_person_redirect_link(self.person_id)
-            return
-        except (ValueError, TypeError):
-            pass
-
-        fail_bibrecref = False
-        if person_id.count(":") and person_id.count(","):
-            bibref = person_id
-            table, ref, bibrec = None, None, None
-
-            if not bibref.count(":"):
-                fail_bibrecref = True
-
-            if not bibref.count(","):
-                fail_bibrecref = True
-
-            try:
-                table = bibref.split(":")[0]
-                ref = bibref.split(":")[1].split(",")[0]
-                bibrec = bibref.split(":")[1].split(",")[1]
-            except IndexError:
-                fail_bibrecref = True
-            try:
-                table = int(table)
-                ref = int(ref)
-                bibrec = int(bibrec)
-            except (ValueError, TypeError):
-                fail_bibrecref = True
-
-            try:
-                pid = int(get_person_id_from_paper(person_id))
-            except (ValueError, TypeError):
-                fail_bibrecref = True
-
-            if not fail_bibrecref:
+            pid = int(identifier)
+            if author_has_papers(pid):
                 self.person_id = pid
-                self.cid = self.cid = get_person_redirect_link(self.person_id)
+                cid = get_person_redirect_link(pid)
+                # author may not have a canonical id
+                if is_valid_canonical_id(cid):
+                    self.cid = cid
                 return
+        except ValueError:
+            pass
 
-        self.person_id = -1
-        # self.person_id can be: -1 if not valid person_id
+        # check if it's a bibrefrec: e.g. "100:1442,155"
+        if is_valid_bibref(identifier):
+            pid = int(get_person_id_from_paper(identifier))
+            if pid >= 0:
+                self.person_id = pid
+                self.cid = get_person_redirect_link(self.person_id)
+                return
 
     def index(self, req, form):
         '''
         Serve the main person page.
         Will use the object's person id to get a person's information.
 
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: Parameters sent via GET or POST request
+        @param req: apache request object
+        @type req: apache request object
+        @param form: POST/GET variables of the request
         @type form: dict
 
         @return: a full page formatted in HTML
-        @return: string
+        @return: str
         '''
-        argd = wash_urlargd(form,
-                            {'ln': (str, CFG_SITE_LANG),
-                             'verbose': (int, 0),
-                             'recid': (int, -1),
-                             'recompute': (int, 0)
-                             })
+        argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
+                                   'recid': (int, -1),
+                                   'recompute': (int, 0),
+                                   'verbose': (int, 0)})
 
         ln = argd['ln']
-
-        expire_cache = False
-        if 'recompute' in argd and argd['recompute']:
-            expire_cache = True
+        verbose = argd['verbose']
+        url_args = list()
+        if ln != CFG_SITE_LANG:
+            url_args.append('ln=%s' % ln)
+        if verbose:
+            url_args.append('verbose=%s' % verbose)
+        url_tail = ''
+        if url_args:
+            url_tail = '&%s' % '&'.join(url_args)
 
         if CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID:
-            try:
-                self.person_id = int(self.person_id)
-            except (TypeError, ValueError):
-                # In any case, if the parameter is invalid, go to a person search page
-                self.person_id = -1
-                return redirect_to_url(req, "%s/person/search?q=%s" %
-                        (CFG_SITE_URL, self.original_search_parameter))
-
             if self.person_id < 0:
-                return redirect_to_url(req, "%s/person/search?q=%s" %
-                        (CFG_SITE_URL, self.original_search_parameter))
+                return redirect_to_url(req, '%s/author/search?q=%s%s' %
+                                            (CFG_SITE_URL, self.original_search_parameter, url_tail))
         else:
             self.person_id = self.original_search_parameter
 
+        req.content_type = 'text/html'
         if form.has_key('jsondata'):
-            req.content_type = "application/json"
+            req.content_type = 'application/json'
             self.create_authorpage_websearch(req, form, self.person_id, ln)
             return
-        else:
-            req.content_type = "text/html"
+
         req.send_http_header()
         metaheaderadd = '<script type="text/javascript" src="%s/js/webauthorprofile.js"> </script>' % (CFG_SITE_URL)
         metaheaderadd += '<script type="text/javascript" src="%s/js/jquery-lightbox/js/jquery.lightbox-0.5.js"></script>' % (CFG_SITE_URL)
         metaheaderadd += '<link rel="stylesheet" type="text/css" href="%s/js/jquery-lightbox/css/jquery.lightbox-0.5.css" media="screen" />' % (CFG_SITE_URL)
-        metaheaderadd += """
+        metaheaderadd += '''
         <style>
         .hidden {
             display: none;
         }
         </style>
-        """
-        title_message = "Author Publication Profile Page"
-        req.write(pageheaderonly(req=req, title=title_message,
-                                 metaheaderadd=metaheaderadd, language=ln))
+        '''
+        title_message = 'Author Publication Profile Page'
+        req.write(pageheaderonly(req=req,
+                                 metaheaderadd=metaheaderadd,
+                                 title=title_message,
+                                 language=ln))
         req.write(websearch_templates.tmpl_search_pagestart(ln=ln))
+
+        expire_cache = False
+        if argd['recompute']:
+            expire_cache = True
         self.create_authorpage_websearch(req, form, self.person_id, ln, expire_cache)
+
         return page_end(req, 'hb', ln)
 
     def __call__(self, req, form):
         '''
-        Serve the main person page.
+        Serves the main person page.
         Will use the object's person id to get a person's information.
 
-        @param req: Apache Request Object
-        @type req: Apache Request Object
-        @param form: Parameters sent via GET or POST request
+        @param req: apache request object
+        @type req: apache request object
+        @param form: POST/GET variables of the request
         @type form: dict
 
         @return: a full page formatted in HTML
-        @return: string
+        @rtype: str
         '''
-        argd = wash_urlargd(form,
-                    {'ln': (str, CFG_SITE_LANG),
-                     'verbose': (int, 0),
-                     'recid': (int, -1)
-                     })
-        recid = argd['recid']
-
         if not CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID:
             return self.index(req, form)
 
+        argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
+                                   'recid': (int, -1),
+                                   'verbose': (int, 0)})
+
+        ln = argd['ln']
+        verbose = argd['verbose']
+        url_args = list()
+        if ln != CFG_SITE_LANG:
+            url_args.append('ln=%s' % ln)
+        if verbose:
+            url_args.append('verbose=%s' % verbose)
+        url_tail = ''
+        if url_args:
+            url_tail = '?%s' % '&'.join(url_args)
+
         if self.cid:
-            return redirect_to_url(req, '%s/author/%s/' % (CFG_SITE_URL, self.cid))
-        elif self.person_id and self.person_id >= 0:
-            return redirect_to_url(req, '%s/author/%s/' % (CFG_SITE_URL, self.person_id))
+            return redirect_to_url(req, '%s/author/%s/%s' % (CFG_SITE_URL, self.cid, url_tail))
 
-        elif self.person_id and recid > -1:
-            # we got something different from person_id, canonical name or bibrefrec pair
-            # try to figure out a personid
-            argd = wash_urlargd(form,
-                                {'ln': (str, CFG_SITE_LANG),
-                                 'verbose': (int, 0),
-                                 'recid': (int, -1)
-                                 })
-            recid = argd['recid']
-            if not recid:
-                return redirect_to_url(req, "%s/person/search?q=%s" %
-                    (CFG_SITE_URL, self.original_search_parameter))
-                # req.write("Not enough search parameters %s"%
-                #    str(self.original_search_parameter))
+        # author may have only author identifier and not a canonical id
+        if self.person_id > -1:
+            return redirect_to_url(req, '%s/author/%s/%s' % (CFG_SITE_URL, self.person_id, url_tail))
 
-            nquery = self.original_search_parameter
-            sorted_results = search_person_ids_by_name(nquery)
-            test_results = None
-            authors = []
+        recid = argd['recid']
 
-            for results in sorted_results:
-                pid = results[0]
-                authorpapers = get_papers_by_person_id(pid, -1)
-                authorpapers = sorted(authorpapers, key=itemgetter(0),
-                                      reverse=True)
+        if recid > -1:
+            sorted_authors = search_person_ids_by_name(self.original_search_parameter)
+            authors_with_recid = list()
 
-                if (recid and
-                    not (str(recid) in [row[0] for row in authorpapers])):
+            for author, _ in sorted_authors:
+                papers_of_author = get_papers_by_person_id(author, -1)
+                papers_of_author = [paper[0] for paper in papers_of_author]
+
+                if recid not in papers_of_author:
                     continue
 
-                authors.append([results[0], results[1],
-                                authorpapers[0:4]])
+                authors_with_recid.append(int(author))
 
-            test_results = authors
-            if len(test_results) == 1:
-                self.person_id = test_results[0][0]
+            if len(authors_with_recid) == 1:
+                self.person_id = authors_with_recid[0]
                 self.cid = get_person_redirect_link(self.person_id)
-                if self.cid and self.person_id > -1:
-                    redirect_to_url(req, '%s/author/%s/' % (CFG_SITE_URL, self.cid))
-                elif self.person_id > -1:
-                    redirect_to_url(req, '%s/author/%s/' % (CFG_SITE_URL, self.person_id))
-                else:
-                    return redirect_to_url(req, "%s/person/search?q=%s" %
-                    (CFG_SITE_URL, self.original_search_parameter))
-                    # req.write("Could not determine personID from bibrec. What to do here? %s"%
-                    #    str(self.original_search_parameter))
-            else:
-                return redirect_to_url(req, "%s/person/search?q=%s" %
-                    (CFG_SITE_URL, self.original_search_parameter))
-                # req.write("Could not determine personID from bibrec. What to do here 2? %s"%
-                #    str(self.original_search_parameter), str(recid))
+                redirect_to_url(req, '%s/author/%s/%s' % (CFG_SITE_URL, self.cid, url_tail))
 
-        else:
-            return redirect_to_url(req, "%s/person/search?q=%s" %
-                    (CFG_SITE_URL, self.original_search_parameter))
-            # req.write("Search param %s does not represent a valid person, please correct your query"%
-            #    str(self.original_search_parameter))
+        url_tail = ''
+        if url_args:
+            url_tail = '&%s' % '&'.join(url_args)
+        return redirect_to_url(req, '%s/person/search?q=%s%s' %
+                                    (CFG_SITE_URL, self.original_search_parameter, url_tail))
 
     def create_authorpage_websearch(self, req, form, person_id, ln='en', expire_cache=False):
 
