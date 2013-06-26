@@ -71,8 +71,7 @@ from invenio.bibrecord import create_records, \
                               record_add_subfield_into, \
                               record_find_field, \
                               record_extract_oai_id, \
-                              record_extract_dois, \
-                              print_rec
+                              record_extract_dois
 from invenio.search_engine import get_record, record_exists, search_pattern
 from invenio.dateutils import convert_datestruct_to_datetext
 from invenio.errorlib import register_exception
@@ -147,7 +146,13 @@ def bibupload(record, opt_tag=None, opt_mode=None,
     assert(opt_mode in ('insert', 'replace', 'replace_or_insert', 'reference',
         'correct', 'append', 'format', 'holdingpen', 'delete'))
 
-    print_rec(record).decode('utf-8')
+    try:
+        record_xml_output(record).decode('utf-8')
+    except UnicodeDecodeError:
+        msg = "    Failed: Invalid utf-8 characters."
+        write_message(msg, verbose=1, stream=sys.stderr)
+        return (1, -1, msg)
+
 
     error = None
     now = datetime.now() # will hold record creation/modification date
