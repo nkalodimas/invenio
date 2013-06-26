@@ -37,8 +37,7 @@ import signal
 from invenio.bibtask_config import \
     CFG_BIBTASK_VALID_TASKS, \
     CFG_BIBTASK_MONOTASKS, \
-    CFG_BIBTASK_FIXEDTIMETASKS, \
-    CFG_BIBSCHED_LOGDIR
+    CFG_BIBTASK_FIXEDTIMETASKS
 from invenio.config import \
      CFG_PREFIX, \
      CFG_TMPSHAREDDIR, \
@@ -362,7 +361,8 @@ class BibSched(object):
         procname1 = task1.proc.split(':')[0]
         procname2 = task2.proc.split(':')[0]
         for non_compatible_tasks in CFG_BIBSCHED_INCOMPATIBLE_TASKS:
-            if procname1 in non_compatible_tasks and procname2 in non_compatible_tasks:
+            if (task1.proc in non_compatible_tasks or procname1 in non_compatible_tasks) \
+               and (task2.proc in non_compatible_tasks or procname2 in non_compatible_tasks):
                 return False
 
         if task1.proc == task2.proc == 'bibupload':
@@ -403,7 +403,9 @@ class BibSched(object):
                 if procname in non_concurrent_tasks:
                     for t in task_set:
                         t_procname = t.proc.split(':')[0]
-                        if t_procname in non_concurrent_tasks and t.status != 'SLEEPING':
+                        if (t_procname in non_concurrent_tasks
+                            or t.proc in non_concurrent_tasks) \
+                           and t.status != 'SLEEPING':
                             to_sleep.append(t)
 
         # Only needed if we are not freeing a spot already
