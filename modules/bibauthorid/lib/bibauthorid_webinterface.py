@@ -1822,26 +1822,26 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
     def _perform_search(self, search_param):
         pid_canditates_list = []
-        
-        if search_param.count(":"):
-            try:
-                left, right = search_param.split(":")
+        if search_param:
+            if search_param.count(":"):
                 try:
-                    nsearch_param = str(right)
-                except (ValueError, TypeError):
+                    left, right = search_param.split(":")
                     try:
-                        nsearch_param = str(left)
+                        nsearch_param = str(right)
                     except (ValueError, TypeError):
-                        nsearch_param = search_param
-            except ValueError:
+                        try:
+                            nsearch_param = str(left)
+                        except (ValueError, TypeError):
+                            nsearch_param = search_param
+                except ValueError:
+                    nsearch_param = search_param
+            else:
                 nsearch_param = search_param
-        else:
-            nsearch_param = search_param
-        
-        sorted_results = webapi.search_person_ids_by_name(nsearch_param)
-        
-        for result in sorted_results:
-           pid_canditates_list.append(result[0])
+            
+            sorted_results = webapi.search_person_ids_by_name(nsearch_param)
+            
+            for result in sorted_results:
+               pid_canditates_list.append(result[0])
         return pid_canditates_list
             
 
