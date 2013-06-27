@@ -338,15 +338,10 @@ class BibSched(object):
         @return: True if the scheduling was successful, False otherwise,
             e.g. if the task was scheduled concurrently on a different host.
         """
-        if not run_sql("""SELECT id FROM schTASK WHERE id=%s AND host=''
-                          AND status='WAITING'""", (task_id, )):
-            ## The task was already tied?
-            return False
-        run_sql("""UPDATE schTASK SET host=%s, status='SCHEDULED'
-                   WHERE id=%s AND host='' AND status='WAITING'""",
-                (self.hostname, task_id))
-        return bool(run_sql("SELECT id FROM schTASK WHERE id=%s AND host=%s",
-                            (task_id, self.hostname)))
+        r = run_sql("""UPDATE schTASK SET host=%s, status='SCHEDULED'
+                   WHERE id=%s AND status='WAITING'""",
+                                            (self.hostname, task_id))
+        return bool(r)
 
     def filter_for_allowed_tasks(self):
         """ Removes all tasks that are not allowed in this Invenio instance
@@ -475,6 +470,10 @@ class BibSched(object):
                 Log("Cannot run because priority < -10", debug)
                 return False
 
+            if task.host and task.host != self.hostname:
+                Log("Cannot run because this task is bound to a different machine", debug)
+                return False
+
             lower, higher = self.split_active_tasks_by_priority(task)
             Log('lower: %r' % lower, debug)
             Log('higher: %r' % higher, debug)
@@ -567,7 +566,10 @@ class BibSched(object):
                     Log("Cannot run because all resources (%s) are used (%s), active: %s" % (CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS, len(self.node_active_tasks), self.node_active_tasks), debug)
                     return False
 
-                if task.status in ("SLEEPING", "ABOUT TO SLEEP"):
+                if task.status in ("SCHEDULED",):
+                    Log("Task is already scheduled", debug)
+                    return False
+                elif task.status in ("SLEEPING", "ABOUT TO SLEEP"):
                     if task.host != self.hostname:
                         Log("We can't wake up tasks that are not in the same node", debug)
                         return False
