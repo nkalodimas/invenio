@@ -1450,7 +1450,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             if 'Comment' in form:
                 comment = form['Comment']
-                "".join(comment.split())
+                comment = comment.rstrip()
 
             if 'last_page_visited' in form:
                 last_page_visited = form['last_page_visited']
@@ -1744,7 +1744,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             result['name_variants'] = webapi.get_person_names_from_id(pid)
             result['external_ids'] = webapi.get_external_ids_from_person_id(pid)
             if 'show_status' in shown_element_functions:
-                result['status'] = is_profile_available(pid)
+                result['status'] = webapi.is_profile_available(pid)
             search_results.append(result)
 
         body = TEMPLATE.tmpl_author_search(query, search_results, shown_element_functions)

@@ -2737,14 +2737,15 @@ class Template:
         _ = gettext_set_language(ln)
 
         html_head = _("<strong> External Ids </strong>")
-
-        html_ext_ids = '<div>'
-
-        html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
-        html_ext_ids += '<input type="hidden" name="add_missing_external_ids" value="True">'
-        html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-        html_ext_ids += '<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>'
+        
         if ext_ids_data['add_power'] or ext_ids_data['own_profile']:
+            html_ext_ids = '<div>'
+    
+            html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+            html_ext_ids += '<input type="hidden" name="add_missing_external_ids" value="True">'
+            html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+            html_ext_ids += '<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>'
+
             if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
                 html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
                 html_ext_ids += '   <input type="hidden" name="delete_external_ids" value="True">'
@@ -2908,22 +2909,21 @@ class Template:
         html = []
         h = html.append
         #h('<div style="display: block; width: 600px; text-align: left;">')
-        h('<div style="width:100%; height: 600px;">')
+        h('<div style="width:100%; minheight: 300px;">')
         
-        h(    '<div  style="display: table; border-radius: 10px; padding: 20px; color: #0900C4; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
+        h(    '<div  style="display: table; border-radius: 10px; padding: 20px; color: #3366CC; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
         h(      '<div align="center">')
         h(          '<p style="font-size: 20px; font-weight: bold;"> Report a problem</p>')
+        h(          '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>')
         h(      '</div>')
-        h(      '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>')
-
         h(      '<form action="/author/claim/action" method="post">')
         h(        '<fieldset style="border: 0; display: inline-block;">')
-        h(          '<p><label for="Name"> Name: </label><input style="float: right;" name="Name" value="%s" type="text"  size="40"></p>' % (name_to_prefill))
-        h(          '<p><label for="E-mail"> E-mail address: </label><input style="float: right;" name="E-mail" value="%s" type="email" size="40"></p>' 
+        h(          '<p><label for="Name"> Name: </label><input style="float: right; border-radius: 4px;" required="True" name="Name" value="%s" type="text"  size="40"></p>' % (name_to_prefill))
+        h(          '<p><label for="E-mail"> E-mail: </label><input style="float: right; border-radius: 4px;" name="E-mail" value="%s" type="email" size="40"></p>' 
                                                                                                                                           % (email_to_prefill))
         h(          '<input type="hidden" name="last_page_visited" value="%s" />' % (str(last_page_visited),))
         h(          '<p>Comment:</p>')
-        h(          '<p><textarea style="max-width:410px; min-width:500px;" name="Comment" cols="60" rows="5" id="Comment"></textarea></p>')
+        h(          '<p><textarea style="max-width:500px; min-width:500px; border-radius: 4px;" name="Comment" cols="60" rows="5" required="True" id="Comment"></textarea></p>')
         h(       '</fieldset>')
         h(       '<button class="aid_btn_blue" style="display: block; margin: 0 auto;" type="submit" name="send_message">Submit</button>')
 
