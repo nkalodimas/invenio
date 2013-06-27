@@ -1494,6 +1494,23 @@ def create_request_ticket(userinfo, ticket):
 
     return True
 
+def create_request_message(userinfo):
+    mailcontent = []
+    
+    for info_type in userinfo:
+        mailcontent.append(info_type + ': ')
+        mailcontent.append(str(userinfo[info_type]) + '\n')
+
+    sender = CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL
+
+    if bconfig.TICKET_SENDING_FROM_USER_EMAIL and userinfo['email']:
+        sender = userinfo['email']
+
+    send_email(sender,
+               'thomas@pcgssi0902',#CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+               subject="[Author] Help Request",
+               content="\n".join(mailcontent))
+
 def send_user_commit_notification_email(userinfo, ticket):
     '''
     Sends commit notification email to RT system

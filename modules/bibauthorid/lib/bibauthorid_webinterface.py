@@ -18,6 +18,8 @@
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 from reportlab.lib.arciv import ArcIV
 from invenio.webauthorprofile_corefunctions import Orcid_request_error
+from invenio.webmessage_dblayer import send_message
+from aeidon.util import last
 
 """ Bibauthorid Web Interface Logic and URL handler. """
 
@@ -30,6 +32,7 @@ from cgi import escape
 from pprint import pformat
 from operator import itemgetter
 import re
+import pprint
 
 try:
     from invenio.jsonutils import json, json_unicode_to_utf8, CFG_JSON_AVAILABLE
@@ -1033,6 +1036,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                              'merge': (str, None),
                              'repeal': (str, None),
                              'reset': (str, None),
+                             'send_message': (str, None),
                              'set_canonical_name': (str, None),
                              'to_other_person': (str, None)})
 
@@ -1061,6 +1065,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                              'merge',
                              'repeal',
                              'reset',
+                             'send_message',
                              'set_canonical_name',
                              'to_other_person']
 
@@ -1404,6 +1409,62 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             return self._ticket_dispatch(ulevel, req, False, False)
             # return self.perform(req, form)             
 
+        def send_message():
+            self._session_bareinit(req)
+            session = get_session(req)
+            pinfo = session['personinfo']
+            #pp = pprint.PrettyPrinter(indent=4)
+            #session_dump = pp.pprint(pinfo)
+            session_dump = str(pinfo)
+            name = ''
+            name_changed = False
+            name_given = ''
+            email = ''
+            email_changed = False
+            email_given = ''
+            comment = ''
+            last_page_visited = ''
+
+            if "user_last_name" in pinfo:
+                name = pinfo["user_last_name"]
+    
+            if "user_first_name" in pinfo:
+                name += pinfo["user_first_name"]
+        
+            if "user_email" in pinfo:
+                email = pinfo["user_email"]            
+
+            if 'Name' in form:
+                if not name:
+                    name = form['Name']
+                elif name != form['Name']:
+                    name_given = form['Name']
+                    name_changed = True
+                    
+            if 'E-mail'in form:
+                if not name:
+                    email = form['E-mail']
+                elif name != form['E-mail']:
+                    email_given = form['E-mail']
+                    email_changed = True
+
+            if 'Comment' in form:
+                comment = form['Comment']
+                "".join(comment.split())
+
+            if 'last_page_visited' in form:
+                last_page_visited = form['last_page_visited']
+
+            uid = getUid(req)
+            userinfo = {'uid-ip': "userid: %s (from %s)" % (uid, req.remote_ip),
+                        'name': name,
+                        'email': email,
+                        'comment': comment,
+                        'last_page_visited': last_page_visited,
+                        'session_dump': session_dump}
+            
+            webapi.create_request_message(userinfo)
+            
         def set_canonical_name():
             if argd['pid'] > -1:
                 pid = argd['pid']
@@ -1444,6 +1505,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                             'merge': merge,
                             'repeal': confirm_repeal_reset,
                             'reset': confirm_repeal_reset,
+                            'send_message': send_message,
                             'set_canonical_name': set_canonical_name,
                             'to_other_person': claim,
                             None: none_action}
@@ -2348,11 +2410,29 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         ln = argd['ln']
         # ln = wash_language(argd['ln'])
-        _ = gettext_set_language(ln)        
+        _ = gettext_set_language(ln)
+                
         if not CFG_INSPIRE_SITE:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
 
-        body = TEMPLATE.tmpl_message_form()
+        self._session_bareinit(req)
+        session = get_session(req)
+        pinfo = session['personinfo']
+        
+        name_to_prefill = ''
+        if "user_last_name" in pinfo:
+            name_to_prefill = pinfo["user_last_name"]
+
+        if "user_first_name" in pinfo:
+            name_to_prefill += pinfo["user_first_name"]
+        
+        email_to_prefill = ''
+        if "user_email" in pinfo:
+            email_to_prefill = pinfo["user_email"]
+
+        # changeeeee when you implement the redirect algorithm
+        last_page_visited = 'author/claim/manage_profile?pid=10'
+        body = TEMPLATE.tmpl_message_form(last_page_visited, name_to_prefill, email_to_prefill)
 
         title = _('Help!')
         return page(title=title,
@@ -2360,7 +2440,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     body=body,
                     req=req,
                     language=ln)        
-
+    
     def export(self, req, form):
         '''
         Generate JSONized export of Person data

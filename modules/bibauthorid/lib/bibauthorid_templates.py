@@ -2904,34 +2904,34 @@ class Template:
             return '\n'.join(out)
         return cont
 
-    def tmpl_message_form(self):
+    def tmpl_message_form(self, last_page_visited,  name_to_prefill, email_to_prefill):
         html = []
         h = html.append
         #h('<div style="display: block; width: 600px; text-align: left;">')
-        h('<div style="width:100%; height: 600px;">'
+        h('<div style="width:100%; height: 600px;">')
         
-            '<div  style="display: table; border-radius: 10px; padding: 20px; color: #0900C4; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">'
-                '<div align="center">'
-                    '<p style="font-size: 20px; font-weight: bold;"> Report a problem</p>'
-                '</div>'
-                '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>'
+        h(    '<div  style="display: table; border-radius: 10px; padding: 20px; color: #0900C4; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
+        h(      '<div align="center">')
+        h(          '<p style="font-size: 20px; font-weight: bold;"> Report a problem</p>')
+        h(      '</div>')
+        h(      '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>')
 
-                '<form action="mailto:admin@example.com" enctype="text/plain" method="post">'
-                  '<fieldset style="border: 0; display: inline-block;">'
-                    '<p><label for="Name"> Name: </label><input style="float: right;" name="Name" type="text"  size="40"></p>'
-                    '<p><label for="E-mail"> E-mail address: </label><input style="float: right;" name="E-mail" type="email" size="40"></p>'
-                    '<p>Comment:</p>'
+        h(      '<form action="/author/claim/action" method="post">')
+        h(        '<fieldset style="border: 0; display: inline-block;">')
+        h(          '<p><label for="Name"> Name: </label><input style="float: right;" name="Name" value="%s" type="text"  size="40"></p>' % (name_to_prefill))
+        h(          '<p><label for="E-mail"> E-mail address: </label><input style="float: right;" name="E-mail" value="%s" type="email" size="40"></p>' 
+                                                                                                                                          % (email_to_prefill))
+        h(          '<input type="hidden" name="last_page_visited" value="%s" />' % (str(last_page_visited),))
+        h(          '<p>Comment:</p>')
+        h(          '<p><textarea style="max-width:410px; min-width:500px;" name="Comment" cols="60" rows="5" id="Comment"></textarea></p>')
+        h(       '</fieldset>')
+        h(       '<button class="aid_btn_blue" style="display: block; margin: 0 auto;" type="submit" name="send_message">Submit</button>')
 
-                    '<p><textarea style="max-width:410px; min-width:500px;" name="Comment" cols="60" rows="5" id="Comment"></textarea></p>'
-                 '</fieldset>'
-                 '<button class="aid_btn_blue" style="display: block; margin: 0 auto;" type="submit" name="Submit">Submit</button>'
-
-               '</form>'
+        h(     '</form>')
         
-            '</div>')
+        h(  '</div>')
         
-        #'</div>')
-
+        h('</div>')
 
         return ' '.join(html)
     # pylint: enable=C0301
