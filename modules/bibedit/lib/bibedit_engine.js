@@ -3302,7 +3302,7 @@ function convertFieldIntoEditable(cell, shouldSelect){
 }
 
 
-function onContentClick(cell) {
+function onContentClick(event, cell) {
   /*
    * Handle click on editable content fields.
    */
