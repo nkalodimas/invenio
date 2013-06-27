@@ -400,7 +400,7 @@ class BibSched(object):
             to_sleep = [t for t in task_set if t.status != 'SLEEPING']
         else:
             for non_concurrent_tasks in CFG_BIBSCHED_NON_CONCURRENT_TASKS:
-                if procname in non_concurrent_tasks:
+                if procname in non_concurrent_tasks or task.proc in non_concurrent_tasks:
                     for t in task_set:
                         t_procname = t.proc.split(':')[0]
                         if (t_procname in non_concurrent_tasks
