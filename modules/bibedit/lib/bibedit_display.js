@@ -179,7 +179,7 @@ function createRow(tag, ind1, ind2, subfieldCode, subfieldValue, fieldID,
             if (autocomplete) {
                 cellContentTitle = 'title="Click to edit (complete values: ctrl-shift-a) " ';
             }
-            cellContentOnClick = 'onclick="onContentClick(this)" ';
+            cellContentOnClick = 'onclick="onContentClick(event, this)" ';
         }
     }
     cellContentAdditionalClass = "";
