@@ -759,10 +759,10 @@ def compare_first_names(fna, fnb):
         avg_names_screwup = 0
 
     if avg_names_screwup < 0.7:
-        name_comparison_print("|--- cutting names screwup to zero!")
-        max_names_screwup = 0
-        min_names_screwup = 0
-        avg_names_screwup = 0
+        name_comparison_print("|--- cutting names screwup to one!")
+        max_names_screwup = 1
+        min_names_screwup = 1
+        avg_names_screwup = 1
 
     name_comparison_print("|--- min screwup: %s" % min_names_screwup)
     name_comparison_print("|--- max screwup: %s" % max_names_screwup)
