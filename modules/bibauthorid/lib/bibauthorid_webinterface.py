@@ -16,10 +16,6 @@
 ## You should have received a copy of the GNU General Public License
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
-from reportlab.lib.arciv import ArcIV
-from invenio.webauthorprofile_corefunctions import Orcid_request_error
-from invenio.webmessage_dblayer import send_message
-from aeidon.util import last
 
 """ Bibauthorid Web Interface Logic and URL handler. """
 
@@ -1012,6 +1008,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                              'ext_system': (str, None),
                              'ln': (str, CFG_SITE_LANG),
                              'pid': (int, None),
+                             'search_param': (str, None),
                              'rt_action': (str, None),
                              'rt_id': (int, None),
                              'selection': (list, None),
@@ -1137,6 +1134,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             else:
                 return self._error_page(req, ln,
                         "Fatal: cannot associate profile without a person id.")
+            
             if pid_in_cookie != -1:
                 redirect_pid = pid_in_cookie
             else:
@@ -1154,7 +1152,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if profile_claimed:
                 redirect_to_url(req, '%s/author/claim/manage_profile?pid=%s' % (CFG_SITE_URL, redirect_pid))
             else:
-                redirect_to_url(req, '%s/author/claim/choose_profile?failed=%s' % (CFG_SITE_URL, True))
+                param=''
+                if 'search_param' in argd and argd['search_param']:
+                    param = '&search_param=' + argd['search_param']
+                redirect_to_url(req, '%s/author/claim/choose_profile?failed=%s%s' % (CFG_SITE_URL, True, param))
 
         def bibref_check_submit():
             pinfo["bibref_check_reviewed_bibrefs"] = list()
@@ -1430,7 +1431,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
     
             if "user_first_name" in pinfo:
                 name += pinfo["user_first_name"]
-        
+            
+            name = name.rstrip()
             if "user_email" in pinfo:
                 email = pinfo["user_email"]            
 
@@ -1440,9 +1442,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 elif name != form['Name']:
                     name_given = form['Name']
                     name_changed = True
+                name = name.rstrip()
                     
             if 'E-mail'in form:
-                if not name:
+                if not email:
                     email = form['E-mail']
                 elif name != form['E-mail']:
                     email_given = form['E-mail']
@@ -1452,6 +1455,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 comment = form['Comment']
                 comment = comment.rstrip()
 
+
+            if not name or not comment:
+                redirect_to_url(req, '%s/author/claim/help?incomplete_params=%s' % (CFG_SITE_URL, True))
             if 'last_page_visited' in form:
                 last_page_visited = form['last_page_visited']
 
@@ -2108,12 +2114,12 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 # get information about the most probable profile and show it to the user
                 probable_profile_suggestion_info = webapi.get_profile_suggestion_info(req, probable_pid)
 
-            body = body + TEMPLATE.tmpl_welcome_probable_profile_suggestion(probable_profile_suggestion_info, last_viewed_profile_suggestion_info)
-
             if not search_param:
                 # we prefil the search with most relevant among the names that we get from external systems
                 name_variants = webapi.get_name_variants_list_from_remote_systems_names(remote_login_systems_info)
                 search_param = most_relevant_name(name_variants)
+
+            body = body + TEMPLATE.tmpl_welcome_probable_profile_suggestion(probable_profile_suggestion_info, last_viewed_profile_suggestion_info, search_param)
 
             shown_element_functions = dict()
             shown_element_functions['button_gen'] = TEMPLATE.tmpl_choose_profile_search_button_generator()
@@ -2406,12 +2412,15 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
     def help(self,req, form):
         argd = wash_urlargd(
             form,
-            {'ln': (str, CFG_SITE_LANG)})
+            {'ln': (str, CFG_SITE_LANG),
+             'incomplete_params': (str, None)})
 
         ln = argd['ln']
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
-                
+        
+        incomplete_params = argd['incomplete_params']
+        
         if not CFG_INSPIRE_SITE:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
 
@@ -2432,7 +2441,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         # changeeeee when you implement the redirect algorithm
         last_page_visited = 'author/claim/manage_profile?pid=10'
-        body = TEMPLATE.tmpl_message_form(last_page_visited, name_to_prefill, email_to_prefill)
+        body = TEMPLATE.tmpl_message_form(last_page_visited, name_to_prefill, email_to_prefill, incomplete_params)
 
         title = _('Help!')
         return page(title=title,
