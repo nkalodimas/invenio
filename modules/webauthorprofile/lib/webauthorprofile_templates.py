@@ -158,7 +158,7 @@ class Template:
     tmpl_opensearch_html_url_syntax = "%(CFG_SITE_URL)s/search?p={searchTerms}&amp;jrec={startIndex}&amp;rg={count}&amp;ln={language}" % {'CFG_SITE_URL': CFG_SITE_URL}
 
     def loading_html(self):
-        return '<img src=/img/ui-anim_basic_16x16.gif> Loading...'
+        return '<img src=/img/ui-anim_basic_16x16.gif class="loadingGif" ><span> Loading...</span>'
 
     def tmpl_print_searchresultbox(self, bid, header, body):
         """ Print a nicely formatted box for search results. """
@@ -632,7 +632,7 @@ class Template:
         if loading:
             html_orcid = self.loading_html()
         if add_box:
-            orcid_box = self.tmpl_print_searchresultbox('orcid', html_head, html_orcid)
+            orcid_box = self.tmpl_print_searchresultbox('orcid_info', html_head, html_orcid)
             return orcid_box
         else:
             return html_orcid
