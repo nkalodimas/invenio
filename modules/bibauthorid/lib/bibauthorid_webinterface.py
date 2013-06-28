@@ -706,33 +706,33 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         @rtype: str
         '''
         def ticket_dispatch_guest(req, autoclaim_show_review = False, autoclaim = False):
-            redirect_info = webapi.manage_tickets(req, autoclaim_show_review, autoclaim)
+            page_info = webapi.manage_tickets(req, autoclaim_show_review, autoclaim)
             if autoclaim_show_review:
                 webapi.store_users_open_tickets(req)
                 webapi.restore_incomplete_autoclaim_tickets(req)
             
-            if redirect_info['type'] == 'Submit Attribution':
+            if page_info['type'] == 'Submit Attribution':
 
-                body = TEMPLATE.tmpl_bibref_check(redirect_info['body_params'][0],
-                                              redirect_info['body_params'][1])
+                body = TEMPLATE.tmpl_bibref_check(page_info['body_params'][0],
+                                              page_info['body_params'][1])
                 body = TEMPLATE.tmpl_person_detail_layout(body)
             
                 metaheaderadd = self._scripts(kill_browser_cache=True)
-                title = _(redirect_info['title'])
+                title = _(page_info['title'])
             
                 return page(title=title,
                     metaheaderadd=metaheaderadd,
                     body=body,
                     req=req,
                     language=ln)
-            elif redirect_info['type'] == 'review actions':
-                body = TEMPLATE.tmpl_ticket_final_review(req, redirect_info['body_params'][0],
-                                                         redirect_info['body_params'][1],
-                                                         redirect_info['body_params'][2],
-                                                         redirect_info['body_params'][3], autoclaim)
+            elif page_info['type'] == 'review actions':
+                body = TEMPLATE.tmpl_ticket_final_review(req, page_info['body_params'][0],
+                                                         page_info['body_params'][1],
+                                                         page_info['body_params'][2],
+                                                         page_info['body_params'][3], autoclaim)
                 body = TEMPLATE.tmpl_person_detail_layout(body)
                 metaheaderadd = self._scripts(kill_browser_cache=True)
-                title = _(redirect_info['title'])
+                title = _(page_info['title'])
             
                 # body = body + '<pre>' + pformat(pinfo) + '</pre>'
                 return page(title=title,
@@ -1430,11 +1430,12 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 name = pinfo["user_last_name"]
     
             if "user_first_name" in pinfo:
-                name += pinfo["user_first_name"]
-            
+                name += pinfo["user_first_name"]            
             name = name.rstrip()
+
             if "user_email" in pinfo:
                 email = pinfo["user_email"]            
+            email = email.rstrip()
 
             if 'Name' in form:
                 if not name:
@@ -1450,13 +1451,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 elif name != form['E-mail']:
                     email_given = form['E-mail']
                     email_changed = True
+                email = email.rstrip()
 
             if 'Comment' in form:
                 comment = form['Comment']
                 comment = comment.rstrip()
 
 
-            if not name or not comment:
+            if not name or not comment or not email:
                 redirect_to_url(req, '%s/author/claim/help?incomplete_params=%s' % (CFG_SITE_URL, True))
             if 'last_page_visited' in form:
                 last_page_visited = form['last_page_visited']
@@ -2449,7 +2451,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     body=body,
                     req=req,
                     language=ln)        
-    
+
     def export(self, req, form):
         '''
         Generate JSONized export of Person data
