@@ -16,6 +16,7 @@
 ## You should have received a copy of the GNU General Public License
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+from symbol import parameters
 '''
 Bibauthorid_webapi
 Point of access to the documents clustering facility.
@@ -32,7 +33,7 @@ import invenio.search_engine as search_engine
 from invenio.search_engine import perform_request_search
 from cgi import escape
 from invenio.dateutils import strftime
-from time import gmtime, ctime
+from time import time, gmtime, ctime
 from invenio.access_control_admin import acc_find_user_role_actions
 from invenio.webuser import collect_user_info, get_session, getUid
 from invenio.webuser import isUserSuperAdmin
@@ -979,42 +980,48 @@ def login_status(req):
 
 def session_bareinit(req):
     session = get_session(req)
-    try:
+
+    changed = False
+
+    if 'personinfo' in session:
         pinfo = session['personinfo']
-        if 'most_compatible_person' not in pinfo:
-            pinfo['most_compatible_person'] = None
-            session.dirty = True
-        if 'profile_suggestion_info' not in pinfo:
-            pinfo["profile_suggestion_info"] = None
-            session.dirty = True
-        if 'ticket' not in pinfo:
-            pinfo["ticket"] = []
-            session.dirty = True
-        if 'users_open_tickets_storage' not in pinfo:
-            pinfo["users_open_tickets_storage"] = []
-            session.dirty = True
-        if 'incomplete_autoclaimed_tickets_storage' not in pinfo:
-            pinfo["incomplete_autoclaimed_tickets_storage"] = []
-            session.dirty = True
-        if 'remote_login_system' not in pinfo:
-            pinfo["remote_login_system"] = dict()
-            session.dirty = True
-        if 'external_ids' not in pinfo:
-            pinfo["external_ids"] = dict()
-            session.dirty = True
-        for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
-            if system not in pinfo["remote_login_system"]:
-                pinfo['remote_login_system'][system] = {'name': None, 'email': None}
-                session.dirty = True
-    except KeyError:
+    else:
         pinfo = dict()
-        session['personinfo'] = pinfo
+        changed = True
+    
+    if 'visit diary' not in pinfo:
+        pinfo['visit_diary'] = dict()
+        changed = True
+    if diary_size not in pinfo:
+        pinfo['diary_size_per_category'] = 5
+        changed = True
+    if 'most_compatible_person' not in pinfo:
+        pinfo['most_compatible_person'] = None
+        changed = True
+    if 'profile_suggestion_info' not in pinfo:
+        pinfo["profile_suggestion_info"] = None
+        changed = True
+    if 'ticket' not in pinfo:
         pinfo["ticket"] = []
-        pinfo['users_open_tickets_storage'] = []
-        pinfo['remote_login_system'] = dict()
-        pinfo['incomplete_autoclaimed_tickets_storage'] = []
-        for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
-            pinfo["remote_login_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
+        changed = True
+    if 'users_open_tickets_storage' not in pinfo:
+        pinfo["users_open_tickets_storage"] = []
+        changed = True
+    if 'incomplete_autoclaimed_tickets_storage' not in pinfo:
+        pinfo["incomplete_autoclaimed_tickets_storage"] = []
+        changed = True
+    if 'remote_login_system' not in pinfo:
+        pinfo["remote_login_system"] = dict()
+        changed = True
+    if 'external_ids' not in pinfo:
+        pinfo["external_ids"] = dict()
+        changed = True
+    for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
+        if system not in pinfo["remote_login_system"]:
+            pinfo['remote_login_system'][system] = {'name': None, 'email': None}
+            changed = True
+
+    if changed:
         session.dirty = True
 
 # all teh get_info methods should standardize the content:
@@ -1694,7 +1701,6 @@ def get_person_info_by_pid(pid):
 #           Ticket Functions               #
 ############################################
 
-
 def add_tickets(req, pid, bibrefs, action):
     session = get_session(req)
     pinfo = session["personinfo"]
@@ -1738,7 +1744,7 @@ def manage_tickets(req, autoclaim_show_review, autoclaim):
     session = get_session(req)
     pinfo = session["personinfo"]
     ticket = pinfo["ticket"]
-    redirect_info = dict()
+    page_info = dict()
 
     reviews_to_handle = is_ticket_review_handling_required(req)
     
@@ -1748,10 +1754,10 @@ def manage_tickets(req, autoclaim_show_review, autoclaim):
         if is_required:
             bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
             if not autoclaim and not autoclaim_show_review:
-                redirect_info['type'] = 'Submit Attribution'
-                redirect_info['title'] = 'Submit Attribution Information'
-                redirect_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
-                return redirect_info
+                page_info['type'] = 'Submit Attribution'
+                page_info['title'] = 'Submit Attribution Information'
+                page_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
+                return page_info
     else:
         handle_ticket_review_results(req, autoclaim)
         
@@ -1766,15 +1772,15 @@ def manage_tickets(req, autoclaim_show_review, autoclaim):
 
     if not can_commit_ticket(req):
         mark_yours, mark_not_yours, mark_theirs, mark_not_theirs = confirm_valid_ticket(req)
-        redirect_info['type'] = 'review actions'
-        redirect_info['title'] = 'Please review your actions'
-        redirect_info['body_params'] = [mark_yours, mark_not_yours, mark_theirs, mark_not_theirs]
-        return redirect_info
+        page_info['type'] = 'review actions'
+        page_info['title'] = 'Please review your actions'
+        page_info['body_params'] = [mark_yours, mark_not_yours, mark_theirs, mark_not_theirs]
+        return page_info
 
 
     ticket_commit(req)
-    redirect_info['type'] = 'dispatch end'
-    return redirect_info    
+    page_info['type'] = 'dispatch end'
+    return page_info    
 
 
 def confirm_valid_ticket(req):
@@ -2285,6 +2291,73 @@ def get_stored_incomplete_autoclaim_tickets(req):
     return temp_storage
 
 
+############################################
+#         Visit diary Functions            #
+############################################
+
+def diary(action, caller = None, category = None, pid = None, parameters = None):
+    session_bareinit(req)
+    session = get_session(req)
+    pinfo = session['personinfo']
+    diary = pinfo['visit_diary']
+    diary_size_per_category = pinfo['diary_size_per_category']
+
+    def add_category():
+        diary[category] = []
+
+    def category_exists():
+        if category in diary:
+            return True
+        return False
+    
+    def diary_is_full():
+        if diary[category].count == diary_size:
+            return True
+        return False
+        
+    def get_last_entry():
+        # take the last entry of each category and store the data in a dictionary with key the entry time
+        last_entry_per_category = [{diary[category][-1]['entry_time']:{'category':category,
+                                                                       'parameters': diary[category][-1]['parameters'],
+                                                                       'pid': diary[category][-1]['pid']}
+                                    } for category in diary.keys()]
+        # take the most recent entry
+        last_entry = max(last_entry_per_category.keys())
+        
+        canonical_name = ''
+        if last_entry['pid']:
+            canonical_name = '/' + get_canonical_id_from_person_id(pid)
+
+        link_param = ''
+        if last_entry['parameters']:
+            link_param = '?'
+            link_param += '&'.join([param_type + '=' + param_value for (param_type, param_value) in parameters])
+
+        last_entry_link = 'author/%s%s%s' % (last_entry_per_category[last_entry]['parameters'], canonical_name, link_param)
+        return last_entry_link
+
+    def log_visit():
+        if not category_exists(category) and category != None:
+            add_category(category)
+        if diary_is_full(category):
+            remove_oldest_visit(category)    
+
+        diary[category].append({'entry_time':time(), 'parameters': parameters, 'pid':pid})
+
+    def redirect():
+        pass
+        
+    def remove_oldest_visit():
+        diary[category].pop(0)
+
+    action_functions = {'get_last_entry': get_last_entry,
+                        'log_visit': log_visit,
+                        'redirect': redirect}
+    
+    caller_category_mapping = {
+                               }
+        
+    return action_functions[action]()
 
 REMOTE_LOGIN_SYSTEMS_FUNCTIONS = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
 IS_LOGGED_IN_THROUGH = {'arXiv': is_logged_in_through_arxiv, 'orcid': is_logged_in_through_orcid}

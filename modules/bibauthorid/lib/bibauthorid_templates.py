@@ -1597,22 +1597,24 @@ class Template:
         return stub
 
     def tmpl_choose_profile_search_button_generator(self):
-        def stub(pid):
+        def stub(pid, search_param):
             text = self._("This is my profile")
-            link = "%s/author/claim/action?associate_profile=True&pid=%s" % (CFG_SITE_URL, str(pid))
-            return text, link
+            parameters = [('associate_profile', True), ('pid', str(pid)), ('search_param', search_param)]
+            link = "%s/author/claim/action" % (CFG_SITE_URL)
+            return text, link, parameters
 
         return stub
 
     def tmpl_assigning_search_button_generator(self, bibrefs):
-        def stub(pid):
+        def stub(pid, search_param):
             text = self._("Attribute paper")
-            link = "%s/author/claim/action?confirm=True&pid=%s" % (CFG_SITE_URL, str(pid))
+            parameters = [('confirm', True), ('pid', str(pid)), ('search_param', search_param)]
+            link = "%s/author/claim/action" % (CFG_SITE_URL)
 
             for r in bibrefs:
                 link = link + '&selection=%s' % str(r)
 
-            return text, link
+            return text, link, parameters
 
         return stub
 
@@ -1793,14 +1795,24 @@ class Template:
             h('</td>')
 
             if show_action_button:
-                action_button_text, action_button_link = shown_element_functions['button_gen'](pid)
+                action_button_text, action_button_link, action_button_parameters = shown_element_functions['button_gen'](pid, query)
                 #Action link
                 h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center">')
                 # h(('<span >'
                 #             '<a rel="nofollow" href="%s" class="confirmlink">'
                 #             '<strong>%s</strong>' + '</a></span>')
                 #             % (action_button_link, action_button_text))
-                h('<a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s' % (action_button_link, action_button_text))
+                parameters_sublink = ''
+
+                if action_button_link:
+                    parameters_sublink = '?' + action_button_parameters[0][0] + '=' + str(action_button_parameters[0][1])
+
+                for (param_type,param_value) in action_button_parameters[1:]:
+                    parameters_sublink += '&' + param_type + '=' + str(param_value)
+
+                h('<a rel="nofollow" href="%s%s" class="confirmlink"><button type="button">%s' % (
+                                                            action_button_link, parameters_sublink, action_button_text))
+
                 h('</button></a>')
                 h('</td>')
             h('</tr>')
@@ -2305,7 +2317,7 @@ class Template:
         h('</br>')
         return "\n".join(html)
 
-    def tmpl_welcome_probable_profile_suggestion(self, probable_profile_suggestion_info, last_viewed_profile_suggestion_info):
+    def tmpl_welcome_probable_profile_suggestion(self, probable_profile_suggestion_info, last_viewed_profile_suggestion_info, search_param):
         '''
         Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through.
         '''
@@ -2313,6 +2325,11 @@ class Template:
         h = html.append
         last_viewed_profile_message = self._("The following profile is the one you were viewing before logging in: ")
         probable_profile_message = self._("We strongly believe that your profile is the following: ")
+
+        # if the user has searched then his choice should be remembered in case the chosen profile is not available
+        param=''
+        if search_param:
+            param = '&search_param=' + search_param
 
         h('<table border="0">')
         if probable_profile_suggestion_info:
@@ -2323,7 +2340,8 @@ class Template:
                                                                            probable_profile_suggestion_info['canonical_name_string']))
             h('</td>')
             h('<td>')
-            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s" class="confirmlink"><button type="button">%s' % (str(probable_profile_suggestion_info['pid']), 'This is my profile'))
+            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+                                                                                str(probable_profile_suggestion_info['pid']), param, 'This is my profile'))
             h('</td>')
             h('</tr>')
         if not last_viewed_profile_suggestion_info:
@@ -2339,7 +2357,8 @@ class Template:
             h('</td>')
             h('<td>')
             
-            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s" class="confirmlink"><button type="button">%s' % (str(last_viewed_profile_suggestion_info['pid']), 'This is my profile'))
+            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+                                                                                str(last_viewed_profile_suggestion_info['pid']), param, 'This is my profile'))
             h('</td>')
             h('</tr>')      
             h('</table>')
@@ -2737,14 +2756,15 @@ class Template:
         _ = gettext_set_language(ln)
 
         html_head = _("<strong> External Ids </strong>")
-
-        html_ext_ids = '<div>'
-
-        html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
-        html_ext_ids += '<input type="hidden" name="add_missing_external_ids" value="True">'
-        html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-        html_ext_ids += '<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>'
+        
         if ext_ids_data['add_power'] or ext_ids_data['own_profile']:
+            html_ext_ids = '<div>'
+    
+            html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+            html_ext_ids += '<input type="hidden" name="add_missing_external_ids" value="True">'
+            html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+            html_ext_ids += '<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>'
+
             if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
                 html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
                 html_ext_ids += '   <input type="hidden" name="delete_external_ids" value="True">'
@@ -2846,7 +2866,6 @@ class Template:
                                                                                                                             _(support_data['problem_text']))
         html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['help_link'], 
                                                                                                                        _(support_data['help_text']))
-        #html_support = self.tmpl_message_form()
         if loading:
             html_support = self.loading_html()
         if add_box:
@@ -2904,26 +2923,27 @@ class Template:
             return '\n'.join(out)
         return cont
 
-    def tmpl_message_form(self, last_page_visited,  name_to_prefill, email_to_prefill):
+    def tmpl_message_form(self, last_page_visited,  name_to_prefill, email_to_prefill, incomplete_params):
         html = []
         h = html.append
         #h('<div style="display: block; width: 600px; text-align: left;">')
-        h('<div style="width:100%; height: 600px;">')
+        h('<div style="width:100%; minheight: 300px;">')
         
-        h(    '<div  style="display: table; border-radius: 10px; padding: 20px; color: #0900C4; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
+        h(    '<div  style="background-color: #F1F1FA; display: table; border-radius: 10px; padding: 20px; color: #3366CC; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
         h(      '<div align="center">')
         h(          '<p style="font-size: 20px; font-weight: bold;"> Report a problem</p>')
+        h(          '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>')
+        if incomplete_params:
+            h(      '<p style="font-size: 14px; font-weight: bold;"> <font color="red">Please fill the forms correctly!</font></p>')
         h(      '</div>')
-        h(      '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>')
-
         h(      '<form action="/author/claim/action" method="post">')
         h(        '<fieldset style="border: 0; display: inline-block;">')
-        h(          '<p><label for="Name"> Name: </label><input style="float: right;" name="Name" value="%s" type="text"  size="40"></p>' % (name_to_prefill))
-        h(          '<p><label for="E-mail"> E-mail address: </label><input style="float: right;" name="E-mail" value="%s" type="email" size="40"></p>' 
+        h(          '<p><label for="Name"> Name: </label><input style="float: right; border-radius: 4px;" required="True" name="Name" value="%s" type="text"  size="40"></p>' % (name_to_prefill))
+        h(          '<p><label for="E-mail"> E-mail: </label><input style="float: right; border-radius: 4px;" name="E-mail" value="%s" type="email" size="40"></p>' 
                                                                                                                                           % (email_to_prefill))
         h(          '<input type="hidden" name="last_page_visited" value="%s" />' % (str(last_page_visited),))
         h(          '<p>Comment:</p>')
-        h(          '<p><textarea style="max-width:410px; min-width:500px;" name="Comment" cols="60" rows="5" id="Comment"></textarea></p>')
+        h(          '<p><textarea style="max-width:500px; min-width:500px; border-radius: 4px;" name="Comment" cols="60" rows="5" required="True" id="Comment"></textarea></p>')
         h(       '</fieldset>')
         h(       '<button class="aid_btn_blue" style="display: block; margin: 0 auto;" type="submit" name="send_message">Submit</button>')
 
