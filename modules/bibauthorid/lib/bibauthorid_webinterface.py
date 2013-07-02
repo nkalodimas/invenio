@@ -2334,7 +2334,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         #show a link to the publications inside the box
         #remember to add link to /author/claim to return here
         claim_paper_data = dict()
-        claim_paper_data['link'] = "%s/author/claim/claimstub?person=%s" % (CFG_SITE_URL, str(webapi.get_canonical_id_from_person_id(person_id)))
+        claim_paper_data['link'] = "%s/author/claim/%s?open_claim=True" % (CFG_SITE_URL, str(webapi.get_canonical_id_from_person_id(person_id)))
         claim_paper_data['text'] = "Verify my publication list"
         return claim_paper_data
 

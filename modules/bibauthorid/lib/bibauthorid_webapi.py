@@ -1001,12 +1001,11 @@ def session_bareinit(req):
 
     changed = False
 
-    if 'personinfo' in session:
-        pinfo = session['personinfo']
-    else:
-        pinfo = dict()
+    if 'personinfo' not in session:
+        session['personinfo'] = dict()
         changed = True
-    
+
+    pinfo = session['personinfo']
     if 'visit diary' not in pinfo:
         pinfo['visit_diary'] = dict()
         changed = True
@@ -1044,6 +1043,7 @@ def session_bareinit(req):
 
 # all teh get_info methods should standardize the content:
 def get_arxiv_info(req, uinfo):
+    session_bareinit(req)
     session = get_session(req)
     arXiv_info = dict()
 
