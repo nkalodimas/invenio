@@ -746,23 +746,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                     webapi.restore_users_open_tickets(req)
                 return self._ticket_dispatch_end(req)
 
-#            bibref_check_required = self._ticket_review_bibref_check(req)
-#            if bibref_check_required:
-#                return bibref_check_required
-#
-#            uid = getUid(req)
-#            session = get_session(req)
-#            pinfo = session["personinfo"]
-#            ticket = pinfo["ticket"]
-#            for t in ticket:
-#                t['status'] = webapi.check_transaction_permissions(uid,
-#                                                                   t['bibref'],
-#                                                                   t['pid'],
-#                                                                   t['action'])
-#            session.dirty = True
-#
-#            return self.old_ticket_final_review(req)
-
         def ticket_dispatch_user(req, autoclaim_show_review = False, autoclaim = False):
             return ticket_dispatch_guest(req, autoclaim)
 
@@ -814,7 +797,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             del(pinfo["referer"])
             session.dirty = True
             return redirect_to_url(req, referer)
-        print 'autoclaim' in pinfo, pinfo['autoclaim']
 
         should_redirect = True
 
@@ -826,9 +808,12 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         session.dirty = True
 
         if should_redirect:
+#            check with sam
             return redirect_to_url(req, "%s/author/claim/%s?open_claim=True" % (CFG_SITE_URL,
-                                     webapi.get_person_redirect_link(
-                                       pinfo["claimpaper_admin_last_viewed_pid"])))
+                                     webapi.get_person_redirect_link(pinfo["claimpaper_admin_last_viewed_pid"])))
+
+#            redirect_link = diary('get_redirect_link', caller='_ticket_dispatch_end', parameters=[('open_claim','True')])
+#            return redirect_to_url(req, redirect_link)
 
 
     def __get_user_role(self, req):
@@ -1109,7 +1094,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             userinfo = "%s||%s" % (uid, req.remote_ip)
             webapi.add_person_external_id(pid, ext_sys, ext_id, userinfo)
 
-            return redirect_to_url(req, "/author/claim/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
+            return redirect_to_url(req, "/author/claim/manage_profile?pid=%s" % (webapi.get_person_redirect_link(pid)))
 
         def add_missing_external_ids():
             if argd['pid'] > -1:
@@ -1120,7 +1105,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             update_external_ids_of_authors([pid], overwrite=False)
 
-            return redirect_to_url(req, "/author/claim/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
+            return redirect_to_url(req, "/author/claim/manage_profile?pid=%s" % (webapi.get_person_redirect_link(pid)))
 
         def associate_profile():
             ### TO DOOOO
@@ -1235,10 +1220,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 del(pinfo['search_ticket'])
             session.dirty = True
 
+#            check with sam
             if "claimpaper_admin_last_viewed_pid" in pinfo:
                 pid = pinfo["claimpaper_admin_last_viewed_pid"]
-
+ 
                 return redirect_to_url(req, "/author/claim/%s" % webapi.get_person_redirect_link(pid))
+
+#            redirect_link = diary('get_redirect_link', caller = 'cancel_search_ticket')
+#            return redirect_to_url(req, redirect_link)
 
             return self.search(req, form)
 
@@ -1358,8 +1347,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             if 'search_ticket' in pinfo:
                 del(pinfo['search_ticket'])
 
-            # start ticket processing chain
-            pinfo["claimpaper_admin_last_viewed_pid"] = pid
+#            # speak with sam
+#            # start ticket processing chain
+#            pinfo["claimpaper_admin_last_viewed_pid"] = pid
+
             pinfo['autoclaim'] = (autoclaim_show_review, autoclaim)
             session.dirty = True
             return self._ticket_dispatch(ulevel, req, autoclaim_show_review, autoclaim)
@@ -1381,7 +1372,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             userinfo = "%s||%s" % (uid, req.remote_ip)
             webapi.delete_person_external_ids(pid, existing_ext_ids, userinfo)
 
-            return redirect_to_url(req, "/author/claim/%s%s" % (webapi.get_person_redirect_link(pid), '#tabData'))
+            return redirect_to_url(req, "/author/claim/manage_profile?pid=%s" % (webapi.get_person_redirect_link(pid)))
 
         def none_action():
             return self._error_page(req, ln,
@@ -2371,12 +2362,22 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         external_ids_data = dict()
         external_ids_data['ext_ids'] = webapi.get_external_ids_from_person_id(person_id)
         external_ids_data['person_id'] = person_id
-        external_ids_data['add_power'] = False
-        external_ids_data['own_profile'] = False
-        if person_id == user_pid:
-            external_ids_data['own_profile'] = True
-        if ulevel == "admin":
-            external_ids_data['add_power'] = True
+
+        # if the user has permission to add/remove ids, in other words if the profile is his or he is admin
+        if person_id == user_pid or ulevel == "admin":
+            external_ids_data['add_text'] = 'add external id'
+            external_ids_data['add_parameter'] = 'add_external_id'
+            external_ids_data['remove_text'] = 'delete selected ids'
+            external_ids_data['remove_parameter'] = 'delete_external_ids'
+            external_ids_data['add_missing_text'] = 'add missing ids'
+            external_ids_data['add_missing_parameter'] = 'add_missing_external_ids'
+        else:
+            external_ids_data['add_text'] = 'suggest external id to add'
+            external_ids_data['add_parameter'] = 'suggest_external_id_to_add'
+            external_ids_data['remove_text'] = 'suggest selected ids to delete'
+            external_ids_data['remove_parameter'] = 'suggest_external_ids_to_delete'
+            external_ids_data['add_missing_text'] = 'suggest missing ids'
+            external_ids_data['add_missing_parameter'] = 'suggest_missing_external_ids'
         return external_ids_data
 
     def tickets_admin(self, req, form):

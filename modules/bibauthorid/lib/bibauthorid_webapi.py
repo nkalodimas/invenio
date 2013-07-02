@@ -674,6 +674,24 @@ def insert_log(userinfo, personid, action, tag, value, comment='', transactionid
     return dbapi.insert_user_log(userinfo, personid, action, tag,
                        value, comment, transactionid, userid=uid)
 
+def move_internal_id(person_id_of_owner, person_id_of_receiver):
+    '''
+    Assign an existing uid to another profile while keeping it to the old profile under the tag 'uid-old'
+
+    @param person_id_of_owner pid: Person ID of the profile that currently has the internal id
+    @type pid: int
+    @param person_id_of_receiver pid: Person ID of the profile that will be assigned the internal id
+    @type pid: int
+    '''
+    internal_id = dbapi.get_uid_of_author(person_id_of_owner)
+
+    if not internal_id:
+        return False
+
+    dbapi.mark_internal_id_as_old(person_id_of_owner, internal_id)
+    dbapi.add_author_data(person_id_of_receiver, 'uid', internal_id)
+    return True
+
 def set_processed_external_recids(pid, recid_list):
     '''
     Set list of records that have been processed from external identifiers
@@ -992,7 +1010,7 @@ def session_bareinit(req):
     if 'visit diary' not in pinfo:
         pinfo['visit_diary'] = dict()
         changed = True
-    if diary_size not in pinfo:
+    if 'diary_size_per_category' not in pinfo:
         pinfo['diary_size_per_category'] = 5
         changed = True
     if 'most_compatible_person' not in pinfo:
@@ -1514,7 +1532,7 @@ def create_request_message(userinfo):
         sender = userinfo['email']
 
     send_email(sender,
-               'thomas@pcgssi0902',#CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+               CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
                subject="[Author] Help Request",
                content="\n".join(mailcontent))
 
@@ -2333,7 +2351,7 @@ def diary(action, caller = None, category = None, pid = None, parameters = None)
             link_param = '?'
             link_param += '&'.join([param_type + '=' + param_value for (param_type, param_value) in parameters])
 
-        last_entry_link = 'author/%s%s%s' % (last_entry_per_category[last_entry]['parameters'], canonical_name, link_param)
+        last_entry_link = 'author/%s%s%s' % (last_entry_per_category[last_entry]['category'], canonical_name, link_param)
         return last_entry_link
 
     def log_visit():
@@ -2344,7 +2362,7 @@ def diary(action, caller = None, category = None, pid = None, parameters = None)
 
         diary[category].append({'entry_time':time(), 'parameters': parameters, 'pid':pid})
 
-    def redirect():
+    def get_redirect_link():
         pass
         
     def remove_oldest_visit():
@@ -2352,9 +2370,10 @@ def diary(action, caller = None, category = None, pid = None, parameters = None)
 
     action_functions = {'get_last_entry': get_last_entry,
                         'log_visit': log_visit,
-                        'redirect': redirect}
+                        'get_redirect_link': get_redirect_link}
     
-    caller_category_mapping = {
+    caller_category_mapping = {'cancel_search_ticket': ('claim'),
+                               '_ticket_dispatch_end': ('claim', 'manage_profile')
                                }
         
     return action_functions[action]()

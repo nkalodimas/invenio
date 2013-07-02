@@ -1498,7 +1498,6 @@ def remove_author_data(tag, pid=None, value=None):   ### del_personid_row
         else:
             _delete_from_aidpersoniddata_where(tag=tag)
 
-
 def _add_external_id_to_author(pid, ext_sys, ext_id):   ### add_personID_external_id
     '''
     Adds the external identifier of the specified system to the given author.

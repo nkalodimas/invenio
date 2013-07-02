@@ -1095,44 +1095,6 @@ class Template:
                 h('UserID: There is no INSPIRE user associated to this profile!')
             h('<br></div>')
 
-            external_ids = get_external_ids_of_author(person_id)
-            h('<div> <br>')
-            h('<strong> External IDs </strong> <br>')
-
-            h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
-            h('<input type="hidden" name="add_missing_external_ids" value="True">')
-            h('<input type="hidden" name="pid" value="%s">' % person_id)
-            h('<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>')
-
-            if external_ids:
-                h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
-                h('   <input type="hidden" name="delete_external_ids" value="True">')
-                h('   <input type="hidden" name="pid" value="%s">' % person_id)
-                for idx in external_ids:
-                    try:
-                        sys = [s for s in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[s] == idx][0]
-                    except (IndexError):
-                        sys = ''
-                    for k in external_ids[idx]:
-                        h('<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (idx, k, sys, k))
-                h('        <br> <br> <input type="submit" value="delete selected ids" class="aid_btn_blue"> <br> </form>')
-            else:
-                h('UserID: There are no external users associated to this profile!')
-
-            h('<br> <br>')
-            h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
-            h('   <input type="hidden" name="add_external_id" value="True">')
-            h('   <input type="hidden" name="pid" value="%s">' % person_id)
-            h('   <select name="ext_system">')
-            h('      <option value="" selected>-- ' + self._('Choose system') + ' --</option>')
-            for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
-                h('  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el))
-            h('   </select>')
-            h('   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">')
-            h('   <input type="submit" value="add external id" class="aid_btn_blue">')
-            # h('<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
-            h('<br> </form> </div>')
-
             h('</div> </div>')
         h('</div>')
 
@@ -2757,42 +2719,41 @@ class Template:
 
         html_head = _("<strong> External Ids </strong>")
         
-        if ext_ids_data['add_power'] or ext_ids_data['own_profile']:
-            html_ext_ids = '<div>'
-    
-            html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
-            html_ext_ids += '<input type="hidden" name="add_missing_external_ids" value="True">'
-            html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-            html_ext_ids += '<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>'
+        html_ext_ids = '<div>'
 
-            if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
-                html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
-                html_ext_ids += '   <input type="hidden" name="delete_external_ids" value="True">'
-                html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-                for key in ext_ids_data['ext_ids']:
-                    try:
-                        sys = [system for system in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[system] == key][0]
-                    except (IndexError):
-                        sys = ''
-                    for id_value in ext_ids_data['ext_ids'][key]:
-                        html_ext_ids += '<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (key, id_value, sys, id_value)
-                html_ext_ids += '        <br> <br> <input type="submit" value="delete selected ids" class="aid_btn_blue"> <br> </form>'
-            else:
-                html_ext_ids += 'UserID: There are no external users associated to this profile!'
-    
-            html_ext_ids += '<br> <br>'
+        html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+        html_ext_ids += '<input type="hidden" name="%s" value="True">' % (ext_ids_data['add_missing_parameter'],)
+        html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+        html_ext_ids += '<br> <input type="submit" value="%s" class="aid_btn_blue"> </form>'  % (ext_ids_data['add_missing_text'],)
+
+        if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
             html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
-            html_ext_ids += '   <input type="hidden" name="add_external_id" value="True">'
+            html_ext_ids += '   <input type="hidden" name="%s" value="True">' % (ext_ids_data['remove_parameter'],)
             html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-            html_ext_ids += '   <select name="ext_system">'
-            html_ext_ids += '      <option value="" selected>-- ' + self._('Choose system') + ' --</option>'
-            for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
-                html_ext_ids += '  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el)
-            html_ext_ids += '   </select>'
-            html_ext_ids += '   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">'
-            html_ext_ids += '   <input type="submit" value="add external id" class="aid_btn_blue">'
-            # html_ext_ids += '<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
-            html_ext_ids += '<br> </form> </div>'
+            for key in ext_ids_data['ext_ids']:
+                try:
+                    sys = [system for system in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[system] == key][0]
+                except (IndexError):
+                    sys = ''
+                for id_value in ext_ids_data['ext_ids'][key]:
+                    html_ext_ids += '<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (key, id_value, sys, id_value)
+            html_ext_ids += '        <br> <br> <input type="submit" value="%s" class="aid_btn_blue"> <br> </form>' % (ext_ids_data['remove_text'],)
+        else:
+            html_ext_ids += 'UserID: There are no external users associated to this profile!'
+
+        html_ext_ids += '<br> <br>'
+        html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+        html_ext_ids += '   <input type="hidden" name="%s" value="True">' % (ext_ids_data['add_parameter'],)
+        html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+        html_ext_ids += '   <select name="ext_system">'
+        html_ext_ids += '      <option value="" selected>-- ' + self._('Choose system') + ' --</option>'
+        for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
+            html_ext_ids += '  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el)
+        html_ext_ids += '   </select>'
+        html_ext_ids += '   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">'
+        html_ext_ids += '   <input type="submit" value="%s" class="aid_btn_blue">' % (ext_ids_data['add_text'],)
+        # html_ext_ids += '<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
+        html_ext_ids += '<br> </form> </div>'
 
         if loading:
             html_ext_ids += self.loading_html()
@@ -2927,7 +2888,7 @@ class Template:
         html = []
         h = html.append
         #h('<div style="display: block; width: 600px; text-align: left;">')
-        h('<div style="width:100%; minheight: 300px;">')
+        h('<div style="width:100%; minheight: 500px;">')
         
         h(    '<div  style="background-color: #F1F1FA; display: table; border-radius: 10px; padding: 20px; color: #3366CC; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
         h(      '<div align="center">')
@@ -2943,7 +2904,7 @@ class Template:
                                                                                                                                           % (email_to_prefill))
         h(          '<input type="hidden" name="last_page_visited" value="%s" />' % (str(last_page_visited),))
         h(          '<p>Comment:</p>')
-        h(          '<p><textarea style="max-width:500px; min-width:500px; border-radius: 4px;" name="Comment" cols="60" rows="5" required="True" id="Comment"></textarea></p>')
+        h(          '<p><textarea style="max-width:500px; min-width:500px; min-height:300px; border-radius: 4px;" name="Comment" cols="60" rows="5" required="True" id="Comment"></textarea></p>')
         h(       '</fieldset>')
         h(       '<button class="aid_btn_blue" style="display: block; margin: 0 auto;" type="submit" name="send_message">Submit</button>')
 
