@@ -992,7 +992,7 @@ def session_bareinit(req):
     if 'visit diary' not in pinfo:
         pinfo['visit_diary'] = dict()
         changed = True
-    if diary_size not in pinfo:
+    if 'diary_size' not in pinfo:
         pinfo['diary_size_per_category'] = 5
         changed = True
     if 'most_compatible_person' not in pinfo:
