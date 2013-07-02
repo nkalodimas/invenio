@@ -344,9 +344,9 @@ class Template:
 
         h("<li><a id=\"primaryProfile\" href='%s'target='_blank'>%s</a> <strong>(primary profile)</strong></li>"
           % (primary_profile, primary_profile))
-        for profile in profiles:
-            h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
-                   % (profile, profile))
+        # for profile in profiles:
+        #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
+        #            % (profile, profile))
         h("</ul>")
         h('<a rel="nofollow" id="checkout" href="manage_profile?pid=%s">' % (str(primary_profile),) + self._('Stop merging.') + '</a>' )
         if len(profiles):
@@ -1712,7 +1712,8 @@ class Template:
             h('<tr id="pid'+ str(pid) + '">')
             # (TODO pageNum - 1) * personsPerPage + 1
             if show_check_box:
-                h('<td style="text-align:center; vertical-align:middle;"><input type="checkbox" class="mergeBox" style="width:15px;height:15px;" name="' + canonical_id + '" value="' + str(pid) + '"></td>')
+                h('<td style="text-align:center; vertical-align:middle;"><input type="submit" class="addToMergeButton" ' +
+                  'name="' + canonical_id + '" value="Merge" class="aid_btn_blue" ></td>')
 
             h('<td>%s</td>' % (index + 1))
 

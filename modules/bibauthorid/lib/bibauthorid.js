@@ -182,17 +182,16 @@ $(document).ready(function() {
     }
 
     if (typeof gMergeProfile !== 'undefined' ) {
-        //TODO if gMergeList is not defined in web storage
-        gMergeList = {};
-        // initiate merge list from the html
-        $('#mergeList').find('a[class="profile"][id!="primaryProfile"]').each(function(){
-            var profile = $(this).text();
-            if (gMergeList[profile] === undefined)
-                gMergeList[profile] = profile;
-            $('.mergeBox[name="' + profile + '"]').prop('checked',true);
-        });
-        $('.mergeBox').change(function(event) {
-            onMergeBoxClick($(this));
+        // initiate merge list's html from javascript/session
+        $('#primaryProfile').parent().replaceWith('<li><a id=\"primaryProfile\" href=\"' + gMergeProfile +
+        '\" target=\"_blank\">' + gMergeProfile + '</a> <strong>(primary profile)</strong></li>');
+        $('.addToMergeButton[name="' + gMergeProfile + '"]').prop('disabled','disabled');
+        for(var profile in gMergeList) {
+            createProfilesHtml(gMergeList[profile]);
+            $('.addToMergeButton[name="' + gMergeList[profile] + '"]').prop('disabled','disabled');
+        }
+        $('.addToMergeButton').on('click', function(event) {
+            onAddToMergeClick(event, $(this));
         });
     }
 
@@ -301,51 +300,98 @@ function onPageChange() {
     });
 }
 
-function onMergeBoxClick(box) {
-    var profile = box.attr('name').toString();
-    if( $(box).is(':checked') ) {
-        addToMergeList(profile);
+function onAddToMergeClick(event, button) {
+    var profile = button.attr('name').toString();
+    if (jQuery.inArray(profile, gMergeList) !== -1){
+        return false;
     }
-    else {
-        removeFromMergeList(profile);
+    var data = { 'requestType': "addProfile", 'profile': profile};
+            // var errorCallback = onIsProfileClaimedError(pid);
+    $.ajax({
+        dataType: 'json',
+        type: 'POST',
+        url: '/author/claim/merge_profiles_ajax',
+        data: {jsondata: JSON.stringify(data)},
+        success: addToMergeList,
+        // error: errorCallback,
+        async: true
+    });
+    event.preventDefault();
+}
+
+function addToMergeList(json) {
+    if(json['resultCode'] == 1) {
+        var profile = json['addedPofile'];
+        if ( jQuery.inArray(profile, gMergeList) == -1 && gMergeProfile !== profile) {
+            gMergeList.push(profile);
+            createProfilesHtml(profile);
+            $('.addToMergeButton[name="' + profile + '"]').prop('disabled','disabled');
+        }
     }
 }
 
-function addToMergeList(profile) {
-    // TODO check if is already a primary profile
-    if (gMergeList[profile] === undefined) {
-        gMergeList[profile] = profile;
-        var $profileHtml = $('<li><a href=\"' + profile + '\" target=\"_blank\" class=\"profile\">' + profile + '</a>' +
+function removeFromMergeList(json) {
+    if(json['resultCode'] == 1) {
+        var profile = json['removedProfile'];
+        var ind = jQuery.inArray(profile, gMergeList);
+        if( ind !== -1) {
+            gMergeList.splice(ind,1);
+        }
+        removeProfilesHtml(profile);
+        $('.addToMergeButton[name="' + profile + '"]').removeAttr('disabled');
+    }
+}
+
+function setAsPrimary(json) {
+    if(json['resultCode'] == 1) {
+        var profile = json['primaryProfile'];
+        removeFromMergeList({'resultCode' : 1, 'removedProfile' : profile});
+        var primary = gMergeProfile;
+        gMergeProfile = profile;
+        $('.addToMergeButton[name="' + profile + '"]').prop('disabled','disabled');
+        addToMergeList({'resultCode' : 1, 'addedPofile' : primary});
+        $('#primaryProfile').parent().replaceWith('<li><a id=\"primaryProfile\" href=\"' + profile +
+         '\" target=\"_blank\">' + profile + '</a> <strong>(primary profile)</strong></li>');
+    }
+}
+
+function createProfilesHtml(profile) {
+    var $profileHtml = $('<li><a href=\"' + profile + '\" target=\"_blank\" class=\"profile\">' + profile + '</a>' +
          '<a class=\"setPrimaryProfile\" href=\"\" >Set as primary</a> <a class=\"removeProfile\" href=\"\" >Remove</a></li>');
         $('#mergeList').append($profileHtml);
         $profileHtml.find('.setPrimaryProfile').on('click', { pProfile: profile}, function(event){
             console.log('bind primary profile: ' + event.data.pProfile);
-            setAsPrimary(event.data.pProfile);
+            var data = { 'requestType': "setPrimaryProfile", 'profile': event.data.pProfile};
+            // var errorCallback = onIsProfileClaimedError(pid);
+            $.ajax({
+                dataType: 'json',
+                type: 'POST',
+                url: '/author/claim/merge_profiles_ajax',
+                data: {jsondata: JSON.stringify(data)},
+                success: setAsPrimary,
+                // error: errorCallback,
+                async: true
+            });
             event.preventDefault();
         });
         $profileHtml.find('.removeProfile').on('click', { pProfile: profile}, function(event){
-            removeFromMergeList(event.data.pProfile);
-            //console.log('bind remove profile: ' + profile);
-            $('.mergeBox[name="' + event.data.pProfile + '"]').prop('checked',false);
+            var data = { 'requestType': "removeProfile", 'profile': event.data.pProfile};
+            // var errorCallback = onIsProfileClaimedError(pid);
+            $.ajax({
+                dataType: 'json',
+                type: 'POST',
+                url: '/author/claim/merge_profiles_ajax',
+                data: {jsondata: JSON.stringify(data)},
+                success: removeFromMergeList,
+                // error: errorCallback,
+                async: true
+            });
             event.preventDefault();
         });
-    }
 }
 
-function removeFromMergeList(profile) {
-    if( gMergeList[profile] !== undefined) {
-        delete gMergeList[profile];
-    }
+function removeProfilesHtml(profile) {
     $('#mergeList').find('a[href="' + profile + '"][id!="primaryProfile"]').parent().remove();
-}
-
-function setAsPrimary(profile) {
-    removeFromMergeList(profile);
-    var primary = gMergeProfile;
-    addToMergeList(primary);
-    gMergeProfile = profile;
-    $('#primaryProfile').parent().replaceWith('<li><a id=\"primaryProfile\" href=\"' + profile +
-     '\" target=\"_blank\">' + profile + '</a> <strong>(primary profile)</strong></li>');
 }
 
 function onGetIDsSuccess(json){
@@ -425,7 +471,7 @@ function onRetrievePapersError(pid){
    return function (XHR, textStatus, errorThrown) {
       var pID = pid;
       $('.more-mpid' + pID).text('Papers could not be retrieved');
-    }
+    };
 }
 
 function onRetrieveAutoClaimedPapersSuccess(json) {
@@ -441,7 +487,7 @@ function onRetrieveAutoClaimedPapersError(pid) {
     return function (XHR, textStatus, errorThrown) {
       var pID = pid;
       $('#autoclaim').replaceWith('<span>Error occured while retrieving papers</span>');
-    }
+    };
 }
 
 function showPage(pageNum) {

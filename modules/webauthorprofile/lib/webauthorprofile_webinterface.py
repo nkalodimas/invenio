@@ -841,7 +841,6 @@ class WebAuthorPages(WebInterfaceDirectory):
         # req.write(str(eval))
 
         if form.has_key('jsondata'):
-            print 'debug: json part'
             json_response = {'boxes_info': {}}
             json_data = json.loads(str(form['jsondata']))
             json_data = json_unicode_to_utf8(json_data)
@@ -866,19 +865,13 @@ class WebAuthorPages(WebInterfaceDirectory):
         else:
             gboxstatus = self.person_id
             gpid = self.person_id
-            # if False not in beval:
-            gboxstatus = 'noAjax'
+            gNumOfWorkers = 3 # todo read it from conf file
+            gReqTimeout = 3000
+            gPageTimeout = 12000
             oldest_cache_date = min([5,7])
-            req.write('<script type="text/javascript">var gBOX_STATUS = "%s";var gPID = "%s"; </script>' % (gboxstatus, gpid))
+            req.write('<script type="text/javascript">var gBOX_STATUS = "%s";var gPID = "%s"; var gNumOfWorkers= "%s"; var gReqTimeout= "%s"; var gPageTimeout= "%s";</script>'
+                % (gboxstatus, gpid, gNumOfWorkers, gReqTimeout, gPageTimeout))
             req.write(webauthorprofile_templates.tmpl_author_page(ln, gpid, oldest_cache_date, True))
-            # req.write(webauthorprofile_templates.tmpl_author_page(pubs, \
-            #                                 selfpubs, authorname, totaldownloads, \
-            #                                 author_aff_pubs, kwtuples, \
-            #                                 fieldtuples, coauthors, db_names_dict, \
-            #                                 person_link, bibauthorid_data, \
-            #                                 summarize_records, pubs_per_year, \
-            #                                 hepdict, collab, orcid_info, ln, beval, \
-            #                                 oldest_cache_date, recompute_allowed))
 
 
     def create_authorpage_websearch_old(self, req, form, person_id, ln='en', expire_cache=False):
