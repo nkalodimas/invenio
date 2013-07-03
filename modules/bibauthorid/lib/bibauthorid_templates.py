@@ -1563,7 +1563,10 @@ class Template:
             text = self._("This is my profile")
             parameters = [('associate_profile', True), ('pid', str(pid)), ('search_param', search_param)]
             link = "%s/author/claim/action" % (CFG_SITE_URL)
-            return text, link, parameters
+            css_class = ""
+            to_disable = True
+
+            return text, link, parameters, css_class , to_disable
 
         return stub
 
@@ -1572,11 +1575,25 @@ class Template:
             text = self._("Attribute paper")
             parameters = [('confirm', True), ('pid', str(pid)), ('search_param', search_param)]
             link = "%s/author/claim/action" % (CFG_SITE_URL)
+            css_class = ""
+            to_disable = False
 
             for r in bibrefs:
                 link = link + '&selection=%s' % str(r)
 
-            return text, link, parameters
+            return text, link, parameters, css_class, to_disable
+
+        return stub
+
+    def merge_profiles_button_generator(self):
+        def stub(pid, search_param):
+            text = self._("Add to merge list")
+            parameters = []
+            link = ""
+            css_class = "addToMergeButton"
+            to_disable = False
+
+            return text, link, parameters, css_class, to_disable
 
         return stub
 
@@ -1607,13 +1624,6 @@ class Template:
 
         return stub
 
-    def merge_profiles_check_box_column(self):
-        def stub(pid):
-            #link = link + '&selection='.join([str(element) for element in pidlist+prof])
-            checkbox = '<input type="checkbox" name="profile" value=%s>' %(str(pid),)
-            return checkbox
-
-        return stub
     def tmpl_author_search(self, query, results, shown_element_functions):
         '''
         Generates the search for Person entities.
@@ -1673,25 +1683,23 @@ class Template:
         if 'button_gen' in shown_element_functions.keys():
             show_action_button = True
 
-        show_check_box = False
-        if 'check_box_column' in shown_element_functions.keys():
-            show_check_box = True
-
+        if 'show_status' in shown_element_functions.keys():
+            show_status = True
         # base_color = 100
         # row_color = 0
         # html table
         h('<table id="personsTable">')
         h('<!-- Table header -->\
                 <thead>\
-                    <tr>')
-        if show_check_box:
-            h('         <th scope="col" id="Merge" style="width:85px;">Merge</th>')
-        h('             <th scope="col" id="Number" style="width:85px;">Number</th>\
+                    <tr>\
+                     <th scope="col" id="Number" style="width:75px;">Number</th>\
                         <th scope="col" id="Identifier">Identifier</th>\
                         <th scope="col" id="Names">Names</th>\
                         <th scope="col" id="IDs">IDs</th>\
                         <th scope="col" id="Papers" style="width:350px">Papers</th>\
                         <th scope="col" id="Link">Link</th>')
+        if show_status:
+            h('         <th scope="col" id="Status" style="width:150px;">Status</th>')
         if show_action_button:
             h('         <th scope="col" id="Action">Action</th>')
         h('         </tr>\
@@ -1710,13 +1718,7 @@ class Template:
 
             # person row
             h('<tr id="pid'+ str(pid) + '">')
-            # (TODO pageNum - 1) * personsPerPage + 1
-            if show_check_box:
-                h('<td style="text-align:center; vertical-align:middle;"><input type="submit" class="addToMergeButton" ' +
-                  'name="' + canonical_id + '" value="Merge" class="aid_btn_blue" ></td>')
-
             h('<td>%s</td>' % (index + 1))
-
 #            for nindex, name in enumerate(names):
 #                color = row_color + nindex * 35
 #                color = min(color, base_color)
@@ -1757,26 +1759,30 @@ class Template:
                        get_person_redirect_link(pid)))
             h('</td>')
 
+            if show_status:
+                if result["status"]:
+                    status = "Available";
+                else:
+                    status = "Claimed";
+                h('<td>%s</td>' % (status))
             if show_action_button:
-                action_button_text, action_button_link, action_button_parameters = shown_element_functions['button_gen'](pid, query)
+                action_button_text, action_button_link, action_button_parameters, action_button_class, action_button_to_disable = shown_element_functions['button_gen'](pid, query)#class
                 #Action link
-                h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center">')
-                # h(('<span >'
-                #             '<a rel="nofollow" href="%s" class="confirmlink">'
-                #             '<strong>%s</strong>' + '</a></span>')
-                #             % (action_button_link, action_button_text))
+                h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center; vertical-align:middle;">')
                 parameters_sublink = ''
 
                 if action_button_link:
                     parameters_sublink = '?' + action_button_parameters[0][0] + '=' + str(action_button_parameters[0][1])
 
-                for (param_type,param_value) in action_button_parameters[1:]:
+                for (param_type,param_value) in action_button_parameters[1:]: # todo add tab?
                     parameters_sublink += '&' + param_type + '=' + str(param_value)
 
-                h('<a rel="nofollow" href="%s%s" class="confirmlink"><button type="button">%s' % (
-                                                            action_button_link, parameters_sublink, action_button_text))
-
-                h('</button></a>')
+                if show_status:
+                    disabled = ""
+                    if not result["status"] and action_button_to_disable:
+                        disabled = "disabled"
+                h('<form action="%s%s" method="get"><input type="submit" name="%s" class="%s aid_btn_blue" value="%s" %s/></form>' %
+                    (action_button_link, parameters_sublink, canonical_id, action_button_class, action_button_text, disabled))  #confirmlink check if canonical id
                 h('</td>')
             h('</tr>')
         h('</tbody>')

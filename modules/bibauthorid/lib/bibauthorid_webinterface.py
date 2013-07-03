@@ -1889,8 +1889,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
         # this is a function generating search's bar link and if it should be activated or not
         shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile)
-       
-        shown_element_functions['check_box_column'] = 'True'
+
+        shown_element_functions['button_gen'] = TEMPLATE.merge_profiles_button_generator()
         # show if profile is bound to a user or not
         shown_element_functions['show_status'] = 'True'
         body  = body + self.search_box(search_param, shown_element_functions)
