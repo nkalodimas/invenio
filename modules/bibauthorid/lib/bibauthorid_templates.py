@@ -1774,16 +1774,16 @@ class Template:
                 parameters_sublink = ''
 
                 if action_button_link:
-                    parameters_sublink = '?' + action_button_parameters[0][0] + '=' + str(action_button_parameters[0][1])
+                    parameters_sublink = '<input type="hidden" name="%s" value="%s" />' % (action_button_parameters[0][0], str(action_button_parameters[0][1]))
 
-                    for (param_type,param_value) in action_button_parameters[1:]: # todo add tab?
-                        parameters_sublink += '&' + param_type + '=' + str(param_value)
+                    for (param_type,param_value) in action_button_parameters[1:]:
+                        parameters_sublink += '<input type="hidden" name="%s" value="%s" />' % (param_type, str(param_value))
 
                 disabled = ""
                 if show_status:
                     if not result["status"] and action_button_to_disable:
                         disabled = "disabled"
-                h('<form action="%s%s" method="get"><input type="submit" name="%s" class="%s aid_btn_blue" value="%s" %s/></form>' %
+                h('<form action="%s" method="get">%s<input type="submit" name="%s" class="%s aid_btn_blue" value="%s" %s/></form>' %
                     (action_button_link, parameters_sublink, canonical_id, action_button_class, action_button_text, disabled))  #confirmlink check if canonical id
                 h('</td>')
             h('</tr>')
