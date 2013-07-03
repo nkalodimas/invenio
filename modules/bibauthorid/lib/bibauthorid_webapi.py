@@ -17,6 +17,7 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 from symbol import parameters
+from invenio.bibauthorid_general_utils import all
 '''
 Bibauthorid_webapi
 Point of access to the documents clustering facility.
@@ -1188,10 +1189,24 @@ def get_user_pid(uid):
 
     return pid[0]
 
-def merge_profiles(primary_profile, profiles):
+
+def get_owned_profiles_from_merging_profiles(primary_profile, profiles):
+    owned_profiles = []
+    
+    if not is_profile_available(get_person_id_from_canonical_id(primary_profile)):
+        owned_profiles.append(primary_profile)
+
+    owned_profiles += [profile for profile in profiles if not is_profile_available(get_person_id_from_canonical_id(profile))]
+    
+    return owned_profiles
+
+def move_papers(req, primary_profile, profiles):
     records = dbapi.defaultdict(list)
-    for p in profiles:
-        papers = get_papers_by_person_id(get_person_id_from_canonical_id(p))
+    primary_pid = get_person_id_from_canonical_id(primary_profile)
+
+    for profile in profiles:
+        pid = get_person_id_from_canonical_id(profile)
+        papers = get_papers_by_person_id(pid)
         if papers:
             for rec_info in papers:
                 records[rec_info[0]] += [rec_info[1]]
@@ -1204,7 +1219,25 @@ def merge_profiles(primary_profile, profiles):
         else:
             recs_to_merge.append(records[recid][0])
 
-    return recs_to_merge
+    webapi.add_tickets(req, primary_pid, recs_to_merge, 'confirm')
+
+def merge_profiles(req, primary_profile, profiles):
+    owned_profiles = get_owned_profiles_from_merging_profiles(primary_profile, profiles)
+    # check if there is at most one claimed profile among the profiles to merge
+    # if there are more than one we abort merging
+    if len(owned_profiles) > 1:
+        return False
+
+    # if there is a profile that is owned exists then we should move its internal id 
+    # to the primary profile if they are different
+    if len(owned_profiles) == 1 and owned_profiles[0] != primary_profile:
+        move_internal_id(get_person_id_from_canonical_id(owned_profiles[0]), get_person_id_from_canonical_id(primary_profile))
+
+    move_papers(req, primary_profile, profiles)
+
+    for profile in profiles:
+        pid = get_person_id_from_canonical_id(profile)
+        move_external_ids(pid, get_person_id_from_canonical_id(primary_profile))
 
 def auto_claim_papers(req, pid, recids):
     session_bareinit(req)
