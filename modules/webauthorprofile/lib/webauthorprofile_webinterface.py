@@ -249,7 +249,7 @@ class WebAuthorPages(WebInterfaceDirectory):
 
             for author, _ in sorted_authors:
                 papers_of_author = get_papers_by_person_id(author, -1)
-                papers_of_author = [paper[0] for paper in papers_of_author]
+                papers_of_author = [int(paper[0]) for paper in papers_of_author]
 
                 if recid not in papers_of_author:
                     continue

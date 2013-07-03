@@ -169,6 +169,10 @@ class Template:
 
     def tmpl_hepnames(self, hepdict, ln, add_box=True, loading=False):
         _ = gettext_set_language(ln)
+        try:
+            heprec = str(hepdict['heprecord'][0])
+        except (KeyError, IndexError):
+            heprec = ''
         if not CFG_INSPIRE_SITE:
             return ''
         if not loading:
@@ -190,8 +194,8 @@ class Template:
                                  "<br><br> Possible choices are: ")
                     mailbody = ("Hello! Please connect the author profile %s "
                                "with the HepNames record %s. Best regards" % (hepdict['cid'], '%s'))
-                    mailstr = ('''<a href='mailto:%s?subject=HepNames record match&amp;body=%s'>'''
-                               '''This is the right one!</a>''')
+                    mailstr = ('''<a href='mailto:%s?subject=HepNames record match: %s %s&amp;body=%s'>'''
+                               '''This is the right one!</a>''' % ('%s', hepdict['cid'], heprec, '%s'))
                     choices = ['<tr><td>' + x[0] + '</td><td>&nbsp;&nbsp;</td><td  align="right">' + mailstr % (CFG_WEBAUTHORPROFILE_CFG_HEPNAMES_EMAIL, mailbody % x[1]) + '</td></tr>'
                                for x in hepdict['HepChoices']]
 
