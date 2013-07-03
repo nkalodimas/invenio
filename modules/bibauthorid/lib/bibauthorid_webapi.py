@@ -16,8 +16,8 @@
 ## You should have received a copy of the GNU General Public License
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
-from symbol import parameters
-from invenio.bibauthorid_general_utils import all
+
+
 '''
 Bibauthorid_webapi
 Point of access to the documents clustering facility.
@@ -693,6 +693,17 @@ def move_internal_id(person_id_of_owner, person_id_of_receiver):
     dbapi.add_author_data(person_id_of_receiver, 'uid', internal_id)
     return True
 
+def move_external_ids(person_id_of_owner, person_id_of_receiver):
+    '''
+    Assign existing external ids to another profile 
+
+    @param person_id_of_owner pid: Person ID of the profile that currently has the internal id
+    @type pid: int
+    @param person_id_of_receiver pid: Person ID of the profile that will be assigned the internal id
+    @type pid: int
+    '''
+    pass
+
 def set_processed_external_recids(pid, recid_list):
     '''
     Set list of records that have been processed from external identifiers
@@ -1233,11 +1244,15 @@ def merge_profiles(req, primary_profile, profiles):
     if len(owned_profiles) == 1 and owned_profiles[0] != primary_profile:
         move_internal_id(get_person_id_from_canonical_id(owned_profiles[0]), get_person_id_from_canonical_id(primary_profile))
 
+    # open tickets to move papers from the profiles to the primary profile
     move_papers(req, primary_profile, profiles)
 
+    # for every profile to be merged move their external ids to the primary
     for profile in profiles:
         pid = get_person_id_from_canonical_id(profile)
         move_external_ids(pid, get_person_id_from_canonical_id(primary_profile))
+
+    return True
 
 def auto_claim_papers(req, pid, recids):
     session_bareinit(req)

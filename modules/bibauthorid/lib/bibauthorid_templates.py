@@ -1683,6 +1683,7 @@ class Template:
         if 'button_gen' in shown_element_functions.keys():
             show_action_button = True
 
+        show_status = False
         if 'show_status' in shown_element_functions.keys():
             show_status = True
         # base_color = 100
@@ -1728,6 +1729,7 @@ class Template:
             if canonical_id:
                 h('<td>%s</td>' % (canonical_id,))
             else:
+                canonical_id = ''
                 h('<td>%s</td>' % ('No canonical id',))
             #Names
             h('<td class="emptyName' + str(pid) + '">')
@@ -1774,11 +1776,11 @@ class Template:
                 if action_button_link:
                     parameters_sublink = '?' + action_button_parameters[0][0] + '=' + str(action_button_parameters[0][1])
 
-                for (param_type,param_value) in action_button_parameters[1:]: # todo add tab?
-                    parameters_sublink += '&' + param_type + '=' + str(param_value)
+                    for (param_type,param_value) in action_button_parameters[1:]: # todo add tab?
+                        parameters_sublink += '&' + param_type + '=' + str(param_value)
 
+                disabled = ""
                 if show_status:
-                    disabled = ""
                     if not result["status"] and action_button_to_disable:
                         disabled = "disabled"
                 h('<form action="%s%s" method="get"><input type="submit" name="%s" class="%s aid_btn_blue" value="%s" %s/></form>' %

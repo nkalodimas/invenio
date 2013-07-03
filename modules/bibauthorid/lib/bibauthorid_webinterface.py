@@ -1028,7 +1028,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         uid = getUid(req)
         ln = argd['ln']
         action = None
-
+        print argd
         permitted_actions = ['add_external_id',
                              'add_missing_external_ids',
                              'associate_profile',
@@ -1393,9 +1393,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 return self._error_page(req, ln,
                                     "Fatal: cannot create ticket without any profiles selected!")
 
-            bibrefs = webapi.merge_profiles(primary_profile, profiles_to_merge)
+            merged = webapi.merge_profiles(primary_profile, profiles_to_merge)
 
-
+            if not merged:
+                pass
             # start ticket processing chain
             pinfo["claimpaper_admin_last_viewed_pid"] = primary_profile
             session.dirty = True
