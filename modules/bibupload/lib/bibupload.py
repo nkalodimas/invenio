@@ -2197,7 +2197,7 @@ Examples:
 \t\t\tinside a form field called "results".
 """,
             version=__revision__,
-            specific_params=("ircazdno",
+            specific_params=("ircazdnoS:",
                  [
                    "insert",
                    "replace",
@@ -2212,6 +2212,7 @@ Examples:
                    "callback-url=",
                    "nonce=",
                    "special-treatment=",
+                   "stage=",
                  ]),
             task_submit_elaborate_specific_parameter_fnc=task_submit_elaborate_specific_parameter,
             task_run_fnc=task_run_core,
@@ -2302,6 +2303,8 @@ def task_submit_elaborate_specific_parameter(key, value, opts, args):
         else:
             print >> sys.stderr, """The specified value is not in the list of allowed special treatments codes: %s""" % CFG_BIBUPLOAD_ALLOWED_SPECIAL_TREATMENTS
             return False
+    elif key in ("-S", "--stage"):
+        print >> sys.stderr, """WARNING: the --stage parameter is deprecated and ignored."""
     else:
         return False
     return True
