@@ -303,7 +303,7 @@ def get_person_id_from_canonical_id(canonical_id):
     pid = -1
 
     try:
-        pid = dbapi.get_authors_by_canonical_name(canonical_id)[0][0]
+        pid = dbapi.get_author_by_canonical_name(canonical_id)[0][0]
     except IndexError:
         pass
 

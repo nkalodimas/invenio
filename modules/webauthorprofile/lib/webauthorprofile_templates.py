@@ -175,6 +175,10 @@ class Template:
         if not CFG_INSPIRE_SITE:
             return ''
         if not loading:
+            try:
+                heprec = str(hepdict['heprecord'][0])
+            except (KeyError, IndexError):
+                heprec = ''
             if hepdict['HaveHep']:
                 contents = hepdict['heprecord']
             else:
@@ -193,8 +197,8 @@ class Template:
                                  "<br><br> Possible choices are: ")
                     mailbody = ("Hello! Please connect the author profile %s "
                                "with the HepNames record %s. Best regards" % (hepdict['cid'], '%s'))
-                    mailstr = ('''<a href='mailto:%s?subject=HepNames record match&amp;body=%s'>'''
-                               '''This is the right one!</a>''')
+                    mailstr = ('''<a href='mailto:%s?subject=HepNames record match: %s %s&amp;body=%s'>'''
+                               '''This is the right one!</a>''' % ('%s', hepdict['cid'], heprec, '%s'))
                     choices = ['<tr><td>' + x[0] + '</td><td>&nbsp;&nbsp;</td><td  align="right">' + mailstr % (CFG_WEBAUTHORPROFILE_CFG_HEPNAMES_EMAIL, mailbody % x[1]) + '</td></tr>'
                                for x in hepdict['HepChoices']]
 
@@ -632,7 +636,7 @@ class Template:
         if loading:
             html_orcid = self.loading_html()
         if add_box:
-            orcid_box = self.tmpl_print_searchresultbox('orcid', html_head, html_orcid)
+            orcid_box = self.tmpl_print_searchresultbox('orcid_info', html_head, html_orcid)
             return orcid_box
         else:
             return html_orcid

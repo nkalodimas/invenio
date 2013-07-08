@@ -948,7 +948,7 @@ def get_coauthors_of_author(pid, excluding_recs=None):   ### get_coauthor_pids
                       and flag > -2"""
                       % recs_sqlstr )
 
-    pids = set([(int(p), int(r)) for p, r in pids if p != pid])
+    pids = set([(int(p), int(r)) for p, r in pids if int(p) != int(pid)])
     pids = sorted([p for p, r in pids])
     pids = groupby(pids)
     pids = [(key, len(list(val))) for key, val in pids if key != pid]
@@ -1794,7 +1794,7 @@ def get_authors_by_canonical_name_regexp(cname_regexp):   ### get_personids_by_c
                       ('canonical_name', cname_regexp) )
 
 
-def get_authors_by_canonical_name(cname):   ### get_person_id_from_canonical_id
+def get_author_by_canonical_name(cname):   ### get_person_id_from_canonical_id
     '''
     Gets the author who carries the given canonical name.
 

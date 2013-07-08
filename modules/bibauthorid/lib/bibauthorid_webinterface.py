@@ -29,7 +29,6 @@ from cgi import escape
 
 from pprint import pformat
 from operator import itemgetter
-import re
 
 try:
     from invenio.jsonutils import json, json_unicode_to_utf8, CFG_JSON_AVAILABLE
@@ -67,7 +66,6 @@ from invenio.bibauthorid_backinterface import update_external_ids_of_authors
 from invenio.bibauthorid_dbinterface import defaultdict
 
 TEMPLATE = load('bibauthorid')
-swap = re.compile("\S*[.](\d)+$")
 
 
 class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
@@ -221,7 +219,6 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         content += self._generate_ticket_box(ulevel, req)
         content += self._generate_person_info_box(ulevel, ln)
         content += self._generate_tabs(ulevel, req)
-        #assert False, ("%s") % (self._generate_tabs(ulevel, req),)
         content += self._generate_footer(ulevel)
 
         title = self._generate_title(ulevel)
@@ -1417,7 +1414,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                             "Fatal: cannot set a custom canonical name without a suggestion")
 
             userinfo = "%s||%s" % (uid, req.remote_ip)
-            if swap.match(cname):
+            if webapi.is_valid_canonical_id(cname):
                 webapi.swap_person_canonical_name(pid, cname, userinfo)
             else:
                 webapi.update_person_canonical_name(pid, cname, userinfo)
