@@ -82,6 +82,10 @@ modules/webstat/bin/webstatadmin
 modules/webstyle/bin/webdoc
 modules/websubmit/bin/bibdocfile
 modules/websubmit/bin/inveniounoconv
+modules/docextract/bin/convert_journals
+modules/miscutil/bin/bibtex
+modules/miscutil/bin/hepdataharvest
+modules/pdfchecker/bin/arxiv-pdf-checker
 tags
 config.status.lineno
 configure.lineno
