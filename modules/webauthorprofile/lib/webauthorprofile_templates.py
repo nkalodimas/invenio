@@ -223,14 +223,22 @@ class Template:
 
         # perform_request_search function is not case sensitive, so we should agglomerate names which differ only in case
         new_names_dict = {}
-        for tup in names_dict.iteritems():
-            ln = tup[0].lower()
-            caps = len(findall("[A-Z]", tup[0]))
+        for name, papers_num in names_dict.iteritems():
+            ln = name.lower()
+            caps = len(findall("[A-Z]", name))
             try:
+                prev_papers_num = new_names_dict[ln][1][1]
+                new_papers_num = prev_papers_num + papers_num
+
+                new_caps = new_names_dict[ln][0]
+                new_name = new_names_dict[ln][1][0]
                 if new_names_dict[ln][0] < caps:
-                    new_names_dict[ln] = [caps, tup]
+                    new_name = name
+                    new_caps = caps
+
+                new_names_dict[ln] = [new_caps, (new_name, new_papers_num)]
             except KeyError:
-                new_names_dict[ln] = [caps, tup]
+                new_names_dict[ln] = [caps, (name, papers_num)]
 
         filtered_list = [name[1] for name in new_names_dict.values()]
         sorted_names_list = sorted(filtered_list, key=itemgetter(0), reverse=True)
