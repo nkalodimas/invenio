@@ -464,7 +464,8 @@ def submit_refextract_task(recids):
 
     if recids:
         recids_str = ','.join(str(recid) for recid in recids)
-        task_low_level_submission('refextract', NAME, '-r', recids_str)
+        task_low_level_submission('refextract', NAME, '-r', recids_str,
+                                  '--create-ticket')
 
 
 def fetch_updated_arxiv_records(date):
