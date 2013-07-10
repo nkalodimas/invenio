@@ -148,6 +148,6 @@ def prepare_matirx(cluster_set, force):
 
     matr.load(load_map=False, load_matrix=True)
     matr.recalculate(cluster_set)
-    matr.store(cluster_set.last_name)
+    matr.store()
     return True
 
