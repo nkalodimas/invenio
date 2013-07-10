@@ -610,6 +610,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 # Cache missing. Fall back to using original version.
                 record = get_bibrecord(recid)
             record_delete_field(record, '001')
+            record_delete_field(record, '005')
             record_add_field(record, '001', controlfield_value=str(new_recid))
             create_cache_file(new_recid, uid, record, True)
             response['resultCode'], response['newRecID'] = 8, new_recid
