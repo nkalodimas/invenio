@@ -147,7 +147,7 @@ def _compare_to(cl1, cl2):
     return ret
 
 def _gini(arr):
-    arr = sorted(arr, reverse=True)
+    arr.sort(reverse=True)
     dividend = sum(starmap(mul, izip(arr, xrange(1, 2 * len(arr), 2))))
     divisor = len(arr) * sum(arr)
     return float(dividend) / divisor
@@ -196,7 +196,7 @@ def do_wedge(cluster_set, deep_debug=False):
     update_status_final("Dividing obvious clusters done.")
 
     bibauthor_print("Sorting the value edges.")
-    edges = sorted(edges, key=_edge_sorting, reverse=True)
+    edges.sort(key=_edge_sorting, reverse=True)
 
     interval = 50000
     wedge_print("Wedge: New wedge, %d edges." % len(edges))
