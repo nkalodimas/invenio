@@ -1963,11 +1963,12 @@ function onTextMarcClick() {
   * 3) Activate flag to know we are in text marc mode (for submission)
   */
 
-  /* Save the content in all textareas that are currently opened before changing
-  view mode
-  */
+  $("#img_textmarc").off("click");
 
   save_changes().done(function() {
+    /* Save the content in all textareas that are currently opened before changing
+    view mode
+    */
     $(".edit_area textarea").trigger($.Event( 'keydown', {which:$.ui.keyCode.ENTER, keyCode:$.ui.keyCode.ENTER}));
 
     createReq({recID: gRecID, requestType: 'getTextMarc'
@@ -2022,7 +2023,6 @@ function onTextMarcClick() {
           $("#img_textmarc").attr('id', 'img_tableview');
           $("#img_tableview").off("click").on("click", onTableViewClick);
          });
-
   });
 }
 
