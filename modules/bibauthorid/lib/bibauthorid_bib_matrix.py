@@ -102,11 +102,11 @@ class Bib_matrix(object):
                 self._f = h5py.File(self.get_matrix_path())
                 self._matrix = self._f['array']
 
-        except (IOError, UnpicklingError):
+        except (IOError, UnpicklingError, KeyError):
             if load_map:
                 self._bibmap = dict()
                 self.creation_time = get_db_time()
-                return False
+            return False
         return True
 
     def _prepare_destination_directory(self):

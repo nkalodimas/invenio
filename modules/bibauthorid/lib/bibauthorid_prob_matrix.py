@@ -99,7 +99,7 @@ class ProbabilityMatrix(object):
         cur_calc, opti, prints_counter = 0, 0, 0
         for cl1 in cluster_set.clusters:
 
-            if cur_calc+opti - prints_counter > 100000:
+            if cur_calc+opti - prints_counter > 100000 or cur_calc == 0:
                 update_status((float(opti) + cur_calc) / expected, "Prob matrix: calc %d, opti %d." % (cur_calc, opti))
                 prints_counter = cur_calc+opti
 
