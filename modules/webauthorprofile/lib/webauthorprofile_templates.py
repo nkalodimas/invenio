@@ -171,7 +171,7 @@ class Template:
         _ = gettext_set_language(ln)
         try:
             heprec = str(hepdict['heprecord'][0])
-        except (KeyError, IndexError):
+        except (TypeError, KeyError, IndexError):
             heprec = ''
         if not CFG_INSPIRE_SITE:
             return ''
