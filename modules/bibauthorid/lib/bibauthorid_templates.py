@@ -344,11 +344,11 @@ class Template:
 
         h("<li><a id=\"primaryProfile\" href='%s'target='_blank'>%s</a> <strong>(primary profile)</strong></li>"
           % (primary_profile, primary_profile))
-        for profile in profiles:
-            h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
-                   % (profile, profile))
+        # for profile in profiles:
+        #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
+        #            % (profile, profile))
         h("</ul>")
-        h('<a rel="nofollow" id="checkout" href="manage_profile?pid=%s">' % (str(primary_profile),) + self._('Stop merging.') + '</a>' )
+        h('<a rel="nofollow" id="checkout" href="manage_profile?pid=%s">' % (str(primary_profile),) + self._('Cancel merging.') + '</a>' )
         if len(profiles):
             if merge_power:
                 h('<a rel="nofollow" id="merge" href="merge_profiles?search_pid=%s">' % (str(primary_profile),) + self._('Merge profiles.') + '</a>' )
@@ -1095,44 +1095,6 @@ class Template:
                 h('UserID: There is no INSPIRE user associated to this profile!')
             h('<br></div>')
 
-            external_ids = get_external_ids_of_author(person_id)
-            h('<div> <br>')
-            h('<strong> External IDs </strong> <br>')
-
-            h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
-            h('<input type="hidden" name="add_missing_external_ids" value="True">')
-            h('<input type="hidden" name="pid" value="%s">' % person_id)
-            h('<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>')
-
-            if external_ids:
-                h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
-                h('   <input type="hidden" name="delete_external_ids" value="True">')
-                h('   <input type="hidden" name="pid" value="%s">' % person_id)
-                for idx in external_ids:
-                    try:
-                        sys = [s for s in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[s] == idx][0]
-                    except (IndexError):
-                        sys = ''
-                    for k in external_ids[idx]:
-                        h('<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (idx, k, sys, k))
-                h('        <br> <br> <input type="submit" value="delete selected ids" class="aid_btn_blue"> <br> </form>')
-            else:
-                h('UserID: There are no external users associated to this profile!')
-
-            h('<br> <br>')
-            h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
-            h('   <input type="hidden" name="add_external_id" value="True">')
-            h('   <input type="hidden" name="pid" value="%s">' % person_id)
-            h('   <select name="ext_system">')
-            h('      <option value="" selected>-- ' + self._('Choose system') + ' --</option>')
-            for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
-                h('  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el))
-            h('   </select>')
-            h('   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">')
-            h('   <input type="submit" value="add external id" class="aid_btn_blue">')
-            # h('<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
-            h('<br> </form> </div>')
-
             h('</div> </div>')
         h('</div>')
 
@@ -1597,22 +1559,41 @@ class Template:
         return stub
 
     def tmpl_choose_profile_search_button_generator(self):
-        def stub(pid):
+        def stub(pid, search_param):
             text = self._("This is my profile")
-            link = "%s/author/claim/action?associate_profile=True&pid=%s" % (CFG_SITE_URL, str(pid))
-            return text, link
+            parameters = [('associate_profile', True), ('pid', str(pid)), ('search_param', search_param)]
+            link = "%s/author/claim/action" % (CFG_SITE_URL)
+            css_class = ""
+            to_disable = True
+
+            return text, link, parameters, css_class , to_disable
 
         return stub
 
     def tmpl_assigning_search_button_generator(self, bibrefs):
-        def stub(pid):
+        def stub(pid, search_param):
             text = self._("Attribute paper")
-            link = "%s/author/claim/action?confirm=True&pid=%s" % (CFG_SITE_URL, str(pid))
+            parameters = [('confirm', True), ('pid', str(pid)), ('search_param', search_param)]
+            link = "%s/author/claim/action" % (CFG_SITE_URL)
+            css_class = ""
+            to_disable = False
 
             for r in bibrefs:
                 link = link + '&selection=%s' % str(r)
 
-            return text, link
+            return text, link, parameters, css_class, to_disable
+
+        return stub
+
+    def merge_profiles_button_generator(self):
+        def stub(pid, search_param):
+            text = self._("Add to merge list")
+            parameters = []
+            link = ""
+            css_class = "addToMergeButton"
+            to_disable = False
+
+            return text, link, parameters, css_class, to_disable
 
         return stub
 
@@ -1643,13 +1624,6 @@ class Template:
 
         return stub
 
-    def merge_profiles_check_box_column(self):
-        def stub(pid):
-            #link = link + '&selection='.join([str(element) for element in pidlist+prof])
-            checkbox = '<input type="checkbox" name="profile" value=%s>' %(str(pid),)
-            return checkbox
-
-        return stub
     def tmpl_author_search(self, query, results, shown_element_functions):
         '''
         Generates the search for Person entities.
@@ -1709,25 +1683,24 @@ class Template:
         if 'button_gen' in shown_element_functions.keys():
             show_action_button = True
 
-        show_check_box = False
-        if 'check_box_column' in shown_element_functions.keys():
-            show_check_box = True
-
+        show_status = False
+        if 'show_status' in shown_element_functions.keys():
+            show_status = True
         # base_color = 100
         # row_color = 0
         # html table
         h('<table id="personsTable">')
         h('<!-- Table header -->\
                 <thead>\
-                    <tr>')
-        if show_check_box:
-            h('         <th scope="col" id="Merge" style="width:85px;">Merge</th>')
-        h('             <th scope="col" id="Number" style="width:85px;">Number</th>\
+                    <tr>\
+                     <th scope="col" id="Number" style="width:75px;">Number</th>\
                         <th scope="col" id="Identifier">Identifier</th>\
                         <th scope="col" id="Names">Names</th>\
                         <th scope="col" id="IDs">IDs</th>\
                         <th scope="col" id="Papers" style="width:350px">Papers</th>\
                         <th scope="col" id="Link">Link</th>')
+        if show_status:
+            h('         <th scope="col" id="Status" style="width:150px;">Status</th>')
         if show_action_button:
             h('         <th scope="col" id="Action">Action</th>')
         h('         </tr>\
@@ -1746,12 +1719,7 @@ class Template:
 
             # person row
             h('<tr id="pid'+ str(pid) + '">')
-            # (TODO pageNum - 1) * personsPerPage + 1
-            if show_check_box:
-                h('<td style="text-align:center; vertical-align:middle;"><input type="checkbox" class="mergeBox" style="width:15px;height:15px;" name="' + canonical_id + '" value="' + str(pid) + '"></td>')
-
             h('<td>%s</td>' % (index + 1))
-
 #            for nindex, name in enumerate(names):
 #                color = row_color + nindex * 35
 #                color = min(color, base_color)
@@ -1761,6 +1729,7 @@ class Template:
             if canonical_id:
                 h('<td>%s</td>' % (canonical_id,))
             else:
+                canonical_id = ''
                 h('<td>%s</td>' % ('No canonical id',))
             #Names
             h('<td class="emptyName' + str(pid) + '">')
@@ -1792,16 +1761,30 @@ class Template:
                        get_person_redirect_link(pid)))
             h('</td>')
 
+            if show_status:
+                if result["status"]:
+                    status = "Available";
+                else:
+                    status = "Claimed";
+                h('<td>%s</td>' % (status))
             if show_action_button:
-                action_button_text, action_button_link = shown_element_functions['button_gen'](pid)
+                action_button_text, action_button_link, action_button_parameters, action_button_class, action_button_to_disable = shown_element_functions['button_gen'](pid, query)#class
                 #Action link
-                h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center">')
-                # h(('<span >'
-                #             '<a rel="nofollow" href="%s" class="confirmlink">'
-                #             '<strong>%s</strong>' + '</a></span>')
-                #             % (action_button_link, action_button_text))
-                h('<a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s' % (action_button_link, action_button_text))
-                h('</button></a>')
+                h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center; vertical-align:middle;">')
+                parameters_sublink = ''
+
+                if action_button_link:
+                    parameters_sublink = '<input type="hidden" name="%s" value="%s" />' % (action_button_parameters[0][0], str(action_button_parameters[0][1]))
+
+                    for (param_type,param_value) in action_button_parameters[1:]:
+                        parameters_sublink += '<input type="hidden" name="%s" value="%s" />' % (param_type, str(param_value))
+
+                disabled = ""
+                if show_status:
+                    if not result["status"] and action_button_to_disable:
+                        disabled = "disabled"
+                h('<form action="%s" method="get">%s<input type="submit" name="%s" class="%s aid_btn_blue" value="%s" %s/></form>' %
+                    (action_button_link, parameters_sublink, canonical_id, action_button_class, action_button_text, disabled))  #confirmlink check if canonical id
                 h('</td>')
             h('</tr>')
         h('</tbody>')
@@ -2305,7 +2288,7 @@ class Template:
         h('</br>')
         return "\n".join(html)
 
-    def tmpl_welcome_probable_profile_suggestion(self, probable_profile_suggestion_info, last_viewed_profile_suggestion_info):
+    def tmpl_welcome_probable_profile_suggestion(self, probable_profile_suggestion_info, last_viewed_profile_suggestion_info, search_param):
         '''
         Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through.
         '''
@@ -2313,6 +2296,11 @@ class Template:
         h = html.append
         last_viewed_profile_message = self._("The following profile is the one you were viewing before logging in: ")
         probable_profile_message = self._("We strongly believe that your profile is the following: ")
+
+        # if the user has searched then his choice should be remembered in case the chosen profile is not available
+        param=''
+        if search_param:
+            param = '&search_param=' + search_param
 
         h('<table border="0">')
         if probable_profile_suggestion_info:
@@ -2323,7 +2311,8 @@ class Template:
                                                                            probable_profile_suggestion_info['canonical_name_string']))
             h('</td>')
             h('<td>')
-            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s" class="confirmlink"><button type="button">%s' % (str(probable_profile_suggestion_info['pid']), 'This is my profile'))
+            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+                                                                                str(probable_profile_suggestion_info['pid']), param, 'This is my profile'))
             h('</td>')
             h('</tr>')
         if not last_viewed_profile_suggestion_info:
@@ -2337,9 +2326,9 @@ class Template:
             h('<a href="%s/author/profile/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, last_viewed_profile_suggestion_info['canonical_id'],
                                                                            last_viewed_profile_suggestion_info['canonical_name_string']))
             h('</td>')
-            h('<td>')
-
-            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s" class="confirmlink"><button type="button">%s' % (str(last_viewed_profile_suggestion_info['pid']), 'This is my profile'))
+            h('<td>')            
+            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+                                                                                str(last_viewed_profile_suggestion_info['pid']), param, 'This is my profile'))
             h('</td>')
             h('</tr>')
             h('</table>')
@@ -2737,42 +2726,42 @@ class Template:
         _ = gettext_set_language(ln)
 
         html_head = _("<strong> External Ids </strong>")
-
+        
         html_ext_ids = '<div>'
 
         html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
-        html_ext_ids += '<input type="hidden" name="add_missing_external_ids" value="True">'
+        html_ext_ids += '<input type="hidden" name="%s" value="True">' % (ext_ids_data['add_missing_parameter'],)
         html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-        html_ext_ids += '<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>'
-        if ext_ids_data['add_power'] or ext_ids_data['own_profile']:
-            if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
-                html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
-                html_ext_ids += '   <input type="hidden" name="delete_external_ids" value="True">'
-                html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-                for key in ext_ids_data['ext_ids']:
-                    try:
-                        sys = [system for system in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[system] == key][0]
-                    except (IndexError):
-                        sys = ''
-                    for id_value in ext_ids_data['ext_ids'][key]:
-                        html_ext_ids += '<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (key, id_value, sys, id_value)
-                html_ext_ids += '        <br> <br> <input type="submit" value="delete selected ids" class="aid_btn_blue"> <br> </form>'
-            else:
-                html_ext_ids += 'UserID: There are no external users associated to this profile!'
+        html_ext_ids += '<br> <input type="submit" value="%s" class="aid_btn_blue"> </form>'  % (ext_ids_data['add_missing_text'],)
 
-            html_ext_ids += '<br> <br>'
+        if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
             html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
-            html_ext_ids += '   <input type="hidden" name="add_external_id" value="True">'
+            html_ext_ids += '   <input type="hidden" name="%s" value="True">' % (ext_ids_data['remove_parameter'],)
             html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-            html_ext_ids += '   <select name="ext_system">'
-            html_ext_ids += '      <option value="" selected>-- ' + self._('Choose system') + ' --</option>'
-            for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
-                html_ext_ids += '  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el)
-            html_ext_ids += '   </select>'
-            html_ext_ids += '   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">'
-            html_ext_ids += '   <input type="submit" value="add external id" class="aid_btn_blue">'
-            # html_ext_ids += '<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
-            html_ext_ids += '<br> </form> </div>'
+            for key in ext_ids_data['ext_ids']:
+                try:
+                    sys = [system for system in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[system] == key][0]
+                except (IndexError):
+                    sys = ''
+                for id_value in ext_ids_data['ext_ids'][key]:
+                    html_ext_ids += '<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (key, id_value, sys, id_value)
+            html_ext_ids += '        <br> <br> <input type="submit" value="%s" class="aid_btn_blue"> <br> </form>' % (ext_ids_data['remove_text'],)
+        else:
+            html_ext_ids += 'UserID: There are no external users associated to this profile!'
+
+        html_ext_ids += '<br> <br>'
+        html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+        html_ext_ids += '   <input type="hidden" name="%s" value="True">' % (ext_ids_data['add_parameter'],)
+        html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+        html_ext_ids += '   <select name="ext_system">'
+        html_ext_ids += '      <option value="" selected>-- ' + self._('Choose system') + ' --</option>'
+        for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
+            html_ext_ids += '  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el)
+        html_ext_ids += '   </select>'
+        html_ext_ids += '   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">'
+        html_ext_ids += '   <input type="submit" value="%s" class="aid_btn_blue">' % (ext_ids_data['add_text'],)
+        # html_ext_ids += '<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
+        html_ext_ids += '<br> </form> </div>'
 
         if loading:
             html_ext_ids += self.loading_html()
@@ -2846,7 +2835,6 @@ class Template:
                                                                                                                             _(support_data['problem_text']))
         html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['help_link'],
                                                                                                                        _(support_data['help_text']))
-        #html_support = self.tmpl_message_form()
         if loading:
             html_support = self.loading_html()
         if add_box:
@@ -2904,34 +2892,35 @@ class Template:
             return '\n'.join(out)
         return cont
 
-    def tmpl_message_form(self):
+    def tmpl_message_form(self, last_page_visited,  name_to_prefill, email_to_prefill, incomplete_params):
         html = []
         h = html.append
         #h('<div style="display: block; width: 600px; text-align: left;">')
-        h('<div style="width:100%; height: 600px;">'
+        h('<div style="width:100%; minheight: 500px;">')
+        
+        h(    '<div  style="background-color: #F1F1FA; display: table; border-radius: 10px; padding: 20px; color: #3366CC; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
+        h(      '<div align="center">')
+        h(          '<p style="font-size: 20px; font-weight: bold;"> Report a problem</p>')
+        h(          '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>')
+        if incomplete_params:
+            h(      '<p style="font-size: 14px; font-weight: bold;"> <font color="red">Please fill the forms correctly!</font></p>')
+        h(      '</div>')
+        h(      '<form action="/author/claim/action" method="post">')
+        h(        '<fieldset style="border: 0; display: inline-block;">')
+        h(          '<p><label for="Name"> Name: </label><input style="float: right; border-radius: 4px;" required="True" name="Name" value="%s" type="text"  size="40"></p>' % (name_to_prefill))
+        h(          '<p><label for="E-mail"> E-mail: </label><input style="float: right; border-radius: 4px;" name="E-mail" value="%s" type="email" size="40"></p>' 
+                                                                                                                                          % (email_to_prefill))
+        h(          '<input type="hidden" name="last_page_visited" value="%s" />' % (str(last_page_visited),))
+        h(          '<p>Comment:</p>')
+        h(          '<p><textarea style="max-width:500px; min-width:500px; min-height:300px; border-radius: 4px;" name="Comment" cols="60" rows="5" required="True" id="Comment"></textarea></p>')
+        h(       '</fieldset>')
+        h(       '<button class="aid_btn_blue" style="display: block; margin: 0 auto;" type="submit" name="send_message">Submit</button>')
 
-            '<div  style="display: table; border-radius: 10px; padding: 20px; color: #0900C4; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">'
-                '<div align="center">'
-                    '<p style="font-size: 20px; font-weight: bold;"> Report a problem</p>'
-                '</div>'
-                '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>'
-
-                '<form action="mailto:admin@example.com" enctype="text/plain" method="post">'
-                  '<fieldset style="border: 0; display: inline-block;">'
-                    '<p><label for="Name"> Name: </label><input style="float: right;" name="Name" type="text"  size="40"></p>'
-                    '<p><label for="E-mail"> E-mail address: </label><input style="float: right;" name="E-mail" type="email" size="40"></p>'
-                    '<p>Comment:</p>'
-
-                    '<p><textarea style="max-width:410px; min-width:500px;" name="Comment" cols="60" rows="5" id="Comment"></textarea></p>'
-                 '</fieldset>'
-                 '<button class="aid_btn_blue" style="display: block; margin: 0 auto;" type="submit" name="Submit">Submit</button>'
-
-               '</form>'
-
-            '</div>')
-
-        #'</div>')
-
+        h(     '</form>')
+        
+        h(  '</div>')
+        
+        h('</div>')
 
         return ' '.join(html)
     # pylint: enable=C0301

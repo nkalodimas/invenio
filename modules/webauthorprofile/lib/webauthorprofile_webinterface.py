@@ -826,7 +826,6 @@ class WebAuthorPages(WebInterfaceDirectory):
         # req.write(str(eval))
 
         if form.has_key('jsondata'):
-            print 'debug: json part'
             json_response = {'boxes_info': {}}
             json_data = json.loads(str(form['jsondata']))
             json_data = json_unicode_to_utf8(json_data)
@@ -851,6 +850,9 @@ class WebAuthorPages(WebInterfaceDirectory):
         else:
             gboxstatus = self.person_id
             gpid = self.person_id
+            gNumOfWorkers = 3 # todo read it from conf file
+            gReqTimeout = 3000
+            gPageTimeout = 12000
             oldest_cache_date = get_person_oldest_date(self.person_id)
 
             delay = datetime.now() - oldest_cache_date
@@ -862,7 +864,8 @@ class WebAuthorPages(WebInterfaceDirectory):
             else:
                 recompute_allowed = False
 
-            req.write('<script type="text/javascript">var gBOX_STATUS = "%s";var gPID = "%s"; </script>' % (gboxstatus, gpid))
+            req.write('<script type="text/javascript">var gBOX_STATUS = "%s";var gPID = "%s"; var gNumOfWorkers= "%s"; var gReqTimeout= "%s"; var gPageTimeout= "%s";</script>'
+                % (gboxstatus, gpid, gNumOfWorkers, gReqTimeout, gPageTimeout))
             req.write(webauthorprofile_templates.tmpl_author_page(ln, self.cid, oldest_cache_date, recompute_allowed))
             # req.write(webauthorprofile_templates.tmpl_author_page(pubs, \
             #                                 selfpubs, authorname, totaldownloads, \
@@ -872,7 +875,6 @@ class WebAuthorPages(WebInterfaceDirectory):
             #                                 summarize_records, pubs_per_year, \
             #                                 hepdict, collab, orcid_info, ln, beval, \
             #                                 oldest_cache_date, recompute_allowed))
-
 
     def create_authorpage_websearch_old(self, req, form, person_id, ln='en', expire_cache=False):
         if CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID:

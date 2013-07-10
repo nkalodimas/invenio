@@ -16,6 +16,8 @@
 ## You should have received a copy of the GNU General Public License
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+
+
 '''
 Bibauthorid_webapi
 Point of access to the documents clustering facility.
@@ -32,7 +34,7 @@ import invenio.search_engine as search_engine
 from invenio.search_engine import perform_request_search
 from cgi import escape
 from invenio.dateutils import strftime
-from time import gmtime, ctime
+from time import time, gmtime, ctime
 from invenio.access_control_admin import acc_find_user_role_actions
 from invenio.webuser import collect_user_info, get_session, getUid
 from invenio.webuser import isUserSuperAdmin
@@ -673,6 +675,35 @@ def insert_log(userinfo, personid, action, tag, value, comment='', transactionid
     return dbapi.insert_user_log(userinfo, personid, action, tag,
                        value, comment, transactionid, userid=uid)
 
+def move_internal_id(person_id_of_owner, person_id_of_receiver):
+    '''
+    Assign an existing uid to another profile while keeping it to the old profile under the tag 'uid-old'
+
+    @param person_id_of_owner pid: Person ID of the profile that currently has the internal id
+    @type pid: int
+    @param person_id_of_receiver pid: Person ID of the profile that will be assigned the internal id
+    @type pid: int
+    '''
+    internal_id = dbapi.get_uid_of_author(person_id_of_owner)
+
+    if not internal_id:
+        return False
+
+    dbapi.mark_internal_id_as_old(person_id_of_owner, internal_id)
+    dbapi.add_author_data(person_id_of_receiver, 'uid', internal_id)
+    return True
+
+def move_external_ids(person_id_of_owner, person_id_of_receiver):
+    '''
+    Assign existing external ids to another profile 
+
+    @param person_id_of_owner pid: Person ID of the profile that currently has the internal id
+    @type pid: int
+    @param person_id_of_receiver pid: Person ID of the profile that will be assigned the internal id
+    @type pid: int
+    '''
+    pass
+
 def set_processed_external_recids(pid, recid_list):
     '''
     Set list of records that have been processed from external identifiers
@@ -979,46 +1010,52 @@ def login_status(req):
 
 def session_bareinit(req):
     session = get_session(req)
-    try:
-        pinfo = session['personinfo']
-        if 'most_compatible_person' not in pinfo:
-            pinfo['most_compatible_person'] = None
-            session.dirty = True
-        if 'profile_suggestion_info' not in pinfo:
-            pinfo["profile_suggestion_info"] = None
-            session.dirty = True
-        if 'ticket' not in pinfo:
-            pinfo["ticket"] = []
-            session.dirty = True
-        if 'users_open_tickets_storage' not in pinfo:
-            pinfo["users_open_tickets_storage"] = []
-            session.dirty = True
-        if 'incomplete_autoclaimed_tickets_storage' not in pinfo:
-            pinfo["incomplete_autoclaimed_tickets_storage"] = []
-            session.dirty = True
-        if 'remote_login_system' not in pinfo:
-            pinfo["remote_login_system"] = dict()
-            session.dirty = True
-        if 'external_ids' not in pinfo:
-            pinfo["external_ids"] = dict()
-            session.dirty = True
-        for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
-            if system not in pinfo["remote_login_system"]:
-                pinfo['remote_login_system'][system] = {'name': None, 'email': None}
-                session.dirty = True
-    except KeyError:
-        pinfo = dict()
-        session['personinfo'] = pinfo
+
+    changed = False
+
+    if 'personinfo' not in session:
+        session['personinfo'] = dict()
+        changed = True
+
+    pinfo = session['personinfo']
+    if 'visit diary' not in pinfo:
+        pinfo['visit_diary'] = dict()
+        changed = True
+    if 'diary_size_per_category' not in pinfo:
+        pinfo['diary_size_per_category'] = 5
+        changed = True
+    if 'most_compatible_person' not in pinfo:
+        pinfo['most_compatible_person'] = None
+        changed = True
+    if 'profile_suggestion_info' not in pinfo:
+        pinfo["profile_suggestion_info"] = None
+        changed = True
+    if 'ticket' not in pinfo:
         pinfo["ticket"] = []
-        pinfo['users_open_tickets_storage'] = []
-        pinfo['remote_login_system'] = dict()
-        pinfo['incomplete_autoclaimed_tickets_storage'] = []
-        for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
-            pinfo["remote_login_system"][system] = { 'name': None, 'external_ids':None, 'email': None}
+        changed = True
+    if 'users_open_tickets_storage' not in pinfo:
+        pinfo["users_open_tickets_storage"] = []
+        changed = True
+    if 'incomplete_autoclaimed_tickets_storage' not in pinfo:
+        pinfo["incomplete_autoclaimed_tickets_storage"] = []
+        changed = True
+    if 'remote_login_system' not in pinfo:
+        pinfo["remote_login_system"] = dict()
+        changed = True
+    if 'external_ids' not in pinfo:
+        pinfo["external_ids"] = dict()
+        changed = True
+    for system in CFG_BIBAUTHORID_ENABLED_REMOTE_LOGIN_SYSTEMS:
+        if system not in pinfo["remote_login_system"]:
+            pinfo['remote_login_system'][system] = {'name': None, 'email': None}
+            changed = True
+
+    if changed:
         session.dirty = True
 
 # all teh get_info methods should standardize the content:
 def get_arxiv_info(req, uinfo):
+    session_bareinit(req)
     session = get_session(req)
     arXiv_info = dict()
 
@@ -1163,10 +1200,24 @@ def get_user_pid(uid):
 
     return pid[0]
 
-def merge_profiles(primary_profile, profiles):
+
+def get_owned_profiles_from_merging_profiles(primary_profile, profiles):
+    owned_profiles = []
+    
+    if not is_profile_available(get_person_id_from_canonical_id(primary_profile)):
+        owned_profiles.append(primary_profile)
+
+    owned_profiles += [profile for profile in profiles if not is_profile_available(get_person_id_from_canonical_id(profile))]
+    
+    return owned_profiles
+
+def move_papers(req, primary_profile, profiles):
     records = dbapi.defaultdict(list)
-    for p in profiles:
-        papers = get_papers_by_person_id(get_person_id_from_canonical_id(p))
+    primary_pid = get_person_id_from_canonical_id(primary_profile)
+
+    for profile in profiles:
+        pid = get_person_id_from_canonical_id(profile)
+        papers = get_papers_by_person_id(pid)
         if papers:
             for rec_info in papers:
                 records[rec_info[0]] += [rec_info[1]]
@@ -1179,7 +1230,29 @@ def merge_profiles(primary_profile, profiles):
         else:
             recs_to_merge.append(records[recid][0])
 
-    return recs_to_merge
+    webapi.add_tickets(req, primary_pid, recs_to_merge, 'confirm')
+
+def merge_profiles(req, primary_profile, profiles):
+    owned_profiles = get_owned_profiles_from_merging_profiles(primary_profile, profiles)
+    # check if there is at most one claimed profile among the profiles to merge
+    # if there are more than one we abort merging
+    if len(owned_profiles) > 1:
+        return False
+
+    # if there is a profile that is owned exists then we should move its internal id 
+    # to the primary profile if they are different
+    if len(owned_profiles) == 1 and owned_profiles[0] != primary_profile:
+        move_internal_id(get_person_id_from_canonical_id(owned_profiles[0]), get_person_id_from_canonical_id(primary_profile))
+
+    # open tickets to move papers from the profiles to the primary profile
+    move_papers(req, primary_profile, profiles)
+
+    # for every profile to be merged move their external ids to the primary
+    for profile in profiles:
+        pid = get_person_id_from_canonical_id(profile)
+        move_external_ids(pid, get_person_id_from_canonical_id(primary_profile))
+
+    return True
 
 def auto_claim_papers(req, pid, recids):
     session_bareinit(req)
@@ -1494,6 +1567,23 @@ def create_request_ticket(userinfo, ticket):
 
     return True
 
+def create_request_message(userinfo):
+    mailcontent = []
+    
+    for info_type in userinfo:
+        mailcontent.append(info_type + ': ')
+        mailcontent.append(str(userinfo[info_type]) + '\n')
+
+    sender = CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL
+
+    if bconfig.TICKET_SENDING_FROM_USER_EMAIL and userinfo['email']:
+        sender = userinfo['email']
+
+    send_email(sender,
+               CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+               subject="[Author] Help Request",
+               content="\n".join(mailcontent))
+
 def send_user_commit_notification_email(userinfo, ticket):
     '''
     Sends commit notification email to RT system
@@ -1677,7 +1767,6 @@ def get_person_info_by_pid(pid):
 #           Ticket Functions               #
 ############################################
 
-
 def add_tickets(req, pid, bibrefs, action):
     session = get_session(req)
     pinfo = session["personinfo"]
@@ -1721,7 +1810,7 @@ def manage_tickets(req, autoclaim_show_review, autoclaim):
     session = get_session(req)
     pinfo = session["personinfo"]
     ticket = pinfo["ticket"]
-    redirect_info = dict()
+    page_info = dict()
 
     reviews_to_handle = is_ticket_review_handling_required(req)
 
@@ -1731,10 +1820,10 @@ def manage_tickets(req, autoclaim_show_review, autoclaim):
         if is_required:
             bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
             if not autoclaim and not autoclaim_show_review:
-                redirect_info['type'] = 'Submit Attribution'
-                redirect_info['title'] = 'Submit Attribution Information'
-                redirect_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
-                return redirect_info
+                page_info['type'] = 'Submit Attribution'
+                page_info['title'] = 'Submit Attribution Information'
+                page_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
+                return page_info
     else:
         handle_ticket_review_results(req, autoclaim)
 
@@ -1749,15 +1838,15 @@ def manage_tickets(req, autoclaim_show_review, autoclaim):
 
     if not can_commit_ticket(req):
         mark_yours, mark_not_yours, mark_theirs, mark_not_theirs = confirm_valid_ticket(req)
-        redirect_info['type'] = 'review actions'
-        redirect_info['title'] = 'Please review your actions'
-        redirect_info['body_params'] = [mark_yours, mark_not_yours, mark_theirs, mark_not_theirs]
-        return redirect_info
+        page_info['type'] = 'review actions'
+        page_info['title'] = 'Please review your actions'
+        page_info['body_params'] = [mark_yours, mark_not_yours, mark_theirs, mark_not_theirs]
+        return page_info
 
 
     ticket_commit(req)
-    redirect_info['type'] = 'dispatch end'
-    return redirect_info
+    page_info['type'] = 'dispatch end'
+    return page_info    
 
 
 def confirm_valid_ticket(req):
@@ -2268,6 +2357,74 @@ def get_stored_incomplete_autoclaim_tickets(req):
     return temp_storage
 
 
+############################################
+#         Visit diary Functions            #
+############################################
+
+def diary(action, caller = None, category = None, pid = None, parameters = None):
+    session_bareinit(req)
+    session = get_session(req)
+    pinfo = session['personinfo']
+    diary = pinfo['visit_diary']
+    diary_size_per_category = pinfo['diary_size_per_category']
+
+    def add_category():
+        diary[category] = []
+
+    def category_exists():
+        if category in diary:
+            return True
+        return False
+    
+    def diary_is_full():
+        if diary[category].count == diary_size:
+            return True
+        return False
+        
+    def get_last_entry():
+        # take the last entry of each category and store the data in a dictionary with key the entry time
+        last_entry_per_category = [{diary[category][-1]['entry_time']:{'category':category,
+                                                                       'parameters': diary[category][-1]['parameters'],
+                                                                       'pid': diary[category][-1]['pid']}
+                                    } for category in diary.keys()]
+        # take the most recent entry
+        last_entry = max(last_entry_per_category.keys())
+        
+        canonical_name = ''
+        if last_entry['pid']:
+            canonical_name = '/' + get_canonical_id_from_person_id(pid)
+
+        link_param = ''
+        if last_entry['parameters']:
+            link_param = '?'
+            link_param += '&'.join([param_type + '=' + param_value for (param_type, param_value) in parameters])
+
+        last_entry_link = 'author/%s%s%s' % (last_entry_per_category[last_entry]['category'], canonical_name, link_param)
+        return last_entry_link
+
+    def log_visit():
+        if not category_exists(category) and category != None:
+            add_category(category)
+        if diary_is_full(category):
+            remove_oldest_visit(category)    
+
+        diary[category].append({'entry_time':time(), 'parameters': parameters, 'pid':pid})
+
+    def get_redirect_link():
+        pass
+        
+    def remove_oldest_visit():
+        diary[category].pop(0)
+
+    action_functions = {'get_last_entry': get_last_entry,
+                        'log_visit': log_visit,
+                        'get_redirect_link': get_redirect_link}
+    
+    caller_category_mapping = {'cancel_search_ticket': ('claim'),
+                               '_ticket_dispatch_end': ('claim', 'manage_profile')
+                               }
+        
+    return action_functions[action]()
 
 REMOTE_LOGIN_SYSTEMS_FUNCTIONS = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
 IS_LOGGED_IN_THROUGH = {'arXiv': is_logged_in_through_arxiv, 'orcid': is_logged_in_through_orcid}

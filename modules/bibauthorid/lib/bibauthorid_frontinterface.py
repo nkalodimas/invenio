@@ -166,6 +166,9 @@ def get_processed_external_recids(pid):
 def get_all_personids_recs(pid, claimed_only=False):
     return dbinter.get_papers_of_author(pid, claimed_only)
 
+def mark_internal_id_as_old(person_id, uid):
+    remove_author_data('uid', pid=person_id, value = uid)
+    add_author_data(person_id, 'uid-old', value = uid)
 
 def fallback_find_personids_by_name_string(target):
     '''
