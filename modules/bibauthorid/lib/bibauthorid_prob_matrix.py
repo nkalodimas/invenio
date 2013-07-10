@@ -48,17 +48,17 @@ class ProbabilityMatrix(object):
     between all virtual authors. It is able to write
     and read from the database and update the results.
     '''
-    def __init__(self):
-        self._bib_matrix = Bib_matrix()
+    def __init__(self, name):
+        self._bib_matrix = Bib_matrix(name)
 
-    def load(self, lname, load_map=True, load_matrix=True):
+    def load(self, load_map=True, load_matrix=True):
         update_status(0., "Loading probability matrix...")
-        self._bib_matrix.load(lname, load_map, load_matrix)
+        self._bib_matrix.load(load_map, load_matrix)
         update_status_final("Probability matrix loaded.")
 
-    def store(self, name):
+    def store(self):
         update_status(0., "Saving probability matrix...")
-        self._bib_matrix.store(name)
+        self._bib_matrix.store()
         update_status_final("Probability matrix saved.")
 
     def __getitem__(self, bibs):
@@ -89,7 +89,7 @@ class ProbabilityMatrix(object):
         old_matrix = self._bib_matrix
         cached_bibs = self.__get_up_to_date_bibs()
         have_cached_bibs = bool(cached_bibs)
-        self._bib_matrix = Bib_matrix(cluster_set)
+        self._bib_matrix = Bib_matrix(cluster_set.last_name, cluster_set=cluster_set)
 
         ncl = cluster_set.num_all_bibs
         expected = ((ncl * (ncl - 1)) / 2)
@@ -139,14 +139,14 @@ def prepare_matirx(cluster_set, force):
         assert cluster_set._debug_test_hate_relation()
         assert cluster_set._debug_duplicated_recs()
 
-    matr = ProbabilityMatrix()
-    matr.load(cluster_set.last_name, load_map=True, load_matrix=False)
+    matr = ProbabilityMatrix(cluster_set.last_name)
+    matr.load(load_map=True, load_matrix=False)
     if not force and matr.is_up_to_date(cluster_set):
         bibauthor_print("Cluster %s is up-to-date and therefore will not be computed."
             % cluster_set.last_name)
         return False
 
-    matr.load(cluster_set.last_name, load_map=False, load_matrix=True)
+    matr.load(load_map=False, load_matrix=True)
     matr.recalculate(cluster_set)
     matr.store(cluster_set.last_name)
     return True

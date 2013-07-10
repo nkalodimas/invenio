@@ -61,8 +61,8 @@ def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
         edge_cut_prob = force_wedge_thrsh / 3.
         wedge_thrsh = force_wedge_thrsh
 
-    matr = ProbabilityMatrix()
-    matr.load(cluster_set.last_name)
+    matr = ProbabilityMatrix(cluster_set.last_name)
+    matr.load()
 
     convert_cluster_set(cluster_set, matr)
     del matr # be sure that this is the last reference!

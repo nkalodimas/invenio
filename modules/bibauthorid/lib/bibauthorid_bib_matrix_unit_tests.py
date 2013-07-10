@@ -34,11 +34,15 @@ class Test_Bib_matrix(unittest.TestCase):
         """
         Set up an empty bibmatrix and one filled with ten clusters of 10 elements each.
         """
-        self.bm = Bib_matrix()
+        self.bm = Bib_matrix('testname', storage_dir_override='/tmp/')
         self.css = ClusterSet()
         self.css.clusters = [ClusterSet.Cluster(range(i*10,i*10+10)) for i in range(10)]
         self.css.update_bibs()
-        self.bmcs0 = Bib_matrix(self.css)
+        self.bmcs0 = Bib_matrix('testname2', self.css, storage_dir_override='/tmp/')
+
+    def tearDown(self):
+        self.bm.store()
+        self.bmcs0.store()
 
     def test_resolve_entry_simmetry(self):
         for j in range(100):
@@ -86,9 +90,10 @@ class Test_Bib_matrix(unittest.TestCase):
                         self.assertTrue(self.bmcs0[(j,k)] == None)
 
     def test_save_matrix(self):
-        self.bmcs0.store('testmatrix')
-        loaded = Bib_matrix()
-        loaded.load('testmatrix')
+        self.bmcs0.store()
+        self.bmcs0.load()
+        loaded = Bib_matrix('testname2', storage_dir_override='/tmp/')
+        loaded.load()
         bmcs0 = self.bmcs0
         for i in range(100):
             for  j in range(100):
