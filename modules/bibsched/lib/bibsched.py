@@ -270,14 +270,15 @@ def sleep_task(task):
     bibsched_set_status(task.id, 'ABOUT TO SLEEP', task.status)
 
 
-def check_pid(pid):
-    """Check For the existence of a unix pid"""
+def fetch_debug_mode():
+    r = run_sql('SELECT value FROM schSTATUS WHERE name = "debug_mode"')
     try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    else:
-        return True
+        debug_mode = int(r[0][0])
+    except (ValueError, IndexError):
+        # We insert the missing configuration variable in the DB
+        run_sql('INSERT INTO schSTATUS (name, value) VALUES ("debug_mode", "0")')
+        debug_mode = 0
+    return debug_mode
 
 
 class Task(object):
@@ -747,13 +748,23 @@ class BibSched(object):
                 Log('Task crashed %s' % task.id)
                 bibsched_set_status(task.id, 'CERROR')
 
+    def check_debug_mode(self):
+        debug_mode = fetch_debug_mode()
+
+        if debug_mode and not self.debug:
+            Log('Switching to debug mode')
+        elif self.debug and not debug_mode:
+            Log('Switching out of debug mode')
+        self.debug = debug_mode
+
     def tick(self):
         Log("New bibsched cycle", self.debug)
         self.cycles_count += 1
 
-        self.check_for_crashed_tasks()
-        # if self.cycles_count % 50 == 0:
-        #     self.check_for_crashed_tasks()
+        self.check_debug_mode()
+
+        if self.cycles_count % 50 == 0:
+            self.check_for_crashed_tasks()
 
         try:
             self.check_errors()

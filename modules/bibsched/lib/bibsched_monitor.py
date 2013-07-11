@@ -57,7 +57,8 @@ from invenio.bibsched import bibsched_get_status, \
                              server_pid, \
                              redirect_stdout_and_stderr, \
                              restore_stdout_and_stderr, \
-                             get_task_pid
+                             get_task_pid, \
+                             fetch_debug_mode
 
 
 CFG_MOTD_PATH = os.path.join(CFG_TMPSHAREDDIR, "bibsched.motd")
@@ -173,7 +174,8 @@ class Manager(object):
                                            ord("q"), ord("Q"), ord("a"),
                                            ord("A"), ord("1"), ord("2"), ord("3"),
                                            ord("p"), ord("P"), ord("o"), ord("O"),
-                                           ord("l"), ord("L"), ord("e"), ord("E"))):
+                                           ord("l"), ord("L"), ord("e"), ord("E"),
+                                           ord("z"), ord("Z"))):
             self.display_in_footer("in automatic mode")
         else:
             status = self.currentrow and self.currentrow[5] or None
@@ -232,6 +234,8 @@ class Manager(object):
                 self.purge_done()
             elif char in (ord("o"), ord("O")):
                 self.display_task_options()
+            elif char in (ord("z"), ord("Z")):
+                self.toggle_debug_mode()
             elif char in (ord("e"), ord("E")):
                 self.edit_motd()
                 self.read_motd()
@@ -396,6 +400,10 @@ order to let this task run. The current priority is %s. New value:"
         self.repaint()
 
     def wakeup(self):
+        if not self.currentrow:
+            self.display_in_footer("no task selected")
+            return
+
         task_id = self.currentrow[0]
         process = self.currentrow[1]
         status = self.currentrow[5]
@@ -752,6 +760,21 @@ order to let this task run. The current priority is %s. New value:"
         # We need to refresh the color of the header and footer
         self.repaint()
 
+    def toggle_debug_mode(self):
+        if self.debug_mode:
+            self.display_in_footer("Deactivating debug mode")
+            self.debug_mode = 0
+            value = "0"
+        else:
+            self.display_in_footer("Activating debug mode")
+            self.debug_mode = 1
+            value = "1"
+
+        run_sql('UPDATE schSTATUS SET value = %s WHERE name = "debug_mode"',
+                [value])
+
+
+
     def put_line(self, row, header=False, motd=False):
         ## ROW: (id,proc,user,runtime,sleeptime,status,progress,arguments,priority,host)
         ##       0  1    2    3       4         5      6        7         8        9
@@ -843,6 +866,9 @@ order to let this task run. The current priority is %s. New value:"
     def tick(self):
         self.update_rows()
         self.repaint()
+
+        self.debug_mode = fetch_debug_mode()
+
         if self.manual_mode_time_left and self.manual_mode_time_left.seconds < 10:
             self.display_change_queue_mode_box(extend_time=True)
 
@@ -864,14 +890,21 @@ order to let this task run. The current priority is %s. New value:"
         for row in self.rows[self.first_visible_line:self.first_visible_line+maxy-2]:
             self.put_line(row)
         self.y = self.stdscr.getmaxyx()[0] - 1
+        if self.debug_mode:
+            debug_footer = "DEBUG MODE!! "
+        else:
+            debug_footer = ""
         if self.auto_mode:
-            self.display_in_footer(self.footer_auto_mode, print_time_p=1)
+            self.display_in_footer(debug_footer + self.footer_auto_mode,
+                                   print_time_p=1)
         else:
             if self.manual_mode_time_left:
                 time_left = " %02d:%02d remaining" % (self.manual_mode_time_left.seconds / 60, self.manual_mode_time_left.seconds % 60)
             else:
                 time_left = ""
-            self.display_in_footer(self.footer_manual_mode % time_left, print_time_p=1)
+            footer = self.footer_manual_mode % time_left
+            self.display_in_footer(debug_footer + footer,
+                                   print_time_p=1)
             footer2 = ""
             if self.item_status.find("DONE") > -1 or self.item_status in ("ERROR", "STOPPED", "KILLED", "ERRORS REPORTED"):
                 footer2 += self.footer_stopped_item
@@ -952,6 +985,7 @@ order to let this task run. The current priority is %s. New value:"
         self.height, self.width = stdscr.getmaxyx()
         self.stdscr.erase()
         self.check_auto_mode()
+        self.debug_mode = fetch_debug_mode()
         ring = 4
         if len(self.motd) > 0:
             self._display_message_box(self.motd + "\nPress any key to close")
