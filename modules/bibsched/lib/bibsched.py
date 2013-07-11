@@ -50,7 +50,8 @@ from invenio.config import \
      CFG_BIBSCHED_NODE_TASKS, \
      CFG_INSPIRE_SITE, \
      CFG_BIBSCHED_INCOMPATIBLE_TASKS, \
-     CFG_BIBSCHED_NON_CONCURRENT_TASKS
+     CFG_BIBSCHED_NON_CONCURRENT_TASKS, \
+     CFG_VERSION
 from invenio.dbquery import run_sql, real_escape_string
 from invenio.errorlib import register_exception, register_emergency
 from invenio.shellutils import run_shell_command
@@ -107,18 +108,16 @@ def get_my_pid(process, args=''):
     return int(answer)
 
 
-def get_task_pid(task_name, task_id, ignore_error=False):
+def get_task_pid(task_id):
     """Return the pid of task_name/task_id"""
     try:
         path = os.path.join(CFG_PREFIX, 'var', 'run', 'bibsched_task_%d.pid' % task_id)
         pid = int(open(path).read())
-        os.kill(pid, signal.SIGUSR2)
+        os.kill(pid, 0)
         return pid
     except (OSError, IOError):
-        if ignore_error:
-            return 0
-        register_exception()
-        return get_my_pid(task_name, str(task_id))
+        return None
+
 
 def get_last_taskid():
     """Return the last taskid used."""
@@ -242,11 +241,11 @@ def bibsched_set_priority(task_id, priority):
     return run_sql("UPDATE schTASK SET priority=%s WHERE id=%s", (priority, task_id))
 
 
-def bibsched_send_signal(proc, task_id, sig):
+def bibsched_send_signal(task_id, sig):
     """Send a signal to a given task."""
     if bibsched_get_host(task_id) != gethostname():
         return False
-    pid = get_task_pid(proc, task_id, True)
+    pid = get_task_pid(task_id)
     if pid:
         try:
             os.kill(pid, sig)
@@ -269,6 +268,16 @@ def stop_task(task):
 def sleep_task(task):
     Log("Sending SLEEP signal to #%d (%s) which was in status %s" % (task.id, task.proc, task.status))
     bibsched_set_status(task.id, 'ABOUT TO SLEEP', task.status)
+
+
+def check_pid(pid):
+    """Check For the existence of a unix pid"""
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    else:
+        return True
 
 
 class Task(object):
@@ -306,6 +315,7 @@ class Task(object):
 
 class BibSched(object):
     def __init__(self, debug=False):
+        self.cycles_count = 0
         self.debug = debug
         self.hostname = gethostname()
         self.helper_modules = CFG_BIBTASK_VALID_TASKS
@@ -570,7 +580,7 @@ class BibSched(object):
                             return False
 
                     bibsched_set_status(task.id, "CONTINUING", task.status)
-                    if not bibsched_send_signal(task.proc, task.id, signal.SIGCONT):
+                    if not bibsched_send_signal(task.id, signal.SIGCONT):
                         bibsched_set_status(task.id, "ERROR", "CONTINUING")
                         Log("Task #%d (%s) woken up but didn't existed anymore" % (task.id, task.proc))
                         return True
@@ -644,11 +654,6 @@ class BibSched(object):
 
     def calculate_rows(self):
         """Return all the node relevant tasks for the algorithm to work on."""
-        try:
-            self.check_errors()
-        except RecoverableError, msg:
-            register_emergency('Light emergency from %s: BibTask failed: %s' % (CFG_SITE_URL, msg))
-
         if not CFG_INSPIRE_SITE:
             max_bibupload_priority, min_bibupload_priority = run_sql(
                     """SELECT MAX(priority), MIN(priority)
@@ -734,6 +739,51 @@ class BibSched(object):
 
         return status
 
+    def check_for_crashed_tasks(self):
+        for task in self.node_active_tasks:
+            Log('Checking %s' % task.id)
+            pid = get_task_pid(task.id)
+            if not pid:
+                Log('Task crashed %s' % task.id)
+                bibsched_set_status(task.id, 'CERROR')
+
+    def tick(self):
+        Log("New bibsched cycle", self.debug)
+        self.cycles_count += 1
+
+        self.check_for_crashed_tasks()
+        # if self.cycles_count % 50 == 0:
+        #     self.check_for_crashed_tasks()
+
+        try:
+            self.check_errors()
+        except RecoverableError, msg:
+            register_emergency('Light emergency from %s: BibTask failed: %s'
+                                                         % (CFG_SITE_URL, msg))
+
+        # Update our tasks list (to know who is running, sleeping, etc.)
+        self.calculate_rows()
+
+        # Let's first handle running tasks running on this node.
+        for task in self.node_active_tasks:
+            if self.handle_task(task):
+                break
+        else:
+            # If nothing has changed we can go on to run tasks.
+            for task in self.node_relevant_waiting_tasks:
+                if task.proc == 'bibupload' \
+                   and self.node_relevant_bibupload_tasks:
+                    ## We switch in bibupload serial mode!
+                    ## which means we execute the first next bibupload.
+                    if self.handle_task(self.node_relevant_bibupload_tasks[0]):
+                        ## Something has changed
+                        break
+                elif self.handle_task(task):
+                    ## Something has changed
+                    break
+            else:
+                time.sleep(CFG_BIBSCHED_REFRESHTIME)
+
     def watch_loop(self):
         ## Cleaning up scheduled task not run because of bibsched being
         ## interrupted in the middle.
@@ -744,36 +794,16 @@ class BibSched(object):
 
         try:
             while True:
-                Log("New bibsched cycle", self.debug)
                 auto_mode = self.check_auto_mode()
-                if not auto_mode:
-                    time.sleep(CFG_BIBSCHED_REFRESHTIME)
-                    continue
-
-                self.calculate_rows()
-                ## Let's first handle running tasks running on this node.
-                for task in self.node_active_tasks:
-                    if self.handle_task(task):
-                        break
+                if auto_mode:
+                    self.tick()
                 else:
-                    # If nothing has changed we can go on to run tasks.
-                    for task in self.node_relevant_waiting_tasks:
-                        if task.proc == 'bibupload' \
-                           and self.node_relevant_bibupload_tasks:
-                            ## We switch in bibupload serial mode!
-                            ## which means we execute the first next bibupload.
-                            if self.handle_task(self.node_relevant_bibupload_tasks[0]):
-                                ## Something has changed
-                                break
-                        elif self.handle_task(task):
-                            ## Something has changed
-                            break
-                    else:
-                        time.sleep(CFG_BIBSCHED_REFRESHTIME)
+                    time.sleep(CFG_BIBSCHED_REFRESHTIME)
         except Exception, err:
             register_exception(alert_admin=True)
             try:
-                register_emergency('Emergency from %s: BibSched halted: %s' % (CFG_SITE_URL, err))
+                register_emergency('Emergency from %s: BibSched halted: %s'
+                                                         % (CFG_SITE_URL, err))
             except NotImplementedError:
                 pass
             raise
@@ -880,6 +910,10 @@ def server_pid(ping_the_process=True, check_is_really_bibsched=True):
     return pid
 
 
+def write_server_pid(pid):
+    open(pidfile, 'w').write('%d' % pid)
+
+
 def start(verbose=True, debug=False):
     """ Fork this process in the background and start processing
     requests. The process PID is stored in a pid file, so that it can
@@ -899,26 +933,30 @@ def start(verbose=True, debug=False):
             warning("erasing %s and continuing..." % (pidfile, ))
             os.remove(pidfile)
 
-    # start the child process using the "double fork" technique
-    pid = os.fork()
-    if pid > 0:
-        sys.exit(0)
+    if debug:
+        pid = os.getpid()
+        write_server_pid(pid)
+    else:
+        # start the child process using the "double fork" technique
+        pid = os.fork()
+        if pid > 0:
+            sys.exit(0)
 
-    os.setsid()
-    os.chdir('/')
+        os.setsid()
+        os.chdir('/')
 
-    pid = os.fork()
+        pid = os.fork()
 
-    if pid > 0:
-        if verbose:
-            sys.stdout.write('pid %d\n' % pid)
+        if pid > 0:
+            if verbose:
+                sys.stdout.write('pid %d\n' % pid)
 
-        Log("daemon started (pid %d)" % pid)
-        open(pidfile, 'w').write('%d' % pid)
-        return
+            Log("daemon started (pid %d)" % pid)
+            write_server_pid(pid)
+            return
 
-    sys.stdin.close()
-    redirect_stdout_and_stderr()
+        sys.stdin.close()
+        redirect_stdout_and_stderr()
 
     sched = BibSched(debug=debug)
     try:
@@ -1045,7 +1083,7 @@ def stop(verbose=True, debug=False):
         print "Stopping all running BibTasks"
     for task_id, proc, status in res:
         if status == 'SLEEPING':
-            bibsched_send_signal(proc, task_id, signal.SIGCONT)
+            bibsched_send_signal(task_id, signal.SIGCONT)
             time.sleep(CFG_BIBSCHED_REFRESHTIME)
         bibsched_set_status(task_id, 'ABOUT TO STOP')
     while run_sql("""SELECT id FROM schTASK
@@ -1089,7 +1127,7 @@ def main():
             usage(0)
 
         elif opt in ["-V", "--version"]:
-            print __revision__
+            print CFG_VERSION
             sys.exit(0)
 
         elif opt in ['-q', '--quiet']:

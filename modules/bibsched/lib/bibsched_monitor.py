@@ -321,7 +321,7 @@ class Manager(object):
     def display_task_options(self):
         """Nicely display information about current process."""
         msg = '        id: %i\n\n' % self.currentrow[0]
-        pid = get_task_pid(self.currentrow[1], self.currentrow[0], True)
+        pid = get_task_pid(self.currentrow[0])
         if pid is not None:
             msg += '       pid: %s\n\n' % pid
         msg += '  priority: %s\n\n' % self.currentrow[8]
@@ -402,7 +402,7 @@ order to let this task run. The current priority is %s. New value:"
         #if self.count_processes('RUNNING') + self.count_processes('CONTINUING') >= 1:
             #self.display_in_footer("a process is already running!")
         if status == "SLEEPING":
-            if not bibsched_send_signal(process, task_id, signal.SIGCONT):
+            if not bibsched_send_signal(task_id, signal.SIGCONT):
                 bibsched_set_status(task_id, "ERROR", "SLEEPING")
             self.update_rows()
             self.repaint()
@@ -648,7 +648,7 @@ order to let this task run. The current priority is %s. New value:"
         status = self.currentrow[5]
         if status in ('RUNNING', 'CONTINUING', 'ABOUT TO STOP', 'ABOUT TO SLEEP', 'SLEEPING'):
             if self._display_YN_box("Are you sure you want to kill the %s process %s?" % (process, task_id)):
-                bibsched_send_signal(process, task_id, signal.SIGKILL)
+                bibsched_send_signal(task_id, signal.SIGKILL)
                 bibsched_set_status(task_id, 'KILLED')
                 self.update_rows()
                 self.repaint()
@@ -663,7 +663,7 @@ order to let this task run. The current priority is %s. New value:"
         if status in ('RUNNING', 'CONTINUING', 'ABOUT TO SLEEP', 'SLEEPING'):
             if status == 'SLEEPING':
                 bibsched_set_status(task_id, 'NOW STOP', 'SLEEPING')
-                bibsched_send_signal(process, task_id, signal.SIGCONT)
+                bibsched_send_signal(task_id, signal.SIGCONT)
                 count = 10
                 while bibsched_get_status(task_id) == 'NOW STOP':
                     if count <= 0:
