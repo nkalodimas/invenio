@@ -20,6 +20,8 @@
 from invenio import bibauthorid_config as bconfig
 from itertools import izip, starmap
 from operator import mul
+from  msgpack import dumps, loads
+import tempfile
 from invenio.bibauthorid_general_utils import update_status \
                                     , update_status_final \
                                     , bibauthor_print \
@@ -170,12 +172,13 @@ def do_wedge(cluster_set, deep_debug=False):
 
     bib_map = create_bib_2_cluster_dict(cluster_set)
 
-    plus_edges, minus_edges, edges = group_sort_edges(cluster_set)
+    plus_edges_fp, len_plus, minus_edges_fp, len_minus, edges_fp, len_edges = group_sort_edges(cluster_set)
 
     interval = 1000
-    for i, (bib1, bib2) in enumerate(plus_edges):
+    for i, s in enumerate(plus_edges_fp.readlines()):
+        bib1, bib2 = loads(s)
         if (i % interval) == 0:
-            update_status(float(i) / len(plus_edges), "Agglomerating obvious clusters...")
+            update_status(float(i) / len_plus, "Agglomerating obvious clusters...")
         cl1 = bib_map[bib1]
         cl2 = bib_map[bib2]
         if cl1 != cl2 and not cl1.hates(cl2):
@@ -186,9 +189,10 @@ def do_wedge(cluster_set, deep_debug=False):
     update_status_final("Agglomerating obvious clusters done.")
 
     interval = 1000
-    for i, (bib1, bib2) in enumerate(minus_edges):
+    for i, s in enumerate(minus_edges_fp.readlines()):
+        bib1, bib2 = loads(s)
         if (i % interval) == 0:
-            update_status(float(i) / len(minus_edges), "Dividing obvious clusters...")
+            update_status(float(i) / len_minus, "Dividing obvious clusters...")
         cl1 = bib_map[bib1]
         cl2 = bib_map[bib2]
         if cl1 != cl2 and not cl1.hates(cl2):
@@ -196,12 +200,13 @@ def do_wedge(cluster_set, deep_debug=False):
     update_status_final("Dividing obvious clusters done.")
 
     interval = 50000
-    wedge_print("Wedge: New wedge, %d edges." % len(edges))
+    wedge_print("Wedge: New wedge, %d edges." % len_edges)
     current = -1
-    for  v1, v2, unused in edges:
+    for  s in edges_fp.readlines():
+        v1, v2, unused = loads(s)
         current += 1
         if (current % interval) == 0:
-            update_status(float(current) / len(edges), "Wedge...")
+            update_status(float(current) / len_edges, "Wedge...")
 
         assert unused != '+' and unused != '-', PID()+"Signed edge after filter!"
         cl1 = bib_map[v1]
@@ -357,7 +362,30 @@ def group_sort_edges(cs):
     gc.enable()
     bibauthor_print("Sorting the value edges.")
     pairs.sort(key=_edge_sorting, reverse=True)
-    return plus, minus, pairs
+
+    plus_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
+    minus_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
+    pairs_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
+
+    bibauthor_print("Dumping plus egdes to file...")
+    plus_fp.writelines(dumps(x)+'\n' for x in plus)
+    plus_fp.seek(0)
+    len_plus = len(plus)
+    del plus
+
+    bibauthor_print("Dumping minus egdes to file...")
+    minus_fp.writelines(dumps(x)+'\n' for x in minus)
+    minus_fp.seek(0)
+    len_minus = len(minus)
+    del minus
+
+    bibauthor_print("Dumping value egdes to file...")
+    pairs_fp.writelines(dumps(x)+'\n' for x in pairs)
+    pairs_fp.seek(0)
+    len_pairs = len(pairs)
+    del pairs
+
+    return plus_fp, len_plus, minus_fp, len_minus, pairs_fp, len_pairs
 
 
 def join(cl1, cl2):
