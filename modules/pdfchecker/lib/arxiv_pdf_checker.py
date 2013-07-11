@@ -527,7 +527,7 @@ def task_run_core(name=NAME):
         submit_fixmarc_task(updated_recids)
         submit_refextract_task(updated_recids)
 
-    store_last_updated(recid, start_date, name)
+    store_last_updated(0, start_date, name)
 
     return True
 
