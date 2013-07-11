@@ -185,7 +185,7 @@ def do_wedge(cluster_set, deep_debug=False):
 
     interval = 1000
     for i, s in enumerate(plus_edges_fp.readlines()):
-        bib1, bib2 = _unpack_vals(s)
+        bib1, bib2, unused = _unpack_vals(s)
         if (i % interval) == 0:
             update_status(float(i) / len_plus, "Agglomerating obvious clusters...")
         cl1 = bib_map[bib1]
@@ -199,7 +199,7 @@ def do_wedge(cluster_set, deep_debug=False):
 
     interval = 1000
     for i, s in enumerate(minus_edges_fp.readlines()):
-        bib1, bib2 = _unpack_vals(s)
+        bib1, bib2, unused = _unpack_vals(s)
         if (i % interval) == 0:
             update_status(float(i) / len_minus, "Dividing obvious clusters...")
         cl1 = bib_map[bib1]
