@@ -55,10 +55,10 @@ def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
     global wedge_thrsh
 
     if not force_wedge_thrsh:
-        edge_cut_prob = bconfig.WEDGE_THRESHOLD / 3.
+        edge_cut_prob = bconfig.WEDGE_THRESHOLD / 4.
         wedge_thrsh = bconfig.WEDGE_THRESHOLD
     else:
-        edge_cut_prob = force_wedge_thrsh / 3.
+        edge_cut_prob = force_wedge_thrsh / 4.
         wedge_thrsh = force_wedge_thrsh
 
     matr = ProbabilityMatrix(cluster_set.last_name)
@@ -170,7 +170,7 @@ def do_wedge(cluster_set, deep_debug=False):
 
     bib_map = create_bib_2_cluster_dict(cluster_set)
 
-    plus_edges, minus_edges, edges = group_edges(cluster_set)
+    plus_edges, minus_edges, edges = group_sort_edges(cluster_set)
 
     interval = 1000
     for i, (bib1, bib2) in enumerate(plus_edges):
@@ -194,9 +194,6 @@ def do_wedge(cluster_set, deep_debug=False):
         if cl1 != cl2 and not cl1.hates(cl2):
             cl1.quarrel(cl2)
     update_status_final("Dividing obvious clusters done.")
-
-    bibauthor_print("Sorting the value edges.")
-    edges.sort(key=_edge_sorting, reverse=True)
 
     interval = 50000
     wedge_print("Wedge: New wedge, %d edges." % len(edges))
@@ -254,7 +251,7 @@ def convert_cluster_set(cs, prob_matr):
     @param type: cluster set
     @return: a mapping from a number to a bibrefrec.
     '''
-    gc.disable()
+    #gc.disable()
 
     # step 1:
     #    + Assign a number to each bibrefrec.
@@ -305,7 +302,7 @@ def convert_cluster_set(cs, prob_matr):
         c1.out_edges = reduce(meld_edges, pointers)[0]
 
     update_status_final("Converting the cluster set done.")
-    gc.enable()
+    #gc.enable()
 
 def restore_cluster_set(cs):
     for cl in cs.clusters:
@@ -325,7 +322,7 @@ def create_bib_2_cluster_dict(cs):
             ret[bib] = cl
     return ret
 
-def group_edges(cs):
+def group_sort_edges(cs):
     plus = []
     minus = []
     pairs = []
@@ -341,7 +338,9 @@ def group_edges(cs):
         pointers = cl1.out_edges
         for bib2 in xrange(len(cl1.out_edges)):
             val = pointers[bib2]
-            if val[0] not in Bib_matrix.special_numbers:
+            #if val[0] not in Bib_matrix.special_numbers:
+            #optimization: special numbers are assumed to be negative
+            if val[0] >= 0:
                 if val[0] > edge_cut_prob:
                     pairs.append((bib1, bib2, val))
             elif val[0] == Bib_matrix.special_symbols['+']:
@@ -356,6 +355,8 @@ def group_edges(cs):
     bibauthor_print("Positive edges: %d, Negative edges: %d, Value edges: %d."
                      % (len(plus), len(minus), len(pairs)))
     gc.enable()
+    bibauthor_print("Sorting the value edges.")
+    pairs.sort(key=_edge_sorting, reverse=True)
     return plus, minus, pairs
 
 
