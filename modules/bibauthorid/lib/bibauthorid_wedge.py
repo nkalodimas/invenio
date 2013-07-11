@@ -20,7 +20,6 @@
 from invenio import bibauthorid_config as bconfig
 from itertools import izip, starmap
 from operator import mul
-from  msgpack import dumps, loads
 import tempfile
 from invenio.bibauthorid_general_utils import update_status \
                                     , update_status_final \
@@ -163,6 +162,15 @@ def _edge_sorting(edge):
     '''
     return edge[2][0] + edge[2][1] / 10.
 
+
+def _pack_vals(v):
+    return str(v[0])+';'+str(v[1])+';'+str(v[2][0])+';'+str(v[2][1])+'\n'
+
+def _unpack_vals(s):
+    v = s.strip().split(';')
+    return int(v[0]), int(v[1]), (float(v[2]), float(v[3]))
+
+
 def do_wedge(cluster_set, deep_debug=False):
     '''
     Rearranges the cluster_set acoarding to be values in the probability_matrix.
@@ -172,11 +180,12 @@ def do_wedge(cluster_set, deep_debug=False):
 
     bib_map = create_bib_2_cluster_dict(cluster_set)
 
+    #remember to close the files!
     plus_edges_fp, len_plus, minus_edges_fp, len_minus, edges_fp, len_edges = group_sort_edges(cluster_set)
 
     interval = 1000
     for i, s in enumerate(plus_edges_fp.readlines()):
-        bib1, bib2 = loads(s)
+        bib1, bib2 = _unpack_vals(s)
         if (i % interval) == 0:
             update_status(float(i) / len_plus, "Agglomerating obvious clusters...")
         cl1 = bib_map[bib1]
@@ -190,7 +199,7 @@ def do_wedge(cluster_set, deep_debug=False):
 
     interval = 1000
     for i, s in enumerate(minus_edges_fp.readlines()):
-        bib1, bib2 = loads(s)
+        bib1, bib2 = _unpack_vals(s)
         if (i % interval) == 0:
             update_status(float(i) / len_minus, "Dividing obvious clusters...")
         cl1 = bib_map[bib1]
@@ -203,7 +212,7 @@ def do_wedge(cluster_set, deep_debug=False):
     wedge_print("Wedge: New wedge, %d edges." % len_edges)
     current = -1
     for  s in edges_fp.readlines():
-        v1, v2, unused = loads(s)
+        v1, v2, unused = _unpack_vals(s)
         current += 1
         if (current % interval) == 0:
             update_status(float(current) / len_edges, "Wedge...")
@@ -248,6 +257,10 @@ def do_wedge(cluster_set, deep_debug=False):
 
     if deep_debug:
         export_to_dot(cluster_set, "/tmp/%sfinal.dot" % cluster_set.last_name, bib_map)
+
+    plus_edges_fp.close()
+    minus_edges_fp.close()
+    edges_fp.close()
 
 def convert_cluster_set(cs, prob_matr):
     '''
@@ -328,9 +341,10 @@ def create_bib_2_cluster_dict(cs):
     return ret
 
 def group_sort_edges(cs):
-    plus = []
-    minus = []
-    pairs = []
+    plus = list()
+    minus = list()
+    pairs = list()
+    default_val = [0.,0.]
     gc.disable()
     interval = 1000
     current = -1
@@ -349,9 +363,9 @@ def group_sort_edges(cs):
                 if val[0] > edge_cut_prob:
                     pairs.append((bib1, bib2, val))
             elif val[0] == Bib_matrix.special_symbols['+']:
-                plus.append((bib1, bib2))
+                plus.append((bib1, bib2, default_val))
             elif val[0] == Bib_matrix.special_symbols['-']:
-                minus.append((bib1, bib2))
+                minus.append((bib1, bib2, default_val))
             else:
                 assert val[0] == Bib_matrix.special_symbols[None], "Invalid Edge"
 
@@ -367,24 +381,25 @@ def group_sort_edges(cs):
     minus_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
     pairs_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
 
-    bibauthor_print("Dumping plus egdes to file...")
-    plus_fp.writelines(dumps(x)+'\n' for x in plus)
+    bibauthor_print("Dumping plus egdes to file... (%s)" % str(len(plus)))
+    plus_fp.writelines(_pack_vals(x) for x in plus)
     plus_fp.seek(0)
     len_plus = len(plus)
     del plus
 
-    bibauthor_print("Dumping minus egdes to file...")
-    minus_fp.writelines(dumps(x)+'\n' for x in minus)
+    bibauthor_print("Dumping minus egdes to file... (%s)" % str(len(minus)))
+    minus_fp.writelines(_pack_vals(x) for x in minus)
     minus_fp.seek(0)
     len_minus = len(minus)
     del minus
 
-    bibauthor_print("Dumping value egdes to file...")
-    pairs_fp.writelines(dumps(x)+'\n' for x in pairs)
+    bibauthor_print("Dumping value egdes to file... (%s)" % str(len(pairs)))
+    pairs_fp.writelines(_pack_vals(x) for x in pairs)
     pairs_fp.seek(0)
     len_pairs = len(pairs)
     del pairs
 
+    #remember to close the files!
     return plus_fp, len_plus, minus_fp, len_minus, pairs_fp, len_pairs
 
 
