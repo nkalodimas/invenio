@@ -20,8 +20,6 @@
 """BibSched - task management, scheduling and executing system for Invenio
 """
 
-__revision__ = "$Id$"
-
 import os
 import sys
 import time

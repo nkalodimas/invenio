@@ -685,11 +685,14 @@ order to let this task run. The current priority is %s. New value:"
     def delete(self):
         task_id = self.currentrow[0]
         status = self.currentrow[5]
-        if status not in ('RUNNING', 'CONTINUING', 'SLEEPING', 'SCHEDULED', 'ABOUT TO STOP', 'ABOUT TO SLEEP'):
-            bibsched_set_status(task_id, "%s_DELETED" % status, status)
-            self.display_in_footer("process deleted")
-            self.update_rows()
-            self.repaint()
+        if status not in ('RUNNING', 'CONTINUING', 'SLEEPING', 'SCHEDULED',
+                          'ABOUT TO STOP', 'ABOUT TO SLEEP'):
+            msg = 'Are you sure you want to delete this task?'
+            if self._display_YN_box(msg):
+                bibsched_set_status(task_id, "%s_DELETED" % status, status)
+                self.display_in_footer("process deleted")
+                self.update_rows()
+                self.repaint()
         else:
             self.display_in_footer("Cannot delete running processes")
 
