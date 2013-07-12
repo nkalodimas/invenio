@@ -178,7 +178,7 @@ Please, update your invenio-local.conf file accordingly.""" % (option_name, new_
                        'CFG_REFEXTRACT_KBS_OVERRIDE',
                        'CFG_BIBSCHED_NON_CONCURRENT_TASKS',
                        'CFG_BIBSCHED_INCOMPATIBLE_TASKS',
-                       'CFG_BIBDOCFILE_ADDITIONAL_KNOWN_MIMETYPES',]:
+                       'CFG_BIBDOCFILE_ADDITIONAL_KNOWN_MIMETYPES']:
         try:
             option_value = option_value[1:-1]
             if option_name == "CFG_BIBEDIT_EXTEND_RECORD_WITH_COLLECTION_TEMPLATE" and option_value.strip().startswith("{"):
