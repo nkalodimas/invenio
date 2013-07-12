@@ -1392,15 +1392,14 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 return self._error_page(req, ln,
                                     "Fatal: cannot create ticket without any profiles selected!")
 
-            merged = webapi.merge_profiles(primary_profile, profiles_to_merge)
-
-            if not merged:
+            primary_profile = get_person_id_from_canonical_id(pid)
+            profiles = [get_person_id_from_canonical_id(profile) for profile in profiles_to_merge]
+            if not is_merge_allowed(profiles):
                 pass
-            # start ticket processing chain
-            pinfo["claimpaper_admin_last_viewed_pid"] = primary_profile
-            session.dirty = True
-            return self._ticket_dispatch(ulevel, req, False, False)
-            # return self.perform(req, form)
+
+            webapi.merge_profiles(primary_profile, profiles_to_merge)
+
+            # redirect somewhere
 
         def send_message():
             self._session_bareinit(req)
@@ -1461,7 +1460,11 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                         'email': email,
                         'comment': comment,
                         'last_page_visited': last_page_visited,
-                        'session_dump': session_dump}
+                        'session_dump': session_dump,
+                        'name_given': name_given,
+                        'email_given': email_given,
+                        'name_changed': name_changed,
+                        'email_changed': email_changed}
             
             webapi.create_request_message(userinfo)
             
@@ -1801,17 +1804,11 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         ln = argd['ln']
         # ln = wash_language(argd['ln'])
         query = None
-        recid = None
-        nquery = None
-        search_results = None
         title = "Person Search"
 
         if 'q' in argd:
             if argd['q']:
                 query = escape(argd['q'])
-
-        if recid and (len(pid_canditates_list) == 1):
-            return redirect_to_url(req, "/author/claim/%s" % search_results[0])
 
         body = body + self.search_box(query, shown_element_functions)
 
@@ -1905,6 +1902,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
     def _perform_search(self, search_param):
         pid_canditates_list = []
+        nquery = None
         if search_param:
             if search_param.count(":"):
                 try:
@@ -1924,7 +1922,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
             sorted_results = webapi.search_person_ids_by_name(nsearch_param)
 
             for result in sorted_results:
-               pid_canditates_list.append(result[0])
+                pid_canditates_list.append(result[0])
         return pid_canditates_list
             
     def merge_profiles_ajax(self, req, form):

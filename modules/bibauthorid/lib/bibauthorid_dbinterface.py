@@ -1681,10 +1681,10 @@ def get_author_data(pid, tag):   ### get_personid_row
     @param tag: data tag
     @type tag: str
 
-    @return: records ((data, opt1, opt2, opt3, data),)
+    @return: records ((data, opt1, opt2, opt3, tag),)
     @rtype: tuple ((str, int, int, str, str),)
     '''
-    return _select_from_aidpersoniddata_where(select=['data', 'opt1', 'opt2', 'opt3', 'data'], pid=pid, tag=tag)
+    return _select_from_aidpersoniddata_where(select=['data', 'opt1', 'opt2', 'opt3', 'tag'], pid=pid, tag=tag)
 
 
 def get_canonical_name_of_author(pid):   ### get_canonical_id_from_personid - get_canonical_names_by_pid
@@ -1890,7 +1890,7 @@ def _get_inspire_id_of_author(pid):   ### get_inspire_ids_by_pids
     return _select_from_aidpersoniddata_where(select=['data'], pid=pid, tag='extid:INSPIREID')
 
 
-def _get_orcid_id_of_author(pid):   ### get_orcids_by_pids
+def get_orcid_id_of_author(pid):   ### get_orcids_by_pids
     '''
     Gets the external identifier of ORCID system for the given author.
 

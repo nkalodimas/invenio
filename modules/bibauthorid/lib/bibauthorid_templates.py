@@ -35,7 +35,6 @@ from invenio.session import get_session
 from invenio.search_engine_utils import get_fieldvalues
 from invenio.bibauthorid_config import PERSONID_EXTERNAL_IDENTIFIER_MAP, CREATE_NEW_PERSON
 from invenio.bibauthorid_webapi import get_person_redirect_link, get_canonical_id_from_person_id, get_person_names_from_id
-from invenio.bibauthorid_webapi import get_external_ids_of_author
 from invenio.bibauthorid_frontinterface import get_uid_of_author
 from invenio.bibauthorid_frontinterface import get_bibrefrec_name_string
 from invenio.bibauthorid_frontinterface import get_canonical_name_of_author
@@ -506,8 +505,7 @@ class Template:
                                                                        'repeal_text':'This record has been repealed.',
                                                                        'to_other_text':'Assign to another person',
                                                                        'alt_to_other':'To other person!'
-                                                                       },
-                              show_reset_button=True):
+                                                                       }):
         '''
         Generate play per-paper links for the table for the
         status "no decision taken yet"
@@ -710,8 +708,7 @@ class Template:
                                             verbiage_dict=buttons_verbiage_dict['record_repealed'])
             else:
                 paper_status = self.tmpl_author_undecided(paper['bibref'], person_id,
-                                            verbiage_dict=buttons_verbiage_dict['record_undecided'],
-                                            show_reset_button=show_reset_button)
+                                            verbiage_dict=buttons_verbiage_dict['record_undecided'])
 
             h('    <td><div id="bibref%s" style="float:left"><!--%s!-->%s &nbsp;</div>'
                            % (paper['bibref'], paper['flag'], paper_status))
@@ -2684,9 +2681,9 @@ class Template:
                        "automated linkages between you and your professional activities.</br>")
 
         if orcid_data['orcids']:
-                html_orcid += _('This profile is already connected to the following orcid(s): <strong>%s</strong></br>' % (",".join(orcid_data['orcids']),))
-                if orcid_data['arxiv_login'] and orcid_data['own_profile']:
-                    html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Orcid publication list") )
+            html_orcid += _('This profile is already connected to the following orcid(s): <strong>%s</strong></br>' % (",".join(orcid_data['orcids']),))
+            if orcid_data['arxiv_login'] and orcid_data['own_profile']:
+                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Orcid publication list") )
         else:
             if orcid_data['arxiv_login'] and (orcid_data['own_profile'] or orcid_data['add_power']):
                 html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['add_link'],
