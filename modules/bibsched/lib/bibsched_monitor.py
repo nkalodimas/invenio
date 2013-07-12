@@ -175,7 +175,7 @@ class Manager(object):
                                            ord("A"), ord("1"), ord("2"), ord("3"),
                                            ord("p"), ord("P"), ord("o"), ord("O"),
                                            ord("l"), ord("L"), ord("e"), ord("E"),
-                                           ord("z"), ord("Z"))):
+                                           ord("z"), ord("Z"), ord("b"), ord("B"))):
             self.display_in_footer("in automatic mode")
         else:
             status = self.currentrow and self.currentrow[5] or None
@@ -207,9 +207,9 @@ class Manager(object):
             elif char in (ord("a"), ord("A")):
                 self.display_change_queue_mode_box()
             elif char == ord("l"):
-                self.openlog()
+                self.open_task_log()
             elif char == ord("L"):
-                self.openlog(err=True)
+                self.open_task_log(err=True)
             elif char in (ord("w"), ord("W")):
                 self.wakeup()
             elif char in (ord("n"), ord("N")):
@@ -236,6 +236,8 @@ class Manager(object):
                 self.display_task_options()
             elif char in (ord("z"), ord("Z")):
                 self.toggle_debug_mode()
+            elif char in (ord("b"), ord("B")):
+                self.open_bibsched_log()
             elif char in (ord("e"), ord("E")):
                 self.edit_motd()
                 self.read_motd()
@@ -271,12 +273,7 @@ class Manager(object):
                     self.running = 0
                     return
 
-    def openlog(self, err=False):
-        task_id = self.currentrow[0]
-        if err:
-            logname = os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.err' % task_id)
-        else:
-            logname = os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.log' % task_id)
+    def openlog(self, logname):
         if os.path.exists(logname):
             pager = get_pager()
             if os.path.exists(pager):
@@ -290,6 +287,18 @@ class Manager(object):
                 self.repaint()
             else:
                 self._display_message_box("No pager was found")
+
+    def open_task_log(self, err=False):
+        task_id = self.currentrow[0]
+        if err:
+            logname = os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.err' % task_id)
+        else:
+            logname = os.path.join(CFG_BIBSCHED_LOGDIR, 'bibsched_task_%d.log' % task_id)
+        self.openlog(logname)
+
+    def open_bibsched_log(self):
+        logname = os.path.join(CFG_LOGDIR, 'bibsched.log')
+        self.openlog(logname)
 
     def edit_motd(self):
         """Add, delete or change the motd message that will be shown when the
