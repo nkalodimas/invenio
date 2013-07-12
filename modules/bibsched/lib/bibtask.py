@@ -41,8 +41,6 @@ It is possible to enqueue a BibTask via API call by means of
 task_low_level_submission.
 """
 
-__revision__ = "$Id$"
-
 import getopt
 import getpass
 import marshal
@@ -62,12 +60,16 @@ from socket import gethostname
 
 from invenio.dbquery import run_sql, _db_login
 from invenio.access_control_engine import acc_authorize_action
-from invenio.config import CFG_PREFIX, CFG_BINDIR, \
-    CFG_BIBSCHED_PROCESS_USER, CFG_TMPDIR, CFG_SITE_SUPPORT_EMAIL
+from invenio.config import CFG_PREFIX, \
+                           CFG_BINDIR, \
+                           CFG_BIBSCHED_PROCESS_USER, \
+                           CFG_TMPDIR, \
+                           CFG_SITE_SUPPORT_EMAIL, \
+                           CFG_VERSION
 from invenio.errorlib import register_exception
 
 from invenio.access_control_config import CFG_EXTERNAL_AUTH_USING_SSO, \
-    CFG_EXTERNAL_AUTHENTICATION
+                                          CFG_EXTERNAL_AUTHENTICATION
 from invenio.webuser import get_user_preferences, get_email
 from invenio.bibtask_config import \
     CFG_BIBTASK_VALID_TASKS, \
@@ -335,17 +337,16 @@ def setup_loggers(task_id=None):
     return logger
 
 
-def task_init(
-    authorization_action="",
-    authorization_msg="",
-    description="",
-    help_specific_usage="",
-    version=__revision__,
-    specific_params=("", []),
-    task_stop_helper_fnc=None,
-    task_submit_elaborate_specific_parameter_fnc=None,
-    task_submit_check_options_fnc=None,
-    task_run_fnc=None):
+def task_init(authorization_action="",
+              authorization_msg="",
+              description="",
+              help_specific_usage="",
+              version=CFG_VERSION,
+              specific_params=("", []),
+              task_stop_helper_fnc=None,
+              task_submit_elaborate_specific_parameter_fnc=None,
+              task_submit_check_options_fnc=None,
+              task_run_fnc=None):
     """ Initialize a BibTask.
     @param authorization_action: is the name of the authorization action
     connected with this task;
@@ -492,15 +493,14 @@ def task_init(
             _task_email_logs()
             logging.shutdown()
 
-def _task_build_params(
-    task_name,
-    argv,
-    description="",
-    help_specific_usage="",
-    version=__revision__,
-    specific_params=("", []),
-    task_submit_elaborate_specific_parameter_fnc=None,
-    task_submit_check_options_fnc=None):
+def _task_build_params(task_name,
+                       argv,
+                       description="",
+                       help_specific_usage="",
+                       version=CFG_VERSION,
+                       specific_params=("", []),
+                       task_submit_elaborate_specific_parameter_fnc=None,
+                       task_submit_check_options_fnc=None):
     """ Build the BibTask params.
     @param argv: a list of string as in sys.argv
     @param description: is the generic description printed in the usage page;
@@ -607,7 +607,7 @@ def task_get_option(key, default=None):
 def task_has_option(key):
     """Map the has_key query to _OPTIONS"""
     try:
-        return _OPTIONS.has_key(key)
+        return key in _OPTIONS
     except NameError:
         return False
 
@@ -850,7 +850,7 @@ def _task_get_options(task_id, task_name):
     try:
         out = marshal.loads(res[0][0])
     except:
-        write_message("Error: %s task %d does not seem to exist." \
+        write_message("Error: %s task %d does not seem to exist."
             % (task_name, task_id), sys.stderr)
         task_update_status('ERROR')
         sys.exit(1)
@@ -928,7 +928,7 @@ def _task_run(task_run_fnc):
                 progress = progress[0][0]
             else:
                 progress = ''
-            g =  re.match(r'Postponed (\d+) time\(s\)', progress)
+            g = re.match(r'Postponed (\d+) time\(s\)', progress)
             if g:
                 postponed_times = int(g.group(1))
             else:
