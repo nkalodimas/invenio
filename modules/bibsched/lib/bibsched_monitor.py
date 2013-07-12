@@ -128,8 +128,8 @@ class Manager(object):
         self.curses = curses
         self.helper_modules = CFG_BIBTASK_VALID_TASKS
         self.running = 1
-        self.footer_auto_mode = "Automatic Mode [A Manual] [1/2/3 Display] [P Purge] [l/L Log] [O Opts] [E Edit motd] [Q Quit]"
-        self.footer_manual_mode = "Manual Mode%s [A Automatic] [1/2/3 Display Type] [P Purge] [l/L Log] [O Opts] [E Edit motd] [Q Quit]"
+        self.footer_auto_mode = "Automatic Mode [A Manual] [1/2/3 Display] [H Help] [l/L Log] [O Opts] [E Edit motd] [Q Quit]"
+        self.footer_manual_mode = "Manual Mode%s [A Automatic] [1/2/3 Display Type] [H help] [l/L Log] [O Opts] [E Edit motd] [Q Quit]"
         self.footer_waiting_item = "[R Run] [D Delete] [N Priority]"
         self.footer_running_item = "[S Sleep] [T Stop] [K Kill]"
         self.footer_stopped_item = "[I Initialise] [D Delete] [K Acknowledge]"
@@ -175,7 +175,8 @@ class Manager(object):
                                            ord("A"), ord("1"), ord("2"), ord("3"),
                                            ord("p"), ord("P"), ord("o"), ord("O"),
                                            ord("l"), ord("L"), ord("e"), ord("E"),
-                                           ord("z"), ord("Z"), ord("b"), ord("B"))):
+                                           ord("z"), ord("Z"), ord("b"), ord("B"),
+                                           ord("h"), ord("H"))):
             self.display_in_footer("in automatic mode")
         else:
             status = self.currentrow and self.currentrow[5] or None
@@ -238,6 +239,8 @@ class Manager(object):
                 self.toggle_debug_mode()
             elif char in (ord("b"), ord("B")):
                 self.open_bibsched_log()
+            elif char in (ord("h"), ord("H")):
+                self.display_help()
             elif char in (ord("e"), ord("E")):
                 self.edit_motd()
                 self.read_motd()
@@ -272,6 +275,35 @@ class Manager(object):
                 else:
                     self.running = 0
                     return
+
+    def display_help(self):
+        msg = """Help
+====
+Q - Quit
+b - View bibsched log
+P - Purge
+e - Edit motd
+1 - View completed tasks
+2 - View running/waiting tasks
+3 - View archived tasks
+z - Toggle debug mode
+a - Toggle automatic mode
+g - Go to the beginning of the task list
+G - Go to the end of the task list
+\t
+Shortcuts that act on the selected task:
+l - View task log
+o - Display task options
+i - Reinitialize task
+d - Delete task
+t - Stop task
+k - Acknowledge task
+s - Sleep task
+r - Run task
+n - Change task priority
+w - Wake up task
+"""
+        self._display_message_box(msg)
 
     def openlog(self, logname):
         if os.path.exists(logname):
