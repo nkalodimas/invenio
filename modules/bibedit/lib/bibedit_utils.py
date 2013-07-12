@@ -70,7 +70,8 @@ from invenio.search_engine import print_record, record_exists, get_colID, \
      guess_primary_collection_of_a_record, get_record, \
      get_all_collections_of_a_record
 from invenio.search_engine_utils import get_fieldvalues
-from invenio.webuser import get_user_info, getUid, get_email
+from invenio.webuser import get_user_info, getUid, get_email, \
+    get_user_preferences, list_registered_users
 from invenio.dbquery import run_sql
 from invenio.websearchadminlib import get_detailed_page_tabs
 from invenio.access_control_engine import acc_authorize_action
@@ -81,6 +82,8 @@ from invenio.textmarc2xmlmarc import transform_file, ParseError
 from invenio.bibauthorid_name_utils import split_name_parts, \
                                         create_normalized_name
 from invenio.bibknowledge import get_kbr_values
+from invenio.bibcatalog import bibcatalog_system
+from invenio.bibcatalog_system import get_bibcat_from_prefs
 
 # Precompile regexp:
 re_file_option = re.compile(r'^%s' % CFG_TMPSHAREDDIR)
@@ -994,3 +997,34 @@ def crossref_normalize_name(record):
         position = field[4]
         record_modify_subfield(rec=record, tag='700', subfield_code='a', \
             value=new_author, subfield_position=0, field_position_global=position)
+
+####################### rt system utils #############################################
+
+def get_new_ticket_RT_info(uid):
+    response = {}
+    response['resultCode'] = 0
+    if bibcatalog_system is None:
+            response['description'] = "<!--No ticket system configured-->"
+    elif bibcatalog_system and uid:
+        bibcat_resp = bibcatalog_system.check_system(uid)
+        if bibcat_resp == "":
+            # add available owners
+            users = []
+            users_list = list_registered_users()
+            for user_tuple in users_list:
+                try:
+                    user = {'username': get_user_preferences(user_tuple[0])['bibcatalog_username'],
+                        'id': user_tuple[0]}
+                except KeyError:
+                    continue
+                users.append(user)
+            response['users'] = users
+            # add available queues
+            response['queues'] = bibcatalog_system.get_queues(uid)
+            # add user email
+            response['email'] = get_email(uid)
+            response['resultCode'] = 1
+        else:
+            # put something in the tickets container, for debug
+            response['description'] = "Error connecting to RT<!--" + bibcat_resp + "-->"
+    return response

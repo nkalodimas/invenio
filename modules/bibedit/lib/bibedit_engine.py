@@ -66,7 +66,7 @@ from invenio.bibedit_utils import cache_exists, cache_expired, \
     can_record_have_physical_copies, extend_record_with_template, \
     replace_references, merge_record_with_template, record_xml_output, \
     record_is_conference, add_record_cnum, get_xml_from_textmarc, \
-    record_locked_by_user_details, crossref_process_template
+    record_locked_by_user_details, crossref_process_template, get_new_ticket_RT_info
 
 from invenio.bibrecord import create_record, print_rec, record_add_field, \
     record_add_subfield_into, record_delete_field, \
@@ -383,7 +383,7 @@ def perform_request_ajax(req, recid, uid, data, isBulk = False):
         response.update(perform_request_autocomplete(request_type, recid, uid, \
                                                      data))
 
-    elif request_type in ('getTickets', 'closeTicket', 'openTicket'):
+    elif request_type in ('getTickets', 'closeTicket', 'openTicket', 'createTicket','getNewTicketRTInfo'):
         # BibCatalog requests.
         response.update(perform_request_bibcatalog(request_type, uid, data))
     elif request_type in ('getHoldingPenUpdates', ):
@@ -1339,6 +1339,34 @@ def perform_request_bibcatalog(request_type, uid, data):
                 response['ticket_opened_description'] = "Error connecting to RT<!--" + bibcat_resp + "-->"
                 response['ticket_opened_code'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['error_rt_connection']
         response['ticketid'] = data['ticketid']
+    elif request_type == 'createTicket':
+        if bibcatalog_system is None:
+            response['ticket_created_description'] = "<!--No ticket system configured-->"
+            response['ticket_created_code'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['error_ticket_created']
+        elif bibcatalog_system and uid:
+            bibcat_resp = bibcatalog_system.check_system(uid)
+            if bibcat_resp == "":
+                un, pw = get_bibcat_from_prefs(uid)
+                if un and pw:
+                    ticket_created = bibcatalog_system.ticket_submit(uid, data['subject'], data['recordid'],
+                                     data['text'], data['queue'],data['priority'], data['owner'], data['requestor'])
+                    if ticket_created:
+                        response['ticket_created_description'] = 'Ticket created'
+                        response['ticket_created_code'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['ticket_created']
+                    else:
+                        response['ticket_created_description'] = 'Ticket could not be created.Try again'
+                        response['ticket_created_code'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['error_ticket_created']
+                else:
+                    response['ticket_created_description'] = 'RT user does not exist'
+                    response['ticket_created_code'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['error_ticket_created']
+            else:
+                #put something in the tickets container, for debug
+                response['ticket_created_description'] = "Error connecting to RT<!--" + bibcat_resp + "-->"
+                response['ticket_created_code'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['error_rt_connection']
+    elif request_type == 'getNewTicketRTInfo':
+        # Insert the tickets data in the response, if possible
+        print 'NEW TICKET '
+        response = get_new_ticket_RT_info(uid)
     return response
 
 

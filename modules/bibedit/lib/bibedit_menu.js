@@ -360,7 +360,7 @@ function rtConnectionError(msg) {
   });
 }
 
-function onGetTicketsSuccess(json) {
+function onGetTicketsSuccess(json) {//get owners, mails of users
 /*
  * Handle successfull 'getTickets' requests.
  */
@@ -377,11 +377,12 @@ function onGetTicketsSuccess(json) {
        $('#tickets').append(ticketToHtml(ticket, i));
     }
     // new ticket link
-    $('.bibEditTicketsMenuSection').append('<div id="newTicketDiv" class="bibEditMenuMore"><a id=newTicketLink href="#" \
-                                               target="_blank" title="Create new ticket">[new ticket]</a>\
-                                            <select id="queue" name="queue" >\
-                                               <option value="0">in Queue:</option>\
-                                            </select></div>');
+    $('.bibEditTicketsMenuSection').append('<div id="newTicketDiv" class="bibEditMenuMore">\
+                                                <a id=newTicketLink href="#" title="Create new ticket">[new ticket]</a>\
+                                                <select id="queue" name="queue" >\
+                                                    <option value="0">in Queue:</option>\
+                                                </select>\
+                                            </div>');
     // produce html for every queue
     var queues = json['queues'];
     for(var i=0; i < queues.length; i++) {
@@ -389,21 +390,7 @@ function onGetTicketsSuccess(json) {
       $('#queue').append('<option value="'+ queue.id + '">' + queue.name + '</option>');
     }
     // new ticket link
-    $("#newTicketLink").on('click', function(event) {
-      if ($("#queue").val() == 0) {
-        if ($("#queueError").length <= 0) {
-            $("#queue").after('<span id="queueError">\
-                                 Please select a queue\
-                               </span>')
-        }
-        event.preventDefault();
-      }
-      else {
-        $("#queueError").remove();
-        var href = gBIBCATALOG_SYSTEM_RT_URL +'/Ticket/Create.html?Queue=' + $("#queue").val();
-        $(this).attr("href", href);
-      }
-    });
+    $("#newTicketLink").on('click', {queues: queues} , onCreateNewTicket);
     // preview link
     $(".ticketButtons .bibEditPreviewTicketLink").on('click',function(event) {
       if ($(this).siblings(".bibeditTicketPreviewBox").is(":visible")) {
@@ -573,6 +560,142 @@ function updateStatus(statusType, reporttext, enableToolbar){
   }
   $('#cellIndicator').html(image);
   $('#cellStatus').html(text);
+}
+
+function onCreateNewTicket(event) {
+  $(this).unbind(event);
+  var dialogPreview = createDialog("Loading...", "Retrieving data...", 750, 700, true);
+  createReq({recID: gRecID, requestType: 'getNewTicketRTInfo'}, function(json){
+        var contentHtml = '<table border="0" cellpadding="0" cellspacing="0">\
+                          <tbody>\
+                              <tr>\
+                                <td class="label">RecordId:</td>\
+                                <td class="value">' + gRecID + '</td>\
+                              </tr>\
+                              <tr>\
+                                <td class="label">Queue:</td>\
+                                <td class="value">\
+                                  <select id="Queue" >\
+                                  </select>\
+                                </td>\
+                                <td class="label">Status:\
+                                </td>\
+                                <td class="value">\
+                                  <select id="Status">\
+                                    <option selected="" value="new">new</option>\
+                                    <option value="open">open</option>\
+                                    <option value="stalled">stalled</option>\
+                                    <option value="resolved">resolved</option>\
+                                    <option value="rejected">rejected</option>\
+                                    <option value="deleted">deleted</option>\
+                                  </select>\
+                                </td>\
+                                  <td class="label">\
+                                    Owner:\
+                                  </td>\
+                                <td class="value">\
+                                  <select id="Owner">\
+                                    <option selected="" value="10">Nobody</option>\
+                                  </select>\
+                                </td>\
+                              </tr>\
+                              <tr>\
+                                <td class="label">\
+                                  Requestors:\
+                                </td>\
+                                <td class="value" colspan="5">\
+                                  <input id="Requestor" value="" size="40">\
+                                </td>\
+                              </tr>\
+                              <tr>\
+                                  <td class="label">\
+                                    Cc:\
+                                  </td>\
+                                  <td class="value" colspan="5">\
+                                    <input name="Cc" size="40" value=""><br>\
+                                    <i><font size="-2">\
+                                    (Sends a carbon-copy of this update to a comma-delimited list of email addresses. These people <strong>will</strong> receive future updates.)</font></i>\
+                                  </td>\
+                              </tr>\
+                              <tr>\
+                                  <td class="label">\
+                                    Admin Cc:\
+                                  </td>\
+                                  <td class="value" colspan="5">\
+                                    <input name="AdminCc" size="40" value=""><br>\
+                                    <i><font size="-2">\
+                                    (Sends a carbon-copy of this update to a comma-delimited list of administrative email addresses. These people <strong>will</strong> receive future updates.)</font></i>\
+                                  </td>\
+                              </tr>\
+                              <tr>\
+                              <td class="label">\
+                              Subject:\
+                              </td>\
+                              <td class="value" colspan="5">\
+                              <input id="Subject" size="60" maxsize="200" value="">\
+                              </td>\
+                              </tr>\
+                              <tr>\
+                              <td>\
+                              Attach file:\
+                              </td>\
+                              <td class="value" colspan="5">\
+                              <input type="file" name="Attach">\
+                              <input type="submit" class="button" name="AddMoreAttach" value="Add More Files">\
+                              </td>\
+                              </tr>\
+                              <tr>\
+                              <td colspan="6">\
+                              Describe the issue below:<br>\
+                              <textarea class="messagebox" cols="72" rows="15" wrap="HARD" name="Content"></textarea>\
+                              <br>\
+                              </td>\
+                              </tr>\
+                              <tr>\
+                              <td align="right" colspan="2">\
+                              </td>\
+                              </tr>\
+                          </tbody>\
+                        </table>';
+
+        addContentToDialog(dialogPreview, contentHtml, "Do you want to create a new ticket?");
+        console.log(json);
+        var queues = json['queues'];
+        for(var i=0; i < queues.length; i++) {
+          var queue = queues[i];
+          $('#Queue').append('<option value="'+ queue.id + '">' + queue.name + '</option>');
+        }
+        var users = json['users'];
+        for(var i=0; i < users.length; i++) {
+          var user = users[i];
+          $('#Owner').append('<option value="'+ user.id + '">' + user.username + '</option>');
+        }
+        $('#Requestor').val(json['email']);
+        dialogPreview.dialogDiv.dialog({
+          title: "Confirm submit",
+          close: function() {
+              $("#newTicketLink").on('click', onCreateNewTicket);
+              $( this ).remove();
+          },
+          buttons: {
+              "Submit ticket": function() {
+                          var queue = $( this ).find('#Queue').val();
+                          var status = $( this ).find('#Status').val();
+                          var owner = $( this ).find('#Owner').val();
+                          var subject = $( this ).find('#Subject').val();
+                          var requestor = $( this ).find('#Requestor').val();
+                          console.log(queue);
+                          console.log(requestor);
+                          $("#newTicketLink").on('click', onCreateNewTicket);
+                          $( this ).remove();
+                      },
+              Cancel: function() {
+                              $("#newTicketLink").on('click', onCreateNewTicket);
+                              $( this ).remove();
+                          }
+          }});
+  });
+  event.preventDefault();
 }
 
 function collapseMenuSections() {
