@@ -322,9 +322,11 @@ def convert_cluster_set(cs, prob_matr):
             c1.out_edges = reduce(meld_edges, pointers)[0]
     except Exception, e:
         raise Exception("""Error happened in convert_cluster_set with
-                        c1: %s , c2: %s, v1: %s, real_pointer: %s, pointers: %s
+                        v1: %s, pointer: %s, real_pointer: %s, pointers: %s,
+                        result_mapping: %s, index: %s,
                         original_exception: %s
-                        """%(str(c1),str(c2),str(v1),str(real_pointer),str(pointers), str(e)) )
+                        """%(str(v1),str(real_pointer),str(pointer), str(pointers),
+                             str(result_mapping), str(index), str(e)) )
 
     update_status_final("Converting the cluster set done.")
     #gc.enable()
