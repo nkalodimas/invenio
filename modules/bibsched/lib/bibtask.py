@@ -730,17 +730,7 @@ def task_sleep_now_if_required(can_stop_too=False):
             write_message("stopped")
             task_update_status("STOPPED")
             sys.exit(0)
-        else:
-            ## I am a capricious baby. At least I am going to sleep :-)
-            write_message("sleeping...")
-            task_update_status("SLEEPING")
-            signal.signal(signal.SIGTSTP, _task_sig_dumb)
-            os.kill(os.getpid(), signal.SIGSTOP)
-            time.sleep(1)
-            ## Putting back the status to "ABOUT TO STOP"
-            write_message("... continuing...")
-            task_update_status("ABOUT TO STOP")
-            signal.signal(signal.SIGTSTP, _task_sig_sleep)
+
     if can_stop_too:
         runtime_limit = task_get_option("limit")
         if runtime_limit is not None:
