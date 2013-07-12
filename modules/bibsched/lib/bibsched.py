@@ -746,7 +746,10 @@ class BibSched(object):
             pid = get_task_pid(task.id)
             if not pid:
                 Log('Task crashed %s' % task.id)
-                bibsched_set_status(task.id, 'CERROR')
+                run_sql("""UPDATE schTASK SET status = 'CERROR'
+                           WHERE id = %%s AND status IN (%s)"""
+                                 % ','.join("'%s'" % s for s in ACTIVE_STATUS),
+                        [task.id])
 
     def check_debug_mode(self):
         debug_mode = fetch_debug_mode()
