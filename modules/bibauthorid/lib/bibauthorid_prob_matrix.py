@@ -96,39 +96,47 @@ class ProbabilityMatrix(object):
         if expected == 0:
             expected = 1
 
-        cur_calc, opti, prints_counter = 0, 0, 0
-        for cl1 in cluster_set.clusters:
+        try:
 
-            if cur_calc+opti - prints_counter > 100000 or cur_calc == 0:
-                update_status((float(opti) + cur_calc) / expected, "Prob matrix: calc %d, opti %d." % (cur_calc, opti))
-                prints_counter = cur_calc+opti
+            cur_calc, opti, prints_counter = 0, 0, 0
+            for cl1 in cluster_set.clusters:
 
-#            #clean caches
-            if cur_calc - last_cleaned > 20000000:
-                gc.collect()
-#                clear_comparison_caches()
-                last_cleaned = cur_calc
+                if cur_calc+opti - prints_counter > 100000 or cur_calc == 0:
+                    update_status((float(opti) + cur_calc) / expected, "Prob matrix: calc %d, opti %d." % (cur_calc, opti))
+                    prints_counter = cur_calc+opti
 
-            for cl2 in cluster_set.clusters:
-                if id(cl1) < id(cl2) and not cl1.hates(cl2):
-                    for bib1 in cl1.bibs:
-                        for bib2 in cl2.bibs:
-                            if have_cached_bibs:
-                                try:
-                                    val = old_matrix[bib1, bib2]
-                                    opti += 1
-                                    if bconfig.DEBUG_CHECKS:
-                                        assert _debug_is_eq_v(val, compare_bibrefrecs(bib1, bib2))
-                                except KeyError:
+    #            #clean caches
+                if cur_calc - last_cleaned > 20000000:
+                    gc.collect()
+    #                clear_comparison_caches()
+                    last_cleaned = cur_calc
+
+                for cl2 in cluster_set.clusters:
+                    if id(cl1) < id(cl2) and not cl1.hates(cl2):
+                        for bib1 in cl1.bibs:
+                            for bib2 in cl2.bibs:
+                                if have_cached_bibs:
+                                    try:
+                                        val = old_matrix[bib1, bib2]
+                                        opti += 1
+                                        if bconfig.DEBUG_CHECKS:
+                                            assert _debug_is_eq_v(val, compare_bibrefrecs(bib1, bib2))
+                                    except KeyError:
+                                        cur_calc += 1
+                                        val = compare_bibrefrecs(bib1, bib2)
+                                    if not val:
+                                        cur_calc += 1
+                                        val = compare_bibrefrecs(bib1, bib2)
+                                else:
                                     cur_calc += 1
                                     val = compare_bibrefrecs(bib1, bib2)
-                                if not val:
-                                    cur_calc += 1
-                                    val = compare_bibrefrecs(bib1, bib2)
-                            else:
-                                cur_calc += 1
-                                val = compare_bibrefrecs(bib1, bib2)
-                            self._bib_matrix[bib1, bib2] = val
+                                self._bib_matrix[bib1, bib2] = val
+
+        except Exception, e:
+            raise Exception("""Error happened in prob_matrix.recalculate with
+            val:%s
+            original_exception: %s
+            """%(str(val),str(e)))
 
         clear_comparison_caches()
         update_status_final("Matrix done. %d calc, %d opt." % (cur_calc, opti))

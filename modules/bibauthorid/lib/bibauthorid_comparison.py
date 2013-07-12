@@ -206,7 +206,7 @@ def compare_bibrefrecs(bibref1, bibref2):
 
     if not results:
         metadata_comparison_print("Final result: Skipped all tests, returning 0,0")
-        return 0, 0
+        return (0, 0)
 
     cert = sum(starmap(mul, results))
     prob = sum(res[1] for res in results)

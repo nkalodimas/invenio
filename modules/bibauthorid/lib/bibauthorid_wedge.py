@@ -296,28 +296,35 @@ def convert_cluster_set(cs, prob_matr):
 
     interval = 1000
     current = -1
-    for c1 in cs.clusters:
-        current += 1
-        if (current % interval) == 0:
-            update_status(float(current) / len(cs.clusters), "Converting the cluster set...")
 
-        assert len(c1.bibs) > 0, PID()+"Empty cluster send to wedge"
-        pointers = list()
+    try:
+        for c1 in cs.clusters:
+            current += 1
+            if (current % interval) == 0:
+                update_status(float(current) / len(cs.clusters), "Converting the cluster set...")
 
-        for v1 in c1.bibs:
-            pointer = list()
-            index = list()
-            rm = result_mapping[v1] #locality optimization
-            for c2 in cs.clusters:
-                if c1 != c2 and not c1.hates(c2):
-                    pointer += [pb_getitem_numeric((rm, result_mapping[v2])) for v2 in c2.bibs]
-                    index += c2.bibs
+            assert len(c1.bibs) > 0, PID()+"Empty cluster send to wedge"
+            pointers = list()
 
-            real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
-            real_pointer.fill(special_symbols[None])
-            real_pointer[index] = pointer
-            pointers.append((real_pointer, 1))
-        c1.out_edges = reduce(meld_edges, pointers)[0]
+            for v1 in c1.bibs:
+                pointer = list()
+                index = list()
+                rm = result_mapping[v1] #locality optimization
+                for c2 in cs.clusters:
+                    if c1 != c2 and not c1.hates(c2):
+                        pointer += [pb_getitem_numeric((rm, result_mapping[v2])) for v2 in c2.bibs]
+                        index += c2.bibs
+
+                real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
+                real_pointer.fill(special_symbols[None])
+                real_pointer[index] = pointer
+                pointers.append((real_pointer, 1))
+            c1.out_edges = reduce(meld_edges, pointers)[0]
+    except Exception, e:
+        raise Exception("""Error happened in convert_cluster_set with
+                        c1: %s , c2: %s, v1: %s, real_pointer: %s, pointers: %s
+                        original_exception: %s
+                        """%(str(c1),str(c2),str(v1),str(real_pointer),str(pointers), str(e)) )
 
     update_status_final("Converting the cluster set done.")
     #gc.enable()
