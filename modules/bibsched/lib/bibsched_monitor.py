@@ -350,9 +350,12 @@ class Manager(object):
             msg += '   options : %s\n\n' % arguments
         else:
             msg += 'executable : %s\n\n' % arguments[0]
-            msg += ' arguments : %s\n\n' % ' '.join(arguments[1:])
+            args_str = ' '.join(arguments[1:])
+            if args_str > 500:
+                args_str = args_str[:500] + '...'
+            msg += ' arguments : %s\n\n' % args_str
         msg += '\n\nPress q to quit this panel...'
-        msg = wrap_text_in_a_box(msg, style='no_border')
+        msg = wrap_text_in_a_box(msg, style='no_border', break_long=True)
         rows = msg.split('\n')
         height = len(rows) + 2
         width = max([len(row) for row in rows]) + 4
