@@ -35,7 +35,6 @@ from invenio.session import get_session
 from invenio.search_engine_utils import get_fieldvalues
 from invenio.bibauthorid_config import PERSONID_EXTERNAL_IDENTIFIER_MAP, CREATE_NEW_PERSON
 from invenio.bibauthorid_webapi import get_person_redirect_link, get_canonical_id_from_person_id, get_person_names_from_id
-from invenio.bibauthorid_webapi import get_external_ids_of_author
 from invenio.bibauthorid_frontinterface import get_uid_of_author
 from invenio.bibauthorid_frontinterface import get_bibrefrec_name_string
 from invenio.bibauthorid_frontinterface import get_canonical_name_of_author
@@ -340,15 +339,15 @@ class Template:
         h('  <div style="margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">')
         h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
         h('    <strong>%s</strong> </br>%s ' % (teaser, message))
-        h("<ul>")
+        h("<ul id=\"mergeList\">")
 
-        h("<li><a href='%s'target='_blank'>%s</a> <strong>(primary profile)</strong></li>"
+        h("<li><a id=\"primaryProfile\" href='%s'target='_blank'>%s</a> <strong>(primary profile)</strong></li>"
           % (primary_profile, primary_profile))
-        for profile in profiles:
-            h("<li><a href='%s'target='_blank'>%s</a></li>"
-                   % (profile, profile))
+        # for profile in profiles:
+        #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
+        #            % (profile, profile))
         h("</ul>")
-        h('<a rel="nofollow" id="checkout" href="manage_profile?pid=%s">' % (str(primary_profile),) + self._('Stop merging.') + '</a>' )
+        h('<a rel="nofollow" id="checkout" href="manage_profile?pid=%s">' % (str(primary_profile),) + self._('Cancel merging.') + '</a>' )
         if len(profiles):
             if merge_power:
                 h('<a rel="nofollow" id="merge" href="merge_profiles?search_pid=%s">' % (str(primary_profile),) + self._('Merge profiles.') + '</a>' )
@@ -506,8 +505,7 @@ class Template:
                                                                        'repeal_text':'This record has been repealed.',
                                                                        'to_other_text':'Assign to another person',
                                                                        'alt_to_other':'To other person!'
-                                                                       },
-                              show_reset_button=True):
+                                                                       }):
         '''
         Generate play per-paper links for the table for the
         status "no decision taken yet"
@@ -565,16 +563,16 @@ class Template:
             bibs = bibs + 'selection=' + str(paper)
 
         if pid > -1:
-            h('<a rel="nofollow" id="clam_for_myself" href="%s/author/claim/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(pid)))
-            h(self._('Claim for yourself') + ' </a> <br>')
+            h('<div><a rel="nofollow" id="clam_for_myself" href="%s/author/claim/action?confirm=True&%s&pid=%s" '
+                    'class="confirmlink"><button type="button">%s</div></br>' % (CFG_SITE_URL, bibs, str(pid), self._("Claim for yourself")))
 
         if last_viewed_pid:
-            h('<a rel="nofollow" id="clam_for_last_viewed" href="%s/author/claim/action?confirm=True&%s&pid=%s"> ' % (CFG_SITE_URL, bibs, str(last_viewed_pid[0])))
-            h(self._('Attribute to') + ' %s </a> <br>' % (last_viewed_pid[1]))
+            h('<div><a rel="nofollow" id="clam_for_last_viewed" href="%s/author/claim/action?confirm=True&%s&pid=%s" '
+                    'class="confirmlink"><button type="button">%s</div></br>' % (CFG_SITE_URL, bibs, str(last_viewed_pid[0]), self._('Attribute to') + str(last_viewed_pid[1])))
 
         if search_enabled:
-            h('<a rel="nofollow" id="claim_search" href="%s/author/claim/action?to_other_person=True&%s"> ' % (CFG_SITE_URL, bibs))
-            h(self._('Search for a person to attribute the paper to') + ' </a> <br>')
+            h('<div><a rel="nofollow" id="claim_search" href="%s/author/claim/action?to_other_person=True&%s" '
+                    'class="confirmlink"><button type="button">%s</div></br>' % (CFG_SITE_URL, bibs, self._('Search for a person to attribute the paper to')))
 
         return "\n".join(t_html)
 
@@ -710,8 +708,7 @@ class Template:
                                             verbiage_dict=buttons_verbiage_dict['record_repealed'])
             else:
                 paper_status = self.tmpl_author_undecided(paper['bibref'], person_id,
-                                            verbiage_dict=buttons_verbiage_dict['record_undecided'],
-                                            show_reset_button=show_reset_button)
+                                            verbiage_dict=buttons_verbiage_dict['record_undecided'])
 
             h('    <td><div id="bibref%s" style="float:left"><!--%s!-->%s &nbsp;</div>'
                            % (paper['bibref'], paper['flag'], paper_status))
@@ -1071,7 +1068,8 @@ class Template:
             full_canonical_name = str(get_canonical_id_from_person_id(person_id))
             if '.' in str(full_canonical_name) and not isinstance(full_canonical_name, int):
                 canonical_name = full_canonical_name[0:full_canonical_name.rindex('.')]
-            h('<div><div> <strong> Person id </strong> <br> %s <br>' % person_id)
+
+            h('<div> <strong> Person id </strong> <br> %s <br>' % person_id)
             h('<strong> <br> Canonical name setup </strong>')
             h('<div style="margin-top: 15px;"> Current canonical name: %s' % full_canonical_name)
             h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % CFG_SITE_URL)
@@ -1083,7 +1081,7 @@ class Template:
             h('<br>NOTE: If the canonical ID is without any number (e.g. J.Ellis), it will take the first available number. ')
             h('If the canonical ID is complete (e.g. J.Ellis.1) that ID will be assigned to the current person ')
             h('and if another person had that ID, he will lose it and get a new one. </form>')
-
+            h('</div>')
             userid = get_uid_of_author(person_id)
             h('<div> <br>')
             h('<strong> Internal IDs </strong> <br>')
@@ -1093,46 +1091,6 @@ class Template:
             else:
                 h('UserID: There is no INSPIRE user associated to this profile!')
             h('<br></div>')
-
-            external_ids = get_external_ids_of_author(person_id)
-            h('<div> <br>')
-            h('<strong> External IDs </strong> <br>')
-
-            h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
-            h('<input type="hidden" name="add_missing_external_ids" value="True">')
-            h('<input type="hidden" name="pid" value="%s">' % person_id)
-            h('<br> <input type="submit" value="add missing ids" class="aid_btn_blue"> </form>')
-
-            if external_ids:
-                h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
-                h('   <input type="hidden" name="delete_external_ids" value="True">')
-                h('   <input type="hidden" name="pid" value="%s">' % person_id)
-                for idx in external_ids:
-                    try:
-                        sys = [s for s in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[s] == idx][0]
-                    except (IndexError):
-                        sys = ''
-                    for k in external_ids[idx]:
-                        h('<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (idx, k, sys, k))
-                h('        <br> <br> <input type="submit" value="delete selected ids" class="aid_btn_blue"> <br> </form>')
-            else:
-                h('UserID: There are no external users associated to this profile!')
-
-
-
-            h('<br> <br>')
-            h('<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL))
-            h('   <input type="hidden" name="add_external_id" value="True">')
-            h('   <input type="hidden" name="pid" value="%s">' % person_id)
-            h('   <select name="ext_system">')
-            h('      <option value="" selected>-- ' + self._('Choose system') + ' --</option>')
-            for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
-                h('  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el))
-            h('   </select>')
-            h('   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">')
-            h('   <input type="submit" value="add external id" class="aid_btn_blue">')
-            # h('<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
-            h('<br> </form> </div>')
 
             h('</div> </div>')
         h('</div>')
@@ -1292,7 +1250,7 @@ class Template:
         return "\n".join(html)
 
     def tmpl_ticket_final_review(self, req, mark_yours=[], mark_not_yours=[],
-                                 mark_theirs=[], mark_not_theirs=[]):
+                                 mark_theirs=[], mark_not_theirs=[], autoclaim=False):
         '''
         Generate final review page. Displaying transactions if they
         need confirmation.
@@ -1338,7 +1296,7 @@ class Template:
             return "\n".join(html)
 
 
-        def mk_ticket_row(ticket):
+        def mk_ticket_row(ticket, autoclaim = False):
             recid = -1
             rectitle = ""
             recauthor = "No Name Found."
@@ -1486,8 +1444,9 @@ class Template:
         h("<p>&nbsp;</p>")
 
         h('<div style="text-align: center;">')
-        h(('  <input type="submit" name="checkout_continue_claiming" class="aid_btn_green" value="%s" />')
-          % self._("Continue claiming*"))
+        if not autoclaim:
+            h(('  <input type="submit" name="checkout_continue_claiming" class="aid_btn_green" value="%s" />')
+              % self._("Continue claiming*"))
         h(('  <input type="submit" name="checkout_submit" class="aid_btn_green" value="%s" />')
           % self._("Confirm these changes**"))
         h('<span style="margin-left:150px;">')
@@ -1511,7 +1470,7 @@ class Template:
             if mark_yours:
                 for idx, ticket in enumerate(mark_yours):
                     h('<tr id="aid_result%s">' % ((idx + 1) % 2))
-                    h(mk_ticket_row(ticket))
+                    h(mk_ticket_row(ticket, autoclaim))
                     h('</tr>')
             else:
                 h('<tr>')
@@ -1526,7 +1485,7 @@ class Template:
             if mark_not_yours:
                 for idx, ticket in enumerate(mark_not_yours):
                     h('<tr id="aid_result%s">' % ((idx + 1) % 2))
-                    h(mk_ticket_row(ticket))
+                    h(mk_ticket_row(ticket, autoclaim))
                     h('</tr>')
             else:
                 h('<tr>')
@@ -1541,7 +1500,7 @@ class Template:
         if mark_theirs:
             for idx, ticket in enumerate(mark_theirs):
                 h('<tr id="aid_result%s">' % ((idx + 1) % 2))
-                h(mk_ticket_row(ticket))
+                h(mk_ticket_row(ticket, autoclaim))
                 h('</tr>')
         else:
             h('<tr>')
@@ -1556,7 +1515,7 @@ class Template:
         if mark_not_theirs:
             for idx, ticket in enumerate(mark_not_theirs):
                 h('<tr id="aid_result%s">' % ((idx + 1) % 2))
-                h(mk_ticket_row(ticket))
+                h(mk_ticket_row(ticket, autoclaim))
                 h('</tr>')
         else:
             h('<tr>')
@@ -1576,10 +1535,10 @@ class Template:
 
         return "\n".join(html)
 
-    def tmpl_welcome_search_new_person_generator(self):
+    def tmpl_choose_profile_search_new_person_generator(self):
         def stub():
             text = self._("Create new profile")
-            link = "%s/author/claim/welcome?action=%s&pid=%s" % (CFG_SITE_URL, 'select', str(-1))
+            link = "%s/author/claim/action?associate_profile=True&pid=%s" % (CFG_SITE_URL, str(-1))
             return text, link
 
         return stub
@@ -1596,38 +1555,56 @@ class Template:
 
         return stub
 
-
-    def tmpl_welcome_search_button_generator(self):
-        def stub(pid):
+    def tmpl_choose_profile_search_button_generator(self):
+        def stub(pid, search_param):
             text = self._("This is my profile")
-            link = "%s/author/claim/welcome?action=%s&pid=%s" % (CFG_SITE_URL, 'select', str(pid))
-            return text, link
+            parameters = [('associate_profile', True), ('pid', str(pid)), ('search_param', search_param)]
+            link = "%s/author/claim/action" % (CFG_SITE_URL)
+            css_class = ""
+            to_disable = True
+
+            return text, link, parameters, css_class , to_disable
 
         return stub
 
     def tmpl_assigning_search_button_generator(self, bibrefs):
-        def stub(pid):
+        def stub(pid, search_param):
             text = self._("Attribute paper")
-            link = "%s/author/claim/action?confirm=True&pid=%s" % (CFG_SITE_URL, str(pid))
+            parameters = [('confirm', True), ('pid', str(pid)), ('search_param', search_param)]
+            link = "%s/author/claim/action" % (CFG_SITE_URL)
+            css_class = ""
+            to_disable = False
 
             for r in bibrefs:
                 link = link + '&selection=%s' % str(r)
 
-            return text, link
+            return text, link, parameters, css_class, to_disable
 
         return stub
 
-    def tmpl_welcome_search_bar(self):
+    def merge_profiles_button_generator(self):
+        def stub(pid, search_param):
+            text = self._("Add to merge list")
+            parameters = []
+            link = ""
+            css_class = "addToMergeButton"
+            to_disable = False
+
+            return text, link, parameters, css_class, to_disable
+
+        return stub
+
+    def tmpl_choose_profile_search_bar(self):
         def stub(search_param):
             activated = True
-            parameters = [('search_param', search_param), ('action', 'search')]
-            link = "/author/claim/welcome"
+            parameters = [('search_param', search_param)]
+            link = "/author/claim/choose_profile"
             return activated, parameters, link
 
         return stub
 
     def tmpl_general_search_bar(self):
-        def stub(search_param):
+        def stub(search_param,):
             activated = True
             parameters = [('q', search_param)]
             link = "/author/claim/search"
@@ -1635,22 +1612,15 @@ class Template:
 
         return stub
 
-    def tmpl_merge_profiles_search_bar(self):
+    def tmpl_merge_profiles_search_bar(self, primary_profile):
         def stub(search_param):
             activated = True
-            parameters = [('search_param', search_param)]
+            parameters = [('search_param', search_param), ('primary_profile', primary_profile)]
             link = "/author/claim/merge_profiles"
             return activated, parameters, link
 
         return stub
 
-    def merge_profiles_check_box_column(self):
-        def stub(pid):
-            #link = link + '&selection='.join([str(element) for element in pidlist+prof])
-            checkbox = '<input type="checkbox" name="profile" value=%s>' %(str(pid),)
-            return checkbox
-
-        return stub
     def tmpl_author_search(self, query, results, shown_element_functions):
         '''
         Generates the search for Person entities.
@@ -1688,8 +1658,8 @@ class Template:
             h('</form>')
             if 'new_person_gen' in shown_element_functions.keys():
                 new_person_text, new_person_link = shown_element_functions['new_person_gen']()
-                h('<button type="button" id="new_person_link"><a rel="nofollow" href="%s" >%s' % (new_person_link, new_person_text))
-                h('</a></button>')
+                h('<a rel="nofollow" href="%s" ><button type="button" id="new_person_link">%s' % (new_person_link, new_person_text))
+                h('</button></a>')
             h('</div>')
 
         if not results and not query:
@@ -1710,6 +1680,9 @@ class Template:
         if 'button_gen' in shown_element_functions.keys():
             show_action_button = True
 
+        show_status = False
+        if 'show_status' in shown_element_functions.keys():
+            show_status = True
         # base_color = 100
         # row_color = 0
         # html table
@@ -1717,14 +1690,16 @@ class Template:
         h('<!-- Table header -->\
                 <thead>\
                     <tr>\
-                        <th scope="col" id="" style="width:85px;">Number</th>\
-                        <th scope="col" id="">Identifier</th>\
-                        <th scope="col" id="">Names</th>\
-                        <th scope="col" id="">IDs</th>\
-                        <th scope="col" id="" style="width:350px">Papers</th>\
-                        <th scope="col" id="">Link</th>')
+                     <th scope="col" id="Number" style="width:75px;">Number</th>\
+                        <th scope="col" id="Identifier">Identifier</th>\
+                        <th scope="col" id="Names">Names</th>\
+                        <th scope="col" id="IDs">IDs</th>\
+                        <th scope="col" id="Papers" style="width:350px">Papers</th>\
+                        <th scope="col" id="Link">Link</th>')
+        if show_status:
+            h('         <th scope="col" id="Status" style="width:150px;">Status</th>')
         if show_action_button:
-            h('         <th scope="col" id="">Action</th>')
+            h('         <th scope="col" id="Action">Action</th>')
         h('         </tr>\
                 </thead>\
            <!-- Table body -->\
@@ -1738,15 +1713,10 @@ class Template:
 
             pid = result['pid']
             canonical_id = result['canonical_id']
-            names = result['name_variants']
-
-            external_ids = result['external_ids']
 
             # person row
             h('<tr id="pid'+ str(pid) + '">')
-            # (TODO pageNum - 1) * personsPerPage + 1
             h('<td>%s</td>' % (index + 1))
-
 #            for nindex, name in enumerate(names):
 #                color = row_color + nindex * 35
 #                color = min(color, base_color)
@@ -1756,6 +1726,7 @@ class Template:
             if canonical_id:
                 h('<td>%s</td>' % (canonical_id,))
             else:
+                canonical_id = ''
                 h('<td>%s</td>' % ('No canonical id',))
             #Names
             h('<td class="emptyName' + str(pid) + '">')
@@ -1787,16 +1758,30 @@ class Template:
                        get_person_redirect_link(pid)))
             h('</td>')
 
+            if show_status:
+                if result["status"]:
+                    status = "Available";
+                else:
+                    status = "Claimed";
+                h('<td>%s</td>' % (status))
             if show_action_button:
-                action_button_text, action_button_link = shown_element_functions['button_gen'](pid)
+                action_button_text, action_button_link, action_button_parameters, action_button_class, action_button_to_disable = shown_element_functions['button_gen'](pid, query)#class
                 #Action link
-                h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center">')
-                # h(('<span >'
-                #             '<a rel="nofollow" href="%s" class="confirmlink">'
-                #             '<strong>%s</strong>' + '</a></span>')
-                #             % (action_button_link, action_button_text))
-                h('<button type="button"><a rel="nofollow" href="%s" class="confirmlink">%s' % (action_button_link, action_button_text))
-                h('</a></button>')
+                h('<td class="uncheckedProfile' + str(pid) + '" style="text-align:center; vertical-align:middle;">')
+                parameters_sublink = ''
+
+                if action_button_link:
+                    parameters_sublink = '<input type="hidden" name="%s" value="%s" />' % (action_button_parameters[0][0], str(action_button_parameters[0][1]))
+
+                    for (param_type,param_value) in action_button_parameters[1:]:
+                        parameters_sublink += '<input type="hidden" name="%s" value="%s" />' % (param_type, str(param_value))
+
+                disabled = ""
+                if show_status:
+                    if not result["status"] and action_button_to_disable:
+                        disabled = "disabled"
+                h('<form action="%s" method="get">%s<input type="submit" name="%s" class="%s aid_btn_blue" value="%s" %s/></form>' %
+                    (action_button_link, parameters_sublink, canonical_id, action_button_class, action_button_text, disabled))  #confirmlink check if canonical id
                 h('</td>')
             h('</tr>')
         h('</tbody>')
@@ -2078,13 +2063,12 @@ class Template:
         """
         html = []
         h = html.append
-        delimiter = ";"
 
         if external_ids:
             h('<table id="externalIDsTable">')
             for key, value in external_ids.iteritems():
                 h('<tr>')
-                h('<td style="margin-top:5px; width:1px;  padding-right:2px;">%s:</td>' % key) #white-space:nowrap;
+                h('<td style="margin-top:5px; width:1px;  padding-right:2px;">%s:</td>' % key)
                 h('<td style="padding-left:5px;width:1px;">')
                 for i, item in enumerate(value):
                     if i == 0:
@@ -2301,25 +2285,50 @@ class Template:
         h('</br>')
         return "\n".join(html)
 
-    def tmpl_welcome_probable_profile_suggestion(self, profile_suggestion_info):
+    def tmpl_welcome_probable_profile_suggestion(self, probable_profile_suggestion_info, last_viewed_profile_suggestion_info, search_param):
         '''
         Suggest the most likely profile that the user can be based on his papers in external systems that is logged in through.
         '''
         html = []
         h = html.append
-        message = self._("We strongly believe that your profile is the profile below. If you agree please claim this profile.")
-        h('<p>%s</p>' % message)
-        h('<table border="0"> <tr>')
+        last_viewed_profile_message = self._("The following profile is the one you were viewing before logging in: ")
+        probable_profile_message = self._("We strongly believe that your profile is the following: ")
 
-        h('<td>')
-        h('%s ' % (profile_suggestion_info['name_string']))
-        h('<a href="%s/author/profile/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, profile_suggestion_info['canonical_id'], profile_suggestion_info['canonical_name_string']))
-        h('</td>')
-        h('<td>')
-        h('<INPUT TYPE="BUTTON" VALUE="This is my profile" ONCLICK="window.location.href=\'welcome?action=%s&pid=%s\'">' % ('select', str(profile_suggestion_info['pid'])))
-        h('</td>')
-        h('</tr>')
-        h('</table>')
+        # if the user has searched then his choice should be remembered in case the chosen profile is not available
+        param=''
+        if search_param:
+            param = '&search_param=' + search_param
+
+        h('<table border="0">')
+        if probable_profile_suggestion_info:
+            h('<tr>')
+            h('<td>')
+            h('%s %s ' % (probable_profile_message, probable_profile_suggestion_info['name_string']))
+            h('<a href="%s/author/profile/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, probable_profile_suggestion_info['canonical_id'],
+                                                                           probable_profile_suggestion_info['canonical_name_string']))
+            h('</td>')
+            h('<td>')
+            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+                                                                                str(probable_profile_suggestion_info['pid']), param, 'This is my profile'))
+            h('</td>')
+            h('</tr>')
+        if not last_viewed_profile_suggestion_info:
+            last_viewed_profile_message = self._("Unfortunately the profile you were viewing before logging in is not available.")
+            h('</table>')
+            h('%s' % (last_viewed_profile_message))
+        else:
+            h('<tr>')
+            h('<td>')
+            h('%s %s ' % (last_viewed_profile_message, last_viewed_profile_suggestion_info['name_string']))
+            h('<a href="%s/author/profile/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, last_viewed_profile_suggestion_info['canonical_id'],
+                                                                           last_viewed_profile_suggestion_info['canonical_name_string']))
+            h('</td>')
+            h('<td>')            
+            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+                                                                                str(last_viewed_profile_suggestion_info['pid']), param, 'This is my profile'))
+            h('</td>')
+            h('</tr>')
+            h('</table>')
         h('</br>')
         return "\n".join(html)
 
@@ -2530,6 +2539,27 @@ class Template:
         '''
         return '</div></div>'
 
+
+    def tmpl_choose_profile(self, failed):
+        '''
+        SSO landing/choose_profile page.
+        '''
+        html = []
+        h = html.append
+        if failed:
+            h('<p><strong><font color="red">Unfortunately the profile you chose is no longer available.</font></strong></p>')
+            h('<p>We apologise for the inconvenience. Please select another one.</br>Keep in mind that you can create an empty profile and then claim all of your papers in it.')
+        else:
+            h('<p><b>Congratulations! You have now successfully connected to INSPIRE via arXiv.org!</b></p>')
+            h('<p>Before you proceed you need to help us locating your profile.')
+        h('If you have '
+          'any questions or encounter any problems please contact us here: '
+          '<a rel="nofollow" href="mailto:%s">%s</a></p>'
+          % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
+             CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
+
+        return "\n".join(html)
+
     def tmpl_tickets_admin(self, tickets=[]):
         '''
         Open tickets short overview for operators.
@@ -2567,7 +2597,7 @@ class Template:
         return html_header
 
 
-    def tmpl_profile_managment(self, ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids, autoclaim_data, support_data):
+    def tmpl_profile_managment(self, ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data):
         '''
         '''
         _ = gettext_set_language(ln)
@@ -2580,14 +2610,14 @@ class Template:
         html_arxiv = self.tmpl_arxiv_box(arxiv_data, ln, loading=False)
         html_orcid = self.tmpl_orcid_box(orcid_data, ln, loading=False)
         html_claim_paper = self.tmpl_claim_paper_box(claim_paper_data, ln, loading=False)
-        html_ext_ids = self.tmpl_ext_ids_box(ext_ids, ln, loading=False)
-        html_autoclaim = self.tmpl_autoclaim_box(autoclaim_data, ln, loading=False)
-            
+        html_ext_ids = self.tmpl_ext_ids_box(ext_ids_data, ln, loading=False)
+        html_autoclaim = self.tmpl_autoclaim_box(autoclaim_data, ln, loading=True)
+
         html_support = self.tmpl_support_box(support_data, ln, loading=False)
 
         g = self._grid
 
-        if html_autoclaim:
+        if not autoclaim_data['hidden']:
             left_g = g(3, 1)(
                               g(1, 1, cell_padding=5)(html_arxiv),
                               g(1, 1, cell_padding=5)(html_claim_paper),
@@ -2620,20 +2650,20 @@ class Template:
         _ = gettext_set_language(ln)
         html_head = _("<strong> Login with your arXiv.org account </strong>")
 
-        if arxiv_data['login'] == True and arxiv_data['view_own_profile'] == True:
-
+        if arxiv_data['login'] == True:
             if arxiv_data['view_own_profile'] == True:
                 html_arxiv = _("You have succesfully logged in through arXiv. You can now manage your profile accordingly.</br>")
             else:
-                html_arxiv = _("You have succesfully logged in through arXiv. However the profile you are currently viewing is not your profile.</br>")
-                html_arxiv += ('</br><div><a href="mpla.com">Manage your profile/a></div>')
-            html_arxiv += ('</br><div><a href="mpla.com">Logout/a></div>')
+                html_arxiv = _("You have succesfully logged in through arXiv.</br><div><font color='red'>However the profile you are currently viewing is not your profile.</font>")
+                html_arxiv += '<a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['own_profile_link'], _(arxiv_data['own_profile_text']) )
+
+            html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['logout_link'], _(arxiv_data['logout_text']))
         else:
             html_arxiv = _("Please login through arXiv.org to verify that you are the owner of this"
                             " profile and update your paper list automatically. You may also proceed"
                             " as a guest user, then your input will be processed by our staff and "
                             "thus might take longer to display.</br>")
-            html_arxiv += ('</br><div><a href="mpla.com">Login into Inspire through arXiv.org</a></div>')
+            html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['login_link'], _(arxiv_data['login_text']) )
         if loading:
             html_arxiv = self.loading_html()
         if add_box:
@@ -2651,9 +2681,16 @@ class Template:
                        "automated linkages between you and your professional activities.</br>")
 
         if orcid_data['orcids']:
-            html_orcid += _('This profile is already connected to an orcid. Do you believe this is wrong?</br>')
-
-        html_orcid += '</br><div><a href="mpla.com">Add/connect an orcid  to this profile.</a></div>'
+            html_orcid += _('This profile is already connected to the following orcid(s): <strong>%s</strong></br>' % (",".join(orcid_data['orcids']),))
+            if orcid_data['arxiv_login'] and orcid_data['own_profile']:
+                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Orcid publication list") )
+        else:
+            if orcid_data['arxiv_login'] and (orcid_data['own_profile'] or orcid_data['add_power']):
+                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['add_link'],
+                                                                                                                             _(orcid_data['add_text']) )
+            else:
+                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['suggest_link'],
+                                                                                                                         _(orcid_data['suggest_text']) )
         if loading:
             html_orcid = self.loading_html()
         if add_box:
@@ -2671,7 +2708,9 @@ class Template:
                        "authors and colleagues - that way you can also help us providing more accurate publication"
                        " and citations statistics on INSPIRE.</br>")
 
-        html_claim_paper += '</br><div><a href=%s>%s</a></div>' % (claim_paper_data['link'], claim_paper_data['text'])
+        html_claim_paper += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (claim_paper_data['link'],
+                                                                                                                                _(claim_paper_data['text']))
+
         if loading:
             html_claim_paper = self.loading_html()
         if add_box:
@@ -2680,54 +2719,103 @@ class Template:
         else:
             return html_claim_paper
 
-    def tmpl_ext_ids_box(self, ext_ids, ln, add_box=True, loading=True):
+    def tmpl_ext_ids_box(self, ext_ids_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
 
         html_head = _("<strong> External Ids </strong>")
-        html_etx_ids = ''
-        if ext_ids:
-            html_etx_ids = '<tr>'
+        
+        html_ext_ids = '<div>'
+
+        html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+        html_ext_ids += '<input type="hidden" name="%s" value="True">' % (ext_ids_data['add_missing_parameter'],)
+        html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+        html_ext_ids += '<br> <input type="submit" value="%s" class="aid_btn_blue"> </form>'  % (ext_ids_data['add_missing_text'],)
+
+        if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
+            html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+            html_ext_ids += '   <input type="hidden" name="%s" value="True">' % (ext_ids_data['remove_parameter'],)
+            html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+            for key in ext_ids_data['ext_ids']:
+                try:
+                    sys = [system for system in PERSONID_EXTERNAL_IDENTIFIER_MAP if PERSONID_EXTERNAL_IDENTIFIER_MAP[system] == key][0]
+                except (IndexError):
+                    sys = ''
+                for id_value in ext_ids_data['ext_ids'][key]:
+                    html_ext_ids += '<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (key, id_value, sys, id_value)
+            html_ext_ids += '        <br> <br> <input type="submit" value="%s" class="aid_btn_blue"> <br> </form>' % (ext_ids_data['remove_text'],)
         else:
-            html_etx_ids = _("There are no available external ids")
+            html_ext_ids += 'UserID: There are no external users associated to this profile!'
 
-        for idType in ext_ids.keys():
-            html_etx_ids += '<td>' + str(idType) +'</td>' + '<td>' + str(ext_ids[idType]) +'</td>'
-
-        if ext_ids:
-            html_etx_ids = '</tr>'
+        html_ext_ids += '<br> <br>'
+        html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
+        html_ext_ids += '   <input type="hidden" name="%s" value="True">' % (ext_ids_data['add_parameter'],)
+        html_ext_ids += '   <input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
+        html_ext_ids += '   <select name="ext_system">'
+        html_ext_ids += '      <option value="" selected>-- ' + self._('Choose system') + ' --</option>'
+        for el in PERSONID_EXTERNAL_IDENTIFIER_MAP:
+            html_ext_ids += '  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el)
+        html_ext_ids += '   </select>'
+        html_ext_ids += '   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">'
+        html_ext_ids += '   <input type="submit" value="%s" class="aid_btn_blue">' % (ext_ids_data['add_text'],)
+        # html_ext_ids += '<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
+        html_ext_ids += '<br> </form> </div>'
 
         if loading:
-            html_etx_ids = self.loading_html()
+            html_ext_ids += self.loading_html()
         if add_box:
-            etx_ids_box = self.tmpl_print_searchresultbox('external_ids', html_head, html_etx_ids)
-            return etx_ids_box
+            ext_ids_box = self.tmpl_print_searchresultbox('external_ids', html_head, html_ext_ids)
+            return ext_ids_box
         else:
-            return html_etx_ids
-
+            return html_ext_ids
+    # for ajax requests add_box and loading are false
     def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
-        
+
         html_head = None
 
-        if not autoclaim_data['hidden']:
-            html_head = _("<strong> Autoclaim Papers </strong>")
-            html_autoclaim = _("The following papers were unsuccessfully claimed. Do you want to review the claiming now?</br>")
-            html_autoclaim += '</br><div><a href="%s">Review autoclaiming.</br></a></div>' % (autoclaim_data["link"],)
-            html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
-            html_autoclaim += '<td><strong>' + 'External System Id' +'</strong></td>' + '<td><strong>' + 'Record id' +'</strong></td></tr>'
-
-            for rec in autoclaim_data['recids'].keys()[:5]:
-                html_autoclaim += '<tr><td>' + str(autoclaim_data['recids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
-            html_autoclaim += '</table>'
-        else:
+        if autoclaim_data['hidden']:
             return None
         if loading:
-            html_autoclaim = self.loading_html()
+            html_head = _("<strong> Autoclaim Papers </strong>")
+            html_autoclaim = _("<span id=\"autoClaimMessage\">Please wait as we are claiming %s papers from external systems to your"
+                               " Inspire profile</span></br>"% (str(autoclaim_data["num_of_claims"])))
+
+            html_autoclaim += self.loading_html();
+        else:
+            html_autoclaim = ''
+            if "succesfull_recids" in autoclaim_data.keys() and autoclaim_data["succesfull_recids"]:
+                suffix = ''
+                if autoclaim_data["num_of_successfull_recids"] > 1:
+                    suffix = 's'
+                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\">The following %s paper%s were successfully claimed to your"
+                                   " profile</span></br>"% (str(autoclaim_data["num_of_successfull_recids"]), suffix))
+                html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
+                html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
+
+                for rec in autoclaim_data['succesfull_recids'].keys()[:5]:
+                    html_autoclaim += '<tr><td>' + str(autoclaim_data['recids_to_external_ids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
+                html_autoclaim += '</table>'
+
+            if "unsuccessfull_recids" in autoclaim_data.keys() and autoclaim_data["unsuccessfull_recids"]:
+                suffix = ''
+                if autoclaim_data["num_of_unsuccessfull_recids"] > 1:
+                    suffix = 's'
+                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s paper%s were unsuccessfully claimed. Do you want"
+                                   " to review the claiming now?</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_recids"]), suffix))
+                html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
+                html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
+
+                for rec in autoclaim_data['unsuccessfull_recids'][:5]:
+                    html_autoclaim += '<tr><td>' + str(autoclaim_data['recids_to_external_ids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>' # 2nd rec is probably the index
+                html_autoclaim += '</table>'
+                html_autoclaim += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</button></a></div>'  % (autoclaim_data["link"],
+                                                                                                                                _(autoclaim_data['text']))
+
         if add_box:
             autoclaim_box = self.tmpl_print_searchresultbox('autoclaim', html_head, html_autoclaim)
             return autoclaim_box
         else:
-            return html_autoclaim        
+            return html_autoclaim
 
     def tmpl_support_box(self, support_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
@@ -2736,9 +2824,14 @@ class Template:
         html_support = _("Please, contact our support if you need any kind of help or if you want to suggest"
                        " us  new ideas. We will get back to you quickly.</br>")
 
-        html_support += '</br><div><a href=%s>Merge profiles</a></div>' % (support_data['merge_link'],)
-        html_support += '<div><a href=%s>Report a problem</a></div>' % (support_data['problem_link'],)
-        html_support += '<div><a href=%s>Get help!</a></div>' % (support_data['help_link'],)
+        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['merge_link'],
+                                                                                                                                  _(support_data['merge_text']))
+
+
+        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['problem_link'],
+                                                                                                                            _(support_data['problem_text']))
+        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['help_link'],
+                                                                                                                       _(support_data['help_text']))
         if loading:
             html_support = self.loading_html()
         if add_box:
@@ -2796,6 +2889,37 @@ class Template:
             return '\n'.join(out)
         return cont
 
+    def tmpl_message_form(self, last_page_visited,  name_to_prefill, email_to_prefill, incomplete_params):
+        html = []
+        h = html.append
+        #h('<div style="display: block; width: 600px; text-align: left;">')
+        h('<div style="width:100%; minheight: 500px;">')
+        
+        h(    '<div  style="background-color: #F1F1FA; display: table; border-radius: 10px; padding: 20px; color: #3366CC; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
+        h(      '<div align="center">')
+        h(          '<p style="font-size: 20px; font-weight: bold;"> Report a problem</p>')
+        h(          '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>')
+        if incomplete_params:
+            h(      '<p style="font-size: 14px; font-weight: bold;"> <font color="red">Please fill the forms correctly!</font></p>')
+        h(      '</div>')
+        h(      '<form action="/author/claim/action" method="post">')
+        h(        '<fieldset style="border: 0; display: inline-block;">')
+        h(          '<p><label for="Name"> Name: </label><input style="float: right; border-radius: 4px;" required="True" name="Name" value="%s" type="text"  size="40"></p>' % (name_to_prefill))
+        h(          '<p><label for="E-mail"> E-mail: </label><input style="float: right; border-radius: 4px;" name="E-mail" value="%s" type="email" size="40"></p>' 
+                                                                                                                                          % (email_to_prefill))
+        h(          '<input type="hidden" name="last_page_visited" value="%s" />' % (str(last_page_visited),))
+        h(          '<p>Comment:</p>')
+        h(          '<p><textarea style="max-width:500px; min-width:500px; min-height:300px; border-radius: 4px;" name="Comment" cols="60" rows="5" required="True" id="Comment"></textarea></p>')
+        h(       '</fieldset>')
+        h(       '<button class="aid_btn_blue" style="display: block; margin: 0 auto;" type="submit" name="send_message">Submit</button>')
+
+        h(     '</form>')
+        
+        h(  '</div>')
+        
+        h('</div>')
+
+        return ' '.join(html)
     # pylint: enable=C0301
 
 verbiage_dict = {'guest': {'confirmed': 'Papers',

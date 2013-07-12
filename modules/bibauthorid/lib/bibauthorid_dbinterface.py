@@ -948,7 +948,7 @@ def get_coauthors_of_author(pid, excluding_recs=None):   ### get_coauthor_pids
                       and flag > -2"""
                       % recs_sqlstr )
 
-    pids = set([(int(p), int(r)) for p, r in pids if p != pid])
+    pids = set([(int(p), int(r)) for p, r in pids if int(p) != int(pid)])
     pids = sorted([p for p, r in pids])
     pids = groupby(pids)
     pids = [(key, len(list(val))) for key, val in pids if key != pid]
@@ -1498,7 +1498,6 @@ def remove_author_data(tag, pid=None, value=None):   ### del_personid_row
         else:
             _delete_from_aidpersoniddata_where(tag=tag)
 
-
 def _add_external_id_to_author(pid, ext_sys, ext_id):   ### add_personID_external_id
     '''
     Adds the external identifier of the specified system to the given author.
@@ -1682,10 +1681,10 @@ def get_author_data(pid, tag):   ### get_personid_row
     @param tag: data tag
     @type tag: str
 
-    @return: records ((data, opt1, opt2, opt3, data),)
+    @return: records ((data, opt1, opt2, opt3, tag),)
     @rtype: tuple ((str, int, int, str, str),)
     '''
-    return _select_from_aidpersoniddata_where(select=['data', 'opt1', 'opt2', 'opt3', 'data'], pid=pid, tag=tag)
+    return _select_from_aidpersoniddata_where(select=['data', 'opt1', 'opt2', 'opt3', 'tag'], pid=pid, tag=tag)
 
 
 def get_canonical_name_of_author(pid):   ### get_canonical_id_from_personid - get_canonical_names_by_pid
@@ -1794,7 +1793,7 @@ def get_authors_by_canonical_name_regexp(cname_regexp):   ### get_personids_by_c
                       ('canonical_name', cname_regexp) )
 
 
-def get_authors_by_canonical_name(cname):   ### get_person_id_from_canonical_id
+def get_author_by_canonical_name(cname):   ### get_person_id_from_canonical_id
     '''
     Gets the author who carries the given canonical name.
 
@@ -1891,7 +1890,7 @@ def _get_inspire_id_of_author(pid):   ### get_inspire_ids_by_pids
     return _select_from_aidpersoniddata_where(select=['data'], pid=pid, tag='extid:INSPIREID')
 
 
-def _get_orcid_id_of_author(pid):   ### get_orcids_by_pids
+def get_orcid_id_of_author(pid):   ### get_orcids_by_pids
     '''
     Gets the external identifier of ORCID system for the given author.
 

@@ -103,13 +103,12 @@ def retrieve_update_cache(name, key, target, *args):
         if cached['upToDate'] and not FORCE_CACHE_IS_EXPIRED:
             delay = datetime.now() - cached['last_updated']
             if delay < CACHE_IS_OUTDATED_DELAY:
-                return [deserialize(cached['value']), True, cached['last_updated']]
+                return [deserialize(cached['value']), True]
     val = update_cache(cached, name, str(key), target, *args)
-    last_updated = datetime.now()
     if val[0]:
-        return [val[1], True, last_updated]
+        return [val[1], True]
     else:
-        return [None, False, last_updated]
+        return [None, False]
 
 def foo(x, y, z, t):
     ''' foo to test the caching mechanism. '''
@@ -122,7 +121,11 @@ def _foo(x, y, z, t):
 
 def get_person_oldest_date(person_id):
     ''' Returns oldest date of cached data for person ID, None if not available. '''
-    return get_cache_oldest_date('pid:' + str(person_id))
+    cache_oldest_date = get_cache_oldest_date('pid:' + str(person_id))
+
+    if cache_oldest_date:
+        return cache_oldest_date
+    return datetime.now().replace(microsecond=0)
 
 def expire_caches_for_person(person_id):
     ''' Expires all caches for personid. '''
@@ -150,10 +153,9 @@ def get_institute_pubs(person_id):
     @param person_id: int person id
     @return [{'intitute':[pubs,...]}, bool]
     '''
-    namesdict, status, _ = get_person_names_dicts(person_id)
+    namesdict, status = get_person_names_dicts(person_id)
     if not status:
-        last_updated = datetime.now()
-        return [None, False, last_updated]
+        return [None, False]
     names_list = namesdict['db_names_dict'].keys()
     return retrieve_update_cache('institute_pub_dict', 'pid:' + str(person_id), _get_institute_pubs,
                                  names_list, person_id)
@@ -203,10 +205,9 @@ def get_kwtuples(person_id):
     @return [ (('kword',count),),
             bool]
     '''
-    pubs, pubstatus, _ = get_pubs(person_id)
+    pubs, pubstatus = get_pubs(person_id)
     if not pubstatus:
-        last_updated = datetime.now()
-        return [None, False, last_updated]
+        return [None, False]
     return retrieve_update_cache('kwtuples', 'pid:' + str(person_id),
                            _get_kwtuples, pubs, person_id)
 
@@ -217,10 +218,9 @@ def get_fieldtuples(person_id):
     @return [ (('fieldcode',count),),
             bool]
     '''
-    pubs, pubstatus, _ = get_pubs(person_id)
+    pubs, pubstatus = get_pubs(person_id)
     if not pubstatus:
-        last_updated = datetime.now()
-        return [None, False, last_updated]
+        return [None, False]
     return retrieve_update_cache('fieldtuples', 'pid:' + str(person_id),
                            _get_fieldtuples, pubs, person_id)
 
@@ -231,10 +231,9 @@ def get_collabtuples(person_id):
     @return [ (('kword',count),),
             bool]
     '''
-    pubs, pubstatus, _ = get_pubs(person_id)
+    pubs, pubstatus = get_pubs(person_id)
     if not pubstatus:
-        last_updated = datetime.now()
-        return [None, False, last_updated]
+        return [None, False]
     return retrieve_update_cache('collabtuples', 'pid:' + str(person_id),
                            _get_collabtuples, pubs, person_id)
 
@@ -253,16 +252,14 @@ def get_rec_query(person_id):
     @param: person_id: int person id
     @return: ['author:"canonical name or pid"', bool]
     '''
-    namesdict, ndstatus, _ = get_person_names_dicts(person_id)
+    namesdict, ndstatus = get_person_names_dicts(person_id)
     if not ndstatus:
-        last_updated = datetime.now()
-        return [None, False, last_updated]
+        return [None, False]
     authorname = namesdict['longest']
     db_names_dict = namesdict['db_names_dict']
-    person_link, plstatus, _ = get_veryfy_my_pubs_list_link(person_id)
+    person_link, plstatus = get_veryfy_my_pubs_list_link(person_id)
     if not plstatus:
-        last_updated = datetime.now()
-        return [None, False, last_updated]
+        return [None, False]
     bibauthorid_data = {"is_baid": True, "pid":person_id, "cid":person_link}
     return retrieve_update_cache('rec_query', 'pid:' + str(person_id),
                           _get_rec_query, bibauthorid_data, authorname, db_names_dict, person_id)
@@ -273,10 +270,9 @@ def get_hepnames_data(person_id):
     @param bibauthorid_data: dict with 'is_baid':bool, 'cid':canonicalID, 'pid':personid
     @return: [data, bool]
     '''
-    person_link, plstatus, _ = get_veryfy_my_pubs_list_link(person_id)
+    person_link, plstatus = get_veryfy_my_pubs_list_link(person_id)
     if not plstatus:
-        last_updated = datetime.now()
-        return [None, False, last_updated]
+        return [None, False]
     bibauthorid_data = {"is_baid": True, "pid":person_id, "cid":person_link}
     return retrieve_update_cache('hepnames_data', 'pid:' + str(bibauthorid_data['pid']),
                           _get_hepnames_data, bibauthorid_data, person_id)
@@ -297,14 +293,12 @@ def get_summarize_records(person_id):
     @param ln: str language
     @return: [htmlsnippet, bool]
     '''
-    pubs, pubstatus, _ = get_pubs(person_id)
+    pubs, pubstatus = get_pubs(person_id)
     if not pubstatus:
-        last_updated = datetime.now()
-        return [None, False, last_updated]
-    rec_query, rcstatus, _ = get_rec_query(person_id)
+        return [None, False]
+    rec_query, rcstatus = get_rec_query(person_id)
     if not rcstatus:
-        last_updated = datetime.now()
-        return [None, False, last_updated]
+        return [None, False]
     return retrieve_update_cache('summarize_records', 'pid:' + str(person_id),
                           _get_summarize_records, pubs, rec_query)
 

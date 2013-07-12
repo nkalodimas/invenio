@@ -34,7 +34,7 @@ from cgi import escape
 # Well this is bad, BUT otherwise there must 100+ lines
 # of the form from dbinterface import ...  # emitting
 from invenio.bibauthorid_dbinterface import *  # pylint:  disable-msg=W0614
-from invenio.bibauthorid_dbinterface import _get_orcid_id_of_author
+
 canonical_name_format = re.compile("\S*[.](\d)+$")
 
 
@@ -54,15 +54,26 @@ def set_person_data(person_id, tag, value, user_level=None):
     if value not in old_data:
         dbinter.add_author_data(person_id, tag, value, opt2=user_level)
 
-def get_person_data(person_id, tag):
-    res = dbinter.get_author_data(person_id, tag)
-    if res:
-        return (res[1], res[0])
-    else:
-        return []
+def get_persons_data(person_id_list, tag=None):
+    '''
+    @param person_id_list:
+    @type person_id_list: list
+    @param tag:
+    @type tag: string
+    @return: persons_data
+    @rtype: dict(tuple,)
+    '''
+    persons_data = dict()
+
+    for person_id in person_id_list:
+        res = dbinter.get_author_data(person_id, tag)
+        persons_data[person_id] = res
+
+    return persons_data
 
 def del_person_data(tag, person_id=None, value=None):
     dbinter.remove_author_data(tag, person_id, value)
+
 
 def get_bibrefrec_name_string(bibref):
     '''
@@ -107,7 +118,10 @@ def get_person_papers_to_be_manually_reviewed(pid):
     Returns the set of papers awaiting for manual review for a person for bibref assignment
     @param pid: the personid, int
     '''
-    return get_person_data(pid, 'paper_needs_bibref_manual_confirm')
+    res = get_persons_data([pid], 'paper_needs_bibref_manual_confirm')
+    if res[pid]:
+        return [res[pid][0][1],res[0][0]]
+    return list()
 
 
 def del_person_papers_needs_manual_review(pid, bibrec):
@@ -133,21 +147,20 @@ def assign_person_to_uid(uid, pid):
     '''
     Assigns a person to a userid. If person already assigned to someone else, create new person.
     Returns two value. Firstly the person id assigned and secondly if uid was succesfully assigned to given pid.
+    If parameter pid equals to -1 then we assign the uid to a new person
     @param uid: user id, int
     @param pid: person id, int, if -1 creates new person.
     @return: pid int, bool
     '''
     if pid == -1:
         pid = dbinter.create_new_author_by_uid(uid, uid_is_owner=True)
-        return pid, False
+        return pid, True
     else:
-        current_uid = get_person_data(pid, 'uid')
-        if len(current_uid) == 0:
+        current_uid = get_persons_data([pid], 'uid')
+        if len(current_uid[pid]) == 0:
             set_person_data(pid, 'uid', str(uid))
             return pid, True
-        else:
-            pid = dbinter.create_new_author_by_uid(uid, uid_is_owner=True)
-            return pid, False
+        return -1, False
 
 def get_processed_external_recids(pid):
     '''
@@ -155,11 +168,11 @@ def get_processed_external_recids(pid):
     @param pid: pid
     @return: [str]
     '''
-    db_data = get_person_data(pid, "processed_external_recids")
+    db_data = get_persons_data([pid], "processed_external_recids")
     recid_list_str = ''
 
-    if db_data and db_data[0] and db_data[0][1]:
-        recid_list_str = db_data[0][1]
+    if pid in db_data.keys() and db_data[pid] and db_data[pid][0][0]:
+        recid_list_str = db_data[pid][0][0]
 
     return recid_list_str
 
@@ -167,6 +180,9 @@ def get_processed_external_recids(pid):
 def get_all_personids_recs(pid, claimed_only=False):
     return dbinter.get_papers_of_author(pid, claimed_only)
 
+def mark_internal_id_as_old(person_id, uid):
+    remove_author_data('uid', pid=person_id, value = uid)
+    add_author_data(person_id, 'uid-old', value = uid)
 
 def fallback_find_personids_by_name_string(target):
     '''

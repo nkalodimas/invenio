@@ -117,32 +117,30 @@ $(document).ready(function() {
             }
         });
         // create ui buttons
-        //$('.confirmlink').button();//#new_person_link,
-        //$("#searchform :input").attr("disabled",true);
-        // gResultsPerPage = 3;
-        // gCurPage = 1;
-        // showPage(gCurPage);
-        var targets = [2,3,4,5,6];
-        if ($('#personsTable th').length == 6 ) {
-            targets = [2,3,4,5];
+        var columns = {};
+        $('#personsTable th').each(function(index) {
+            columns[$(this).attr('id')] = index;
+        });
+        var targets = [columns['IDs'], columns['Papers'], columns['Link']];
+        if (columns['Action'] !== undefined) {
+           targets.push(columns['Action']);
         }
         var pTable = $('#personsTable').dataTable({
                 "bJQueryUI": true,
                 "sPaginationType": "full_numbers",
                 "aoColumnDefs": [
                     { "bSortable": false, "aTargets": targets },
-                    { "bSortable": true, "aTargets": [0,1] },
-                    { "sType": "numeric", "aTargets": [0] },
-                    { "sType": "string", "aTargets": [1] }
+                    { "bSortable": true, "aTargets": [columns['Number'], columns['Identifier'], columns['Names'], columns['Status']] },
+                    { "sType": "numeric", "aTargets": [columns['Number']] },
+                    { "sType": "string", "aTargets": [columns['Identifier'], columns['Names'], columns['Status']] }
                     ],
-                "aaSorting": [[0,'asc']],
+                "aaSorting": [[columns['Number'],'asc']],
+                "aLengthMenu": [[5, 10, 20, -1], [5, 10, 20 , "All"]],
                 "iDisplayLength": 5,
-                "aLengthMenu": [5, 10, 20],
                 "oLanguage": {
                     "sSearch": "Filter: "
                 }
         });
-        // { "sType": "numeric", "aTargets": [ 0 ] }
         // draw first page
         onPageChange();
         // on page change
@@ -172,6 +170,34 @@ $(document).ready(function() {
                 }
         });
         $('.idsAssociationTable').siblings('.ui-toolbar').css({ "width": "45.4%", "font-size": "12px" });
+    }
+
+    if (typeof gMergeProfile !== 'undefined' ) {
+        // initiate merge list's html from javascript/session
+        $('#primaryProfile').parent().replaceWith('<li><a id=\"primaryProfile\" href=\"' + gMergeProfile +
+        '\" target=\"_blank\">' + gMergeProfile + '</a> <strong>(primary profile)</strong></li>');
+        $('.addToMergeButton[name="' + gMergeProfile + '"]').prop('disabled','disabled');
+        for(var profile in gMergeList) {
+            createProfilesHtml(gMergeList[profile]);
+            $('.addToMergeButton[name="' + gMergeList[profile] + '"]').prop('disabled','disabled');
+        }
+        $('.addToMergeButton').on('click', function(event) {
+            onAddToMergeClick(event, $(this));
+        });
+    }
+
+    if ($('#autoclaim').length) {
+            var data = { 'personId': gPID.toString()};
+            var errorCallback = onRetrieveAutoClaimedPapersError(gPID);
+            $.ajax({
+                dataType: 'json',
+                type: 'POST',
+                url: '/author/claim/generate_autoclaim_data',
+                data: {jsondata: JSON.stringify(data)},
+                success: onRetrieveAutoClaimedPapersSuccess,
+                error: errorCallback,
+                async: true
+            });
     }
 
     // Activate Tabs
@@ -265,6 +291,100 @@ function onPageChange() {
     });
 }
 
+function onAddToMergeClick(event, button) {
+    var profile = button.attr('name').toString();
+    if (jQuery.inArray(profile, gMergeList) !== -1){
+        return false;
+    }
+    var data = { 'requestType': "addProfile", 'profile': profile};
+            // var errorCallback = onIsProfileClaimedError(pid);
+    $.ajax({
+        dataType: 'json',
+        type: 'POST',
+        url: '/author/claim/merge_profiles_ajax',
+        data: {jsondata: JSON.stringify(data)},
+        success: addToMergeList,
+        // error: errorCallback,
+        async: true
+    });
+    event.preventDefault();
+}
+
+function addToMergeList(json) {
+    if(json['resultCode'] == 1) {
+        var profile = json['addedPofile'];
+        if ( jQuery.inArray(profile, gMergeList) == -1 && gMergeProfile !== profile) {
+            gMergeList.push(profile);
+            createProfilesHtml(profile);
+            $('.addToMergeButton[name="' + profile + '"]').prop('disabled','disabled');
+        }
+    }
+}
+
+function removeFromMergeList(json) {
+    if(json['resultCode'] == 1) {
+        var profile = json['removedProfile'];
+        var ind = jQuery.inArray(profile, gMergeList);
+        if( ind !== -1) {
+            gMergeList.splice(ind,1);
+        }
+        removeProfilesHtml(profile);
+        $('.addToMergeButton[name="' + profile + '"]').removeAttr('disabled');
+    }
+}
+
+function setAsPrimary(json) {
+    if(json['resultCode'] == 1) {
+        var profile = json['primaryProfile'];
+        removeFromMergeList({'resultCode' : 1, 'removedProfile' : profile});
+        var primary = gMergeProfile;
+        gMergeProfile = profile;
+        $('.addToMergeButton[name="' + profile + '"]').prop('disabled','disabled');
+        addToMergeList({'resultCode' : 1, 'addedPofile' : primary});
+        $('#primaryProfile').parent().replaceWith('<li><a id=\"primaryProfile\" href=\"' + profile +
+         '\" target=\"_blank\">' + profile + '</a> <strong>(primary profile)</strong></li>');
+    }
+}
+
+function createProfilesHtml(profile) {
+    var $profileHtml = $('<li><a href=\"' + profile + '\" target=\"_blank\" class=\"profile\">' + profile + '</a>' +
+         '<a class=\"setPrimaryProfile\" href=\"\" >Set as primary</a> <a class=\"removeProfile\" href=\"\" >Remove</a></li>');
+        $('#mergeList').append($profileHtml);
+        $profileHtml.find('.setPrimaryProfile').on('click', { pProfile: profile}, function(event){
+            console.log('bind primary profile: ' + event.data.pProfile);
+            var data = { 'requestType': "setPrimaryProfile", 'profile': event.data.pProfile};
+            // var errorCallback = onIsProfileClaimedError(pid);
+            $.ajax({
+                dataType: 'json',
+                type: 'POST',
+                url: '/author/claim/merge_profiles_ajax',
+                data: {jsondata: JSON.stringify(data)},
+                success: setAsPrimary,
+                // error: errorCallback,
+                async: true
+            });
+            event.preventDefault();
+        });
+        $profileHtml.find('.removeProfile').on('click', { pProfile: profile}, function(event){
+            var data = { 'requestType': "removeProfile", 'profile': event.data.pProfile};
+            // var errorCallback = onIsProfileClaimedError(pid);
+            $.ajax({
+                dataType: 'json',
+                type: 'POST',
+                url: '/author/claim/merge_profiles_ajax',
+                data: {jsondata: JSON.stringify(data)},
+                success: removeFromMergeList,
+                // error: errorCallback,
+                async: true
+            });
+            event.preventDefault();
+        });
+}
+
+function removeProfilesHtml(profile) {
+    $('#mergeList').find('a[href="' + profile + '"][id!="primaryProfile"]').parent().remove();
+}
+
 function onGetIDsSuccess(json){
     if(json['resultCode'] == 1) {
         $('.emptyIDs' + json['pid']).html(json['result']).addClass('retreivedIDs').removeClass('emptyIDs' + json['pid']);
@@ -342,6 +462,22 @@ function onRetrievePapersError(pid){
    return function (XHR, textStatus, errorThrown) {
       var pID = pid;
       $('.more-mpid' + pID).text('Papers could not be retrieved');
+    };
+}
+
+function onRetrieveAutoClaimedPapersSuccess(json) {
+    if(json['resultCode'] == 1) {
+        $('#autoclaim').replaceWith(json['result']);
+    }
+    else {
+        $('#autoclaim').replaceWith(json['result']);
+    }
+}
+
+function onRetrieveAutoClaimedPapersError(pid) {
+    return function (XHR, textStatus, errorThrown) {
+      var pID = pid;
+      $('#autoclaim').replaceWith('<span>Error occured while retrieving papers</span>');
     };
 }
 
