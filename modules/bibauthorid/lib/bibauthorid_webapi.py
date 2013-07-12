@@ -31,6 +31,7 @@ import invenio.bibauthorid_config as bconfig
 import invenio.bibauthorid_frontinterface as dbapi
 import invenio.bibauthorid_name_utils as nameapi
 import invenio.webauthorprofile_interface as webauthorapi
+from invenio.bibauthorid_general_utils import defaultdict
 
 import invenio.search_engine as search_engine
 from invenio.search_engine import perform_request_search
@@ -50,6 +51,7 @@ from invenio.mailutils import send_email
 from invenio.bibauthorid_name_utils import most_relevant_name
 
 from operator import add
+from itertools import chain
 
 from invenio.bibauthorid_dbinterface import get_external_ids_of_author  # pylint: disable-msg=W0614
 
@@ -697,7 +699,7 @@ def move_internal_id(person_id_of_owner, person_id_of_receiver):
 
 def move_external_ids(person_id_of_owner, person_id_of_receiver):
     '''
-    Assign existing external ids to another profile 
+    Assign existing external ids to another profile
 
     @param person_id_of_owner pid: Person ID of the profile that currently has the internal id
     @type pid: int
@@ -1021,7 +1023,7 @@ def session_bareinit(req):
 
     pinfo = session['personinfo']
     if 'visit diary' not in pinfo:
-        pinfo['visit_diary'] = dict()
+        pinfo['visit_diary'] = defaultdict(list)
         changed = True
     if 'diary_size_per_category' not in pinfo:
         pinfo['diary_size_per_category'] = 5
@@ -1213,8 +1215,8 @@ def is_merge_allowed(profiles):
 
     '''
     owned_profiles = 0
-    
-    
+
+
     for profile in profiles:
         if not is_profile_available(profile):
             if owned_profiles > 0:
@@ -1256,9 +1258,9 @@ def get_papers_of_merged_profiles(primary_profile, profiles):
             # if there is already a paper with the same record
             # and the new one is claimed while the existing one is not
             # keep only the claimed one
-            if records[paper[0]] and records[paper[0]][2] == 0 and paper[2] == 2 :  
+            if records[paper[0]] and records[paper[0]][2] == 0 and paper[2] == 2 :
                 records[paper[0]] = paper
-                
+
     return [records[recid] for recid in records.keys()]
 
 def get_uid_for_merged_profiles(persons_data):
@@ -1287,7 +1289,7 @@ def get_data_union_for_merged_profiles(persons_data, new_profile_bibrecrefs):
                     rt_old_counter = data[1]
                     rt_new_counter += 1
                 data = (data[0],rt_counter,data[2],data[3],data[4])
-                
+
     return list(set(new_profile_data))
 
 
@@ -1297,7 +1299,7 @@ def merge_profiles(req, primary_profile, profiles):
         canonical_id_data = res[primary_profile][0]
 
     persons_data = dbapi.get_persons_data(profiles)
-    
+
     new_profile_uid = get_uid_for_merged_profiles(persons_data)
     # move papers from the profiles to the primary profile
     new_profile_papers = get_papers_of_merged_profiles(primary_profile, profiles)
@@ -1305,7 +1307,7 @@ def merge_profiles(req, primary_profile, profiles):
 
     for profile in [primary] + profiles:
         dbapi.del_person_data(None, profile)
-    
+
     if not canonical_id_data:
         dbapi.add_author_data(primary_profile, canonical_id_data[4], canonical_id_data[0], canonical_id_data[1], canonical_id_data[2], canonical_id_data[3])
     else:
@@ -1315,7 +1317,7 @@ def merge_profiles(req, primary_profile, profiles):
         dbapi.add_author_data(primary_profile, new_profile_uid[4], new_profile_uid[0], new_profile_uid[1], new_profile_uid[2], new_profile_uid[3])
     for data in new_profile_data:
         dbapi.add_author_data(primary_profile, data[4], data[0], data[1], data[2], data[3])
-        
+
     for paper in new_profile_papers:
         recid = new_profile_papers[0]
         splitted_bibrecref = new_profile_papers[1].split(":")
@@ -1648,7 +1650,7 @@ def create_request_ticket(userinfo, ticket):
 
 def create_request_message(userinfo):
     mailcontent = []
-    
+
     for info_type in userinfo:
         mailcontent.append(info_type + ': ')
         mailcontent.append(str(userinfo[info_type]) + '\n')
@@ -1925,7 +1927,7 @@ def manage_tickets(req, autoclaim_show_review, autoclaim):
 
     ticket_commit(req)
     page_info['type'] = 'dispatch end'
-    return page_info    
+    return page_info
 
 
 def confirm_valid_ticket(req):
@@ -2440,6 +2442,59 @@ def get_stored_incomplete_autoclaim_tickets(req):
 #         Visit diary Functions            #
 ############################################
 
+def history_log_visit(req, page, pid=None, parameters=None):
+    """
+    @param page: string (claim, manage_profile, profile, search)
+    @param parameters: string (?param=aoeuaoeu&param2=blabla)
+    """
+    pinfo = session['personinfo']
+    my_diary = pinfo['visit_diary']
+
+    my_diary[page].append({'page':page, 'pid':pid, 'params':params, 'timestamp':time()})
+
+    if len((my_diary[page]) >  pinfo['diary_size_per_category']):
+        my_diary[page].pop(0)
+
+def _get_sorted_history(req, limit_to_page=None):
+    session = get_session(req)
+    pinfo = session['personinfo']
+    my_diary = pinfo['visit_diary']
+
+    history = list()
+
+    if not limit_to_page:
+        history = list(chain(*my_diary.values()))
+    else:
+        history = my_diary[limit_to_page]
+
+    history = sorted(history, key=lambda x: x['timestamp'], reverse=True)
+
+    return history
+
+def history_get_last_visited_url(req, limit_to_page=None):
+
+    history = _get_sorted_history(req, limit_to_page)
+    try:
+        history = history[0]
+    except IndexError:
+        return ''
+
+    #shall CFG_SITE_URL be here?
+    link = [CFG_SITE_URL+'/author/', history['page']]
+
+    if history['pid']:
+        link.append('/'+get_canonical_id_from_person_id(history['pid']))
+    if history['params']:
+        link.append(history['params'])
+
+    return ''.join(link)
+
+def history_get_last_visited_pid(req, limit_to_page=None):
+    history = _get_sorted_history(req, limit_to_page)
+    for visit in history:
+        if visit['pid']:
+            return visit['pid']
+
 def diary(req, action, caller = None, category = None, pid = None, parameters = None):
     session_bareinit(req)
     session = get_session(req)
@@ -2454,12 +2509,12 @@ def diary(req, action, caller = None, category = None, pid = None, parameters = 
         if category in my_diary:
             return True
         return False
-    
+
     def diary_is_full():
         if my_diary[category].count == diary_size_per_category:
             return True
         return False
-        
+
     def get_last_entry():
         # take the last entry of each category and store the data in a dictionary with key the entry time
         last_entry_per_category = [{my_diary[category][-1]['entry_time']:{'category':category,
@@ -2468,7 +2523,7 @@ def diary(req, action, caller = None, category = None, pid = None, parameters = 
                                     } for category in my_diary.keys()]
         # take the most recent entry
         last_entry = max(last_entry_per_category.keys())
-        
+
         canonical_name = ''
         if last_entry['pid']:
             canonical_name = '/' + get_canonical_id_from_person_id(pid)
@@ -2485,24 +2540,24 @@ def diary(req, action, caller = None, category = None, pid = None, parameters = 
         if not category_exists() and category != None:
             add_category()
         if diary_is_full():
-            remove_oldest_visit()    
+            remove_oldest_visit()
 
         my_diary[category].append({'entry_time':time(), 'parameters': parameters, 'pid':pid})
 
     def get_redirect_link():
         pass
-        
+
     def remove_oldest_visit():
         my_diary[category].pop(0)
 
     action_functions = {'get_last_entry': get_last_entry,
                         'log_visit': log_visit,
                         'get_redirect_link': get_redirect_link}
-    
+
     caller_category_mapping = {'cancel_search_ticket': ('claim'),
                                '_ticket_dispatch_end': ('claim', 'manage_profile')
                                }
-        
+
     return action_functions[action]()
 
 REMOTE_LOGIN_SYSTEMS_FUNCTIONS = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
