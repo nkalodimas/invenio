@@ -186,8 +186,8 @@ class Bib_matrix(object):
         dstmap = self.get_map_path()
         dstmat = self.get_matrix_path()
 
-        os.copy(srcmap, dstmap)
-        os.copy(srcmat, dstmat)
+        shutil.copy(srcmap, dstmap)
+        shutil.copy(srcmat, dstmat)
 
     def destroy(self):
         try:
