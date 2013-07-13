@@ -296,7 +296,7 @@ def convert_cluster_set(cs, prob_matr):
 
     interval = 1000
     current = -1
-
+    real_pointer = None
     try:
         for c1 in cs.clusters:
             current += 1
