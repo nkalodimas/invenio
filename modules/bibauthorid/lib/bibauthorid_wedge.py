@@ -314,15 +314,15 @@ def convert_cluster_set(cs, prob_matr):
                     if c1 != c2 and not c1.hates(c2):
                         pointer += [pb_getitem_numeric((rm, result_mapping[v2])) for v2 in c2.bibs]
                         index += c2.bibs
-
-                real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
-                real_pointer.fill(special_symbols[None])
-                real_pointer[index] = pointer
-                pointers.append((real_pointer, 1))
+                if index and pointer:
+                    real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
+                    real_pointer.fill(special_symbols[None])
+                    real_pointer[index] = pointer
+                    pointers.append((real_pointer, 1))
             c1.out_edges = reduce(meld_edges, pointers)[0]
     except Exception, e:
         raise Exception("""Error happened in convert_cluster_set with
-                        v1: %s, pointer: %s, real_pointer: %s, pointers: %s,
+                        v1: %s, real_pointer: %s, pointer: %s, pointers: %s,
                         result_mapping: %s, index: %s,
                         original_exception: %s
                         """%(str(v1),str(real_pointer),str(pointer), str(pointers),
