@@ -86,7 +86,7 @@ class ProbabilityMatrix(object):
         '''
         last_cleaned = 0
         self._bib_matrix.store()
-        old_matrix = Bib_matrix(self._bib_matrix.name+'copy')
+        old_matrix = Bib_matrix(self._bib_matrix.name, self._bib_matrix.name+'copy')
         old_matrix.duplicate_existing(self._bib_matrix.name)
         old_matrix.load()
 
