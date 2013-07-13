@@ -74,7 +74,7 @@ class ProbabilityMatrix(object):
                          bib_matrix.creation_time))
 
     def is_up_to_date(self, cluster_set):
-        return self.__get_up_to_date_bibs() >= frozenset(cluster_set.all_bibs())
+        return self.__get_up_to_date_bibs(self._bib_matrix) >= frozenset(cluster_set.all_bibs())
 
     def recalculate(self, cluster_set):
         '''
