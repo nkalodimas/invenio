@@ -84,7 +84,7 @@ class Bib_matrix(object):
 
     def get_matrix_path(self):
         path = "%s%s.hdf5" % (self.get_file_dir(), self.name)
-        if self._use_temp_file:
+        if self._use_temporary_file:
             path = path + '.tmp'
         return path
 
