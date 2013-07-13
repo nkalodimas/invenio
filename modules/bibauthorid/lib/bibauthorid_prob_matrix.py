@@ -53,7 +53,7 @@ class ProbabilityMatrix(object):
 
     def load(self, load_map=True, load_matrix=True):
         update_status(0., "Loading probability matrix...")
-        self._bib_matrix.load(load_map, load_matrix)
+        self._bib_matrix.load()
         update_status_final("Probability matrix loaded.")
 
     def store(self):
@@ -85,10 +85,14 @@ class ProbabilityMatrix(object):
         the matrix.
         '''
         last_cleaned = 0
+        self._bib_matrix.store()
+        old_matrix = Bib_matrix(self._bib_matrix.name+'copy')
+        old_matrix.duplicate_existing(self._bib_matrix.name)
+        old_matrix.load()
 
-        old_matrix = self._bib_matrix
         cached_bibs = self.__get_up_to_date_bibs()
         have_cached_bibs = bool(cached_bibs)
+        self._bib_matrix.destroy()
         self._bib_matrix = Bib_matrix(cluster_set.last_name, cluster_set=cluster_set)
 
         ncl = cluster_set.num_all_bibs

@@ -319,7 +319,11 @@ def convert_cluster_set(cs, prob_matr):
                     real_pointer.fill(special_symbols[None])
                     real_pointer[index] = pointer
                     pointers.append((real_pointer, 1))
-            c1.out_edges = reduce(meld_edges, pointers)[0]
+            if pointers:
+                c1.out_edges = reduce(meld_edges, pointers)[0]
+            else:
+                c1.out_edges = list()
+
     except Exception, e:
         raise Exception("""Error happened in convert_cluster_set with
                         v1: %s, real_pointer: %s, pointer: %s, pointers: %s,
