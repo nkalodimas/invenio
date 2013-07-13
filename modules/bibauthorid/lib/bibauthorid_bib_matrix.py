@@ -142,6 +142,7 @@ class Bib_matrix(object):
                 pass
             self._bibmap = dict()
             self._matrix = None
+            self._use_temporary_file = True
             return False
         return True
 
