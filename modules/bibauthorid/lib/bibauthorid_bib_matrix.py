@@ -34,11 +34,10 @@ class Bib_matrix(object):
         self.creation_time = get_db_time()
 
     def create_empty_matrix(self, lenght):
-        self._prepare_destination_directory()
-        self._f = h5py.File(self.get_matrix_path())
+        self.open_h5py_file()
         try:
             self._matrix = self._f.create_dataset("array", (lenght, 2), 'f')
-        except:
+        except RuntimeError:
             self._matrix = self._f["array"]
         self._matrix[...] = self.special_symbols[None]
 
@@ -79,6 +78,16 @@ class Bib_matrix(object):
     def get_matrix_path(self):
         return "%s%s.npy" % (self.get_file_dir(), self.name)
 
+    def open_h5py_file(self):
+        self._prepare_destination_directory()
+        try:
+            self._f = h5py.File(self.get_matrix_path())
+        except IOError:
+            #If the file is corrupted h5py fails with IOErorr.
+            #Give it a second try with an empty file before raising.
+            os.remove(self.get_matrix_path())
+            self._f = h5py.File(self.get_matrix_path())
+
     def load(self, load_map=True, load_matrix=True):
         files_dir = self.get_file_dir()
         if not os.path.isdir(files_dir):
@@ -99,7 +108,7 @@ class Bib_matrix(object):
             if load_matrix:
                 if self._f:
                     self._f.close()
-                self._f = h5py.File(self.get_matrix_path())
+                self.open_h5py_file()
                 self._matrix = self._f['array']
 
         except (IOError, UnpicklingError, KeyError):
