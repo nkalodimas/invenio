@@ -169,7 +169,10 @@ class Bib_matrix(object):
             curpath = self.get_matrix_path()
             self._use_temporary_file = False
             finalpath = self.get_matrix_path()
-            os.rename(curpath, finalpath)
+            try:
+                os.rename(curpath, finalpath)
+            except OSError:
+                pass
 
     def duplicate_existing(self, name, newname):
         '''
