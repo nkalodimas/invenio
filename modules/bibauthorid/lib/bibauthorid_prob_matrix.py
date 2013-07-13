@@ -93,6 +93,7 @@ class ProbabilityMatrix(object):
             cached_bibs = self.__get_up_to_date_bibs(old_matrix)
             have_cached_bibs = bool(cached_bibs)
         except IOError:
+            old_matrix.destroy()
             cached_bibs = None
             have_cached_bibs = False
 
