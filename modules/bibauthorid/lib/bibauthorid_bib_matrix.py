@@ -122,7 +122,7 @@ class Bib_matrix(object):
             self.open_h5py_file()
             self._matrix = self._f['array']
 
-        except (IOError, UnpicklingError, KeyError), e:
+        except (IOError, UnpicklingError, KeyError, OSError), e:
             print 'Bib_matrix: error occurred while loading bibmap, cleaning... ', str(e)
             self._bibmap = dict()
             self._matrix = None
