@@ -917,7 +917,7 @@ def add_record_cnum(recid, uid):
         return new_cnum
 
 
-def get_xml_from_textmarc(recid, textmarc_record):
+def get_xml_from_textmarc(recid, textmarc_record, uid=None):
     """
     Convert textmarc to marcxml and return the result of the conversion
 
@@ -940,6 +940,13 @@ def get_xml_from_textmarc(recid, textmarc_record):
     # Create temp file with textmarc to be converted by textmarc2xmlmarc
     (file_descriptor, file_name) = tempfile.mkstemp()
     f = os.fdopen(file_descriptor, "w")
+
+    # If there is a cache file, add the controlfields
+    if cache_exists(recid, uid):
+        record = get_cache_file_contents(recid, uid)[2]
+        for tag in record:
+            if tag.startswith("00") and tag != "001":  # It is a controlfield
+                f.write("%09d %s %s\n" % (recid, tag + "__", record_get_field_value(record, tag)))
 
     # Write content appending sysno at beginning
     for line in textmarc_record.splitlines():

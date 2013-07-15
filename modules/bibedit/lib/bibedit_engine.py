@@ -926,7 +926,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
     elif request_type == 'submittextmarc':
         # Textmarc content coming from the user
         textmarc_record = data['textmarc']
-        xml_conversion_status = get_xml_from_textmarc(recid, textmarc_record)
+        xml_conversion_status = get_xml_from_textmarc(recid, textmarc_record, uid)
 
         if xml_conversion_status['resultMsg'] == "textmarc_parsing_error":
             response.update(xml_conversion_status)
@@ -1554,7 +1554,7 @@ def perform_request_preview_record(request_type, recid, uid, data):
     if request_type == "preview":
         if data["submitMode"] == "textmarc":
             textmarc_record = data['textmarc']
-            xml_conversion_status = get_xml_from_textmarc(recid, textmarc_record)
+            xml_conversion_status = get_xml_from_textmarc(recid, textmarc_record, uid)
             if xml_conversion_status['resultMsg'] == 'textmarc_parsing_error':
                 response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['textmarc_parsing_error']
                 response.update(xml_conversion_status)
@@ -1621,7 +1621,7 @@ def perform_request_get_tableview(recid, uid, data):
     """
     response = {}
     textmarc_record = data['textmarc']
-    xml_conversion_status = get_xml_from_textmarc(recid, textmarc_record)
+    xml_conversion_status = get_xml_from_textmarc(recid, textmarc_record, uid)
     response.update(xml_conversion_status)
 
     if xml_conversion_status['resultMsg'] == 'textmarc_parsing_error':
