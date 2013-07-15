@@ -36,7 +36,7 @@ from invenio.bibauthorid_general_utils import metadata_comparison_print
 import random
 import gc
 
-CFG_MEMOIZE_DICT_SIZE = 2000000
+CFG_MEMOIZE_DICT_SIZE = 1000000
 
 # This module is not thread safe!
 # Be sure to use processes instead of

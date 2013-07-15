@@ -358,7 +358,7 @@ def group_sort_edges(cs):
     minus = list()
     pairs = list()
     default_val = [0.,0.]
-    gc.disable()
+    #gc.disable()
     interval = 1000
     current = -1
     for cl1 in cs.clusters:
@@ -386,7 +386,7 @@ def group_sort_edges(cs):
 
     bibauthor_print("Positive edges: %d, Negative edges: %d, Value edges: %d."
                      % (len(plus), len(minus), len(pairs)))
-    gc.enable()
+    #gc.enable()
     bibauthor_print("Sorting the value edges.")
     pairs.sort(key=_edge_sorting, reverse=True)
 
