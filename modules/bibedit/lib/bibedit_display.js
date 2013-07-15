@@ -1342,8 +1342,20 @@ function addContentToDialog(dialog, html_content, alertText) {
     dialog.iconSpan.addClass('ui-icon').addClass('ui-icon-alert').addClass('dialog-icon');
     dialog.contentParagraph.before(dialog.iconSpan);
     dialog.contentParagraph.removeClass('dialog-box-centered');
-    dialog.contentSpan.html("<strong>" + alertText + "</strong>\n\
-                    <br /><br />" + html_content);
+    dialog.contentSpan.html("<strong>" + alertText + "</strong><br /><br />"+
+    html_content);
+}
+
+function makeDialogLoading(dialog, message) {
+    dialog.iconSpan.removeClass('ui-icon').removeClass('ui-icon-alert').removeClass('dialog-icon');
+    dialog.iconSpan.empty();
+    dialog.contentParagraph.addClass('dialog-box-centered');
+    dialog.contentSpan.html(message +
+                         "<br /><br /> <img src='/img/ajax-loader.gif'>");
+    var buttons = dialog.dialogDiv.dialog('option', 'buttons');
+    for ( var button in buttons) {
+        $('#' + buttons[button].id ).remove();
+    }
 }
 
 function openCenteredPopup(pageURL, title, w, h) { /* Opens a centered popup */

@@ -1348,10 +1348,10 @@ def perform_request_bibcatalog(request_type, uid, data):
             if bibcat_resp == "":
                 un, pw = get_bibcat_from_prefs(uid)
                 if un and pw:
-                    ticket_created = bibcatalog_system.ticket_submit(uid, data['subject'], data['recordid'],
+                    ticket_created = bibcatalog_system.ticket_submit(uid, data['subject'], data['recID'],
                                      data['text'], data['queue'],data['priority'], data['owner'], data['requestor'])
                     if ticket_created:
-                        response['ticket_created_description'] = 'Ticket created'
+                        response['ticket_created_description'] = ticket_created
                         response['ticket_created_code'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['ticket_created']
                     else:
                         response['ticket_created_description'] = 'Ticket could not be created.Try again'
@@ -1365,7 +1365,6 @@ def perform_request_bibcatalog(request_type, uid, data):
                 response['ticket_created_code'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['error_rt_connection']
     elif request_type == 'getNewTicketRTInfo':
         # Insert the tickets data in the response, if possible
-        print 'NEW TICKET '
         response = get_new_ticket_RT_info(uid)
     return response
 

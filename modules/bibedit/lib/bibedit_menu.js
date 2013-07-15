@@ -636,18 +636,9 @@ function onCreateNewTicket(event) {
                               </td>\
                               </tr>\
                               <tr>\
-                              <td>\
-                              Attach file:\
-                              </td>\
-                              <td class="value" colspan="5">\
-                              <input type="file" name="Attach">\
-                              <input type="submit" class="button" name="AddMoreAttach" value="Add More Files">\
-                              </td>\
-                              </tr>\
-                              <tr>\
                               <td colspan="6">\
                               Describe the issue below:<br>\
-                              <textarea class="messagebox" cols="72" rows="15" wrap="HARD" name="Content"></textarea>\
+                              <textarea class="messagebox" cols="72" rows="15" wrap="HARD" id="Content"></textarea>\
                               <br>\
                               </td>\
                               </tr>\
@@ -659,12 +650,15 @@ function onCreateNewTicket(event) {
                         </table>';
 
         addContentToDialog(dialogPreview, contentHtml, "Do you want to create a new ticket?");
-        console.log(json);
+        dialogPreview.dialogDiv.attr('id', 'newTicketDialog');
         var queues = json['queues'];
         for(var i=0; i < queues.length; i++) {
           var queue = queues[i];
           $('#Queue').append('<option value="'+ queue.id + '">' + queue.name + '</option>');
         }
+        $('#Queue').change(function(){
+          // TODO load content from template tickets
+        });
         var users = json['users'];
         for(var i=0; i < users.length; i++) {
           var user = users[i];
@@ -677,25 +671,66 @@ function onCreateNewTicket(event) {
               $("#newTicketLink").on('click', onCreateNewTicket);
               $( this ).remove();
           },
-          buttons: {
-              "Submit ticket": function() {
-                          var queue = $( this ).find('#Queue').val();
-                          var status = $( this ).find('#Status').val();
-                          var owner = $( this ).find('#Owner').val();
-                          var subject = $( this ).find('#Subject').val();
-                          var requestor = $( this ).find('#Requestor').val();
-                          console.log(queue);
-                          console.log(requestor);
-                          $("#newTicketLink").on('click', onCreateNewTicket);
-                          $( this ).remove();
-                      },
-              Cancel: function() {
+          buttons: [{
+              text: "Submit ticket",
+                id: "submitTicketButton",
+                click: function() {
+                          var reqData = {
+                              recID: gRecID,
+                              requestType: 'createTicket',
+                              queue: $( this ).find('#Queue').val(),
+                              status: $( this ).find('#Status').val(),
+                              owner: $( this ).find('#Owner').val(),
+                              requestor: $( this ).find('#Requestor').val(),
+                              subject: $( this ).find('#Subject').val(),
+                              text: $( this ).find('#Content').val(),
+                              priority: ""
+                          }
+                          makeDialogLoading(dialogPreview, "Submitting ticket...");
+                          var successCallback = onCreateTicketSuccess(dialogPreview);
+                          var errorCallback = onCreateTicketError(dialogPreview);
+                          createReq(reqData, successCallback,
+                          undefined, onCreateTicketError);
+                }
+              },
+              {
+                text: "Cancel",
+                id: "cancelTicketButton",
+                click: function() {
                               $("#newTicketLink").on('click', onCreateNewTicket);
                               $( this ).remove();
                           }
-          }});
+              }]
+          });
   });
   event.preventDefault();
+}
+
+function onCreateTicketSuccess(dialog) {
+    return function(json) {
+      var resultCode = json['ticket_created_code'];
+      var resultMessage = json['ticket_created_description']
+      var title = "";
+      var message = "";
+      if (resultCode == 126) {
+          title = "Ticket was succesfully submited";
+          message = 'You can view ticket <a href="' + gBIBCATALOG_SYSTEM_RT_URL +
+          '/Ticket/Display.html?id=' + resultMessage + '" target="_blank">here</a>';
+      }
+      else {
+        title = "Error: Ticket could not be submitted";
+        message = resultMessage;
+      }
+      addContentToDialog(dialog, message, title);
+    }
+}
+
+function onCreateTicketError(dialog){
+    return function(XHR, textStatus, errorThrown) {
+        var title = "Error: Ticket could not be submitted";
+        var message = "There was a connection problem";
+        addContentToDialog(dialog, message, title);
+    }
 }
 
 function collapseMenuSections() {
