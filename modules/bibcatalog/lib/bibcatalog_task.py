@@ -60,12 +60,19 @@ class BibCatalogTicket(object):
     """
     Represents a Ticket to create using BibCatalog API.
     """
-    def __init__(self, subject="", text="", queue="", ticketid=None, recid=-1):
+    def __init__(self, subject="", body="", queue="", ticketid=None, recid=-1):
         self.subject = subject
         self.queue = queue
-        self.text = text
+        self.body = body
         self.ticketid = ticketid
         self.recid = recid
+
+    def __repr__(self):
+        return "<BibCatalogTicket(subject=%(subject)s,queue=%(queue)s,recid=%(recid)s)>" % {
+            "subject": self.subject,
+            "queue": self.queue,
+            "recid": self.recid
+        }
 
     def submit(self):
         """
@@ -76,8 +83,8 @@ class BibCatalogTicket(object):
         """
         if not self.exists():
             comment = False
-            if "\n" in self.text:
-                # The RT client does not support newlines in the initial text
+            if "\n" in self.body:
+                # The RT client does not support newlines in the initial body
                 # We need to add the ticket then add a comment.
                 comment = True
                 res = bibcatalog_system.ticket_submit(subject=self.subject,
@@ -86,7 +93,7 @@ class BibCatalogTicket(object):
             else:
                 res = bibcatalog_system.ticket_submit(subject=self.subject,
                                                       queue=self.queue,
-                                                      text=self.text,
+                                                      text=self.body,
                                                       recordid=self.recid)
             try:
                 # The BibCatalog API returns int if successful or
@@ -98,7 +105,7 @@ class BibCatalogTicket(object):
             if comment:
                 bibcatalog_system.ticket_comment(uid=None,
                                                  ticketid=self.ticketid,
-                                                 comment=self.text)
+                                                 comment=self.body)
             return True
         return False
 
@@ -106,15 +113,13 @@ class BibCatalogTicket(object):
         """
         Does the ticket already exist in the RT system?
 
-        @return bool: True if it exists, False if not.
+        @return results: Evaluates to True if it exists, False if not.
         """
         results = bibcatalog_system.ticket_search(None,
                                                   recordid=self.recid,
                                                   queue=self.queue,
                                                   subject=self.subject)
-        if results:
-            return True
-        return False
+        return results
 
 
 def task_check_options():
@@ -133,6 +138,7 @@ def task_check_options():
 
     ticket_plugins = {}
     all_plugins, error_messages = load_ticket_plugins()
+
     if error_messages:
         # We got broken plugins. We alert only for now.
         print >>sys.stderr, "\n".join(error_messages)
@@ -151,6 +157,7 @@ def task_check_options():
         print >>sys.stderr, 'Error: No tickets specified, you need' \
             ' to specify at least one ticket type to create'
         return False
+
     task_set_option('tickets', ticket_plugins)
 
     if not bibcatalog_system:
@@ -235,28 +242,28 @@ def task_run_core():
         task_update_progress("Processing records %s/%s (%i%%)"
                              % (records_processed, len(records_concerned),
                                 int(float(records_processed) / len(records_concerned) * 100)))
-        task_sleep_now_if_required(can_stop_too=False)
+        task_sleep_now_if_required(can_stop_too=True)
         for ticket_name, plugin in tickets_to_apply.items():
             if plugin:
+                write_message("Running template %s for %s" % (ticket_name, recid),
+                              verbose=5)
                 try:
-                    if plugin['check_record'](record):
-                        subject, text, queue = plugin['generate_ticket'](record)
-                        ticket = BibCatalogTicket(subject=subject,
-                                                  text=text,
-                                                  queue=queue,
-                                                  recid=int(recid))
-
+                    ticket = BibCatalogTicket(recid=int(recid))
+                    if plugin['check_record'](ticket, record):
+                        ticket = plugin['generate_ticket'](ticket, record)
+                        write_message("Ticket to be generated: %s" % (ticket,), verbose=5)
                         res = ticket.submit()
                         if res:
                             write_message("Ticket #%s created for %s" %
                                          (ticket.ticketid, recid))
                         else:
-                            write_message("Ticket already exists")
+                            write_message("Ticket already exists for %s" %
+                                          (recid,))
                     else:
                         write_message("Skipping record %s", (recid,))
-                except Exception:
+                except Exception, e:
                     write_message("Error submitting ticket for record %s:" % (recid,))
-                    raise
+                    raise e
             else:
                 raise BibCatalogPluginException("Plugin not valid in %s" % (ticket_name,))
 
@@ -282,6 +289,12 @@ def load_ticket_plugins():
     # Load plugins
     plugins = PluginContainer(CFG_BIBCATALOG_PLUGIN_DIR,
                               plugin_builder=_bibcatalog_plugin_builder)
+
+    # Remove __init__ if applicable
+    try:
+        plugins.disable_plugin("__init__")
+    except KeyError:
+        pass
 
     error_messages = []
     # Check for broken plug-ins
@@ -364,8 +377,6 @@ def _bibcatalog_plugin_builder(plugin_name, plugin_code):
     @type plugin_code: module
     @return: the plugin
     """
-    if plugin_name == "__init__":
-        return
     final_plugin = {}
     final_plugin["check_record"] = getattr(plugin_code, "check_record", None)
     final_plugin["generate_ticket"] = getattr(plugin_code, "generate_ticket", None)
@@ -421,6 +432,7 @@ def main():
             print "Enabled tickets:"
             for plugin in all_plugins.get_enabled_plugins():
                 print " " + plugin
+            print "Run `$ bibcatalog --tickets=<ticket-name>` to select a ticket template."
             return
 
     # Build and submit the task

@@ -33,9 +33,13 @@ from invenio.bibcatalog_utils import \
     BibCatalogTagNotFound
 
 
-def check_record(record):
+def check_record(ticket, record):
     """
     Checks to see if we should create a ticket.
+
+    @param ticket: a ticket object as created by BibCatalogTicket() containing
+                   the subject, body and queue to create a ticket in.
+    @type ticket: record object of BibCatalogTicket.
 
     @param record: a recstruct object as created by bibrecord.create_record()
     @type record: record object of BibRecord.
@@ -46,15 +50,20 @@ def check_record(record):
     return record_in_collection(record, "ARTICLE")
 
 
-def generate_ticket(record):
+def generate_ticket(ticket, record):
     """
-    Generates the content, subject and queue of the ticket to be created.
+    Generates a ticket to be created, filling subject, body and queue values
+    of the passed BibCatalogTicket object. The enriched object is returned.
+
+    @param ticket: a ticket object as created by BibCatalogTicket() containing
+                   the subject, body and queue to create a ticket in.
+    @type ticket: record object of BibCatalogTicket.
 
     @param record: a recstruct object as created by bibrecord.create_record()
     @type record: record object of BibRecord.
 
-    @return: returns a tuple (subject, body, queue) of the ticket.
-    @rtype: tuple
+    @return: the modified ticket object to create.
+    @rtype: BibCatalogTicket
     """
     title_code = load_tag_code_from_name("title")
     abstract_code = load_tag_code_from_name("abstract")
@@ -147,7 +156,10 @@ Edit the record now: %(editurl)s
         'editurl': "%s/record/edit/%s" % (CFG_SITE_URL, recid),
     }
     # To avoid errors with string formatting later, we are escaping %'s
-    return subject, text.replace('%', '%%'), "Test"
+    ticket.subject = subject
+    ticket.body = text.replace('%', '%%')
+    ticket.queue = "Test"
+    return ticket
 
 
 def _get_minimal_arxiv_id(record, tag_code):

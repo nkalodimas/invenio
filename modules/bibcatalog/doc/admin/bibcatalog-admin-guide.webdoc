@@ -49,40 +49,58 @@ Before you can create any tickets, you need to have defined a ticket template. A
 functions:
 
 <ul>
-<li>check_record(record): this function accepts a record object and returns True if the record should have a ticket created for it. False if not.
+<li>check_record(ticket, record): this function accepts a ticket object (BibCatalogTicket) and a record object (BibRecord) and returns True if the record should have a ticket created for it. False if not.
 <br />
 <blockquote>
 <pre>
-def check_record(record):
+def check_record(ticket, record):
     """
-    Expects a BibRecord object.
+    Checks to see if we should create a ticket.
 
-    Returns True if record is a 'ARTICLE' record.
+    @param ticket: a ticket object as created by BibCatalogTicket() containing
+                   the subject, body and queue to create a ticket in.
+    @type ticket: record object of BibCatalogTicket.
+
+    @param record: a recstruct object as created by bibrecord.create_record()
+    @type record: record object of BibRecord.
+
+    @return: returns True if record is a 'ARTICLE' record.
+    @rtype: bool
     """
     return record_in_collection(record, "ARTICLE")
 </pre>
 </blockquote>
 </li>
 
-<li>generate_ticket(record): generates the content and subject of the ticket itself. Returns a tuple of (subject, body, queue).
+<li>generate_ticket(ticket, record): generates the content and subject of the ticket itself. Returns the enriched BibCatalogTicket object.
 <br />
 <blockquote>
 <pre>
-def generate_ticket(record):
+def generate_ticket(ticket, record):
     """
-    Expects a record object.
+    Generates a ticket to be created, filling subject, body and queue values
+    of the passed BibCatalogTicket object. The enriched object is returned.
 
-    Returns subject, body and queue of the ticket.
+    @param ticket: a ticket object as created by BibCatalogTicket() containing
+                   the subject, body and queue to create a ticket in.
+    @type ticket: record object of BibCatalogTicket.
+
+    @param record: a recstruct object as created by bibrecord.create_record()
+    @type record: record object of BibRecord.
+
+    @return: the modified ticket object to create.
+    @rtype: BibCatalogTicket
     """
     title_code = load_tag_code_from_name("title")
     title = record_get_field_value(record, **split_tag_code(title_code))
 
     abstract_code = load_tag_code_from_name("abstract")
     abstract = record_get_field_value(record, **split_tag_code(abstract_code))
-    text = "%s\n\n%s" % (title, abstract)
 
-    subject = "New record: %s" % (title,)
-    return subject, text, "NEW-ARTICLES"
+    ticket.queue = "NEW-ARTICLES"
+    ticket.body = "%s\n\n%s" % (title, abstract)
+    ticket.subject = "New record: %s" % (title,)
+    return ticket
 </pre>
 </blockquote>
 </li>
