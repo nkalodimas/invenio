@@ -24,6 +24,7 @@ bibauthorid_general_utils
 from invenio import bibauthorid_config as bconfig
 from datetime import datetime
 import sys
+from math import floor
 
 PRINT_TS = bconfig.DEBUG_TIMESTAMPS
 PRINT_TS_US = bconfig.DEBUG_TIMESTAMPS_UPDATE_STATUS and PRINT_TS
@@ -132,7 +133,7 @@ wedge_print = __create_conditional_print(bconfig.DEBUG_WEDGE_OUTPUT)
 
 if bconfig.DEBUG_OUTPUT:
 
-    status_len = 20
+    status_len = 18
     comment_len = 40
 
     def padd(stry, l):
@@ -140,10 +141,10 @@ if bconfig.DEBUG_OUTPUT:
 
     def update_status(percent, comment="", print_ts=False):
         set_stdout()
-        filled = int(percent * status_len-2)
-        bar = "[%s%s] " % ("#" * filled, "-" * (status_len-2 - filled))
+        filled = max(0,int(floor(percent * status_len)))
+        bar = "[%s%s] " % ("#" * filled, "-" * (status_len - filled))
         percent = ("%.2f%% done" % (percent * 100))
-        progress = padd(bar + percent, status_len)
+        progress = padd(bar + percent, status_len+2)
         comment = padd(comment, comment_len)
         if print_ts or PRINT_TS_US:
             print  datetime.now(),
