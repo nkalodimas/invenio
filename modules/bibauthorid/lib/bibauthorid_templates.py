@@ -320,7 +320,8 @@ class Template:
 
     def tmpl_merge_ticket_box(self, teaser_key, message_key, primary_profile, profiles):
 
-        message = self._('Person search for profile merging in progress!')
+        message = self._('When you merge a set of profiles, all the information stored will be assigned to the primary profile. This includes papers, ids or citations.'
+                       ' After merging, only the primary profile will remain in the system, all other profiles will be automatically deleted.</br>')
 
         error_teaser_dict = {'person_search': message }
         error_message_dict = {'merge_profiles': 'You are about to merge the following profile%s:' }
@@ -1593,7 +1594,7 @@ class Template:
         def stub(search_param):
             activated = True
             parameters = [('search_param', search_param)]
-            link = "/author/choose_profile"
+            link = "%s/author/choose_profile" % ( CFG_SITE_URL, )
             return activated, parameters, link
 
         return stub
@@ -1602,7 +1603,7 @@ class Template:
         def stub(search_param,):
             activated = True
             parameters = [('q', search_param)]
-            link = "/author/search"
+            link = "%s/author/search"  % ( CFG_SITE_URL, )
             return activated, parameters, link
 
         return stub
@@ -1611,7 +1612,7 @@ class Template:
         def stub(search_param):
             activated = True
             parameters = [('search_param', search_param), ('primary_profile', primary_profile)]
-            link = "/author/merge_profiles"
+            link = "%s/author/merge_profiles"  % ( CFG_SITE_URL, )
             return activated, parameters, link
 
         return stub
@@ -1810,7 +1811,7 @@ class Template:
         h = html.append
 
         if welcome_mode:
-            h('<form id="searchform" action="/author/claim/welcome" method="GET">')
+            h('<form id="searchform" action="%s/author/claim/welcome" method="GET">'  % ( CFG_SITE_URL, ))
             h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
             h('<input type="hidden" name="action" value="search">')
             h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="search_param" style="border:1px solid #333; width:500px;" '
@@ -1818,7 +1819,7 @@ class Template:
             h('<input type="submit" value="Search" />')
             h('</form>')
         else:
-            h('<form id="searchform" action="/author/search" method="GET">')
+            h('<form id="searchform" action="%s/author/search" method="GET">'  % ( CFG_SITE_URL, ))
             h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
             h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="q" style="border:1px solid #333; width:500px;" '
                         'maxlength="250" value="%s" class="focus" />' % query)
@@ -2287,8 +2288,8 @@ class Template:
         html = []
         h = html.append
         last_viewed_profile_message = self._("The following profile is the one you were viewing before logging in: ")
-        probable_profile_message = self._("We strongly believe that your profile is the following: ")
-
+        probable_profile_message = self._("22 out of 24 papers connected to your arXiv account match this profile: ")
+        
         # if the user has searched then his choice should be remembered in case the chosen profile is not available
         param=''
         if search_param:
@@ -2324,6 +2325,8 @@ class Template:
             h('</td>')
             h('</tr>')
             h('</table>')
+        message = self._("If you do not agree with those profile suggestions, use the search box below to find your profile.")
+        h('<p>%s</p>' % (message,))
         h('</br>')
         return "\n".join(html)
 
@@ -2545,10 +2548,10 @@ class Template:
             h('<p><strong><font color="red">Unfortunately the profile you chose is no longer available.</font></strong></p>')
             h('<p>We apologise for the inconvenience. Please select another one.</br>Keep in mind that you can create an empty profile and then claim all of your papers in it.')
         else:
-            h('<p><b>Congratulations! You have now successfully connected to INSPIRE via arXiv.org!</b></p>')
+            h('<p><b>You have now successfully connected to INSPIRE via arXiv.org!</b></p>')
             h('<p>Before you proceed you need to help us locating your profile.')
-        h('If you have '
-          'any questions or encounter any problems please contact us here: '
+        h('<p>Please choose the profile that reflects your publication list best.')
+        h('In case you don\'t find the correct match or your profile is already taken, please contact us here: '
           '<a rel="nofollow" href="mailto:%s">%s</a></p>'
           % (CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
              CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL))
@@ -2592,7 +2595,7 @@ class Template:
         return html_header
 
 
-    def tmpl_profile_managment(self, ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data):
+    def tmpl_profile_managment(self, ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data, merge_data):
         '''
         '''
         _ = gettext_set_language(ln)
@@ -2609,7 +2612,8 @@ class Template:
         html_autoclaim = self.tmpl_autoclaim_box(autoclaim_data, ln, loading=True)
 
         html_support = self.tmpl_support_box(support_data, ln, loading=False)
-
+        html_merge = self.tmpl_merge_box(merge_data, ln, loading=False)
+        
         g = self._grid
 
         if not autoclaim_data['hidden']:
@@ -2623,9 +2627,10 @@ class Template:
                               g(1, 1, cell_padding=5)(html_claim_paper))
         page = g(1, 2)(
                       left_g,
-                      g(3, 1)(
+                      g(4, 1)(
                               g(1, 1, cell_padding=5)(html_orcid),
                               g(1, 1, cell_padding=5)(html_ext_ids),
+                              g(1, 1, cell_padding=5)(html_merge),
                               g(1, 1, cell_padding=5)(html_support))
                       )
         html.append(page)
@@ -2647,12 +2652,12 @@ class Template:
 
         if arxiv_data['login'] == True:
             if arxiv_data['view_own_profile'] == True:
-                html_arxiv = _("You have succesfully logged in through arXiv. You can now manage your profile accordingly.</br>")
+                html_arxiv = _("You have succesfully logged in via arXiv. You can now manage your profile accordingly.</br>")
             else:
-                html_arxiv = _("You have succesfully logged in through arXiv.</br><div><font color='red'>However the profile you are currently viewing is not your profile.</font>")
+                html_arxiv = _("You have succesfully logged in via arXiv.</br><div><font color='red'>However the profile you are currently viewing is not your profile.</br></br></font>")
                 html_arxiv += '<a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['own_profile_link'], _(arxiv_data['own_profile_text']) )
 
-            html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['logout_link'], _(arxiv_data['logout_text']))
+            #html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['logout_link'], _(arxiv_data['logout_text']))
         else:
             html_arxiv = _("Please login through arXiv.org to verify that you are the owner of this"
                             " profile and update your paper list automatically. You may also proceed"
@@ -2670,15 +2675,16 @@ class Template:
     def tmpl_orcid_box(self, orcid_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
 
-        html_head = _("<strong> Connect this profile to an ORCID Id </strong>")
+        html_head = _("<strong> Connect this profile to an ORCID iD </strong>")
         html_orcid = _("The Open Researcher and Contributor ID provides a persistent digital identifier"
                        " that distinguishes you from every other researcher in the world and supports "
                        "automated linkages between you and your professional activities.</br>")
 
         if orcid_data['orcids']:
-            html_orcid += _('This profile is already connected to the following orcid(s): <strong>%s</strong></br>' % (",".join(orcid_data['orcids']),))
+            html_orcid += _('This profile is already connected to the following ORCID iD: <strong>%s</strong></br>' % (",".join(orcid_data['orcids']),))
             if orcid_data['arxiv_login'] and orcid_data['own_profile']:
-                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Orcid publication list") )
+                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Autoclaim publications from ORCID") )
+                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Visit your profile in ORCID") )
         else:
             if orcid_data['arxiv_login'] and (orcid_data['own_profile'] or orcid_data['add_power']):
                 html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['add_link'],
@@ -2699,7 +2705,7 @@ class Template:
 
         html_head = _("<strong> Claim papers for this profile </strong>")
         html_claim_paper = _("If you claim papers on INSPIRE, you make sure that your publications and citations"
-                       " are being shown correctly on your pofile. You can also assi9gn publication to other "
+                       " are being shown correctly on your profile. You can also assign publication to other "
                        "authors and colleagues - that way you can also help us providing more accurate publication"
                        " and citations statistics on INSPIRE.</br>")
 
@@ -2782,8 +2788,8 @@ class Template:
                 suffix = ''
                 if autoclaim_data["num_of_successfull_recids"] > 1:
                     suffix = 's'
-                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\">The following %s paper%s were successfully claimed to your"
-                                   " profile</span></br>"% (str(autoclaim_data["num_of_successfull_recids"]), suffix))
+                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\"> %s new paper%s were automatically claimed."
+                                   ".</span></br>"% (str(autoclaim_data["num_of_successfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
 
@@ -2795,8 +2801,8 @@ class Template:
                 suffix = ''
                 if autoclaim_data["num_of_unsuccessfull_recids"] > 1:
                     suffix = 's'
-                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s paper%s were unsuccessfully claimed. Do you want"
-                                   " to review the claiming now?</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_recids"]), suffix))
+                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s paper%s could not be claimed automatically. Please review"
+                                   " and claim it manually here:</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
 
@@ -2819,10 +2825,6 @@ class Template:
         html_support = _("Please, contact our support if you need any kind of help or if you want to suggest"
                        " us  new ideas. We will get back to you quickly.</br>")
 
-        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['merge_link'],
-                                                                                                                                  _(support_data['merge_text']))
-
-
         html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['help_link'],
                                                                                                                        _(support_data['help_text']))
         if loading:
@@ -2832,6 +2834,24 @@ class Template:
             return support_box
         else:
             return html_support
+
+    def tmpl_merge_box(self, merge_data, ln, add_box=True, loading=True):
+        _ = gettext_set_language(ln)
+
+        html_head = _("<strong> Merge profiles </strong>")
+        html_merge = _("When you merge a set of profiles, all the information stored will be assigned to the primary profile. This includes papers, ids or citations."
+                       " After merging, only the primary profile will remain in the system, all other profiles will be automatically deleted.</br>")
+
+        html_merge += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (merge_data['merge_link'],
+                                                                                                                                  _(merge_data['merge_text']))
+
+        if loading:
+            html_merge = self.loading_html()
+        if add_box:
+            merge_box = self.tmpl_print_searchresultbox('merge', html_head, html_merge)
+            return merge_box
+        else:
+            return html_merge
 
     def tmpl_open_table(self, width_pcnt=False, cell_padding=False, height_pcnt=False):
         options = []
@@ -2890,12 +2910,12 @@ class Template:
 
         h(    '<div  style="background-color: #F1F1FA; display: table; border-radius: 10px; padding: 20px; color: #3366CC; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
         h(      '<div align="center">')
-        h(          '<p style="font-size: 20px; font-weight: bold;"> Report a problem</p>')
-        h(          '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical problem.</p>')
+        h(          '<p style="font-size: 20px; font-weight: bold;"> Get help!</p>')
+        h(          '<p style="font-size: 14px; font-weight: bold;"> Write here on any issue, suggestions or technical request.</p>')
         if incomplete_params:
             h(      '<p style="font-size: 14px; font-weight: bold;"> <font color="red">Please fill the forms correctly!</font></p>')
         h(      '</div>')
-        h(      '<form action="/author/claim/action" method="post">')
+        h(      '<form action="%s/author/claim/action" method="post">'  % ( CFG_SITE_URL, ))
         h(        '<fieldset style="border: 0; display: inline-block;">')
         h(          '<p><label for="Name"> Name: </label><input style="float: right; border-radius: 4px;" required="True" name="Name" value="%s" type="text"  size="40"></p>' % (name_to_prefill))
         h(          '<p><label for="E-mail"> E-mail: </label><input style="float: right; border-radius: 4px;" name="E-mail" value="%s" type="email" size="40"></p>'
