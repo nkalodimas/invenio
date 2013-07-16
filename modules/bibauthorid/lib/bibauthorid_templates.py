@@ -1227,7 +1227,7 @@ class Template:
         h('<div id="aid_menu">')
         h('  <ul>')
         h('    <li>' + self._('Navigation:') + '</li>')
-        h(('    <li><a rel="nofollow" href="%s/author/claim/search">' + self._('Run paper attribution for another author') + '</a></li>') % CFG_SITE_URL)
+        h(('    <li><a rel="nofollow" href="%s/author/search">' + self._('Run paper attribution for another author') + '</a></li>') % CFG_SITE_URL)
         h('    <!--<li><a rel="nofollow" href="#">' + self._('Person Interface FAQ') + '</a></li>!-->')
         h('  </ul>')
         h('</div>')
@@ -1243,8 +1243,8 @@ class Template:
         h('<div id="aid_menu">')
         h('  <ul>')
         h('    <li>' + self._('Navigation:') + '</li>')
-        h(('    <li><a rel="nofollow" href="%s/author/claim/search">' + self._('Person Search') + '</a></li>') % CFG_SITE_URL)
-        h(('    <li><a rel="nofollow" href="%s/author/claim/manage_profile?pid=%s">' + self._('Manage Profile') + '</a></li>') % (CFG_SITE_URL, pid))
+        h(('    <li><a rel="nofollow" href="%s/author/search">' + self._('Person Search') + '</a></li>') % CFG_SITE_URL)
+        h(('    <li><a rel="nofollow" href="%s/author/manage_profile?pid=%s">' + self._('Manage Profile') + '</a></li>') % (CFG_SITE_URL, pid))
         h(('    <li><a rel="nofollow" href="%s/author/claim/tickets_admin">' + self._('Open tickets') + '</a></li>') % CFG_SITE_URL)
         h('    <!--<li><a rel="nofollow" href="#">' + self._('Person Interface FAQ') + '</a></li>!-->')
         h('  </ul>')
@@ -1601,7 +1601,7 @@ class Template:
         def stub(search_param):
             activated = True
             parameters = [('search_param', search_param)]
-            link = "/author/claim/choose_profile"
+            link = "/author/choose_profile"
             return activated, parameters, link
 
         return stub
@@ -1610,7 +1610,7 @@ class Template:
         def stub(search_param,):
             activated = True
             parameters = [('q', search_param)]
-            link = "/author/claim/search"
+            link = "/author/search"
             return activated, parameters, link
 
         return stub
@@ -1619,7 +1619,7 @@ class Template:
         def stub(search_param):
             activated = True
             parameters = [('search_param', search_param), ('primary_profile', primary_profile)]
-            link = "/author/claim/merge_profiles"
+            link = "/author/merge_profiles"
             return activated, parameters, link
 
         return stub
@@ -1826,7 +1826,7 @@ class Template:
             h('<input type="submit" value="Search" />')
             h('</form>')
         else:
-            h('<form id="searchform" action="/author/claim/search" method="GET">')
+            h('<form id="searchform" action="/author/search" method="GET">')
             h('Find author clusters by name. e.g: <i>Ellis, J</i>: <br>')
             h('<input placeholder="Search for a name, e.g: Ellis, J" type="text" name="q" style="border:1px solid #333; width:500px;" '
                         'maxlength="250" value="%s" class="focus" />' % query)
@@ -2326,7 +2326,7 @@ class Template:
             h('<a href="%s/author/profile/%s" target="_blank"> %s </a>' % (CFG_SITE_URL, last_viewed_profile_suggestion_info['canonical_id'],
                                                                            last_viewed_profile_suggestion_info['canonical_name_string']))
             h('</td>')
-            h('<td>')            
+            h('<td>')
             h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
                                                                                 str(last_viewed_profile_suggestion_info['pid']), param, 'This is my profile'))
             h('</td>')
@@ -2726,7 +2726,7 @@ class Template:
         _ = gettext_set_language(ln)
 
         html_head = _("<strong> External Ids </strong>")
-        
+
         html_ext_ids = '<div>'
 
         html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
@@ -2897,7 +2897,7 @@ class Template:
         h = html.append
         #h('<div style="display: block; width: 600px; text-align: left;">')
         h('<div style="width:100%; minheight: 500px;">')
-        
+
         h(    '<div  style="background-color: #F1F1FA; display: table; border-radius: 10px; padding: 20px; color: #3366CC; font: Helvetica 12pt;border: 1px solid black; margin: 0px auto;">')
         h(      '<div align="center">')
         h(          '<p style="font-size: 20px; font-weight: bold;"> Report a problem</p>')
@@ -2908,7 +2908,7 @@ class Template:
         h(      '<form action="/author/claim/action" method="post">')
         h(        '<fieldset style="border: 0; display: inline-block;">')
         h(          '<p><label for="Name"> Name: </label><input style="float: right; border-radius: 4px;" required="True" name="Name" value="%s" type="text"  size="40"></p>' % (name_to_prefill))
-        h(          '<p><label for="E-mail"> E-mail: </label><input style="float: right; border-radius: 4px;" name="E-mail" value="%s" type="email" size="40"></p>' 
+        h(          '<p><label for="E-mail"> E-mail: </label><input style="float: right; border-radius: 4px;" name="E-mail" value="%s" type="email" size="40"></p>'
                                                                                                                                           % (email_to_prefill))
         h(          '<input type="hidden" name="last_page_visited" value="%s" />' % (str(last_page_visited),))
         h(          '<p>Comment:</p>')
@@ -2917,9 +2917,9 @@ class Template:
         h(       '<button class="aid_btn_blue" style="display: block; margin: 0 auto;" type="submit" name="send_message">Submit</button>')
 
         h(     '</form>')
-        
+
         h(  '</div>')
-        
+
         h('</div>')
 
         return ' '.join(html)

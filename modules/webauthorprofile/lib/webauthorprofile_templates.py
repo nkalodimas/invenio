@@ -177,7 +177,7 @@ class Template:
         if not loading:
             try:
                 heprec = str(hepdict['heprecord'][0])
-            except (KeyError, IndexError):
+            except (TypeError, KeyError, IndexError):
                 heprec = ''
             if hepdict['HaveHep']:
                 contents = hepdict['heprecord']

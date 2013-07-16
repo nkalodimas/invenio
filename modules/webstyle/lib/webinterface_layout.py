@@ -214,16 +214,10 @@ except:
     WebInterfacePingPages = WebInterfaceDumbPages
 
 try:
-    from invenio.bibauthorid_webinterface import WebInterfaceBibAuthorIDPages
+    from invenio.bibauthorid_webinterface import WebInterfaceAuthor
 except:
     register_exception(alert_admin=True, subject='EMERGENCY')
-    WebInterfaceBibAuthorIDPages = WebInterfaceDumbPages
-
-#try:
-#    from invenio.bibauthorid_webinterface import WebInterfaceBibAuthorIDSearchPages
-#except:
-#    register_exception(alert_admin=True, subject='EMERGENCY')
-#    WebInterfaceBibAuthorIDSearchPages = WebInterfaceDumbPages
+    WebInterfaceAuthor = WebInterfaceDumbPages
 
 try:
     from invenio.bibcirculationadmin_webinterface import \
@@ -238,13 +232,6 @@ try:
 except:
     register_exception(alert_admin=True, subject='EMERGENCY')
     WebInterfaceBibSchedPages = WebInterfaceDumbPages
-
-try:
-    from invenio.webauthorprofile_webinterface import WebAuthorPages
-    WebInterfaceWebAuthorPages = WebAuthorPages
-except:
-    register_exception(alert_admin=True, subject='EMERGENCY')
-    WebInterfaceWebAuthorPages = WebInterfaceDumbPages
 
 try:
     from invenio.docextract_webinterface import WebInterfaceDocExtract
@@ -284,19 +271,6 @@ if CFG_DEVEL_SITE:
     test_exports = ['httptest']
 else:
     test_exports = []
-
-class WebInterfaceAuthor(WebInterfaceSearchInterfacePages):
-    """ The global URL layout is composed of the search API plus all
-    the other modules."""
-
-    _exports = ['claim',
-                'profile',
-                #'search'
-                ]
-
-    claim = WebInterfaceBibAuthorIDPages()
-    profile = WebInterfaceWebAuthorPages()
-    #search = WebInterfaceBibAuthorIDSearchPages()
 
 class WebInterfaceAdminPages(WebInterfaceDirectory):
     """This class implements /admin2 admin pages."""
