@@ -166,8 +166,18 @@ def tortoise_last_name(name, from_mark=True, pure=False):
 #        bibauthor_print("Sorry, %s(%s) not found in the last name clusters" % (name, lname))
 
 def tortoise_last_names(names_list):
-    pool = mp.Pool(maxtasksperchild=1)
-    pool.map(tortoise_last_name, names_list)
+    try:
+        pool = mp.Pool(maxtasksperchild=1)
+        pool.map(tortoise_last_name, names_list)
+    except TypeError:
+        sl = 8
+        sliced_list = [names_list[i:i+sl] for i in range(0,len(names_list),sl)]
+        for s in sliced_list:
+            pool = mp.Pool()
+            pool.map(tortoise_last_name, s)
+            pool.join()
+
+
 
 def _collect_statistics_lname_coeff(params):
     lname = params[0]
