@@ -4457,7 +4457,7 @@ def export_author(pid):   ### export_person
     else:
         author_info['profile_page']['INSPIRE_profile_page'] = ('%s/author/profile/%s' % (CFG_SITE_URL, str(pid)),)
 
-    orcids = _get_orcid_id_of_author(pid)
+    orcids = get_orcid_id_of_author(pid)
     if orcids:
         author_info['identifiers']['ORCID'] = tuple(str(x[0]) for x in orcids)
 

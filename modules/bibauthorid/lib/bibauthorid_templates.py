@@ -318,11 +318,9 @@ class Template:
         return "\n".join(html)
 
 
-    def tmpl_merge_ticket_box(self, teaser_key, message_key, primary_profile, profiles, merge_power):
+    def tmpl_merge_ticket_box(self, teaser_key, message_key, primary_profile, profiles):
 
         message = self._('Person search for profile merging in progress!')
-        if not merge_power:
-            message += '(You have no rights to actualy merge profiles. However you can submit profiles for merging)'
 
         error_teaser_dict = {'person_search': message }
         error_message_dict = {'merge_profiles': 'You are about to merge the following profile%s:' }
@@ -349,10 +347,8 @@ class Template:
         h("</ul>")
         h('<a rel="nofollow" id="checkout" href="manage_profile?pid=%s">' % (str(primary_profile),) + self._('Cancel merging.') + '</a>' )
         if len(profiles):
-            if merge_power:
-                h('<a rel="nofollow" id="merge" href="merge_profiles?search_pid=%s">' % (str(primary_profile),) + self._('Merge profiles.') + '</a>' )
-            else:
-                h('<a rel="nofollow" id="checkout" href="manage_profile?search_pid=%s">' % (str(primary_profile),) + self._('Submit for merging') + '</a>' )
+            h('<a rel="nofollow" id="merge" href="merge_profiles?search_pid=%s">' % (str(primary_profile),) + self._('Merge profiles.') + '</a>' )
+
 
         h(' </div>')
         h('</div>')
@@ -2729,7 +2725,7 @@ class Template:
         html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
         html_ext_ids += '<input type="hidden" name="%s" value="True">' % (ext_ids_data['add_missing_parameter'],)
         html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-        html_ext_ids += '<br> <input type="submit" value="%s" class="aid_btn_blue"> </form>'  % (ext_ids_data['add_missing_text'],)
+        html_ext_ids += '<br> <input type="submit" value="%s"> </form>'  % (ext_ids_data['add_missing_text'],)
 
         if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
             html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
@@ -2742,7 +2738,7 @@ class Template:
                     sys = ''
                 for id_value in ext_ids_data['ext_ids'][key]:
                     html_ext_ids += '<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (key, id_value, sys, id_value)
-            html_ext_ids += '        <br> <br> <input type="submit" value="%s" class="aid_btn_blue"> <br> </form>' % (ext_ids_data['remove_text'],)
+            html_ext_ids += '        <br> <br> <input type="submit" value="%s"> <br> </form>' % (ext_ids_data['remove_text'],)
         else:
             html_ext_ids += 'UserID: There are no external users associated to this profile!'
 
@@ -2756,7 +2752,7 @@ class Template:
             html_ext_ids += '  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el)
         html_ext_ids += '   </select>'
         html_ext_ids += '   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">'
-        html_ext_ids += '   <input type="submit" value="%s" class="aid_btn_blue">' % (ext_ids_data['add_text'],)
+        html_ext_ids += '   <input type="submit" value="%s" >' % (ext_ids_data['add_text'],)
         # html_ext_ids += '<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
         html_ext_ids += '<br> </form> </div>'
 
@@ -2828,8 +2824,6 @@ class Template:
                                                                                                                                   _(support_data['merge_text']))
 
 
-        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['problem_link'],
-                                                                                                                            _(support_data['problem_text']))
         html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['help_link'],
                                                                                                                        _(support_data['help_text']))
         if loading:

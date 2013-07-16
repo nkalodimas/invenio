@@ -1379,6 +1379,10 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                         "Fatal: cannot create ticket if no action selected.")
 
         def merge():
+            self._session_bareinit(req)
+            session = get_session(req)
+            pinfo = session['personinfo']
+
             if 'pid' in argd:
                 primary_profile = argd['pid']
             else:
@@ -1394,8 +1398,40 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
 
             primary_profile = get_person_id_from_canonical_id(pid)
             profiles = [get_person_id_from_canonical_id(profile) for profile in profiles_to_merge]
-            if not is_merge_allowed(profiles):
-                pass
+
+            uid = getUid(req)
+            user_pid = webapi.get_pid_from_uid(uid)
+            error_message = ''
+            is_admin = False
+            if uid > 0:
+                if "ulevel" in pinfo and pinfo["ulevel"]:
+                    is_admin = True
+                if not is_merge_allowed([primary_profile] + profiles_to_merge, user_pid, is_admin):
+                    if is_admin:
+                        error_message = 'There are multiple more than one user ids in the profiles you want to merge'
+                    else:
+                        error_message = 'Either there is not your profile in the merge or there are multiple uids or you try to merge more than one profiles with claimed papers'
+                        'an admin will look intou it'
+            else:
+                error_message = 'As a guest you cannot mergee blah blah blah'
+            if error_message and not is_admin:
+                name = ''
+                if "user_last_name" in pinfo:
+                    name = pinfo["user_last_name"]
+    
+                if "user_first_name" in pinfo:
+                    name += pinfo["user_first_name"]
+
+                email = ''
+                if "user_email" in pinfo:
+                    email = pinfo["user_email"]
+
+                selection_string = "&selection=".join(profiles_to_merge)
+                userinfo = {'uid-ip': "userid: %s (from %s)" % (uid, req.remote_ip),
+                            'name': name,
+                            'email': email,
+                            'merge link': 'author/claim/merge_profiles?primary_profile=%s&selection=%s' %(pid, selection_string)}
+                webapi.create_request_message(userinfo, subj = 'Merge profiles request')
 
             webapi.merge_profiles(primary_profile, profiles_to_merge)
 
@@ -1877,12 +1913,9 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
                 pinfo["merge_profiles"] = profiles_to_merge
                 session.dirty = True
 
-        merge_power = False
-        if"ulevel" in pinfo and pinfo["ulevel"] == "admin":
-            merge_power = True
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
         body = ''
-        body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, profiles_to_merge, merge_power)
+        body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, profiles_to_merge)
 
         # this is a function generating search's bar link and if it should be activated or not
         shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile)
@@ -2265,6 +2298,8 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         # login_status checks if the user is logged in and returns a dictionary contain if he is logged in
         # his uid and the external systems that he is logged in through.
         # the dictionary of the following form: {'logged_in': True, 'uid': 2, 'remote_logged_in_systems':['Arxiv', ...]}
+
+        webapi.history_log_visit(req, 'manage_profile', pid=person_id)
         login_info = webapi.login_status(req)
         title_message = _('Profile Managment')
 
@@ -2446,9 +2481,7 @@ class WebInterfaceBibAuthorIDPages(WebInterfaceDirectory):
         support_data['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (search_param,
                                                                                                 webapi.get_canonical_id_from_person_id(person_id))
         support_data['merge_text'] = "Merge profiles"
-        support_data['problem_link'] = "help"
-        support_data['problem_text'] = "Report a problem"
-        support_data['help_link'] = "mpla.com"
+        support_data['help_link'] = "author/claim/help"
         support_data['help_text'] = "Get help!"
         # report a problem page
         # get help page

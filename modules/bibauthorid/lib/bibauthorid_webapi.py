@@ -1205,23 +1205,30 @@ def get_user_pid(uid):
     return pid[0]
 
 
-def is_merge_allowed(profiles):
+def is_merge_allowed(profiles, user_pid, is_admin):
     '''
     Check if merging is allowed by finding the number of profiles that are owned by user. Merging can be perform
-    only if at most one profile is connected to a user.
+    only if at most one profile is connected to a user. Only admins can merge profile when 2 or more of them have claimed papers
 
     @param profiles: all the profiles that are going to be merged including the primary profile
     @type list
 
     '''
     owned_profiles = 0
-
+    num_of_profiles_with_claimed_papers = 0
 
     for profile in profiles:
         if not is_profile_available(profile):
             if owned_profiles > 0:
-                return false
+                return False
+            if not is_admin and user_pid != profile:
+                return False
             owned_profiles += 1
+        if len(dbapi.get_all_personids_recs(profile, claimed_only=True)) > 0:
+            num_of_profiles_with_claimed_papers += 1
+
+        if not is_admin and num_of_profiles_with_claimed_papers > 1:
+            return False
     return True
 
 def open_ticket_for_papers_of_merged_profiles(req, primary_profile, profiles):
@@ -1242,7 +1249,7 @@ def open_ticket_for_papers_of_merged_profiles(req, primary_profile, profiles):
         else:
             recs_to_merge.append(records[recid][0])
 
-    add_tickets(req, primary_pid, recs_to_merge, 'confirm')
+    add_tickets(req, primary_profile, recs_to_merge, 'confirm')
 
 def get_papers_of_merged_profiles(primary_profile, profiles):
     records = dict()
@@ -1250,7 +1257,7 @@ def get_papers_of_merged_profiles(primary_profile, profiles):
     # be preffered from similar papers of other profiles with the same level of claim
 
     for pid in [primary_profile] + profiles:
-        papers = get_papers_by_person_id(primary_profile)
+        papers = get_papers_by_person_id(pid)
         for paper in papers:
             # if paper is rejected skip
             if paper[2] == -2:
@@ -1258,7 +1265,9 @@ def get_papers_of_merged_profiles(primary_profile, profiles):
             # if there is already a paper with the same record
             # and the new one is claimed while the existing one is not
             # keep only the claimed one
-            if records[paper[0]] and records[paper[0]][2] == 0 and paper[2] == 2 :
+            if not paper[0] in records:
+                records[paper[0]] = paper
+            elif records[paper[0]] and records[paper[0]][2] == 0 and paper[2] == 2 :
                 records[paper[0]] = paper
 
     return [records[recid] for recid in records.keys()]
@@ -1282,33 +1291,32 @@ def get_data_union_for_merged_profiles(persons_data, new_profile_bibrecrefs):
                 continue
             elif data[-1] == 'uid':
                 continue
-            elif data[-1] != 'canonical_name':
+            elif data[-1] == 'canonical_name':
                 continue
             elif data[-1].startswith("rt_"):
                 if rt_old_counter != data[1]:
                     rt_old_counter = data[1]
                     rt_new_counter += 1
-                data = (data[0],rt_counter,data[2],data[3],data[4])
-
+                data = (data[0],rt_new_counter,data[2],data[3],data[4])
+            new_profile_data.append(data)
     return list(set(new_profile_data))
 
 
-def merge_profiles(req, primary_profile, profiles):
-    res = dbapi.get_persons_data([primary_profile], 'canonical_id')
+def merge_profiles(primary_profile, profiles):
+    res = dbapi.get_persons_data([primary_profile], 'canonical_name')
+    canonical_id_data = ''
     if res and res[primary_profile] and res[primary_profile][0]:
         canonical_id_data = res[primary_profile][0]
 
-    persons_data = dbapi.get_persons_data(profiles)
+    persons_data = dbapi.get_persons_data([primary_profile] + profiles)
 
     new_profile_uid = get_uid_for_merged_profiles(persons_data)
     # move papers from the profiles to the primary profile
     new_profile_papers = get_papers_of_merged_profiles(primary_profile, profiles)
     new_profile_data = get_data_union_for_merged_profiles(persons_data, [paper[1] for paper in new_profile_papers])
 
-    for profile in [primary] + profiles:
-        dbapi.del_person_data(None, profile)
-
-    if not canonical_id_data:
+    dbapi.del_person_data(None, primary_profile)
+    if canonical_id_data:
         dbapi.add_author_data(primary_profile, canonical_id_data[4], canonical_id_data[0], canonical_id_data[1], canonical_id_data[2], canonical_id_data[3])
     else:
         dbapi.update_canonical_names_of_authors([primary_profile])
@@ -1319,12 +1327,15 @@ def merge_profiles(req, primary_profile, profiles):
         dbapi.add_author_data(primary_profile, data[4], data[0], data[1], data[2], data[3])
 
     for paper in new_profile_papers:
-        recid = new_profile_papers[0]
-        splitted_bibrecref = new_profile_papers[1].split(":")
+        recid = paper[0]
+        splitted_bibrecref = paper[1].split(":")
         bibref_table = splitted_bibrecref[0]
-        bibref_value = splitted_bibrecref.split(",")[0]
-        sig = (bibref_table, bibref_value, splitted_bibrecref)
+        bibref_value = splitted_bibrecref[1].split(",")[0]
+        sig = (bibref_table, bibref_value, recid)
         dbapi.move_signature(sig, primary_profile, force_claimed=False)
+
+    for profile in profiles:
+        dbapi.del_person_data(None, profile)
 
     dbapi.remove_empty_authors()
 
@@ -1648,7 +1659,7 @@ def create_request_ticket(userinfo, ticket):
 
     return True
 
-def create_request_message(userinfo):
+def create_request_message(userinfo, subj = None):
     mailcontent = []
 
     for info_type in userinfo:
@@ -1659,10 +1670,12 @@ def create_request_message(userinfo):
 
     if bconfig.TICKET_SENDING_FROM_USER_EMAIL and userinfo['email']:
         sender = userinfo['email']
-
+    
+    if not subj:
+        subj = "[Author] Help Request"
     send_email(sender,
                CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
-               subject="[Author] Help Request",
+               subject=subj,
                content="\n".join(mailcontent))
 
 def send_user_commit_notification_email(userinfo, ticket):
@@ -2442,20 +2455,23 @@ def get_stored_incomplete_autoclaim_tickets(req):
 #         Visit diary Functions            #
 ############################################
 
-def history_log_visit(req, page, pid=None, parameters=None):
+def history_log_visit(req, page, pid=None, params=None):
     """
     @param page: string (claim, manage_profile, profile, search)
     @param parameters: string (?param=aoeuaoeu&param2=blabla)
     """
+    session_bareinit(req)
+    session = get_session(req)
     pinfo = session['personinfo']
     my_diary = pinfo['visit_diary']
 
     my_diary[page].append({'page':page, 'pid':pid, 'params':params, 'timestamp':time()})
 
-    if len((my_diary[page]) >  pinfo['diary_size_per_category']):
+    if len(my_diary[page]) >  pinfo['diary_size_per_category']:
         my_diary[page].pop(0)
 
 def _get_sorted_history(req, limit_to_page=None):
+    session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
     my_diary = pinfo['visit_diary']
