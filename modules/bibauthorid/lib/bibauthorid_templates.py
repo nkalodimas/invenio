@@ -345,7 +345,7 @@ class Template:
         #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
         #            % (profile, profile))
         h("</ul>")
-        h('<a rel="nofollow" id="checkout" href="%s/manage_profile?pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Cancel merging.') + '</a>' )
+        h('<a rel="nofollow" id="checkout" href="%s/author/manage_profile?pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Cancel merging.') + '</a>' )
         if len(profiles):
             h('<a rel="nofollow" id="merge" href="%s/author/merge_profiles?search_pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Merge profiles.') + '</a>' )
 

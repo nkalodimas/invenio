@@ -182,12 +182,12 @@ class WebAuthorPages(WebInterfaceDirectory):
         if url_args:
             url_tail = '?%s' % '&'.join(url_args)
 
-        if self.cid:
-            return redirect_to_url(req, '%s/author/profile/%s/%s' % (CFG_SITE_URL, self.cid, url_tail))
+        if self.cid is not None and self.original_search_parameter != self.cid:
+            return redirect_to_url(req, '%s/author/profile/%s%s' % (CFG_SITE_URL, self.cid, url_tail))
 
         # author may have only author identifier and not a canonical id
         if self.person_id > -1:
-            return redirect_to_url(req, '%s/author/profile/%s/%s' % (CFG_SITE_URL, self.person_id, url_tail))
+            return self.index(req, form)
 
         recid = argd['recid']
 
