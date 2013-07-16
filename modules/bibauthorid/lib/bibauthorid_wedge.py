@@ -20,6 +20,7 @@
 from invenio import bibauthorid_config as bconfig
 from itertools import izip, starmap
 from operator import mul
+import tempfile
 from invenio.bibauthorid_general_utils import update_status \
                                     , update_status_final \
                                     , bibauthor_print \
@@ -55,14 +56,14 @@ def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
     global wedge_thrsh
 
     if not force_wedge_thrsh:
-        edge_cut_prob = bconfig.WEDGE_THRESHOLD / 3.
+        edge_cut_prob = bconfig.WEDGE_THRESHOLD / 4.
         wedge_thrsh = bconfig.WEDGE_THRESHOLD
     else:
-        edge_cut_prob = force_wedge_thrsh / 3.
+        edge_cut_prob = force_wedge_thrsh / 4.
         wedge_thrsh = force_wedge_thrsh
 
-    matr = ProbabilityMatrix()
-    matr.load(cluster_set.last_name)
+    matr = ProbabilityMatrix(cluster_set.last_name)
+    matr.load()
 
     convert_cluster_set(cluster_set, matr)
     del matr # be sure that this is the last reference!
@@ -147,7 +148,7 @@ def _compare_to(cl1, cl2):
     return ret
 
 def _gini(arr):
-    arr = sorted(arr, reverse=True)
+    arr.sort(reverse=True)
     dividend = sum(starmap(mul, izip(arr, xrange(1, 2 * len(arr), 2))))
     divisor = len(arr) * sum(arr)
     return float(dividend) / divisor
@@ -161,6 +162,15 @@ def _edge_sorting(edge):
     '''
     return edge[2][0] + edge[2][1] / 10.
 
+
+def _pack_vals(v):
+    return str(v[0])+';'+str(v[1])+';'+str(v[2][0])+';'+str(v[2][1])+'\n'
+
+def _unpack_vals(s):
+    v = s.strip().split(';')
+    return int(v[0]), int(v[1]), (float(v[2]), float(v[3]))
+
+
 def do_wedge(cluster_set, deep_debug=False):
     '''
     Rearranges the cluster_set acoarding to be values in the probability_matrix.
@@ -170,12 +180,14 @@ def do_wedge(cluster_set, deep_debug=False):
 
     bib_map = create_bib_2_cluster_dict(cluster_set)
 
-    plus_edges, minus_edges, edges = group_edges(cluster_set)
+    #remember to close the files!
+    plus_edges_fp, len_plus, minus_edges_fp, len_minus, edges_fp, len_edges = group_sort_edges(cluster_set)
 
     interval = 1000
-    for i, (bib1, bib2) in enumerate(plus_edges):
+    for i, s in enumerate(plus_edges_fp.readlines()):
+        bib1, bib2, unused = _unpack_vals(s)
         if (i % interval) == 0:
-            update_status(float(i) / len(plus_edges), "Agglomerating obvious clusters...")
+            update_status(float(i) / len_plus, "Agglomerating obvious clusters...")
         cl1 = bib_map[bib1]
         cl2 = bib_map[bib2]
         if cl1 != cl2 and not cl1.hates(cl2):
@@ -186,25 +198,24 @@ def do_wedge(cluster_set, deep_debug=False):
     update_status_final("Agglomerating obvious clusters done.")
 
     interval = 1000
-    for i, (bib1, bib2) in enumerate(minus_edges):
+    for i, s in enumerate(minus_edges_fp.readlines()):
+        bib1, bib2, unused = _unpack_vals(s)
         if (i % interval) == 0:
-            update_status(float(i) / len(minus_edges), "Dividing obvious clusters...")
+            update_status(float(i) / len_minus, "Dividing obvious clusters...")
         cl1 = bib_map[bib1]
         cl2 = bib_map[bib2]
         if cl1 != cl2 and not cl1.hates(cl2):
             cl1.quarrel(cl2)
     update_status_final("Dividing obvious clusters done.")
 
-    bibauthor_print("Sorting the value edges.")
-    edges = sorted(edges, key=_edge_sorting, reverse=True)
-
     interval = 50000
-    wedge_print("Wedge: New wedge, %d edges." % len(edges))
+    wedge_print("Wedge: New wedge, %d edges." % len_edges)
     current = -1
-    for  v1, v2, unused in edges:
+    for  s in edges_fp.readlines():
+        v1, v2, unused = _unpack_vals(s)
         current += 1
         if (current % interval) == 0:
-            update_status(float(current) / len(edges), "Wedge...")
+            update_status(float(current) / len_edges, "Wedge...")
 
         assert unused != '+' and unused != '-', PID()+"Signed edge after filter!"
         cl1 = bib_map[v1]
@@ -247,6 +258,10 @@ def do_wedge(cluster_set, deep_debug=False):
     if deep_debug:
         export_to_dot(cluster_set, "/tmp/%sfinal.dot" % cluster_set.last_name, bib_map)
 
+    plus_edges_fp.close()
+    minus_edges_fp.close()
+    edges_fp.close()
+
 def convert_cluster_set(cs, prob_matr):
     '''
     Convertes a normal cluster set to a wedge cluster set.
@@ -254,7 +269,7 @@ def convert_cluster_set(cs, prob_matr):
     @param type: cluster set
     @return: a mapping from a number to a bibrefrec.
     '''
-    gc.disable()
+    #gc.disable()
 
     # step 1:
     #    + Assign a number to each bibrefrec.
@@ -281,31 +296,38 @@ def convert_cluster_set(cs, prob_matr):
 
     interval = 1000
     current = -1
-    for c1 in cs.clusters:
-        current += 1
-        if (current % interval) == 0:
-            update_status(float(current) / len(cs.clusters), "Converting the cluster set...")
 
-        assert len(c1.bibs) > 0, PID()+"Empty cluster send to wedge"
-        pointers = list()
+    try:
+        for c1 in cs.clusters:
+            current += 1
+            if (current % interval) == 0:
+                update_status(float(current) / len(cs.clusters), "Converting the cluster set...")
 
-        for v1 in c1.bibs:
-            pointer = list()
-            index = list()
-            rm = result_mapping[v1] #locality optimization
-            for c2 in cs.clusters:
-                if c1 != c2 and not c1.hates(c2):
-                    pointer += [pb_getitem_numeric((rm, result_mapping[v2])) for v2 in c2.bibs]
-                    index += c2.bibs
+            assert len(c1.bibs) > 0, PID()+"Empty cluster send to wedge"
+            pointers = list()
 
-            real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
-            real_pointer.fill(special_symbols[None])
-            real_pointer[index] = pointer
-            pointers.append((real_pointer, 1))
-        c1.out_edges = reduce(meld_edges, pointers)[0]
+            for v1 in c1.bibs:
+                pointer = list()
+                index = list()
+                rm = result_mapping[v1] #locality optimization
+                for c2 in cs.clusters:
+                    if c1 != c2 and not c1.hates(c2):
+                        pointer += [pb_getitem_numeric((rm, result_mapping[v2])) for v2 in c2.bibs]
+                        index += c2.bibs
+
+                real_pointer = numpy.ndarray(shape=(len(result_mapping), 2), dtype=float, order='C')
+                real_pointer.fill(special_symbols[None])
+                real_pointer[index] = pointer
+                pointers.append((real_pointer, 1))
+            c1.out_edges = reduce(meld_edges, pointers)[0]
+    except Exception, e:
+        raise Exception("""Error happened in convert_cluster_set with
+                        c1: %s , c2: %s, v1: %s, real_pointer: %s, pointers: %s
+                        original_exception: %s
+                        """%(str(c1),str(c2),str(v1),str(real_pointer),str(pointers), str(e)) )
 
     update_status_final("Converting the cluster set done.")
-    gc.enable()
+    #gc.enable()
 
 def restore_cluster_set(cs):
     for cl in cs.clusters:
@@ -325,10 +347,11 @@ def create_bib_2_cluster_dict(cs):
             ret[bib] = cl
     return ret
 
-def group_edges(cs):
-    plus = []
-    minus = []
-    pairs = []
+def group_sort_edges(cs):
+    plus = list()
+    minus = list()
+    pairs = list()
+    default_val = [0.,0.]
     gc.disable()
     interval = 1000
     current = -1
@@ -341,13 +364,15 @@ def group_edges(cs):
         pointers = cl1.out_edges
         for bib2 in xrange(len(cl1.out_edges)):
             val = pointers[bib2]
-            if val[0] not in Bib_matrix.special_numbers:
+            #if val[0] not in Bib_matrix.special_numbers:
+            #optimization: special numbers are assumed to be negative
+            if val[0] >= 0:
                 if val[0] > edge_cut_prob:
                     pairs.append((bib1, bib2, val))
             elif val[0] == Bib_matrix.special_symbols['+']:
-                plus.append((bib1, bib2))
+                plus.append((bib1, bib2, default_val))
             elif val[0] == Bib_matrix.special_symbols['-']:
-                minus.append((bib1, bib2))
+                minus.append((bib1, bib2, default_val))
             else:
                 assert val[0] == Bib_matrix.special_symbols[None], "Invalid Edge"
 
@@ -356,7 +381,33 @@ def group_edges(cs):
     bibauthor_print("Positive edges: %d, Negative edges: %d, Value edges: %d."
                      % (len(plus), len(minus), len(pairs)))
     gc.enable()
-    return plus, minus, pairs
+    bibauthor_print("Sorting the value edges.")
+    pairs.sort(key=_edge_sorting, reverse=True)
+
+    plus_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
+    minus_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
+    pairs_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
+
+    bibauthor_print("Dumping plus egdes to file... (%s)" % str(len(plus)))
+    plus_fp.writelines(_pack_vals(x) for x in plus)
+    plus_fp.seek(0)
+    len_plus = len(plus)
+    del plus
+
+    bibauthor_print("Dumping minus egdes to file... (%s)" % str(len(minus)))
+    minus_fp.writelines(_pack_vals(x) for x in minus)
+    minus_fp.seek(0)
+    len_minus = len(minus)
+    del minus
+
+    bibauthor_print("Dumping value egdes to file... (%s)" % str(len(pairs)))
+    pairs_fp.writelines(_pack_vals(x) for x in pairs)
+    pairs_fp.seek(0)
+    len_pairs = len(pairs)
+    del pairs
+
+    #remember to close the files!
+    return plus_fp, len_plus, minus_fp, len_minus, pairs_fp, len_pairs
 
 
 def join(cl1, cl2):

@@ -3,7 +3,7 @@ import numpy
 import os
 from cPickle import dump, load, UnpicklingError
 from invenio.bibauthorid_dbinterface import get_db_time
-
+import h5py
 
 class Bib_matrix(object):
     '''
@@ -11,28 +11,36 @@ class Bib_matrix(object):
     '''
     # please increment this value every time you
     # change the output of the comparison functions
-    current_comparison_version = 10
+    current_comparison_version = 0
 
     __special_items = ((None, -3.), ('+', -2.), ('-', -1.))
     special_symbols = dict((x[0], x[1]) for x in __special_items)
     special_numbers = dict((x[1], x[0]) for x in __special_items)
 
-    def __init__(self, cluster_set=None):
+    def __init__(self, name, cluster_set=None, storage_dir_override=None):
+        self.name = name
+        self._f = None
+        if storage_dir_override:
+            self.get_file_dir = lambda : storage_dir_override
+
         if cluster_set:
             self._bibmap = dict((b[1], b[0]) for b in enumerate(cluster_set.all_bibs()))
             width = len(self._bibmap)
             size = ((width + 1) * width) / 2
-            self._matrix = Bib_matrix.create_empty_matrix(size)
+            self.create_empty_matrix(size)
         else:
             self._bibmap = dict()
 
         self.creation_time = get_db_time()
 
-    @staticmethod
-    def create_empty_matrix(lenght):
-        ret = numpy.ndarray(shape=(lenght, 2), dtype=float, order='C')
-        ret.fill(Bib_matrix.special_symbols[None])
-        return ret
+    def create_empty_matrix(self, lenght):
+        self._prepare_destination_directory()
+        self._f = h5py.File(self.get_matrix_path())
+        try:
+            self._matrix = self._f.create_dataset("array", (lenght, 2), 'f')
+        except:
+            self._matrix = self._f["array"]
+        self._matrix[...] = self.special_symbols[None]
 
     def _resolve_entry(self, bibs):
         first, second = bibs
@@ -59,31 +67,27 @@ class Bib_matrix(object):
     def get_keys(self):
         return self._bibmap.keys()
 
-    @staticmethod
-    def get_file_dir(name):
-        sub_dir = name[:2]
+    def get_file_dir(self):
+        sub_dir = self.name[:2]
         if not sub_dir:
             sub_dir = "empty_last_name"
         return "%s%s/" % (bconfig.TORTOISE_FILES_PATH, sub_dir)
 
-    @staticmethod
-    def get_map_path(dir_path, name):
-        return "%s%s.bibmap" % (dir_path, name)
+    def get_map_path(self):
+        return "%s%s.bibmap" % (self.get_file_dir(), self.name)
 
-    @staticmethod
-    def get_matrix_path(dir_path, name):
-        return "%s%s.npy" % (dir_path, name)
+    def get_matrix_path(self):
+        return "%s%s.npy" % (self.get_file_dir(), self.name)
 
-    def load(self, name, load_map=True, load_matrix=True):
-        files_dir = Bib_matrix.get_file_dir(name)
-
+    def load(self, load_map=True, load_matrix=True):
+        files_dir = self.get_file_dir()
         if not os.path.isdir(files_dir):
             self._bibmap = dict()
             return False
 
         try:
             if load_map:
-                bibmap_v = load(open(Bib_matrix.get_map_path(files_dir, name), 'r'))
+                bibmap_v = load(open(self.get_map_path(), 'r'))
                 rec_v, self.creation_time, self._bibmap = bibmap_v
                 if (rec_v != Bib_matrix.current_comparison_version or
                     # you can use negative version to recalculate
@@ -93,16 +97,20 @@ class Bib_matrix(object):
                     return False
 
             if load_matrix:
-                self._matrix = numpy.load(Bib_matrix.get_matrix_path(files_dir, name))
-        except (IOError, UnpicklingError):
+                if self._f:
+                    self._f.close()
+                self._f = h5py.File(self.get_matrix_path())
+                self._matrix = self._f['array']
+
+        except (IOError, UnpicklingError, KeyError):
             if load_map:
                 self._bibmap = dict()
                 self.creation_time = get_db_time()
-                return False
+            return False
         return True
 
-    def store(self, name):
-        files_dir = Bib_matrix.get_file_dir(name)
+    def _prepare_destination_directory(self):
+        files_dir = self.get_file_dir()
         if not os.path.isdir(files_dir):
             try:
                 os.mkdir(files_dir)
@@ -112,7 +120,10 @@ class Bib_matrix(object):
                 else:
                     raise e
 
+    def store(self):
+        self._prepare_destination_directory()
         bibmap_v = (Bib_matrix.current_comparison_version, self.creation_time, self._bibmap)
-        dump(bibmap_v, open(Bib_matrix.get_map_path(files_dir, name), 'w'))
+        dump(bibmap_v, open(self.get_map_path(), 'w'))
 
-        numpy.save(open(Bib_matrix.get_matrix_path(files_dir, name), "w"), self._matrix)
+        if self._f:
+            self._f.close()

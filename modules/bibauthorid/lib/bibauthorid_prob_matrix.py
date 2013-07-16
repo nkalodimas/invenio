@@ -48,17 +48,17 @@ class ProbabilityMatrix(object):
     between all virtual authors. It is able to write
     and read from the database and update the results.
     '''
-    def __init__(self):
-        self._bib_matrix = Bib_matrix()
+    def __init__(self, name):
+        self._bib_matrix = Bib_matrix(name)
 
-    def load(self, lname, load_map=True, load_matrix=True):
+    def load(self, load_map=True, load_matrix=True):
         update_status(0., "Loading probability matrix...")
-        self._bib_matrix.load(lname, load_map, load_matrix)
+        self._bib_matrix.load(load_map, load_matrix)
         update_status_final("Probability matrix loaded.")
 
-    def store(self, name):
+    def store(self):
         update_status(0., "Saving probability matrix...")
-        self._bib_matrix.store(name)
+        self._bib_matrix.store()
         update_status_final("Probability matrix saved.")
 
     def __getitem__(self, bibs):
@@ -89,46 +89,54 @@ class ProbabilityMatrix(object):
         old_matrix = self._bib_matrix
         cached_bibs = self.__get_up_to_date_bibs()
         have_cached_bibs = bool(cached_bibs)
-        self._bib_matrix = Bib_matrix(cluster_set)
+        self._bib_matrix = Bib_matrix(cluster_set.last_name, cluster_set=cluster_set)
 
         ncl = cluster_set.num_all_bibs
         expected = ((ncl * (ncl - 1)) / 2)
         if expected == 0:
             expected = 1
 
-        cur_calc, opti, prints_counter = 0, 0, 0
-        for cl1 in cluster_set.clusters:
+        try:
 
-            if cur_calc+opti - prints_counter > 100000:
-                update_status((float(opti) + cur_calc) / expected, "Prob matrix: calc %d, opti %d." % (cur_calc, opti))
-                prints_counter = cur_calc+opti
+            cur_calc, opti, prints_counter = 0, 0, 0
+            for cl1 in cluster_set.clusters:
 
-#            #clean caches
-            if cur_calc - last_cleaned > 20000000:
-                gc.collect()
-#                clear_comparison_caches()
-                last_cleaned = cur_calc
+                if cur_calc+opti - prints_counter > 100000 or cur_calc == 0:
+                    update_status((float(opti) + cur_calc) / expected, "Prob matrix: calc %d, opti %d." % (cur_calc, opti))
+                    prints_counter = cur_calc+opti
 
-            for cl2 in cluster_set.clusters:
-                if id(cl1) < id(cl2) and not cl1.hates(cl2):
-                    for bib1 in cl1.bibs:
-                        for bib2 in cl2.bibs:
-                            if have_cached_bibs:
-                                try:
-                                    val = old_matrix[bib1, bib2]
-                                    opti += 1
-                                    if bconfig.DEBUG_CHECKS:
-                                        assert _debug_is_eq_v(val, compare_bibrefrecs(bib1, bib2))
-                                except KeyError:
+    #            #clean caches
+                if cur_calc - last_cleaned > 20000000:
+                    gc.collect()
+    #                clear_comparison_caches()
+                    last_cleaned = cur_calc
+
+                for cl2 in cluster_set.clusters:
+                    if id(cl1) < id(cl2) and not cl1.hates(cl2):
+                        for bib1 in cl1.bibs:
+                            for bib2 in cl2.bibs:
+                                if have_cached_bibs:
+                                    try:
+                                        val = old_matrix[bib1, bib2]
+                                        opti += 1
+                                        if bconfig.DEBUG_CHECKS:
+                                            assert _debug_is_eq_v(val, compare_bibrefrecs(bib1, bib2))
+                                    except KeyError:
+                                        cur_calc += 1
+                                        val = compare_bibrefrecs(bib1, bib2)
+                                    if not val:
+                                        cur_calc += 1
+                                        val = compare_bibrefrecs(bib1, bib2)
+                                else:
                                     cur_calc += 1
                                     val = compare_bibrefrecs(bib1, bib2)
-                                if not val:
-                                    cur_calc += 1
-                                    val = compare_bibrefrecs(bib1, bib2)
-                            else:
-                                cur_calc += 1
-                                val = compare_bibrefrecs(bib1, bib2)
-                            self._bib_matrix[bib1, bib2] = val
+                                self._bib_matrix[bib1, bib2] = val
+
+        except Exception, e:
+            raise Exception("""Error happened in prob_matrix.recalculate with
+            val:%s
+            original_exception: %s
+            """%(str(val),str(e)))
 
         clear_comparison_caches()
         update_status_final("Matrix done. %d calc, %d opt." % (cur_calc, opti))
@@ -139,15 +147,15 @@ def prepare_matirx(cluster_set, force):
         assert cluster_set._debug_test_hate_relation()
         assert cluster_set._debug_duplicated_recs()
 
-    matr = ProbabilityMatrix()
-    matr.load(cluster_set.last_name, load_map=True, load_matrix=False)
+    matr = ProbabilityMatrix(cluster_set.last_name)
+    matr.load(load_map=True, load_matrix=False)
     if not force and matr.is_up_to_date(cluster_set):
         bibauthor_print("Cluster %s is up-to-date and therefore will not be computed."
             % cluster_set.last_name)
         return False
 
-    matr.load(cluster_set.last_name, load_map=False, load_matrix=True)
+    matr.load(load_map=False, load_matrix=True)
     matr.recalculate(cluster_set)
-    matr.store(cluster_set.last_name)
+    matr.store()
     return True
 

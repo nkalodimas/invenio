@@ -152,16 +152,18 @@ def tortoise_last_name(name, from_mark=True, pure=False):
         clusters, lnames, sizes = delayed_cluster_sets_from_personid(pure)
         bibauthor_print(' ... delayed pure done!')
 
-    try:
-        idx = lnames.index(lname)
-        cluster = clusters[idx]
-        size = sizes[idx]
-        cluster_set = cluster()
-        bibauthor_print("Found, %s(%s). Total number of bibs: %d." % (name, lname, size))
-        create_matrix(cluster_set, False)
-        wedge_and_store(cluster_set)
-    except (IndexError, ValueError):
-        bibauthor_print("Sorry, %s(%s) not found in the last name clusters" % (name, lname))
+#    try:
+    idx = lnames.index(lname)
+    cluster = clusters[idx]
+    size = sizes[idx]
+    cluster_set = cluster()
+    bibauthor_print("Found, %s(%s). Total number of bibs: %d." % (name, lname, size))
+    create_matrix(cluster_set, False)
+    wedge_and_store(cluster_set)
+#    except (IndexError, ValueError), e:
+#        print e
+#        raise e
+#        bibauthor_print("Sorry, %s(%s) not found in the last name clusters" % (name, lname))
 
 def tortoise_last_names(names_list):
     pool = mp.Pool()
