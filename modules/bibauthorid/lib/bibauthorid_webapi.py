@@ -2549,7 +2549,7 @@ def diary(req, action, caller = None, category = None, pid = None, parameters = 
             link_param = '?'
             link_param += '&'.join([param_type + '=' + param_value for (param_type, param_value) in parameters])
 
-        last_entry_link = 'author/%s%s%s' % (last_entry_per_category[last_entry]['category'], canonical_name, link_param)
+        last_entry_link = '%s/author/%s%s%s' % (CFG_SITE_URL, last_entry_per_category[last_entry]['category'], canonical_name, link_param)
         return last_entry_link
 
     def log_visit():

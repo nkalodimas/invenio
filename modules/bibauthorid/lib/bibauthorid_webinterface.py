@@ -2426,8 +2426,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 for recid in successfull_recids:
                     autoclaim_data['successfull_recids'][recid] = inverted_association[recid]
 
-
-
                 data_html = TEMPLATE.tmpl_autoclaim_box(autoclaim_data, ln='en', add_box=False, loading=False)
 
                 json_response.update({'result': data_html})
@@ -2474,7 +2472,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         support_data['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (search_param,
                                                                                                 webapi.get_canonical_id_from_person_id(person_id))
         support_data['merge_text'] = "Merge profiles"
-        support_data['help_link'] = "author/claim/help"
+        support_data['help_link'] = "%s/author/help" % (CFG_SITE_URL)
         support_data['help_text'] = "Get help!"
         # report a problem page
         # get help page
@@ -2565,7 +2563,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             email_to_prefill = pinfo["user_email"]
 
         # changeeeee when you implement the redirect algorithm
-        last_page_visited = 'author/manage_profile?pid=10'
+        last_page_visited = '%s/author/manage_profile?pid=10' % (CFG_SITE_URL,)
         body = TEMPLATE.tmpl_message_form(last_page_visited, name_to_prefill, email_to_prefill, incomplete_params)
 
         title = _('Help!')

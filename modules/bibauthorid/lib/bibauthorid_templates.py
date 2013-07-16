@@ -345,10 +345,9 @@ class Template:
         #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
         #            % (profile, profile))
         h("</ul>")
-        h('<a rel="nofollow" id="checkout" href="manage_profile?pid=%s">' % (str(primary_profile),) + self._('Cancel merging.') + '</a>' )
+        h('<a rel="nofollow" id="checkout" href="%s/manage_profile?pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Cancel merging.') + '</a>' )
         if len(profiles):
-            h('<a rel="nofollow" id="merge" href="merge_profiles?search_pid=%s">' % (str(primary_profile),) + self._('Merge profiles.') + '</a>' )
-
+            h('<a rel="nofollow" id="merge" href="%s/author/merge_profiles?search_pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Merge profiles.') + '</a>' )
 
         h(' </div>')
         h('</div>')
@@ -787,8 +786,8 @@ class Template:
                 rec_info = rec_info.replace("person/search?q=", "author/")
 
             h("    <td>%s</td>" % (rec_info))
-            h('    <td><a rel="nofollow" href="/author/claim/batchprocess?selected_bibrecs=%s&mfind_bibref=claim">' + self._('Review Transaction') + '</a></td>'
-                           % (paper))
+            h('    <td><a rel="nofollow" href="%s/author/claim/batchprocess?selected_bibrecs=%s&mfind_bibref=claim">' + self._('Review Transaction') + '</a></td>'
+                           % (CFG_SITE_URL, paper))
             h("  </tr>")
 
         h("  </tbody>")
