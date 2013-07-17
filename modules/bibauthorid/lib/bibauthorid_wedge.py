@@ -67,7 +67,7 @@ def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
     matr.load()
 
     global h5file
-    h5filepath = bconfig.TORTOISE_FILES_PATH+'wedge_cache_'+str(PID)
+    h5filepath = bconfig.TORTOISE_FILES_PATH+'wedge_cache_'+str(PID())
     h5file = h5py.File(h5filepath)
 
     convert_cluster_set(cluster_set, matr)
