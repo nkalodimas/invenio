@@ -1018,7 +1018,7 @@ def session_bareinit(req):
         changed = True
 
     pinfo = session['personinfo']
-    if marked_visit not in pinfo:
+    if 'marked_visit' not in pinfo:
         pinfo['marked_visit'] = None
     if 'visit diary' not in pinfo:
         pinfo['visit_diary'] = defaultdict(list)
@@ -2523,14 +2523,14 @@ def set_marked_visit_link(req, page, pid = None, params = None):
         if params:
             link.append(params)
 
-        pinfo['marked_visit'] = link       
+        pinfo['marked_visit'] = link
     session.dirty = True
-        
+
 def get_marked_visit_link(req):
     session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
-    
+
     return pinfo['marked_visit']
 
 def reset_marked_visit_link(req):
