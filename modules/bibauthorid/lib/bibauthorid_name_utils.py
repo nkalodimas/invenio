@@ -550,7 +550,7 @@ def full_names_are_synonymous(name1, name2, name_variations, only_names=False):
             tname = clean_name_string(tname, "", False, True)
 
             if (oname in nvar and tname in nvar) or oname == tname:
-                name_comparison_print('      ', oname, ' and ', tname, ' are synonyms!')
+                #name_comparison_print('      ', oname, ' and ', tname, ' are synonyms!')
                 matches[i] = True
 
         if sum(matches) == max_matches:
@@ -758,8 +758,13 @@ def compare_first_names(fna, fnb):
         min_names_screwup = 0
         avg_names_screwup = 0
 
-    if avg_names_screwup < 0.7:
-        name_comparison_print("|--- cutting names screwup to one!")
+    name_comparison_print('|--- screwups min, max, avg: %s %s %s' %
+                    (str(min_names_screwup),str(max_names_screwup), str(avg_names_screwup)))
+
+    orig_max_names_screwup = max_names_screwup
+
+    if max_names_screwup > 0.1:
+        name_comparison_print("|--- forcing names screwup to one!")
         max_names_screwup = 1
         min_names_screwup = 1
         avg_names_screwup = 1
@@ -768,26 +773,29 @@ def compare_first_names(fna, fnb):
     name_comparison_print("|--- max screwup: %s" % max_names_screwup)
     name_comparison_print("|--- avg screwup: %s" % avg_names_screwup)
 
-    screw_score = max(1 - ( 0.25 * max_names_screwup + 0.5 * avg_names_screwup + 0.25 * min_names_screwup), 0.0)
+    compat_score = max(1 - ( 0.25 * max_names_screwup + 0.5 * avg_names_screwup + 0.25 * min_names_screwup), 0.0)
 
-    name_comparison_print("|--- Screw score: %s" % screw_score)
+    name_comparison_print("|--- Name compatibility score: %s" % compat_score)
 
-    if names_are_equal_composites or substr_eq:
-        screw_score = min(1.0, screw_score * 1.25)
+    if names_are_equal_composites and substr_eq:
+        compat_score = min(1.0, compat_score + 0.7)
+    elif not names_are_equal_composites and substr_eq:
+        compat_score = min(1.0, compat_score + max(0., (1-orig_max_names_screwup)*0.75))
 
-    name_comparison_print("|--- names are equal composites or substrings!: %s"% screw_score)
+    name_comparison_print("|--- names are equal composites and subtring bonus: %s"% compat_score)
+
 
     if vars_eq:
-        screw_score = min(1.0, screw_score * 1.33)
+        compat_score = min(1.0, compat_score + 0.5)
 
-    name_comparison_print("|--- synonims: %s"% screw_score)
+    name_comparison_print("|--- synonims bonus: %s"% compat_score)
 
     if gender_eq != None and not gender_eq:
-        screw_score = max(0.0, screw_score * 0.25)
+        compat_score = max(0.0, compat_score * 0.25)
 
-    name_comparison_print("|--- Gender: %s"% screw_score)
+    name_comparison_print("|--- Different Gender penalty: %s"% compat_score)
 
-    return screw_score
+    return compat_score
 
 def compare_names(origin_name, target_name, initials_penalty=False):
     ''' Compare two names '''
