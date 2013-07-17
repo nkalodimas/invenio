@@ -428,13 +428,13 @@ def _compare_citations_by(bib1, bib2):
 # unfortunately, we have to do all comparisons
 if bconfig.CFG_INSPIRE_SITE:
     cbrr_func_weight = (
-                   (_compare_inspireid, .2, 'inspID'),
-                   (_compare_affiliations, .2, 'aff'),
+                   (_compare_inspireid, .5, 'inspID'),
+                   (_compare_affiliations, .3, 'aff'),
                    (_compare_names, 1., 'names'),
                    #(_compare_citations, .1, 'cit'),
                    #(_compare_citations_by, .1, 'citby'),
                    #(_compare_key_words, .1, 'kw'),
-                   (_compare_collaboration, .2, 'collab'),
+                   (_compare_collaboration, .3, 'collab'),
                    #(_compare_coauthors, .1,'coauth')
                    )
 elif bconfig.CFG_ADS_SITE:
