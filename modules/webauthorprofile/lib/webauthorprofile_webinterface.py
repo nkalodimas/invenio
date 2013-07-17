@@ -190,7 +190,6 @@ class WebAuthorPages(WebInterfaceDirectory):
             return self.index(req, form)
 
         recid = argd['recid']
-
         if recid > -1:
             sorted_authors = search_person_ids_by_name(self.original_search_parameter)
             authors_with_recid = list()
@@ -207,7 +206,7 @@ class WebAuthorPages(WebInterfaceDirectory):
             if len(authors_with_recid) == 1:
                 self.person_id = authors_with_recid[0]
                 self.cid = get_person_redirect_link(self.person_id)
-                redirect_to_url(req, '%s/author/profile/%s/%s' % (CFG_SITE_URL, self.cid, url_tail))
+                redirect_to_url(req, '%s/author/profile/%s%s' % (CFG_SITE_URL, self.cid, url_tail))
 
         url_tail = ''
         if url_args:
@@ -230,10 +229,8 @@ class WebAuthorPages(WebInterfaceDirectory):
         @return: str
         '''
         argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
-                                   'recid': (int, -1),
                                    'recompute': (int, 0),
                                    'verbose': (int, 0)})
-
         ln = argd['ln']
         verbose = argd['verbose']
         url_args = list()

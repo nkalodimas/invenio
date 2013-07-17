@@ -1424,7 +1424,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 name = ''
                 if "user_last_name" in pinfo:
                     name = pinfo["user_last_name"]
-    
+
                 if "user_first_name" in pinfo:
                     name += pinfo["user_first_name"]
 
@@ -1513,7 +1513,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                         'email_given': email_given,
                         'name_changed': name_changed,
                         'email_changed': email_changed}
-            
+
             webapi.create_request_message(userinfo)
 
         def set_canonical_name():
@@ -2693,6 +2693,130 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
     you = manage_profile
 
 
+class WebInterfaceBibAuthorIDManageProfilePages(WebInterfaceDirectory):
+    _exports = ['']
+
+    def _lookup(self, component, path):
+        '''
+        This handler parses dynamic URLs:
+            - /author/profile/1332 shows the page of author with id: 1332
+            - /author/profile/100:5522,1431 shows the page of the author
+              identified by the bibrefrec: '100:5522,1431'
+        '''
+        if not component in self._exports:
+            return WebInterfaceBibAuthorIDManageProfilePages(component), path
+
+    def __init__(self, identifier=None):
+        '''
+        Constructor of the web interface.
+
+        @param identifier: identifier of an author. Can be one of:
+            - an author id: e.g. "14"
+            - a canonical id: e.g. "J.R.Ellis.1"
+            - a bibrefrec: e.g. "100:1442,155"
+        @type identifier: str
+        '''
+        self.person_id = -1   # -1 is a non valid author identifier
+
+        if identifier is None or not isinstance(identifier, str):
+            return
+
+        # check if it's a canonical id: e.g. "J.R.Ellis.1"
+        pid = int(webapi.get_person_id_from_canonical_id(identifier))
+        if pid >= 0:
+            self.person_id = pid
+            return
+
+        # check if it's an author id: e.g. "14"
+        try:
+            pid = int(identifier)
+            if webapi.author_has_papers(pid):
+                self.person_id = pid
+                return
+        except ValueError:
+            pass
+
+        # check if it's a bibrefrec: e.g. "100:1442,155"
+        if webapi.is_valid_bibref(identifier):
+            pid = int(webapi.get_person_id_from_paper(identifier))
+            if pid >= 0:
+                self.person_id = pid
+                return
+
+    def __call__(self, req, form):
+        '''
+            Generate SSO landing/author managment page
+
+            @param req: Apache request object
+            @type req: Apache request object
+            @param form: GET/POST request params
+            @type form: dict
+        '''
+        temp = WebInterfaceBibAuthorIDClaimPages()
+        temp._session_bareinit(req)
+        session = get_session(req)
+        pinfo = session["personinfo"]
+        ulevel = None
+
+        if "ulevel" in pinfo:
+            ulevel = pinfo['ulevel']
+
+        argd = wash_urlargd(
+            form,
+            {'ln': (str, CFG_SITE_LANG),
+             'pid': (str, None)})
+
+        ln = argd['ln']
+
+        try:
+            person_id = self.person_id
+        except ValueError:
+            person_id = webapi.get_person_id_from_canonical_id(argd['pid'])
+
+        # ln = wash_language(argd['ln'])
+        _ = gettext_set_language(ln)
+
+        if not CFG_INSPIRE_SITE or person_id == None or person_id == -1:
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
+
+        # login_status checks if the user is logged in and returns a dictionary contain if he is logged in
+        # his uid and the external systems that he is logged in through.
+        # the dictionary of the following form: {'logged_in': True, 'uid': 2, 'remote_logged_in_systems':['Arxiv', ...]}
+
+        webapi.history_log_visit(req, 'manage_profile', pid=person_id)
+        login_info = webapi.login_status(req)
+        title_message = _('Profile Managment')
+
+        # start continuous writing to the browser...
+        req.content_type = "text/html"
+        req.send_http_header()
+        ssl_param = 0
+
+        if req.is_https():
+            ssl_param = 1
+
+        req.write(pageheaderonly(req=req, title=title_message, uid=login_info["uid"],
+                               language=ln, secure_page_p=ssl_param, metaheaderadd=temp._scripts(kill_browser_cache=True)))
+
+        req.write(TEMPLATE.tmpl_welcome_start())
+
+        user_pid = webapi.get_user_pid(login_info['uid'])
+        person_data = webapi.get_person_info_by_pid(person_id)
+        arxiv_data = temp._arxiv_box(login_info, person_id, user_pid)
+        orcid_data = temp._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
+        claim_paper_data = temp._claim_paper_box(person_id)
+        support_data = temp._support_box(person_id)
+        ext_ids_data = temp._external_ids_box(person_id, user_pid, ulevel)
+        autoclaim_data = temp._autoclaim_papers_box(req, person_id, user_pid, login_info['remote_logged_in_systems'])
+
+        # if False not in beval:
+        gboxstatus = 'noAjax'
+        req.write('<script type="text/javascript">var gPID = "%s"; </script>' % (person_id))
+        req.write(TEMPLATE.tmpl_profile_managment(ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data))
+
+    index = __call__
+
+
 class WebInterfaceAuthor(WebInterfaceDirectory):
     '''
     Handles /author/* pages.
@@ -2718,7 +2842,7 @@ class WebInterfaceAuthor(WebInterfaceDirectory):
     profile = WebAuthorPages()
     choose_profile = claim.choose_profile
     help = claim.help
-    manage_profile = claim.manage_profile
+    manage_profile = WebInterfaceBibAuthorIDManageProfilePages()
     merge_profiles = claim.merge_profiles
     search = claim.search
 
