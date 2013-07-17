@@ -346,9 +346,9 @@ class Template:
         #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
         #            % (profile, profile))
         h("</ul>")
-        h('<a rel="nofollow" id="checkout" href="%s/author/manage_profile?pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Cancel merging.') + '</a>' )
+        h('<a rel="nofollow" id="checkout" href="%s/author/claim/action?cancel_merging=True">' % (CFG_SITE_URL,) + self._('Cancel merging.') + '</a>' )
         if len(profiles):
-            h('<a rel="nofollow" id="merge" href="%s/author/merge_profiles?search_pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Merge profiles.') + '</a>' )
+            h('<a rel="nofollow" id="merge" href="%s/author/claim/action?merge=True&pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Merge profiles.') + '</a>' )
 
         h(' </div>')
         h('</div>')
@@ -2589,8 +2589,8 @@ class Template:
 
             html_header = ('<h1><span id="personnametitle">%s</span></h1>'
                           % (display_name))
-            html_header += ('<span id="personnametitle">%s</span>'
-                            % (_("Author Managment Page")))
+            #html_header += ('<span id="personnametitle">%s</span>'
+            #                % (_("Author Managment Page")))
 
         return html_header
 
@@ -2791,7 +2791,7 @@ class Template:
                 html_autoclaim += _("<span id=\"autoClaimSuccessMessage\"> %s new paper%s were automatically claimed."
                                    ".</span></br>"% (str(autoclaim_data["num_of_successfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
-                html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
+                html_autoclaim += '<td><strong>External System id</strong></td><td><strong>Record id</strong></td></tr>'
 
                 for rec in autoclaim_data['succesfull_recids'].keys()[:5]:
                     html_autoclaim += '<tr><td>' + str(autoclaim_data['recids_to_external_ids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>'
@@ -2804,7 +2804,7 @@ class Template:
                 html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s paper%s could not be claimed automatically. Please review"
                                    " and claim it manually here:</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
-                html_autoclaim += '<th>External System Id</th><th>Record id</th></tr>'
+                html_autoclaim += '<td><strong>External System id</strong></td><td><strong>Record id</strong></td></tr>'
 
                 for rec in autoclaim_data['unsuccessfull_recids'][:5]:
                     html_autoclaim += '<tr><td>' + str(autoclaim_data['recids_to_external_ids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>' # 2nd rec is probably the index

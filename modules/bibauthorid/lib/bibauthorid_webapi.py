@@ -1018,6 +1018,8 @@ def session_bareinit(req):
         changed = True
 
     pinfo = session['personinfo']
+    if marked_visit not in pinfo:
+        pinfo['marked_visit'] = None
     if 'visit diary' not in pinfo:
         pinfo['visit_diary'] = defaultdict(list)
         changed = True
@@ -2447,6 +2449,7 @@ def get_stored_incomplete_autoclaim_tickets(req):
     return temp_storage
 
 
+
 ############################################
 #         Visit diary Functions            #
 ############################################
@@ -2491,7 +2494,6 @@ def history_get_last_visited_url(req, limit_to_page=None):
     except IndexError:
         return ''
 
-    #shall CFG_SITE_URL be here?
     link = [CFG_SITE_URL+'/author/', history['page']]
 
     if history['pid']:
@@ -2507,71 +2509,39 @@ def history_get_last_visited_pid(req, limit_to_page=None):
         if visit['pid']:
             return visit['pid']
 
-def diary(req, action, caller = None, category = None, pid = None, parameters = None):
+def set_marked_visit_link(req, page, pid = None, params = None):
     session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
-    my_diary = pinfo['visit_diary']
-    diary_size_per_category = pinfo['diary_size_per_category']
+    if not page:
+        pinfo['marked_visit'] = None
+    else:
+        link = [CFG_SITE_URL+'/author/', page]
 
-    def add_category():
-        my_diary[category] = []
+        if pid:
+            link.append('/'+get_canonical_id_from_person_id(pid))
+        if params:
+            link.append(params)
 
-    def category_exists():
-        if category in my_diary:
-            return True
-        return False
+        pinfo['marked_visit'] = link       
+    session.dirty = True
+        
+def get_marked_visit_link(req):
+    session_bareinit(req)
+    session = get_session(req)
+    pinfo = session['personinfo']
+    
+    return pinfo['marked_visit']
 
-    def diary_is_full():
-        if my_diary[category].count == diary_size_per_category:
-            return True
-        return False
+def reset_marked_visit_link(req):
+    set_marked_visit_link(req, None)
 
-    def get_last_entry():
-        # take the last entry of each category and store the data in a dictionary with key the entry time
-        last_entry_per_category = [{my_diary[category][-1]['entry_time']:{'category':category,
-                                                                       'parameters': my_diary[category][-1]['parameters'],
-                                                                       'pid': my_diary[category][-1]['pid']}
-                                    } for category in my_diary.keys()]
-        # take the most recent entry
-        last_entry = max(last_entry_per_category.keys())
+def get_fallback_redirect_link(req):
+    uid = getUid(req)
 
-        canonical_name = ''
-        if last_entry['pid']:
-            canonical_name = '/' + get_canonical_id_from_person_id(pid)
-
-        link_param = ''
-        if last_entry['parameters']:
-            link_param = '?'
-            link_param += '&'.join([param_type + '=' + param_value for (param_type, param_value) in parameters])
-
-        last_entry_link = '%s/author/%s%s%s' % (CFG_SITE_URL, last_entry_per_category[last_entry]['category'], canonical_name, link_param)
-        return last_entry_link
-
-    def log_visit():
-        if not category_exists() and category != None:
-            add_category()
-        if diary_is_full():
-            remove_oldest_visit()
-
-        my_diary[category].append({'entry_time':time(), 'parameters': parameters, 'pid':pid})
-
-    def get_redirect_link():
-        pass
-
-    def remove_oldest_visit():
-        my_diary[category].pop(0)
-
-    action_functions = {'get_last_entry': get_last_entry,
-                        'log_visit': log_visit,
-                        'get_redirect_link': get_redirect_link}
-
-    caller_category_mapping = {'cancel_search_ticket': ('claim'),
-                               '_ticket_dispatch_end': ('claim', 'manage_profile')
-                               }
-
-    return action_functions[action]()
-
+    if uid <= 0:
+        return '%s' % (CFG_SITE_URL,)
+    return '%s/author/manage_profiles/%s' % (CFG_SITE_URL, get_canonical_id_from_person_id(get_pid_from_uid(uid)))
 REMOTE_LOGIN_SYSTEMS_FUNCTIONS = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
 IS_LOGGED_IN_THROUGH = {'arXiv': is_logged_in_through_arxiv, 'orcid': is_logged_in_through_orcid}
 REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS = {'arXiv': get_arxiv_recids, 'orcid': get_orcid_recids}

@@ -16,6 +16,7 @@
 ## You should have received a copy of the GNU General Public License
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+from invenio.bibauthorid_webapi import get_canonical_id_from_person_id
 
 """ Bibauthorid Web Interface Logic and URL handler. """
 
@@ -52,7 +53,7 @@ from invenio.messages import gettext_set_language  # , wash_language
 from invenio.template import load
 from invenio.webinterface_handler import wash_urlargd, WebInterfaceDirectory
 from invenio.session import get_session
-from invenio.urlutils import redirect_to_url
+from invenio.urlutils import redirect_to_url, get_canonical_and_alternates_urls
 from invenio.webuser import getUid, page_not_authorized, collect_user_info, set_user_preferences, \
                             email_valid_p, emailUnique, get_email_from_username, get_uid_from_email, \
                             isUserSuperAdmin
@@ -998,6 +999,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                              'associate_profile': (str, None),
                              'bibref_check_submit': (str, None),
                              'cancel': (str, None),
+                             'cancel_merging': (str, None),
                              'cancel_rt_ticket': (str, None),
                              'cancel_search_ticket': (str, None),
                              'cancel_stage': (str, None),
@@ -1027,6 +1029,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                              'associate_profile',
                              'bibref_check_submit',
                              'cancel',
+                             'cancel_merging',
                              'cancel_rt_ticket',
                              'cancel_search_ticket',
                              'cancel_stage',
@@ -1177,6 +1180,22 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             self.__session_cleanup(req)
 
             return self._ticket_dispatch_end(req)
+
+        def cancel_merging():
+            self._session_bareinit(req)
+            session = get_session(req)
+            pinfo = session['personinfo']
+            pinfo["merge_primary_profile"] = None
+            pinfo["merge_profiles"] = []
+            session.dirty = True
+            page = webapi.get_marked_visit_link(req)
+            webapi.reset_marked_visit_link(req)
+            if not page:
+                page = history_get_last_visited_url(req, limit_to_page='manage_profile')
+
+            if not page:
+                page = get_fallback_redirect_link(req)
+            return redirect_to_url(req, page)
 
         def cancel_rt_ticket():
             if argd['selection'] is not None:
@@ -1398,7 +1417,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                         error_message = 'There are multiple more than one user ids in the profiles you want to merge'
                     else:
                         error_message = 'Either there is not your profile in the merge or there are multiple uids or you try to merge more than one profiles with claimed papers'
-                        'an admin will look intou it'
+                        'an admin will look into it'
             else:
                 error_message = 'As a guest you cannot mergee blah blah blah'
             if error_message and not is_admin:
@@ -1422,7 +1441,13 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
             webapi.merge_profiles(primary_profile, profiles_to_merge)
 
-            # redirect somewhere
+            pinfo["merge_primary_profile"] = None
+            pinfo["merge_profiles"] = []
+            session.dirty = True
+            webapi.reset_marked_visit_link(req)
+            page = '%s/author/manage_profile/%s' % (CFG_SITE_URL, webapi.get_canonical_id_from_person_id(primary_profile))
+
+            return redirect_to_url(req, page)
 
         def send_message():
             self._session_bareinit(req)
@@ -1517,6 +1542,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                             'associate_profile': associate_profile,
                             'bibref_check_submit': bibref_check_submit,
                             'cancel': cancel,
+                            'cancel_merging': cancel_merging,
                             'cancel_rt_ticket': cancel_rt_ticket,
                             'cancel_search_ticket': cancel_search_ticket,
                             'cancel_stage': cancel_stage,
@@ -1900,6 +1926,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 pinfo["merge_profiles"] = profiles_to_merge
                 session.dirty = True
 
+        set_marked_visit_link(req, 'manage_profile', pid = webapi.get_person_id_from_canonical_id(primary_profile))
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
         body = ''
         body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, profiles_to_merge)
