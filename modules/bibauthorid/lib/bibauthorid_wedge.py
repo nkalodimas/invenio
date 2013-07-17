@@ -31,7 +31,7 @@ import numpy
 import msgpack as SER
 
 import gzip as filehandler
-
+import h5py
 
 import gc
 
@@ -43,6 +43,7 @@ SP_QUARREL = Bib_matrix.special_symbols['-']
 eps = 0.01
 edge_cut_prob = ''
 wedge_thrsh = ''
+h5file = None
 
 import os
 PID = lambda : str(os.getpid())
@@ -64,6 +65,10 @@ def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
 
     matr = ProbabilityMatrix(cluster_set.last_name)
     matr.load()
+
+    global h5file
+    h5filepath = bconfig.TORTOISE_FILES_PATH+'wedge_cache_'+str(PID)
+    h5file = h5py.File(h5filepath)
 
     convert_cluster_set(cluster_set, matr)
     del matr # be sure that this is the last reference!
@@ -103,6 +108,9 @@ def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
         f.close()
     gc.collect()
 
+    h5file.close()
+    os.remove(h5filepath)
+
 def _decide(cl1, cl2):
     score1 = _compare_to(cl1, cl2)
     score2 = _compare_to(cl2, cl1)
@@ -111,7 +119,8 @@ def _decide(cl1, cl2):
     return s > wedge_thrsh, s
 
 def _compare_to(cl1, cl2):
-    pointers = [cl1.out_edges[v] for v in cl2.bibs]
+    cl1_out_edges = h5file[str(id(cl1))]
+    pointers = [cl1_out_edges[v] for v in cl2.bibs]
 
     assert pointers, PID()+"Wedge: no edges between clusters!"
     vals, probs = zip(*pointers)
@@ -319,10 +328,14 @@ def convert_cluster_set(cs, prob_matr):
                     real_pointer.fill(special_symbols[None])
                     real_pointer[index] = pointer
                     pointers.append((real_pointer, 1))
+
             if pointers:
-                c1.out_edges = reduce(meld_edges, pointers)[0]
+                out_edges = reduce(meld_edges, pointers)[0]
+                h5file.create_dataset(str(id(c1)), (len(out_edges), 2), 'f')
+                dset = h5file[str(id(c1))]
+                dset[:] = out_edges
             else:
-                c1.out_edges = list()
+                h5file.create_dataset(str(id(c1)), (len(cs.clusters), 2), 'f')
 
     except Exception, e:
         raise Exception("""Error happened in convert_cluster_set with
@@ -338,7 +351,6 @@ def convert_cluster_set(cs, prob_matr):
 def restore_cluster_set(cs):
     for cl in cs.clusters:
         cl.bibs = set(cs.new2old[b] for b in cl.bibs)
-        del cl.out_edges
     cs.update_bibs()
 
 def create_bib_2_cluster_dict(cs):
@@ -367,8 +379,8 @@ def group_sort_edges(cs):
             update_status(float(current) / len(cs.clusters), "Grouping all edges...")
 
         bib1 = tuple(cl1.bibs)[0]
-        pointers = cl1.out_edges
-        for bib2 in xrange(len(cl1.out_edges)):
+        pointers = h5file[str(id(cl1))]
+        for bib2 in xrange(len(h5file[str(id(cl1))])):
             val = pointers[bib2]
             #if val[0] not in Bib_matrix.special_numbers:
             #optimization: special numbers are assumed to be negative
@@ -420,8 +432,10 @@ def join(cl1, cl2):
     '''
     Joins two clusters from a cluster set in the first.
     '''
-    cl1.out_edges = meld_edges((cl1.out_edges, len(cl1.bibs)),
-                               (cl2.out_edges, len(cl2.bibs)))[0]
+    cl1_out_edges = h5file[str(id(cl1))]
+    cl2_out_edges = h5file[str(id(cl2))]
+    cl1_out_edges[:] = meld_edges((cl1_out_edges, len(cl1.bibs)),
+                               (cl2_out_edges, len(cl2.bibs)))[0]
     cl1.bibs += cl2.bibs
 
     assert not cl1.hates(cl1), PID()+"Joining hateful clusters"

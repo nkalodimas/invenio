@@ -169,12 +169,15 @@ def tortoise_last_names(names_list):
     try:
         pool = mp.Pool(maxtasksperchild=1)
         pool.map(tortoise_last_name, names_list)
+        pool.close()
+        pool.join()
     except TypeError:
         sl = 8
         sliced_list = [names_list[i:i+sl] for i in range(0,len(names_list),sl)]
         for s in sliced_list:
             pool = mp.Pool()
             pool.map(tortoise_last_name, s)
+            pool.close()
             pool.join()
 
 
