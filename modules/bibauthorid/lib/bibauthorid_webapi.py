@@ -16,10 +16,6 @@
 ## You should have received a copy of the GNU General Public License
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
-from aeidon.containers import new
-from MySQLdb.constants.ER import NEW_ABORTING_CONNECTION
-
-
 '''
 Bibauthorid_webapi
 Point of access to the documents clustering facility.
@@ -1022,6 +1018,8 @@ def session_bareinit(req):
         changed = True
 
     pinfo = session['personinfo']
+    if 'marked_visit' not in pinfo:
+        pinfo['marked_visit'] = None
     if 'visit diary' not in pinfo:
         pinfo['visit_diary'] = defaultdict(list)
         changed = True
@@ -1205,23 +1203,30 @@ def get_user_pid(uid):
     return pid[0]
 
 
-def is_merge_allowed(profiles):
+def is_merge_allowed(profiles, user_pid, is_admin):
     '''
     Check if merging is allowed by finding the number of profiles that are owned by user. Merging can be perform
-    only if at most one profile is connected to a user.
+    only if at most one profile is connected to a user. Only admins can merge profile when 2 or more of them have claimed papers
 
     @param profiles: all the profiles that are going to be merged including the primary profile
     @type list
 
     '''
     owned_profiles = 0
-
+    num_of_profiles_with_claimed_papers = 0
 
     for profile in profiles:
         if not is_profile_available(profile):
             if owned_profiles > 0:
-                return false
+                return False
+            if not is_admin and user_pid != profile:
+                return False
             owned_profiles += 1
+        if len(dbapi.get_all_personids_recs(profile, claimed_only=True)) > 0:
+            num_of_profiles_with_claimed_papers += 1
+
+        if not is_admin and num_of_profiles_with_claimed_papers > 1:
+            return False
     return True
 
 def open_ticket_for_papers_of_merged_profiles(req, primary_profile, profiles):
@@ -1242,7 +1247,7 @@ def open_ticket_for_papers_of_merged_profiles(req, primary_profile, profiles):
         else:
             recs_to_merge.append(records[recid][0])
 
-    add_tickets(req, primary_pid, recs_to_merge, 'confirm')
+    add_tickets(req, primary_profile, recs_to_merge, 'confirm')
 
 def get_papers_of_merged_profiles(primary_profile, profiles):
     records = dict()
@@ -1250,7 +1255,7 @@ def get_papers_of_merged_profiles(primary_profile, profiles):
     # be preffered from similar papers of other profiles with the same level of claim
 
     for pid in [primary_profile] + profiles:
-        papers = get_papers_by_person_id(primary_profile)
+        papers = get_papers_by_person_id(pid)
         for paper in papers:
             # if paper is rejected skip
             if paper[2] == -2:
@@ -1258,7 +1263,9 @@ def get_papers_of_merged_profiles(primary_profile, profiles):
             # if there is already a paper with the same record
             # and the new one is claimed while the existing one is not
             # keep only the claimed one
-            if records[paper[0]] and records[paper[0]][2] == 0 and paper[2] == 2 :
+            if not paper[0] in records:
+                records[paper[0]] = paper
+            elif records[paper[0]] and records[paper[0]][2] == 0 and paper[2] == 2 :
                 records[paper[0]] = paper
 
     return [records[recid] for recid in records.keys()]
@@ -1282,33 +1289,32 @@ def get_data_union_for_merged_profiles(persons_data, new_profile_bibrecrefs):
                 continue
             elif data[-1] == 'uid':
                 continue
-            elif data[-1] != 'canonical_name':
+            elif data[-1] == 'canonical_name':
                 continue
             elif data[-1].startswith("rt_"):
                 if rt_old_counter != data[1]:
                     rt_old_counter = data[1]
                     rt_new_counter += 1
-                data = (data[0],rt_counter,data[2],data[3],data[4])
-
+                data = (data[0],rt_new_counter,data[2],data[3],data[4])
+            new_profile_data.append(data)
     return list(set(new_profile_data))
 
 
-def merge_profiles(req, primary_profile, profiles):
-    res = dbapi.get_persons_data([primary_profile], 'canonical_id')
+def merge_profiles(primary_profile, profiles):
+    res = dbapi.get_persons_data([primary_profile], 'canonical_name')
+    canonical_id_data = ''
     if res and res[primary_profile] and res[primary_profile][0]:
         canonical_id_data = res[primary_profile][0]
 
-    persons_data = dbapi.get_persons_data(profiles)
+    persons_data = dbapi.get_persons_data([primary_profile] + profiles)
 
     new_profile_uid = get_uid_for_merged_profiles(persons_data)
     # move papers from the profiles to the primary profile
     new_profile_papers = get_papers_of_merged_profiles(primary_profile, profiles)
     new_profile_data = get_data_union_for_merged_profiles(persons_data, [paper[1] for paper in new_profile_papers])
 
-    for profile in [primary] + profiles:
-        dbapi.del_person_data(None, profile)
-
-    if not canonical_id_data:
+    dbapi.del_person_data(None, primary_profile)
+    if canonical_id_data:
         dbapi.add_author_data(primary_profile, canonical_id_data[4], canonical_id_data[0], canonical_id_data[1], canonical_id_data[2], canonical_id_data[3])
     else:
         dbapi.update_canonical_names_of_authors([primary_profile])
@@ -1319,12 +1325,15 @@ def merge_profiles(req, primary_profile, profiles):
         dbapi.add_author_data(primary_profile, data[4], data[0], data[1], data[2], data[3])
 
     for paper in new_profile_papers:
-        recid = new_profile_papers[0]
-        splitted_bibrecref = new_profile_papers[1].split(":")
+        recid = paper[0]
+        splitted_bibrecref = paper[1].split(":")
         bibref_table = splitted_bibrecref[0]
-        bibref_value = splitted_bibrecref.split(",")[0]
-        sig = (bibref_table, bibref_value, splitted_bibrecref)
+        bibref_value = splitted_bibrecref[1].split(",")[0]
+        sig = (bibref_table, bibref_value, recid)
         dbapi.move_signature(sig, primary_profile, force_claimed=False)
+
+    for profile in profiles:
+        dbapi.del_person_data(None, profile)
 
     dbapi.remove_empty_authors()
 
@@ -1648,7 +1657,7 @@ def create_request_ticket(userinfo, ticket):
 
     return True
 
-def create_request_message(userinfo):
+def create_request_message(userinfo, subj = None):
     mailcontent = []
 
     for info_type in userinfo:
@@ -1659,10 +1668,12 @@ def create_request_message(userinfo):
 
     if bconfig.TICKET_SENDING_FROM_USER_EMAIL and userinfo['email']:
         sender = userinfo['email']
-
+    
+    if not subj:
+        subj = "[Author] Help Request"
     send_email(sender,
                CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL,
-               subject="[Author] Help Request",
+               subject=subj,
                content="\n".join(mailcontent))
 
 def send_user_commit_notification_email(userinfo, ticket):
@@ -2438,24 +2449,28 @@ def get_stored_incomplete_autoclaim_tickets(req):
     return temp_storage
 
 
+
 ############################################
 #         Visit diary Functions            #
 ############################################
 
-def history_log_visit(req, page, pid=None, parameters=None):
+def history_log_visit(req, page, pid=None, params=None):
     """
     @param page: string (claim, manage_profile, profile, search)
     @param parameters: string (?param=aoeuaoeu&param2=blabla)
     """
+    session_bareinit(req)
+    session = get_session(req)
     pinfo = session['personinfo']
     my_diary = pinfo['visit_diary']
 
     my_diary[page].append({'page':page, 'pid':pid, 'params':params, 'timestamp':time()})
 
-    if len((my_diary[page]) >  pinfo['diary_size_per_category']):
+    if len(my_diary[page]) >  pinfo['diary_size_per_category']:
         my_diary[page].pop(0)
 
 def _get_sorted_history(req, limit_to_page=None):
+    session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
     my_diary = pinfo['visit_diary']
@@ -2479,7 +2494,6 @@ def history_get_last_visited_url(req, limit_to_page=None):
     except IndexError:
         return ''
 
-    #shall CFG_SITE_URL be here?
     link = [CFG_SITE_URL+'/author/', history['page']]
 
     if history['pid']:
@@ -2495,71 +2509,39 @@ def history_get_last_visited_pid(req, limit_to_page=None):
         if visit['pid']:
             return visit['pid']
 
-def diary(req, action, caller = None, category = None, pid = None, parameters = None):
+def set_marked_visit_link(req, page, pid = None, params = None):
     session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
-    my_diary = pinfo['visit_diary']
-    diary_size_per_category = pinfo['diary_size_per_category']
+    if not page:
+        pinfo['marked_visit'] = None
+    else:
+        link = [CFG_SITE_URL+'/author/', page]
 
-    def add_category():
-        my_diary[category] = []
+        if pid:
+            link.append('/'+get_canonical_id_from_person_id(pid))
+        if params:
+            link.append(params)
 
-    def category_exists():
-        if category in my_diary:
-            return True
-        return False
+        pinfo['marked_visit'] = ''.join(link)
+    session.dirty = True
 
-    def diary_is_full():
-        if my_diary[category].count == diary_size_per_category:
-            return True
-        return False
+def get_marked_visit_link(req):
+    session_bareinit(req)
+    session = get_session(req)
+    pinfo = session['personinfo']
 
-    def get_last_entry():
-        # take the last entry of each category and store the data in a dictionary with key the entry time
-        last_entry_per_category = [{my_diary[category][-1]['entry_time']:{'category':category,
-                                                                       'parameters': my_diary[category][-1]['parameters'],
-                                                                       'pid': my_diary[category][-1]['pid']}
-                                    } for category in my_diary.keys()]
-        # take the most recent entry
-        last_entry = max(last_entry_per_category.keys())
+    return pinfo['marked_visit']
 
-        canonical_name = ''
-        if last_entry['pid']:
-            canonical_name = '/' + get_canonical_id_from_person_id(pid)
+def reset_marked_visit_link(req):
+    set_marked_visit_link(req, None)
 
-        link_param = ''
-        if last_entry['parameters']:
-            link_param = '?'
-            link_param += '&'.join([param_type + '=' + param_value for (param_type, param_value) in parameters])
+def get_fallback_redirect_link(req):
+    uid = getUid(req)
 
-        last_entry_link = 'author/%s%s%s' % (last_entry_per_category[last_entry]['category'], canonical_name, link_param)
-        return last_entry_link
-
-    def log_visit():
-        if not category_exists() and category != None:
-            add_category()
-        if diary_is_full():
-            remove_oldest_visit()
-
-        my_diary[category].append({'entry_time':time(), 'parameters': parameters, 'pid':pid})
-
-    def get_redirect_link():
-        pass
-
-    def remove_oldest_visit():
-        my_diary[category].pop(0)
-
-    action_functions = {'get_last_entry': get_last_entry,
-                        'log_visit': log_visit,
-                        'get_redirect_link': get_redirect_link}
-
-    caller_category_mapping = {'cancel_search_ticket': ('claim'),
-                               '_ticket_dispatch_end': ('claim', 'manage_profile')
-                               }
-
-    return action_functions[action]()
-
+    if uid <= 0:
+        return '%s' % (CFG_SITE_URL,)
+    return '%s/author/manage_profiles/%s' % (CFG_SITE_URL, get_canonical_id_from_person_id(get_pid_from_uid(uid)))
 REMOTE_LOGIN_SYSTEMS_FUNCTIONS = {'arXiv': get_arxiv_info, 'orcid': get_orcid_info}
 IS_LOGGED_IN_THROUGH = {'arXiv': is_logged_in_through_arxiv, 'orcid': is_logged_in_through_orcid}
 REMOTE_LOGIN_SYSTEMS_GET_RECIDS_FUNCTIONS = {'arXiv': get_arxiv_recids, 'orcid': get_orcid_recids}

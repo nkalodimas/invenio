@@ -680,17 +680,18 @@ def _get_info_from_orcid_bai(person_id):
     external_ids = get_external_ids_of_author(person_id)
     if not external_ids or 'ORCID' not in external_ids:
         return None
-    assert len(external_ids['ORCID']) <= 1, "A person cannot have more than one orcid id"
+    assert len(external_ids['ORCID']) <= 1, "An author cannot have more than one ORCID id"
 
     orcid_id = external_ids['ORCID'][0]
 
     # for now it just returns the orcid id which is used in the construction of the orcid profile link (which appears in the orcid box)
-    return orcid_id
+    #return orcid_id
 
-    #access_token = _get_access_token_from_orcid('/read-public', extra_data=[('grant_type', 'client_credentials')], response_format='json')
-    #for request_type in ['orcid-bio', 'orcid-works', 'orcid-profile']:
-        #orcid_response = _get_specific_info_from_orcid_member(orcid_id, access_token, request_type, endpoint='http://api.sandbox-1.orcid.org/', response_format='json')
-        #orcid_data = json.loads(orcid_response)
+    access_token = _get_access_token_from_orcid('/read-public', extra_data=[('grant_type', 'client_credentials')], response_format='json')
+    for request_type in ['orcid-bio', 'orcid-works', 'orcid-profile']:
+        orcid_response = _get_specific_info_from_orcid_member(orcid_id, access_token, request_type, endpoint='http://sandbox-1.orcid.org/', response_format='json')
+        orcid_data = json.loads(orcid_response)
+        print orcid_data
         # process orcid_data
 
 def _get_access_token_from_orcid(scope, extra_data=None, response_format='json'):
@@ -746,6 +747,10 @@ class Orcid_request_error(Exception):
 
 def _get_specific_info_from_orcid_public(orcid_id, request_type='orcid-bio', endpoint='http://sandbox-1.orcid.org/', response_format='json'):
     '''
+    The API made available to the general public and which can be used without any sort of authentication.
+    This API will only return data marked by users as “public” and will come with no service level agreement (SLA).
+    The API may be throttled at the IP / transaction level in order to discourage inadvertent overloading and/or
+    deliberate abuse of the system.
     '''
     request_url = '%s%s/%s' % (endpoint, orcid_id, request_type)
     headers = {'Accept': 'application/orcid+%s' % response_format}   # 'Accept-Charset': 'UTF-8'   # ATTENTION: it overwrites the response format header

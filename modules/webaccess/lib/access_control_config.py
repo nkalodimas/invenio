@@ -665,7 +665,7 @@ CFG_ACC_ACTIVITIES_URLS = {
     'cfgbibsort' : (_("Configure BibSort"), "%s/admin/bibsort/bibsortadmin.py?ln=%%s" % CFG_SITE_URL),
     'runbibcirculation' : (_("Run BibCirculation"), "%s/admin/bibcirculation/bibcirculationadmin.py?ln=%%s" % CFG_SITE_URL),
     'runbatchuploader' : (_("Run Batch Uploader"), "%s/batchuploader/metadata?ln=%%s" % CFG_SITE_URL),
-    'claimpaper_claim_others_papers' : (_("Run Person/Author Manager"), "%s/author/claim/search?ln=%%s" % CFG_SITE_URL)
+    'claimpaper_claim_others_papers' : (_("Run Person/Author Manager"), "%s/author/search?ln=%%s" % CFG_SITE_URL)
 }
 
 CFG_WEBACCESS_MSGS = {
