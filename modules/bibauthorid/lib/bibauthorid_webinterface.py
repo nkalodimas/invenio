@@ -222,7 +222,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         metaheaderadd = self._scripts() + '\n <meta name="robots" content="nofollow" />'
         body = TEMPLATE.tmpl_person_detail_layout(content)
         webapi.clean_ticket(req)
-
+        
+        webapi.history_log_visit(req, 'claim', pid=self.person_id)
         return page(title=title,
                     metaheaderadd=metaheaderadd,
                     body=body,
@@ -274,7 +275,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         if is_authorized and not webapi.user_can_view_CMP(uid):
             is_authorized = False
-
         if is_authorized and 'ticket' in pinfo:
             for tic in pinfo["ticket"]:
                 if 'pid' in tic:
@@ -1860,7 +1860,11 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 query = escape(argd['q'])
 
         body = body + self.search_box(query, shown_element_functions)
-
+        
+        parameter = None
+        if query:
+            parameter = '?search_param=%s' + query
+        webapi.history_log_visit(req, 'search', params = parameter)
         return page(title=title,
                     metaheaderadd=self._scripts(kill_browser_cache=True),
                     body=body,
@@ -1868,7 +1872,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                     language=ln)
 
     def merge_profiles(self, req, form):
-
         argd = wash_urlargd(
             form,
             {'ln': (str, CFG_SITE_LANG),
@@ -1926,7 +1929,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 pinfo["merge_profiles"] = profiles_to_merge
                 session.dirty = True
 
-        set_marked_visit_link(req, 'manage_profile', pid = webapi.get_person_id_from_canonical_id(primary_profile))
+        webapi.set_marked_visit_link(req, 'manage_profile', pid = webapi.get_person_id_from_canonical_id(primary_profile))
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
         body = ''
         body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, profiles_to_merge)
@@ -2503,7 +2506,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         if relevant_name:
             search_param = relevant_name.split(",")[0]
 
-        merge_data['merge_link'] = "merge_profiles?search_param=%s&primary_profile=%s" % (search_param,
+        merge_data['merge_link'] = "%s/author/merge_profiles?search_param=%s&primary_profile=%s" % (CFG_SITE_URL, search_param,
                                                                                                 webapi.get_canonical_id_from_person_id(person_id))
         merge_data['merge_text'] = "Merge profiles"
         # report a problem page
@@ -2767,17 +2770,19 @@ class WebInterfaceBibAuthorIDManageProfilePages(WebInterfaceDirectory):
              'pid': (str, None)})
 
         ln = argd['ln']
-
-        try:
-            person_id = self.person_id
-        except ValueError:
-            person_id = webapi.get_person_id_from_canonical_id(argd['pid'])
-
         # ln = wash_language(argd['ln'])
         _ = gettext_set_language(ln)
 
-        if not CFG_INSPIRE_SITE or person_id == None or person_id == -1:
+        if not CFG_INSPIRE_SITE or self.person_id == None:
             return page_not_authorized(req, text=_("This page in not accessible directly."))
+
+        try:
+            person_id = int(self.person_id)
+        except ValueError:
+            person_id = webapi.get_person_id_from_canonical_id(self.person_id)
+
+        if person_id < 0:
+            return page_not_authorized(req, text=_("This page in not accessible directly.")) 
 
         # login_status checks if the user is logged in and returns a dictionary contain if he is logged in
         # his uid and the external systems that he is logged in through.
@@ -2805,15 +2810,16 @@ class WebInterfaceBibAuthorIDManageProfilePages(WebInterfaceDirectory):
         arxiv_data = temp._arxiv_box(login_info, person_id, user_pid)
         orcid_data = temp._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
         claim_paper_data = temp._claim_paper_box(person_id)
-        support_data = temp._support_box(person_id)
+        support_data = temp._support_box()
         ext_ids_data = temp._external_ids_box(person_id, user_pid, ulevel)
         autoclaim_data = temp._autoclaim_papers_box(req, person_id, user_pid, login_info['remote_logged_in_systems'])
-
+        merge_data = temp._merge_box(person_id)
         # if False not in beval:
         gboxstatus = 'noAjax'
         req.write('<script type="text/javascript">var gPID = "%s"; </script>' % (person_id))
-        req.write(TEMPLATE.tmpl_profile_managment(ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data))
-
+        req.write(TEMPLATE.tmpl_profile_managment(ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data, merge_data))
+        req.write(pagefooteronly(req=req,language=ln))
+        webapi.history_log_visit(req, 'manage_profile', pid=person_id)
     index = __call__
 
 

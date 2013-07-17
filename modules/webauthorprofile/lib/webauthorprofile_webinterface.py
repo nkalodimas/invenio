@@ -32,6 +32,7 @@ from invenio.bibauthorid_webauthorprofileinterface import is_valid_canonical_id,
     is_valid_bibref, get_person_id_from_paper, get_person_id_from_canonical_id, \
     search_person_ids_by_name, get_papers_by_person_id, get_person_redirect_link, \
     author_has_papers
+from invenio.bibauthorid_webapi import history_log_visit
 
 from invenio.webauthorprofile_corefunctions import get_pubs, get_person_names_dicts, \
     get_institute_pubs, get_pubs_per_year, get_coauthors, get_summarize_records, \
@@ -184,7 +185,7 @@ class WebAuthorPages(WebInterfaceDirectory):
 
         if self.cid is not None and self.original_search_parameter != self.cid:
             return redirect_to_url(req, '%s/author/profile/%s%s' % (CFG_SITE_URL, self.cid, url_tail))
-
+        
         # author may have only author identifier and not a canonical id
         if self.person_id > -1:
             return self.index(req, form)
@@ -211,6 +212,7 @@ class WebAuthorPages(WebInterfaceDirectory):
         url_tail = ''
         if url_args:
             url_tail = '&%s' % '&'.join(url_args)
+
         return redirect_to_url(req, '%s/author/search?q=%s%s' %
                                     (CFG_SITE_URL, self.original_search_parameter, url_tail))
 
@@ -275,7 +277,7 @@ class WebAuthorPages(WebInterfaceDirectory):
         if argd['recompute']:
             expire_cache = True
         self.create_authorpage_websearch(req, form, ln, expire_cache)
-
+        history_log_visit(req, 'profile', pid = self.person_id)
         return page_end(req, 'hb', ln)
 
 

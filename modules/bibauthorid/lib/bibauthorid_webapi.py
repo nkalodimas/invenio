@@ -2523,7 +2523,7 @@ def set_marked_visit_link(req, page, pid = None, params = None):
         if params:
             link.append(params)
 
-        pinfo['marked_visit'] = link
+        pinfo['marked_visit'] = ''.join(link)
     session.dirty = True
 
 def get_marked_visit_link(req):
