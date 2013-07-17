@@ -631,7 +631,7 @@ def task_update_progress(msg):
     write_message("Updating task progress to %s." % msg, verbose=9)
     if "task_id" in _TASK_PARAMS:
         return run_sql("UPDATE schTASK SET progress=%s where id=%s",
-            (msg, _TASK_PARAMS["task_id"]))
+            (msg[:255], _TASK_PARAMS["task_id"]))
 
 def task_update_status(val):
     """Updates status information in the BibSched task table."""
@@ -828,7 +828,7 @@ def _task_submit(argv, authorization_action, authorization_msg):
                                            runtime,sleeptime,status,progress,arguments,priority,sequenceid)
                                          VALUES (%s,%s,%s,%s,'WAITING',%s,%s,%s,%s)""",
         (task_name, _TASK_PARAMS['user'], _TASK_PARAMS["runtime"],
-         _TASK_PARAMS["sleeptime"], verbose_argv, marshal.dumps(argv), _TASK_PARAMS['priority'], _TASK_PARAMS['sequence-id']))
+         _TASK_PARAMS["sleeptime"], verbose_argv[:255], marshal.dumps(argv), _TASK_PARAMS['priority'], _TASK_PARAMS['sequence-id']))
 
     ## update task number:
     write_message("Task #%d submitted." % _TASK_PARAMS['task_id'])
