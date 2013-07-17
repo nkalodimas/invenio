@@ -160,7 +160,7 @@ DEBUG_LOG_TO_PIDFILE = False
 
 # The following options trigger the output for parts of
 # bibauthorid which normally generate too much output
-DEBUG_NAME_COMPARISON_OUTPUT = True
+DEBUG_NAME_COMPARISON_OUTPUT = False
 DEBUG_METADATA_COMPARISON_OUTPUT = False
 DEBUG_WEDGE_OUTPUT = False
 DEBUG_WEDGE_PRINT_FINAL_CLUSTER_COMPATIBILITIES = False
