@@ -1091,7 +1091,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             userinfo = "%s||%s" % (uid, req.remote_ip)
             webapi.add_person_external_id(pid, ext_sys, ext_id, userinfo)
 
-            return redirect_to_url(req, "%s/author/manage_profile?pid=%s" % (CFG_SITE_URL, webapi.get_person_redirect_link(pid)))
+            return redirect_to_url(req, "%s/author/manage_profile/%s" % (CFG_SITE_URL, webapi.get_person_redirect_link(pid)))
 
         def add_missing_external_ids():
             if argd['pid'] > -1:
@@ -1102,7 +1102,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
             update_external_ids_of_authors([pid], overwrite=False)
 
-            return redirect_to_url(req, "%s/author/manage_profile?pid=%s" % (CFG_SITE_URL, webapi.get_person_redirect_link(pid)))
+            return redirect_to_url(req, "%s/author/manage_profile/%s" % (CFG_SITE_URL, webapi.get_person_redirect_link(pid)))
 
         def associate_profile():
             ### TO DOOOO
@@ -1125,7 +1125,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             redirect_pid = pid
 
             if profile_claimed:
-                redirect_to_url(req, '%s/author/manage_profile?pid=%s' % (CFG_SITE_URL, redirect_pid))
+                redirect_to_url(req, '%s/author/manage_profile/%s' % (CFG_SITE_URL, redirect_pid))
             else:
                 param=''
                 if 'search_param' in argd and argd['search_param']:
@@ -1378,7 +1378,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             userinfo = "%s||%s" % (uid, req.remote_ip)
             webapi.delete_person_external_ids(pid, existing_ext_ids, userinfo)
 
-            return redirect_to_url(req, "%s/author/manage_profile?pid=%s" % (CFG_SITE_URL, webapi.get_person_redirect_link(pid)))
+            return redirect_to_url(req, "%s/author/manage_profile/%s" % (CFG_SITE_URL, webapi.get_person_redirect_link(pid)))
 
         def none_action():
             return self._error_page(req, ln,
@@ -2226,7 +2226,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             redirect_pid = pid
             if pid_in_cookie:
                 redirect_pid = pid_in_cookie
-            redirect_to_url(req, '%s/author/manage_profile?pid=%s' % (CFG_SITE_URL, str(redirect_pid)))
+            redirect_to_url(req, '%s/author/manage_profile/%s' % (CFG_SITE_URL, str(redirect_pid)))
         else:
             # get name strings and email addresses from SSO/Oauth logins: {'system':{'name':[variant1,...,variantn], 'email':'blabla@bla.bla', 'pants_size':20}}
             remote_login_systems_info = webapi.get_remote_login_systems_info(req, login_info['remote_logged_in_systems'])
@@ -2369,7 +2369,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             if user_pid == person_id:
                 arxiv_data['view_own_profile'] = True
             else:
-                arxiv_data['own_profile_link'] =  "manage_profile?pid=%s" % (user_pid)
+                arxiv_data['own_profile_link'] =  "%s/manage_profile/%s" % (CFG_SITE_LANG, user_pid)
                 arxiv_data['own_profile_text'] = "Manage your profile"
         return arxiv_data
 
@@ -2597,8 +2597,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         if "user_email" in pinfo:
             email_to_prefill = pinfo["user_email"]
 
-        # changeeeee when you implement the redirect algorithm
-        last_page_visited = '%s/author/manage_profile?pid=10' % (CFG_SITE_URL,)
+        last_page_visited = webapi.history_get_last_visited_url(req)
         body = TEMPLATE.tmpl_message_form(last_page_visited, name_to_prefill, email_to_prefill, incomplete_params)
 
         title = ''#_('Help!')
