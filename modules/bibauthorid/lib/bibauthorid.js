@@ -181,6 +181,14 @@ $(document).ready(function() {
             createProfilesHtml(gMergeList[profile]);
             $('.addToMergeButton[name="' + gMergeList[profile] + '"]').prop('disabled','disabled');
         }
+        updateMergeButton();
+        $('#mergeButton').on('click', function(event){
+            $(this).before('<input type="hidden" name="pid" value="' + gMergeProfile + '" />');
+            for(var profile in gMergeList) {
+                $(this).before('<input type="hidden" name="selection" value="' + gMergeList[profile] + '" />');
+            }
+        //event.preventDefault();
+        });
         $('.addToMergeButton').on('click', function(event) {
             onAddToMergeClick(event, $(this));
         });
@@ -275,20 +283,27 @@ function onPageChange() {
                     async: true
                 });
     });
-    $('[class^=uncheckedProfile]').each( function(index){
-                var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
-                var data = { 'requestType': "isProfileClaimed", 'personId': pid.toString()};
-                var errorCallback = onIsProfileClaimedError(pid);
-                $.ajax({
-                    dataType: 'json',
-                    type: 'POST',
-                    url: '/author/claim/search_box_ajax',
-                    data: {jsondata: JSON.stringify(data)},
-                    success: onIsProfileClaimedSuccess,
-                    error: errorCallback,
-                    async: true
-                });
-    });
+    // $('[class^=uncheckedProfile]').each( function(index){
+    //             var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
+    //             var data = { 'requestType': "isProfileClaimed", 'personId': pid.toString()};
+    //             var errorCallback = onIsProfileClaimedError(pid);
+    //             $.ajax({
+    //                 dataType: 'json',
+    //                 type: 'POST',
+    //                 url: '/author/claim/search_box_ajax',
+    //                 data: {jsondata: JSON.stringify(data)},
+    //                 success: onIsProfileClaimedSuccess,
+    //                 error: errorCallback,
+    //                 async: true
+    //             });
+    // });
+}
+
+function updateMergeButton() {
+    if (gMergeList.length)
+            $('#mergeButton').show();
+    else
+        $('#mergeButton').hide();
 }
 
 function onAddToMergeClick(event, button) {
@@ -317,6 +332,7 @@ function addToMergeList(json) {
             gMergeList.push(profile);
             createProfilesHtml(profile);
             $('.addToMergeButton[name="' + profile + '"]').prop('disabled','disabled');
+            updateMergeButton();
         }
     }
 }
@@ -330,6 +346,7 @@ function removeFromMergeList(json) {
         }
         removeProfilesHtml(profile);
         $('.addToMergeButton[name="' + profile + '"]').removeAttr('disabled');
+        updateMergeButton();
     }
 }
 

@@ -346,10 +346,10 @@ class Template:
         #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
         #            % (profile, profile))
         h("</ul>")
-        h('<a rel="nofollow" id="checkout" href="%s/author/claim/action?cancel_merging=True">' % (CFG_SITE_URL,) + self._('Cancel merging.') + '</a>' )
-        if len(profiles):
-            h('<a rel="nofollow" id="merge" href="%s/author/claim/action?merge=True&pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Merge profiles.') + '</a>' )
-
+        h('<form action="%s/author/claim/action" method="get"><input type="hidden" name="cancel_merging" value="True" /><input type="submit" id="checkout" class="aid_btn_blue" value="%s" /></form>' %
+                    (CFG_SITE_URL, self._('Cancel merging.')))
+        h('<form action="%s/author/claim/action" method="get"><input type="hidden" name="merge" value="True" /><input type="submit" id="mergeButton" class="aid_btn_blue" value="%s" style="display:none"/></form>' %
+                    (CFG_SITE_URL, self._('Merge profiles.')))
         h(' </div>')
         h('</div>')
         h('<p>&nbsp;</p>')
