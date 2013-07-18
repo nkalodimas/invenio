@@ -1083,6 +1083,7 @@ def _usage(exitcode=1, msg="", help_specific_usage="", description=""):
     sys.stderr.write("  --post-process=BIB_TASKLET_NAME[parameters]\tPostprocesses the specified\n\t\t\tbibtasklet with the given parameters between square\n\t\t\tbrackets.\n")
     sys.stderr.write("\t\t\tExample:--post-process \"bst_send_email[fromaddr=\n\t\t\t'foo@xxx.com', toaddr='bar@xxx.com', subject='hello',\n\t\t\tcontent='help']\"\n")
     sys.stderr.write("  --email-logs-to=EMAILS Sends an email with the results of the execution\n\t\t\tof the task, and attached the logs (EMAILS could be a comma-\n\t\t\tseparated lists of email addresses)\n")
+    sys.stderr.write("  --host=HOSTNAME Bind the task to the specified host, it will only ever run on that host.\n")
     if description:
         sys.stderr.write(description)
     sys.exit(exitcode)
