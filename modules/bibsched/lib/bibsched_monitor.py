@@ -64,6 +64,17 @@ from invenio.bibsched import bibsched_get_status, \
 CFG_MOTD_PATH = os.path.join(CFG_TMPSHAREDDIR, "bibsched.motd")
 
 
+def get_user():
+    return os.environ.get('SUDO_USER', None)
+
+
+def log(message, debug=None):
+    user = get_user()
+    if user:
+        message = "%s by %s" % (message, user)
+    return Log(message, debug)
+
+
 def get_pager():
     """
     Return the first available pager.
@@ -190,11 +201,11 @@ class Manager(object):
                 self.repaint()
             elif char == self.curses.KEY_DOWN:
                 self.selected_line = min(self.selected_line + 1,
-                                         len(self.rows) + self.header_lines - 1)
+                                        len(self.rows) + self.header_lines - 1)
                 self.repaint()
             elif char == self.curses.KEY_NPAGE:
                 self.selected_line = min(self.selected_line + 10,
-                                         len(self.rows) + self.header_lines - 1)
+                                        len(self.rows) + self.header_lines - 1)
                 self.repaint()
             elif char == self.curses.KEY_HOME:
                 self.first_visible_line = 0
@@ -341,9 +352,27 @@ w - Wake up task
             self.curses.endwin()
             if not os.path.isfile(CFG_MOTD_PATH) or not open(CFG_MOTD_PATH).read():
                 f = open(CFG_MOTD_PATH, 'w')
-                f.write('<user>, <reason>')
-                f.close()
+                try:
+                    f.write('<reason>')
+                finally:
+                    f.close()
             os.system("%s %s" % (editor, CFG_MOTD_PATH))
+
+            # Add the user in front of the motd:
+            # <user>, <reason>
+            user = get_user()
+            if user:
+                f = open(CFG_MOTD_PATH, 'r')
+                try:
+                    new_motd = f.read()
+                finally:
+                    f.close()
+                if new_motd.strip():
+                    f = open(CFG_MOTD_PATH, 'w')
+                    try:
+                        f.write('%s, %s' % (user, new_motd))
+                    finally:
+                        f.close()
 
             # We need to redraw the MOTD part
             self.read_motd()
@@ -351,15 +380,15 @@ w - Wake up task
 
             if previous[24:] != self.motd[24:]:
                 if len(previous) == 0:
-                    Log('motd set to "%s"' % self.motd.replace("\n", "|"))
+                    log('motd set to "%s"' % self.motd.replace("\n", "|"))
                     self.selected_line += 1
                     self.header_lines += 1
                 elif len(self.motd) == 0:
-                    Log('motd deleted')
+                    log('motd deleted')
                     self.selected_line -= 1
                     self.header_lines -= 1
                 else:
-                    Log('motd changed to "%s"' % self.motd.replace("\n", "|"))
+                    log('motd changed to "%s"' % self.motd.replace("\n", "|"))
         else:
             self._display_message_box("No editor was found")
 
@@ -662,7 +691,7 @@ order to let this task run. The current priority is %s. New value:"
                     program = os.path.join(CFG_BINDIR, process)
                     command = "%s %s" % (program, str(task_id))
                     spawn_task(command)
-                    Log("manually running task #%d (%s)" % (task_id, process))
+                    log("manually running task #%d (%s)" % (task_id, process))
                     # We changed the status of one of our tasks
                     self.update_rows()
                     self.repaint()
@@ -790,6 +819,7 @@ order to let this task run. The current priority is %s. New value:"
         if new_mode:
             run_sql('UPDATE schSTATUS SET value = "" WHERE name = "resume_after"')
             run_sql('UPDATE schSTATUS SET value = "1" WHERE name = "auto_mode"')
+            log('queue changed to automatic mode')
         # Enable manual mode
         else:
             run_sql('UPDATE schSTATUS SET value = "0" WHERE name = "auto_mode"')
@@ -799,8 +829,13 @@ order to let this task run. The current priority is %s. New value:"
             else:
                 resume_after = ""
             run_sql('REPLACE INTO schSTATUS (name, value) VALUES ("resume_after", %s)', [resume_after])
+            if duration:
+                log('queue changed to manual mode for %ss' % duration)
+            else:
+                log('queue changed to manual mode')
 
         self.auto_mode = not self.auto_mode
+
         # We need to refresh the color of the header and footer
         self.repaint()
 
