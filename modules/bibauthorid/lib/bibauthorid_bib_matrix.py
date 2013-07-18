@@ -1,9 +1,11 @@
 import invenio.bibauthorid_config as bconfig
 import numpy
 import os
+import shutil
 from cPickle import dump, load, UnpicklingError
 from invenio.bibauthorid_dbinterface import get_db_time
 import h5py
+
 
 class Bib_matrix(object):
     '''
@@ -20,26 +22,26 @@ class Bib_matrix(object):
     def __init__(self, name, cluster_set=None, storage_dir_override=None):
         self.name = name
         self._f = None
+        self._matrix = None
+        self._use_temporary_file = True
+        self._size = None
+
         if storage_dir_override:
             self.get_file_dir = lambda : storage_dir_override
 
         if cluster_set:
             self._bibmap = dict((b[1], b[0]) for b in enumerate(cluster_set.all_bibs()))
             width = len(self._bibmap)
-            size = ((width + 1) * width) / 2
-            self.create_empty_matrix(size)
+            self._size = ((width + 1) * width) / 2
         else:
             self._bibmap = dict()
 
+        self._matrix = None
         self.creation_time = get_db_time()
 
-    def create_empty_matrix(self, lenght):
-        self._prepare_destination_directory()
-        self._f = h5py.File(self.get_matrix_path())
-        try:
-            self._matrix = self._f.create_dataset("array", (lenght, 2), 'f')
-        except:
-            self._matrix = self._f["array"]
+    def _initialize_matrix(self):
+        self.open_h5py_file()
+        self._matrix = self._f.create_dataset("array", (self._size, 2), 'f')
         self._matrix[...] = self.special_symbols[None]
 
     def _resolve_entry(self, bibs):
@@ -51,7 +53,11 @@ class Bib_matrix(object):
 
     def __setitem__(self, bibs, val):
         entry = self._resolve_entry(bibs)
-        self._matrix[entry] = Bib_matrix.special_symbols.get(val, val)
+        try:
+            self._matrix[entry] = Bib_matrix.special_symbols.get(val, val)
+        except TypeError:
+            self._initialize_matrix()
+            self._matrix[entry] = Bib_matrix.special_symbols.get(val, val)
 
     def __getitem__(self, bibs):
         entry = self._resolve_entry(bibs)
@@ -74,38 +80,69 @@ class Bib_matrix(object):
         return "%s%s/" % (bconfig.TORTOISE_FILES_PATH, sub_dir)
 
     def get_map_path(self):
-        return "%s%s.bibmap" % (self.get_file_dir(), self.name)
+        return "%s%s-bibmap.pickle" % (self.get_file_dir(), self.name)
 
     def get_matrix_path(self):
-        return "%s%s.npy" % (self.get_file_dir(), self.name)
+        path = "%s%s.hdf5" % (self.get_file_dir(), self.name)
+        if self._use_temporary_file:
+            path = path + '.tmp'
+        return path
 
-    def load(self, load_map=True, load_matrix=True):
+    def open_h5py_file(self):
+        self._prepare_destination_directory()
+        self._prepare_destination_directory()
+        path = self.get_matrix_path()
+        try:
+            self._f = h5py.File(path)
+        except IOError:
+            #If the file is corrupted h5py fails with IOErorr.
+            #Give it a second try with an empty file before raising.
+            os.remove(path)
+            self._f = h5py.File(path)
+
+    def load(self):
+        self._use_temporary_file = False
         files_dir = self.get_file_dir()
         if not os.path.isdir(files_dir):
             self._bibmap = dict()
+            self._matrix = None
             return False
 
         try:
-            if load_map:
-                bibmap_v = load(open(self.get_map_path(), 'r'))
-                rec_v, self.creation_time, self._bibmap = bibmap_v
-                if (rec_v != Bib_matrix.current_comparison_version or
-                    # you can use negative version to recalculate
-                    Bib_matrix.current_comparison_version < 0):
 
-                    self._bibmap = dict()
-                    return False
+            bibmap_v = load(open(self.get_map_path(), 'r'))
+            rec_v, self.creation_time, self._bibmap = bibmap_v
+#                if (rec_v != Bib_matrix.current_comparison_version or
+#                    # you can use negative version to recalculate
+#                    Bib_matrix.current_comparison_version < 0):
+#                    self._bibmap = dict()
+            self._use_temporary_file = False
+            if self._f:
+                self._f.close()
+            self.open_h5py_file()
+            self._matrix = self._f['array']
 
-            if load_matrix:
-                if self._f:
-                    self._f.close()
-                self._f = h5py.File(self.get_matrix_path())
-                self._matrix = self._f['array']
+        except (IOError, UnpicklingError, KeyError, OSError), e:
+            print 'Bib_matrix: error occurred while loading bibmap, cleaning... ', str(e)
+            self._bibmap = dict()
+            self._matrix = None
 
-        except (IOError, UnpicklingError, KeyError):
-            if load_map:
-                self._bibmap = dict()
-                self.creation_time = get_db_time()
+            try:
+                os.remove(self.get_map_path())
+            except OSError:
+                pass
+            try:
+                os.remove(self.get_matrix_path())
+            except OSError:
+                pass
+            self._use_temporary_file = True
+            try:
+                os.remove(self.get_matrix_path())
+            except OSError:
+                pass
+            self._bibmap = dict()
+            self._matrix = None
+            self._use_temporary_file = True
             return False
         return True
 
@@ -127,3 +164,44 @@ class Bib_matrix(object):
 
         if self._f:
             self._f.close()
+
+        if self._use_temporary_file:
+            curpath = self.get_matrix_path()
+            self._use_temporary_file = False
+            finalpath = self.get_matrix_path()
+            try:
+                os.rename(curpath, finalpath)
+            except OSError:
+                pass
+
+    def duplicate_existing(self, name, newname):
+        '''
+        Make sure the original Bib_matrix have been store()-ed before calling this!
+        '''
+        self._use_temporary_file = False
+        self.name = name
+        srcmap = self.get_map_path()
+        srcmat = self.get_matrix_path()
+        self.name = newname
+        dstmap = self.get_map_path()
+        dstmat = self.get_matrix_path()
+
+        shutil.copy(srcmap, dstmap)
+        shutil.copy(srcmat, dstmat)
+
+    def destroy(self):
+        try:
+            os.remove(self.get_map_path())
+        except OSError:
+            pass
+        try:
+            os.remove(self.get_matrix_path())
+        except OSError:
+            pass
+        self._use_temporary_file = True
+        try:
+            os.remove(self.get_matrix_path())
+        except OSError:
+            pass
+        self._bibmap = dict()
+        self._matrix = None

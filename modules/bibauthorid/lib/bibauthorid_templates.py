@@ -1237,7 +1237,7 @@ class Template:
         h('  <ul>')
         h('    <li>' + self._('Navigation:') + '</li>')
         h(('    <li><a rel="nofollow" href="%s/author/search">' + self._('Person Search') + '</a></li>') % CFG_SITE_URL)
-        h(('    <li><a rel="nofollow" href="%s/author/manage_profile?pid=%s">' + self._('Manage Profile') + '</a></li>') % (CFG_SITE_URL, pid))
+        h(('    <li><a rel="nofollow" href="%s/author/manage_profile/%s">' + self._('Manage Profile') + '</a></li>') % (CFG_SITE_URL, pid))
         h(('    <li><a rel="nofollow" href="%s/author/claim/tickets_admin">' + self._('Open tickets') + '</a></li>') % CFG_SITE_URL)
         h('    <!--<li><a rel="nofollow" href="#">' + self._('Person Interface FAQ') + '</a></li>!-->')
         h('  </ul>')

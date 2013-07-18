@@ -53,7 +53,7 @@ class ProbabilityMatrix(object):
 
     def load(self, load_map=True, load_matrix=True):
         update_status(0., "Loading probability matrix...")
-        self._bib_matrix.load(load_map, load_matrix)
+        self._bib_matrix.load()
         update_status_final("Probability matrix loaded.")
 
     def store(self):
@@ -68,13 +68,13 @@ class ProbabilityMatrix(object):
         return self._bib_matrix.getitem_numeric(bibs)
 
 
-    def __get_up_to_date_bibs(self):
+    def __get_up_to_date_bibs(self, bib_matrix):
         return frozenset(get_modified_papers_before(
-                         self._bib_matrix.get_keys(),
-                         self._bib_matrix.creation_time))
+                         bib_matrix.get_keys(),
+                         bib_matrix.creation_time))
 
     def is_up_to_date(self, cluster_set):
-        return self.__get_up_to_date_bibs() >= frozenset(cluster_set.all_bibs())
+        return self.__get_up_to_date_bibs(self._bib_matrix) >= frozenset(cluster_set.all_bibs())
 
     def recalculate(self, cluster_set):
         '''
@@ -85,10 +85,19 @@ class ProbabilityMatrix(object):
         the matrix.
         '''
         last_cleaned = 0
+        self._bib_matrix.store()
+        try:
+            old_matrix = Bib_matrix(self._bib_matrix.name+'copy')
+            old_matrix.duplicate_existing(self._bib_matrix.name, self._bib_matrix.name+'copy')
+            old_matrix.load()
+            cached_bibs = self.__get_up_to_date_bibs(old_matrix)
+            have_cached_bibs = bool(cached_bibs)
+        except IOError:
+            old_matrix.destroy()
+            cached_bibs = None
+            have_cached_bibs = False
 
-        old_matrix = self._bib_matrix
-        cached_bibs = self.__get_up_to_date_bibs()
-        have_cached_bibs = bool(cached_bibs)
+        self._bib_matrix.destroy()
         self._bib_matrix = Bib_matrix(cluster_set.last_name, cluster_set=cluster_set)
 
         ncl = cluster_set.num_all_bibs
