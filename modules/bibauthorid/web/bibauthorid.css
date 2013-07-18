@@ -436,6 +436,33 @@
     text-align: left;
 }
 
+#mergeList a {
+    padding-right: 5px;
+    text-decoration: none
+}
+
+#mergeList a:hover {
+    text-decoration: underline;
+}
+
+#mergeListButtonWrapper {
+    position: relative;
+    width: 310px;
+    height: 30px;
+}
+
+#cancelMergeButton {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+
+#mergeButton {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+}
+
 .addToMergeButton {
 /*    font-size: 11px;
 */}
