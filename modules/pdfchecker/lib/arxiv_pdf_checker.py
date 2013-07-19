@@ -200,7 +200,7 @@ def open_url(url, headers=None):
 
 
 def download_external_url(url, download_to_file, content_type=None,
-                          retry_count=3, timeout=2.0):
+                          retry_count=10, timeout=10.0):
     """
     Download a url (if it corresponds to a remote file) and return a
     local url to it. If format is specified, a check will be performed
@@ -233,7 +233,9 @@ def download_external_url(url, download_to_file, content_type=None,
                     retry_after = int(request.headers["Refresh"])
                 except ValueError:
                     retry_after = timeout
+                write_message("retrying after %ss" % retry_after)
                 time.sleep(retry_after)
+                retry_attempt += 1
                 continue
         except urllib2.HTTPError, e:
             error_code = e.code
@@ -245,10 +247,12 @@ def download_external_url(url, download_to_file, content_type=None,
                     retry_after = int(e.headers["Retry-After"])
                 except ValueError:
                     pass
+            write_message("retrying after %ss" % retry_after)
             time.sleep(retry_after)
             retry_attempt += 1
         except (urllib2.URLError, socket.timeout, socket.gaierror, socket.error), e:
             error_str = str(e)
+            write_message("socket error, retrying after %ss" % retry_after)
             time.sleep(timeout)
             retry_attempt += 1
         else:
