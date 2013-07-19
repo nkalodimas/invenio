@@ -2139,7 +2139,7 @@ def delete_bibrec_bibxxx(record, id_bibrec, affected_tags={}, pretend=False):
     write_message(lambda: "delete_bibrec_bibxxx(record=%s, id_bibrec=%s, affected_tags=%s)" % (record, id_bibrec, affected_tags), verbose=9)
     for tag in affected_tags:
         # sanity check with record keys just to make sure its fine.
-        if tag in record.keys() and tag not in CFG_BIBUPLOAD_SPECIAL_TAGS:
+        if tag not in CFG_BIBUPLOAD_SPECIAL_TAGS:
             write_message("%s found in record"%tag, verbose=2)
             # for each name construct the bibrec_bibxxx table name
             table_name = 'bib'+tag[0:2]+'x'

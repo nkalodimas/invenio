@@ -286,6 +286,82 @@ class GenericBibUploadTest(unittest.TestCase):
             rec_in_recstruct = loads(decompress(run_sql("SELECT value FROM bibfmt WHERE id_bibrec=%s AND format='recstruct'", (recid, ))[0][0]))
             self.failUnless(identical_records(rec_in_xm, rec_in_recstruct, skip_005=False, ignore_subfield_order=True), "\n%s\n!=\n%s\n" % (rec_in_xm, rec_in_recstruct))
 
+class BibUploadRealCaseRemovalDOIViaBibEdit(GenericBibUploadTest):
+    def test_removal_of_doi_via_bibedit(self):
+        test = """<record>
+  <datafield tag="980" ind1=" " ind2=" ">
+    <subfield code="a">HEP</subfield>
+  </datafield>
+  <datafield tag="100" ind1=" " ind2=" ">
+    <subfield code="a">Fiore, Gaetano</subfield>
+  </datafield>
+  <datafield tag="245" ind1=" " ind2=" ">
+    <subfield code="a">On quantum mechanics with a magnetic field on R**n and on a torus T**n, and their relation</subfield>
+  </datafield>
+  <datafield tag="773" ind1=" " ind2=" ">
+    <subfield code="p">Int.J.Theor.Phys.</subfield>
+    <subfield code="v">52</subfield>
+    <subfield code="c">877-896</subfield>
+    <subfield code="y">2013</subfield>
+  </datafield>
+  <datafield tag="650" ind1="1" ind2="7">
+    <subfield code="2">INSPIRE</subfield>
+    <subfield code="a">General Physics</subfield>
+  </datafield>
+  <datafield tag="980" ind1=" " ind2=" ">
+    <subfield code="a">Published</subfield>
+  </datafield>
+  <datafield tag="300" ind1=" " ind2=" ">
+    <subfield code="a">20</subfield>
+  </datafield>
+  <datafield tag="269" ind1=" " ind2=" ">
+    <subfield code="c">2013</subfield>
+  </datafield>
+  <datafield tag="653" ind1="1" ind2=" ">
+    <subfield code="9">author</subfield>
+    <subfield code="a">Bloch theory with magnetic field</subfield>
+  </datafield>
+  <datafield tag="653" ind1="1" ind2=" ">
+    <subfield code="9">author</subfield>
+    <subfield code="a">Fiber bundles</subfield>
+  </datafield>
+  <datafield tag="653" ind1="1" ind2=" ">
+    <subfield code="9">author</subfield>
+    <subfield code="a">Gauge symmetry</subfield>
+  </datafield>
+  <datafield tag="653" ind1="1" ind2=" ">
+    <subfield code="9">author</subfield>
+    <subfield code="a">Quantization on manifolds</subfield>
+  </datafield>
+  <datafield tag="520" ind1=" " ind2=" ">
+    <subfield code="9">Springer</subfield>
+    <subfield code="a">We show in elementary terms the equivalence in a general gauge of a U(1)-gauge theory of a scalar charged particle on a torus to the analogous theory on ℝ( )n( ) constrained by quasiperiodicity under translations in the lattice Λ. The latter theory provides a global description of the former: the quasiperiodic wavefunctions ψ defined on ℝ( )n( ) play the role of sections of the associated hermitean line bundle E on , since also E admits a global description as a quotient. The components of the covariant derivatives corresponding to a constant (necessarily integral) magnetic field B=dA generate a Lie algebra g ( )Q( ) and together with the periodic functions the algebra of observables . The non-abelian part of g ( )Q( ) is a Heisenberg Lie algebra with the electric charge operator Q as the central generator, the corresponding Lie group G ( )Q( ) acts on the Hilbert space as the translation group up to phase factors. Also the space of sections of E is mapped into itself by g∈G ( )Q( ). We identify the socalled magnetic translation group as a subgroup of the observables’ group Y ( )Q( ). We determine the unitary irreducible representations of corresponding to integer charges and for each of them an associated orthonormal basis explicitly in configuration space. We also clarify how in the n=2m case a holomorphic structure and Theta functions arise on the associated complex torus.</subfield>
+  </datafield>
+  <datafield tag="024" ind1="7" ind2=" ">
+    <subfield code="2">DOI</subfield>
+    <subfield code="a">10.1007/s10773-012-1396-z</subfield>
+  </datafield>
+  <datafield tag="035" ind1=" " ind2=" ">
+    <subfield code="a">Fiore:2013nua</subfield>
+    <subfield code="9">INSPIRETeX</subfield>
+  </datafield>
+  <datafield tag="980" ind1=" " ind2=" ">
+    <subfield code="a">Published</subfield>
+  </datafield>
+  <datafield tag="980" ind1=" " ind2=" ">
+    <subfield code="a">Citeable</subfield>
+  </datafield>
+</record>
+"""
+        recs = create_record(test)
+        _, recid, _ = bibupload.bibupload(recs[0], opt_mode='insert')
+        self.check_record_consistency(recid)
+        new_rec = get_record(recid)
+        del new_rec['024'] ## let's delete DOI
+        _, recid2, _ = bibupload.bibupload(new_rec, opt_mode='replace')
+        self.assertEqual(recid, recid2)
+        self.check_record_consistency(recid2)
+
 
 class BibUploadTypicalBibEditSessionTest(GenericBibUploadTest):
     """Testing a typical BibEdit session"""
@@ -5296,6 +5372,7 @@ TEST_SUITE = make_test_suite(BibUploadNoUselessHistoryTest,
                              BibUploadCallbackURLTest,
                              BibUploadRecordsWithDOITest,
                              BibUploadTypicalBibEditSessionTest,
+                             BibUploadRealCaseRemovalDOIViaBibEdit,
                              )
 
 if __name__ == "__main__":
