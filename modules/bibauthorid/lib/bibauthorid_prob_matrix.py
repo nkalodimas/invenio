@@ -106,7 +106,6 @@ class ProbabilityMatrix(object):
             expected = 1
 
         try:
-
             cur_calc, opti, prints_counter = 0, 0, 0
             for cl1 in cluster_set.clusters:
 

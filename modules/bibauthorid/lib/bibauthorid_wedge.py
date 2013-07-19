@@ -111,12 +111,14 @@ def wedge(cluster_set, report_cluster_status=False, force_wedge_thrsh=False):
     h5file.close()
     os.remove(h5filepath)
 
+
 def _decide(cl1, cl2):
     score1 = _compare_to(cl1, cl2)
     score2 = _compare_to(cl2, cl1)
     s = score1 + score2
     wedge_print("Wedge: _decide (%f+%f) = %f cmp to %f" % (score1,score2,s,wedge_thrsh))
     return s > wedge_thrsh, s
+
 
 def _compare_to(cl1, cl2):
     cl1_out_edges = h5file[str(id(cl1))]
@@ -156,14 +158,17 @@ def _compare_to(cl1, cl2):
 
     return ret
 
+
 def _gini(arr):
     arr.sort(reverse=True)
     dividend = sum(starmap(mul, izip(arr, xrange(1, 2 * len(arr), 2))))
     divisor = len(arr) * sum(arr)
     return float(dividend) / divisor
 
+
 def _compare_to_final_bounds(score1, score2):
     return score1 + score2 > bconfig.WEDGE_THRESHOLD
+
 
 def _edge_sorting(edge):
     '''
@@ -174,6 +179,7 @@ def _edge_sorting(edge):
 
 def _pack_vals(v):
     return str(v[0])+';'+str(v[1])+';'+str(v[2][0])+';'+str(v[2][1])+'\n'
+
 
 def _unpack_vals(s):
     v = s.strip().split(';')
@@ -193,7 +199,7 @@ def do_wedge(cluster_set, deep_debug=False):
     plus_edges_fp, len_plus, minus_edges_fp, len_minus, edges_fp, len_edges = group_sort_edges(cluster_set)
 
     interval = 1000
-    for i, s in enumerate(plus_edges_fp.readlines()):
+    for i, s in enumerate(plus_edges_fp):
         bib1, bib2, unused = _unpack_vals(s)
         if (i % interval) == 0:
             update_status(float(i) / len_plus, "Agglomerating obvious clusters...")
@@ -207,7 +213,7 @@ def do_wedge(cluster_set, deep_debug=False):
     update_status_final("Agglomerating obvious clusters done.")
 
     interval = 1000
-    for i, s in enumerate(minus_edges_fp.readlines()):
+    for i, s in enumerate(minus_edges_fp):
         bib1, bib2, unused = _unpack_vals(s)
         if (i % interval) == 0:
             update_status(float(i) / len_minus, "Dividing obvious clusters...")
@@ -220,7 +226,7 @@ def do_wedge(cluster_set, deep_debug=False):
     interval = 50000
     wedge_print("Wedge: New wedge, %d edges." % len_edges)
     current = -1
-    for  s in edges_fp.readlines():
+    for  s in edges_fp:
         v1, v2, unused = _unpack_vals(s)
         current += 1
         if (current % interval) == 0:
@@ -270,6 +276,7 @@ def do_wedge(cluster_set, deep_debug=False):
     plus_edges_fp.close()
     minus_edges_fp.close()
     edges_fp.close()
+
 
 def convert_cluster_set(cs, prob_matr):
     '''
@@ -348,10 +355,12 @@ def convert_cluster_set(cs, prob_matr):
     update_status_final("Converting the cluster set done.")
     #gc.enable()
 
+
 def restore_cluster_set(cs):
     for cl in cs.clusters:
         cl.bibs = set(cs.new2old[b] for b in cl.bibs)
     cs.update_bibs()
+
 
 def create_bib_2_cluster_dict(cs):
     '''
@@ -364,6 +373,7 @@ def create_bib_2_cluster_dict(cs):
         for bib in cl.bibs:
             ret[bib] = cl
     return ret
+
 
 def group_sort_edges(cs):
     plus = list()
@@ -402,9 +412,12 @@ def group_sort_edges(cs):
     bibauthor_print("Sorting the value edges.")
     pairs.sort(key=_edge_sorting, reverse=True)
 
-    plus_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
-    minus_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
-    pairs_fp = tempfile.TemporaryFile(dir=bconfig.TORTOISE_FILES_PATH)
+    plus_fp = tempfile.NamedTemporaryFile(dir=bconfig.TORTOISE_FILES_PATH,
+                                           prefix='wedge_edges_cache_p_'+str(PID()))
+    minus_fp = tempfile.NamedTemporaryFile(dir=bconfig.TORTOISE_FILES_PATH,
+                                           prefix='wedge_edges_cache_m_'+str(PID()))
+    pairs_fp = tempfile.NamedTemporaryFile(dir=bconfig.TORTOISE_FILES_PATH,
+                                           prefix='wedge_edges_cache_e_'+str(PID()))
 
     bibauthor_print("Dumping plus egdes to file... (%s)" % str(len(plus)))
     plus_fp.writelines(_pack_vals(x) for x in plus)
@@ -426,6 +439,7 @@ def group_sort_edges(cs):
 
     #remember to close the files!
     return plus_fp, len_plus, minus_fp, len_minus, pairs_fp, len_pairs
+
 
 
 def join(cl1, cl2):
