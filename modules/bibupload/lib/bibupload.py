@@ -360,7 +360,7 @@ def bibupload(record, opt_mode=None, opt_notimechange=0, oai_rec_id="", pretend=
                     for item in existing_tags[tag]:
                         tag_to_add = item[0:3]
                         ind1, ind2 = item[3], item[4]
-                        if tag_to_add in affected_tags:
+                        if tag_to_add in affected_tags and (ind1, ind2) not in affected_tags[tag_to_add]:
                             affected_tags[tag_to_add].append((ind1, ind2))
                         else:
                             affected_tags[tag_to_add] = [(ind1, ind2)]
@@ -369,7 +369,7 @@ def bibupload(record, opt_mode=None, opt_notimechange=0, oai_rec_id="", pretend=
                     for item in deleted:
                         tag_to_add = item[0:3]
                         ind1, ind2 = item[3], item[4]
-                        if tag_to_add in affected_tags:
+                        if tag_to_add in affected_tags and (ind1, ind2) not in affected_tags[tag_to_add]:
                             affected_tags[tag_to_add].append((ind1, ind2))
                         else:
                             affected_tags[tag_to_add] = [(ind1, ind2)]
@@ -452,7 +452,7 @@ def bibupload(record, opt_mode=None, opt_notimechange=0, oai_rec_id="", pretend=
                 if ('4', ' ') not in affected_tags.get('856', []):
                     if '856' not in affected_tags:
                         affected_tags['856'] = [('4', ' ')]
-                    else:
+                    elif ('4', ' ') not in affected_tags['856']:
                         affected_tags['856'].append(('4', ' '))
                 write_message("     -Modified field list updated with FFT details: %s" % str(affected_tags), verbose=2)
             except Exception, e:
@@ -541,7 +541,7 @@ def bibupload(record, opt_mode=None, opt_notimechange=0, oai_rec_id="", pretend=
         # Update the database MetaData
         write_message("Stage 5: Start (Update the database with the metadata).",
                     verbose=2)
-        if opt_mode == 'insert':
+        if insert_mode_p:
             update_database_with_metadata(record, rec_id, oai_rec_id, pretend=pretend)
         elif opt_mode in ('replace', 'replace_or_insert',
             'append', 'correct', 'delete') and updates_exist:
@@ -2159,9 +2159,9 @@ def delete_bibrec_bibxxx(record, id_bibrec, affected_tags={}, pretend=False):
                 else:
                     tmp_ind_2 = ind_pair[1]
                 # need to escape incase of underscore so that mysql treats it as a char
-                tag_val = tag+"\\"+tmp_ind_1+"\\"+tmp_ind_2
+                tag_val = tag+"\\"+tmp_ind_1+"\\"+tmp_ind_2 + '%'
                 query = """DELETE br.* FROM `%s` br,`%s` b where br.id_bibrec=%%s and br.id_bibxxx=b.id and b.tag like %%s""" % (bibrec_table, table_name)
-                params = (id_bibrec, '%s%%' % tag_val)
+                params = (id_bibrec, tag_val)
                 write_message(query % params, verbose=9)
                 if not pretend:
                     run_sql(query, params)
