@@ -379,9 +379,6 @@ function onGetTicketsSuccess(json) {//get owners, mails of users
     // new ticket link
     $('.bibEditTicketsMenuSection').append('<div id="newTicketDiv" class="bibEditMenuMore">\
                                                 <a id=newTicketLink href="#" title="Create new ticket">[new ticket]</a>\
-                                                <select id="queue" name="queue" >\
-                                                    <option value="0">in Queue:</option>\
-                                                </select>\
                                             </div>');
     // produce html for every queue
     var queues = json['queues'];
@@ -390,7 +387,7 @@ function onGetTicketsSuccess(json) {//get owners, mails of users
       $('#queue').append('<option value="'+ queue.id + '">' + queue.name + '</option>');
     }
     // new ticket link
-    $("#newTicketLink").on('click', {queues: queues} , onCreateNewTicket);
+    $("#newTicketLink").on('click', onCreateNewTicket);
     // preview link
     $(".ticketButtons .bibEditPreviewTicketLink").on('click',function(event) {
       if ($(this).siblings(".bibeditTicketPreviewBox").is(":visible")) {
@@ -576,6 +573,7 @@ function onCreateNewTicket(event) {
                                 <td class="label">Queue:</td>\
                                 <td class="value">\
                                   <select id="Queue" >\
+                                  <option value="0" selected></option>\
                                   </select>\
                                 </td>\
                                 <td class="label">Status:\
@@ -651,13 +649,27 @@ function onCreateNewTicket(event) {
 
         addContentToDialog(dialogPreview, contentHtml, "Do you want to create a new ticket?");
         dialogPreview.dialogDiv.attr('id', 'newTicketDialog');
+        var ticketTemplates = json['ticketTemplates'];
         var queues = json['queues'];
+        var queuesDropdown = $('#Queue');
         for(var i=0; i < queues.length; i++) {
           var queue = queues[i];
-          $('#Queue').append('<option value="'+ queue.id + '">' + queue.name + '</option>');
+          queuesDropdown.append('<option value="'+ queue.id + '">' + queue.name + '</option>');
         }
-        $('#Queue').change(function(){
-          // TODO load content from template tickets
+        queuesDropdown.data('previous',queuesDropdown.find('option:selected').text());
+        // Add template content for queues
+        queuesDropdown.change(function(){
+          var previousQueue = $(this).data('previous');
+          var queue = $( this ).find('option:selected').text();
+          $(this).data('previous',queue);
+          if( ticketTemplates[queue] != undefined){
+              $('#Subject').val(ticketTemplates[queue].subject);
+              $('#Content').val(ticketTemplates[queue].content);
+          }
+          else if(ticketTemplates[previousQueue] != undefined){
+              $('#Subject').val("");
+              $('#Content').val("");
+          }
         });
         var users = json['users'];
         for(var i=0; i < users.length; i++) {

@@ -43,6 +43,7 @@ try:
 except ImportError:
     from StringIO import StringIO
 
+from invenio.jsonutils import json
 from invenio.bibedit_config import CFG_BIBEDIT_FILENAME, \
     CFG_BIBEDIT_RECORD_TEMPLATES_PATH, CFG_BIBEDIT_TO_MERGE_SUFFIX, \
     CFG_BIBEDIT_FIELD_TEMPLATES_PATH, CFG_BIBEDIT_AJAX_RESULT_CODES_REV
@@ -60,7 +61,8 @@ from invenio.config import CFG_BIBEDIT_LOCKLEVEL, \
     CFG_BIBEDIT_TIMEOUT, CFG_BIBUPLOAD_EXTERNAL_OAIID_TAG as OAIID_TAG, \
     CFG_BIBUPLOAD_EXTERNAL_SYSNO_TAG as SYSNO_TAG, CFG_TMPSHAREDDIR, \
     CFG_BIBEDIT_QUEUE_CHECK_METHOD, \
-    CFG_BIBEDIT_EXTEND_RECORD_WITH_COLLECTION_TEMPLATE, CFG_INSPIRE_SITE
+    CFG_BIBEDIT_EXTEND_RECORD_WITH_COLLECTION_TEMPLATE, CFG_INSPIRE_SITE, \
+    CFG_BIBEDIT_ADD_TICKET_TEMPLATES
 from invenio.dateutils import convert_datetext_to_dategui
 from invenio.textutils import wash_for_xml
 from invenio.bibedit_dblayer import get_bibupload_task_opts, \
@@ -1023,6 +1025,9 @@ def get_new_ticket_RT_info(uid):
             response['queues'] = bibcatalog_system.get_queues(uid)
             # add user email
             response['email'] = get_email(uid)
+            #ticketTemplates = CFG_BIBEDIT_ADD_TICKET_TEMPLATES
+            #jsonticketTemplates = json.dumps(ticketTemplates)
+            response['ticketTemplates'] = CFG_BIBEDIT_ADD_TICKET_TEMPLATES
             response['resultCode'] = 1
         else:
             # put something in the tickets container, for debug
