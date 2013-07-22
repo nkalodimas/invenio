@@ -96,18 +96,13 @@ def get_bibsched_mode():
     """
     Gets bibsched running mode: AUTOMATIC or MANUAL
     """
-    child_stdout, child_stdin = popen2.popen2("%s status" %
-                                     os.path.join(CFG_BINDIR, 'bibsched'))
-    child_stdin.close()
-    output = child_stdout.readlines()
-    child_stdout.close()
+    r = run_sql('SELECT value FROM schSTATUS WHERE name = "auto_mode"')
     try:
-        if output[1].split()[-1] in ['MANUAL', 'AUTOMATIC']:
-            return output[1].split()[-1]
-        else:
-            return 'Unknown'
-    except IndexError:
-        return 'Unknown'
+        mode = bool(int(r[0][0]))
+    except (ValueError, IndexError):
+        mode = True
+
+    return mode and 'AUTOMATIC' or 'MANUAL'
 
 def get_motd_msg():
     """

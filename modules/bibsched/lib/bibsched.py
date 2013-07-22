@@ -1046,10 +1046,10 @@ def report_queue_status(verbose=True, status=None, since=None, tasks=None): # py
             since = '-' + since
             since_query = "AND runtime >= '%s'" % get_datetime(since)
 
-        res = run_sql("""SELECT id, proc, user, runtime, sleeptime,
-                                status, progress, priority
-                        FROM schTASK WHERE status=%%s %(task_query)s
-                        %(since_query)s ORDER BY id ASC""" % {
+        res = run_sql("""SELECT id, proc, runtime, status, priority, host,
+                         sequenceid
+                         FROM schTASK WHERE status=%%s %(task_query)s
+                         %(since_query)s ORDER BY id ASC""" % {
                             'task_query': task_query,
                             'since_query' : since_query},
                     (status,))
@@ -1060,8 +1060,17 @@ def report_queue_status(verbose=True, status=None, since=None, tasks=None): # py
         return
 
     write_message("BibSched queue status report for %s:" % gethostname())
-    mode = server_pid() and "AUTOMATIC" or "MANUAL"
-    write_message("BibSched queue running mode: %s" % mode)
+    daemon_status = server_pid() and "UP" or "DOWN"
+    write_message("BibSched daemon status: %s" % daemon_status)
+
+    r = run_sql('SELECT value FROM schSTATUS WHERE name = "auto_mode"')
+    try:
+        mode = bool(int(r[0][0]))
+    except (ValueError, IndexError):
+        mode = True
+
+    mode_str = mode and 'AUTOMATIC' or 'MANUAL'
+    write_message("BibSched queue running mode: %s" % mode_str)
     if status is None:
         report_about_processes('Running', since, tasks)
         report_about_processes('Waiting', since, tasks)
