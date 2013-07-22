@@ -8,7 +8,10 @@ from invenio import bibupload
 from invenio import bibtask
 from invenio.dbquery import run_sql
 from invenio.search_engine_utils import get_fieldvalues
-from invenio import oai_harvest_daemon
+from invenio import oai_harvest_daemon, \
+                    oai_harvest_dblayer
+from invenio.bibdocfile import BibRecDocs, \
+                               InvenioWebSubmitFileError
 
 
 EXAMPLE_PDF_URL_1 = "http://invenio-software.org/download/" \
@@ -87,11 +90,18 @@ class TestTask(unittest.TestCase):
         self.oai_harvest_get = oai_harvest_daemon.oai_harvest_get
         oai_harvest_daemon.oai_harvest_get = mocked_oai_harvest_get
 
+        def mocked_get_oai_src(params={}):
+            return [{'baseurl': ''}]
+
+        self.get_oai_src = oai_harvest_dblayer.get_oai_src
+        oai_harvest_dblayer.get_oai_src = mocked_get_oai_src
+
     def tearDown(self):
         """Helper function that restores recID 3 MARCXML"""
         recs = bibupload.xml_marc_to_records(self.bibupload_xml)
         bibupload.bibupload(recs[0], opt_mode='delete')
         oai_harvest_daemon.oai_harvest_get = self.oai_harvest_get
+        oai_harvest_dblayer.get_oai_src = self.get_oai_src
 
     def clean_bibtask(self):
         from invenio.arxiv_pdf_checker import NAME
@@ -117,11 +127,6 @@ class TestTask(unittest.TestCase):
         self.assert_(task_run_core())
         self.clean_bibtask()
         self.clean_bibupload_fft()
-
-    def test_shellquote(self):
-        from invenio.arxiv_pdf_checker import shellquote
-        self.assertEqual(shellquote("hel'lo"), "'hel'\\''lo'")
-        self.assertEqual(shellquote("hel\"lo"), '\'hel"lo\'')
 
     def test_extract_arxiv_ids_from_recid(self):
         from invenio.arxiv_pdf_checker import extract_arxiv_ids_from_recid
@@ -171,7 +176,6 @@ class TestTask(unittest.TestCase):
     def test_process_one(self):
         from invenio import arxiv_pdf_checker
         from invenio.arxiv_pdf_checker import process_one, \
-                                              look_for_fulltext, \
                                               FoundExistingPdf, \
                                               fetch_arxiv_pdf_status, \
                                               STATUS_OK, \
@@ -180,6 +184,20 @@ class TestTask(unittest.TestCase):
 
         # Make sure there is no harvesting state stored or this test will fail
         run_sql('DELETE FROM bibARXIVPDF WHERE id_bibrec = %s', [self.recid])
+
+        def look_for_fulltext(recid):
+            """Look for fulltext pdf (bibdocfile) for a given recid"""
+            rec_info = BibRecDocs(recid)
+            docs = rec_info.list_bibdocs()
+
+            for doc in docs:
+                for d in doc.list_all_files():
+                    if d.get_format().strip('.') in ['pdf', 'pdfa', 'PDF']:
+                        try:
+                            yield doc, d
+                        except InvenioWebSubmitFileError:
+                            pass
+
 
         # Remove all pdfs from record 3
         for doc, docfile in look_for_fulltext(self.recid):

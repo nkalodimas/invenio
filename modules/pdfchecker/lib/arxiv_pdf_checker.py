@@ -94,6 +94,11 @@ def build_arxiv_url(arxiv_id, version):
 
 
 def extract_arxiv_ids_from_recid(recid):
+    """Extract arxiv # for given recid
+
+    We get them from the record which has this format:
+    037__ $9arXiv$arXiv:1010.1111
+    """
     record = get_record(recid)
     for report_number_field in record['037']:
         try:
@@ -117,34 +122,10 @@ def extract_arxiv_ids_from_recid(recid):
             yield report_number
 
 
-def look_for_fulltext(recid):
-    """Look for fulltext pdf (bibdocfile) for a given recid
-
-    Function that was missing from refextract when arxiv-pdf-checker
-    was implemented. It should be switched to using the refextract version
-    when it is merged to master"""
-    rec_info = BibRecDocs(recid)
-    docs = rec_info.list_bibdocs()
-
-    for doc in docs:
-        for d in doc.list_all_files():
-            if d.get_format().strip('.') in ['pdf', 'pdfa', 'PDF']:
-                try:
-                    yield doc, d
-                except InvenioWebSubmitFileError:
-                    pass
-
-
-def shellquote(s):
-    """Quote a string to use it safely as a shell argument"""
-    return "'" + s.replace("'", "'\\''") + "'"
-
-
 def cb_parse_option(key, value, opts, args):
-    """ Must be defined for bibtask to create a task """
+    """Parse command line options"""
     if args:
-        # There should be no standalone arguments for any refextract job
-        # This will catch args before the job is shipped to Bibsched
+        # There should be no standalone arguments
         raise StandardError("Error: Unrecognised argument '%s'." % args[0])
 
     if key in ('-i', '--id'):
@@ -168,6 +149,7 @@ def store_arxiv_pdf_status(recid, status, version):
 
 
 def fetch_arxiv_pdf_status(recid):
+    """Fetch from the database the harvest status of given recid"""
     ret = run_sql("""SELECT status, version FROM bibARXIVPDF
                      WHERE id_bibrec = %s""", [recid])
     return ret and ret[0] or (None, None)
@@ -175,7 +157,7 @@ def fetch_arxiv_pdf_status(recid):
 
 ### File utils temporary acquisition
 
-#: block size when performing I/O.
+# Block size when performing I/O.
 CFG_FILEUTILS_BLOCK_SIZE = 1024 * 8
 
 
@@ -210,20 +192,29 @@ def download_external_url(url, download_to_file, content_type=None,
     @param url: the URL to download
     @type url: string
 
-    @param format: the format of the file (will be found if not specified)
+    @param download_to_file: the path to download the file to
+    @type url: string
+
+    @param content_type: the content_type of the file (optional)
     @type format: string
+
+    @param retry_count: max number of retries for downloading the file
+    @type url: int
+
+    @param timeout: time to sleep in between attemps
+    @type url: int
 
     @return: the path to the download local file
     @rtype: string
-    @raise StandardError: if the download failed
+    @raise InvenioFileDownloadError: if the download failed
     """
-    # 1. Attempt to download the external file
     error_str = ""
     error_code = None
     retry_attempt = 0
 
     while retry_attempt < retry_count:
         try:
+            # Attempt to download the external file
             request = open_url(url)
             if request.code == 200 and "Refresh" in request.headers:
                 # PDF is being generated, they ask us to wait for n seconds
@@ -231,6 +222,9 @@ def download_external_url(url, download_to_file, content_type=None,
                 # desactivated
                 try:
                     retry_after = int(request.headers["Refresh"])
+                    # We make sure that we do not retry too often even if
+                    # they tell us to retry after 1s
+                    retry_after = max(retry_after, timeout)
                 except ValueError:
                     retry_after = timeout
                 write_message("retrying after %ss" % retry_after)
@@ -241,10 +235,15 @@ def download_external_url(url, download_to_file, content_type=None,
             error_code = e.code
             error_str = str(e)
             retry_after = timeout
+            # This handling is the same as OAI queries.
+            # We are getting 503 errors when PDFs are being generated
             if e.code == 503 and "Retry-After" in e.headers:
                 # PDF is being generated, they ask us to wait for n seconds
                 try:
                     retry_after = int(e.headers["Retry-After"])
+                    # We make sure that we do not retry too often even if
+                    # they tell us to retry after 1s
+                    retry_after = max(retry_after, timeout)
                 except ValueError:
                     pass
             write_message("retrying after %ss" % retry_after)
@@ -311,11 +310,13 @@ def finalize_download(url, download_to_file, content_type, request):
 
 
 def download_one(recid, version):
+    """Download given version of the PDF from arxiv"""
     write_message('fetching %s' % recid)
     for count, arxiv_id in enumerate(extract_arxiv_ids_from_recid(recid)):
         if count != 0:
             write_message("Warning: %s has multiple arxiv #" % recid)
             continue
+
         url_for_pdf = build_arxiv_url(arxiv_id, version)
         filename_arxiv_id = arxiv_id.replace('/', '_')
         temp_file = NamedTemporaryFile(prefix="arxiv-pdf-checker",
@@ -358,7 +359,7 @@ def download_one(recid, version):
 
 def oai_harvest_query(arxiv_id, prefix='arXivRaw', verb='GetRecord',
                       max_retries=5, repositories=[]):
-
+    """Wrapper of oai_harvest_daemon.oai_harvest_get that handles retries"""
     if not repositories:
         repositories.extend(get_oai_src(params={'name': 'arxiv'}))
 
@@ -376,6 +377,8 @@ def oai_harvest_query(arxiv_id, prefix='arXivRaw', verb='GetRecord',
                                     harvestpath=harvestpath,
                                     verb=verb,
                                     identifier='oai:arXiv.org:%s' % arxiv_id)
+
+    responses = None
     for retry_count in range(1, max_retries + 1):
         try:
             responses = get()
@@ -393,9 +396,13 @@ def oai_harvest_query(arxiv_id, prefix='arXivRaw', verb='GetRecord',
             write_message('sleeping for 30 minutes')
             time.sleep(1800)
 
+    if responses is None:
+        raise Exception('arXiv is down')
+
     return responses
 
 def fetch_arxiv_version(recid):
+    """Query arxiv and extract the version of the pdf from the response"""
 
     for count, arxiv_id in enumerate(extract_arxiv_ids_from_recid(recid)):
         if count != 0:
@@ -405,20 +412,46 @@ def fetch_arxiv_version(recid):
         responses = oai_harvest_query(arxiv_id)
         if not responses:
             return None
+
+        # The response is roughly in this format
+        # <OAI-PMH>
+        #   <GetRecord>
+        #     <metadata>
+        #       <version version="v1">
+        #         <date>Mon, 15 Apr 2013 19:33:21 GMT</date>
+        #         <size>609kb</size>
+        #         <source_type>D</source_type>
+        #       <version version="v2">
+        #         <date>Mon, 25 Apr 2013 19:33:21 GMT</date>
+        #         <size>620kb</size>
+        #         <source_type>D</source_type>
+        #       </version>
+        #     </<metadata>
+        #   </<GetRecord>
+        # </<OAI-PMH>
+
         # We pass one arxiv id, we are assuming a single response file
         tree = minidom.parse(responses[0])
         version_tag = tree.getElementsByTagName('version')[-1]
         version = version_tag.getAttribute('version')
+
+        # We have to remove the responses files manually
+        # For some written the response is written to disk instead of
+        # being a string
         for file_path in responses:
             os.unlink(file_path)
+
         return int(version[1:])
 
 
 def process_one(recid):
+    """Checks given recid for updated pdfs on arxiv"""
     write_message('checking %s' % recid)
 
+    # Last version we have harvested
     harvest_status, harvest_version = fetch_arxiv_pdf_status(recid)
 
+    # Fetch arxiv version
     arxiv_version = fetch_arxiv_version(recid)
     if not arxiv_version:
         msg = 'version information unavailable'
@@ -432,6 +465,7 @@ def process_one(recid):
         write_message('our version matches arxiv')
         raise AlreadyHarvested(status=harvest_status)
 
+    # We already tried to harvest this record but failed
     if harvest_status == STATUS_MISSING and harvest_version == arxiv_version:
         raise PdfNotAvailable()
 
@@ -453,6 +487,9 @@ def process_one(recid):
 
 
 def submit_fixmarc_task(recids):
+    """Submit a task that synchronizes the 8564 tags
+
+    This should be done right after changing the files attached to a record"""
     field = [{'doctype' : 'FIX-MARC'}]
     ffts = {}
     for recid in recids:
@@ -473,7 +510,10 @@ def submit_refextract_task(recids):
 
 
 def fetch_updated_arxiv_records(date):
+    """Fetch all the arxiv records modified since the last run"""
+
     def check_arxiv(recid):
+        """Returns True for arxiv papers"""
         for report_number in get_fieldvalues(recid, '037__a'):
             if report_number.startswith('arXiv'):
                 return True
@@ -485,19 +525,28 @@ def fetch_updated_arxiv_records(date):
           "ORDER BY `modification_date`"
     records = run_sql(sql, [date.isoformat()])
     records = [(r, mod_date) for r, mod_date in records if check_arxiv(r)]
-    write_message("recids %s" % repr(records))
-    task_update_progress("Done fetching arxiv record ids")
+
+    # Show all records for debugging purposes
+    if task_get_option('verbose') >= 9:
+        write_message('recids:', verbose=9)
+        for recid, mod_date in records:
+            write_message("* %s, %s" % (recid, mod_date), verbose=9)
+
+    task_update_progress("Done fetching %s arxiv record ids" % len(records))
     return records
 
 
 def task_run_core(name=NAME):
-    start_date = datetime.now()
-    dummy, last_date = fetch_last_updated(name)
+    """Entry point for the arxiv-pdf-checker task"""
 
+    # First gather recids to process
     recids = task_get_option('recids')
     if recids:
+        start_date = None
         recids = [(recid, None) for recid in recids]
     else:
+        start_date = datetime.now()
+        dummy, last_date = fetch_last_updated(name)
         recids = fetch_updated_arxiv_records(last_date)
 
     updated_recids = set()
@@ -513,13 +562,13 @@ def task_run_core(name=NAME):
         try:
             if process_one(recid):
                 updated_recids.add(recid)
-            time.sleep(5)
+            time.sleep(6)
         except AlreadyHarvested:
             write_message('already harvested successfully')
-            time.sleep(5)
+            time.sleep(6)
         except FoundExistingPdf:
             write_message('pdf already attached (matching md5)')
-            time.sleep(5)
+            time.sleep(6)
         except PdfNotAvailable:
             write_message("no pdf available")
             time.sleep(20)
@@ -527,11 +576,17 @@ def task_run_core(name=NAME):
             write_message("failed to download: %s" % e)
             time.sleep(20)
 
+    # For all updated records, we want to sync the 8564 tags
+    # and reextract references
     if updated_recids:
         submit_fixmarc_task(updated_recids)
         submit_refextract_task(updated_recids)
 
-    store_last_updated(0, start_date, name)
+    # Store last run date of the daemon
+    # not if it ran on specific recids from the command line with --id
+    # but only if it ran on the modified records
+    if start_date:
+        store_last_updated(0, start_date, name)
 
     return True
 
