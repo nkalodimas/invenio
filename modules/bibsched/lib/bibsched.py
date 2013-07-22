@@ -273,11 +273,11 @@ def sleep_task(task):
 def fetch_debug_mode():
     r = run_sql('SELECT value FROM schSTATUS WHERE name = "debug_mode"')
     try:
-        debug_mode = int(r[0][0])
+        debug_mode = bool(int(r[0][0]))
     except (ValueError, IndexError):
         # We insert the missing configuration variable in the DB
         run_sql('INSERT INTO schSTATUS (name, value) VALUES ("debug_mode", "0")')
-        debug_mode = 0
+        debug_mode = False
     return debug_mode
 
 
