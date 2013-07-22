@@ -1668,7 +1668,7 @@ def create_request_message(userinfo, subj = None):
 
     if bconfig.TICKET_SENDING_FROM_USER_EMAIL and userinfo['email']:
         sender = userinfo['email']
-    
+
     if not subj:
         subj = "[Author] Help Request"
     send_email(sender,
@@ -2497,7 +2497,7 @@ def history_get_last_visited_url(req, limit_to_page=None):
     link = [CFG_SITE_URL+'/author/', history['page']]
 
     if history['pid']:
-        link.append('/'+get_canonical_id_from_person_id(history['pid']))
+        link.append('/'+str(get_canonical_id_from_person_id(history['pid'])))
     if history['params']:
         link.append(history['params'])
 
@@ -2519,7 +2519,7 @@ def set_marked_visit_link(req, page, pid = None, params = None):
         link = [CFG_SITE_URL+'/author/', page]
 
         if pid:
-            link.append('/'+get_canonical_id_from_person_id(pid))
+            link.append('/'+str(get_canonical_id_from_person_id(pid)))
         if params:
             link.append(params)
 
