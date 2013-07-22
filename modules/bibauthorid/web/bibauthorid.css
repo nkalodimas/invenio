@@ -436,6 +436,26 @@
     text-align: left;
 }
 
+#authorid_menu {
+    list-style-type: none;
+    padding: 0;
+    margin: 0
+}
+
+#authorid_menu li a {
+    text-decoration: none;
+    font-weight: bold;
+    color: #000;
+    float: left;
+    display: block;
+    padding: 10px;
+}
+
+#authorid_menu li a:hover{
+    background-color: #ffc;
+    color: #000;
+}
+
 .addToMergeButton {
 /*    font-size: 11px;
 */}

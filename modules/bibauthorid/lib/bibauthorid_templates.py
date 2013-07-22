@@ -43,6 +43,31 @@ from invenio.webuser import get_email
 from invenio.htmlutils import escape_html
 # from invenio.textutils import encode_for_xml
 
+BI
+
+def tmpl_navigation_bar(person_info, ln, menu_items=None):
+
+    # Default navigation bar content
+    if menu_items is None:
+        menu_items = [
+            ("/author/profile/","View Profile",False),
+            ("/author/manage_profile/","Manage Profile",False),
+            ("/author/claim/","Attribute Papers",False),
+            ("/author/profile/","Help",True)
+        ]
+    _ = gettext_set_language(ln)
+    navigation_bar = "<ul id=\"authorid_menu\">"
+
+    for item in menu_items:
+        (rel_url, link_text, static) = item
+        if not static:
+            rel_url += person_info['canonical_name']
+        link_text = _(link_text)
+
+        navigation_bar += "<li><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
+
+    return navigation_bar + "</ul>"
+
 class Template:
     """Templating functions used by aid"""
 
@@ -2578,21 +2603,21 @@ class Template:
 
     def tmpl_personnametitle(self, person_info, ln, loading=False):
         _ = gettext_set_language(ln)
-
+        html_header = "<div id=\"authorid_wrapper\">"
         if loading:
-            html_header = '<span id="personnametitle">' + self.loading_html() + '</span>'
+            html_header += '<span id="personnametitle">' + self.loading_html() + '</span>'
         else:
             if not person_info['name']:
                 display_name = " Name not available"
             else:
                 display_name = str(person_info['name']) + ' (' + str(person_info['canonical_name']) + ')'
 
-            html_header = ('<h1><span id="personnametitle">%s</span></h1>'
+            html_header += ('<h1><span id="personnametitle">%s</span></h1>'
                           % (display_name))
-            #html_header += ('<span id="personnametitle">%s</span>'
-            #                % (_("Author Managment Page")))
 
-        return html_header
+            html_header += tmpl_navigation_bar(person_info, ln)
+
+        return html_header + "</div>"
 
 
     def tmpl_profile_managment(self, ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data, merge_data):
