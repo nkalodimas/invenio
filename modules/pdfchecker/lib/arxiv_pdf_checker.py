@@ -553,7 +553,9 @@ def task_run_core(name=NAME):
 
     for count, (recid, mod_date) in enumerate(recids):
         if count % 50 == 0:
-            write_message('done %s of %s' % (count, len(recids)))
+            msg = 'Done %s of %s' % (count, len(recids))
+            write_message(msg)
+            task_update_progress(msg)
 
         # BibTask sleep
         task_sleep_now_if_required(can_stop_too=True)
@@ -575,6 +577,10 @@ def task_run_core(name=NAME):
         except InvenioFileDownloadError, e:
             write_message("failed to download: %s" % e)
             time.sleep(20)
+
+    msg = 'Updated %s records' % len(updated_recids)
+    write_message(msg)
+    task_update_progress(msg)
 
     # For all updated records, we want to sync the 8564 tags
     # and reextract references
