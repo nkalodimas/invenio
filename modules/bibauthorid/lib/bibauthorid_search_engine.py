@@ -33,7 +33,7 @@ from msgpack import unpackb as deserialize
 from invenio.textutils import translate_to_ascii
 from invenio.intbitset import intbitset
 from invenio.bibauthorid_name_utils import create_indexable_name, distance
-from bibauthorid_dbinterface import get_name_to_authors_mapping, get_authors_data_from_indexable_name_ids, get_inverted_lists, \
+from bibauthorid_dbinterface import get_confirmed_name_to_authors_mapping, get_authors_data_from_indexable_name_ids, get_inverted_lists, \
                                     set_inverted_lists_ready, set_dense_index_ready, populate_table, search_engine_is_operating
 
 
@@ -141,7 +141,7 @@ def create_bibauthorid_indexer():
     to the set of personids who withhold that name) and the inverted lists (which map a qgram
     to the set of name ids that share that qgram).
     '''
-    name_pids_dict = get_name_to_authors_mapping()
+    name_pids_dict = get_confirmed_name_to_authors_mapping()
     if not name_pids_dict:
         return
 
