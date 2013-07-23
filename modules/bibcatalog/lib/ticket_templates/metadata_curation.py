@@ -33,7 +33,7 @@ from invenio.bibcatalog_utils import \
     BibCatalogTagNotFound
 
 
-def check_record(ticket, record):
+def check_record(ticket, record):  # pylint: disable-msg=W0613
     """
     Checks to see if we should create a ticket.
 

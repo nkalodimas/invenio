@@ -171,7 +171,7 @@ def task_check_options():
     return True
 
 
-def task_parse_options(key, value, opts, args):
+def task_parse_options(key, value, opts, args):   # pylint: disable-msg=W0613
     """ Must be defined for bibtask to create a task """
     if args:
         # There should be no standalone arguments for any bibcatalog job
@@ -366,7 +366,7 @@ def load_records_from_id(records):
         yield record, date
 
 
-def _bibcatalog_plugin_builder(plugin_name, plugin_code):
+def _bibcatalog_plugin_builder(plugin_name, plugin_code):  # pylint: disable-msg=W0613
     """
     Custom builder for pluginutils.
 
@@ -418,7 +418,7 @@ def main():
 
     """
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "l", ["list-tickets"])
+        opts, dummy = getopt.getopt(sys.argv[1:], "l", ["list-tickets"])
     except getopt.GetoptError:
         opts = []
         pass
