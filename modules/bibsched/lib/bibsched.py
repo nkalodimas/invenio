@@ -374,6 +374,15 @@ class BibSched(object):
 
         return task1.proc != task2.proc
 
+    def is_task_non_concurrent(self, task1, task2):
+        for non_concurrent_tasks in CFG_BIBSCHED_NON_CONCURRENT_TASKS:
+            if (task1.proc.split(':')[0] in non_concurrent_tasks
+                                        or task1.proc in non_concurrent_tasks):
+                if (task2.proc.split(':')[0] in non_concurrent_tasks
+                                        or task2.proc in non_concurrent_tasks):
+                    return True
+        return False
+
     def get_tasks_to_sleep_and_stop(self, task, task_set):
         """Among the task_set, return the list of tasks to stop and the list
         of tasks to sleep.
@@ -399,18 +408,13 @@ class BibSched(object):
             if not self.is_task_compatible(task, t):
                 to_stop.append(t)
 
-        procname = task.proc.split(':')[0]
         if task.proc in CFG_BIBTASK_MONOTASKS:
             to_sleep = [t for t in task_set if t.status != 'SLEEPING']
         else:
-            for non_concurrent_tasks in CFG_BIBSCHED_NON_CONCURRENT_TASKS:
-                if procname in non_concurrent_tasks or task.proc in non_concurrent_tasks:
-                    for t in task_set:
-                        t_procname = t.proc.split(':')[0]
-                        if (t_procname in non_concurrent_tasks
-                            or t.proc in non_concurrent_tasks) \
-                           and t.status != 'SLEEPING':
-                            to_sleep.append(t)
+            for t in task_set:
+                if t.status != 'SLEEPING' and self.is_task_non_concurrent(task, t):
+                    to_sleep.append(t)
+
 
         # Only needed if we are not freeing a spot already
         # So to_stop and to_sleep should be empty
@@ -565,6 +569,11 @@ class BibSched(object):
                 if task.proc not in CFG_BIBTASK_FIXEDTIMETASKS and len(self.node_active_tasks) >= CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS:
                     Log("Cannot run because all resources (%s) are used (%s), active: %s" % (CFG_BIBSCHED_MAX_NUMBER_CONCURRENT_TASKS, len(self.node_active_tasks), self.node_active_tasks), debug)
                     return False
+
+                for t in self.waiting_tasks_all_nodes:
+                    if self.is_task_non_concurrent(task, t) and task.priority < t.priority:
+                        Log("Cannot run because %s is non-concurrent and has higher priority" % t, debug)
+                        return False
 
                 if task.status in ("SCHEDULED",):
                     Log("Task is already scheduled", debug)
