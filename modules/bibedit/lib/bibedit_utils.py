@@ -520,9 +520,10 @@ def get_info_of_revision_id(revid):
             author = 'N/A'
         res += '%s %s %s' % (revid.ljust(22), task_id.ljust(15), author.ljust(15))
         job_details = tmp_res[0][2].split()
-        upload_mode = job_details[0] + job_details[1][:-1]
-        upload_file = job_details[2] + job_details[3][:-1]
-        res += '%s %s' % (upload_mode, upload_file)
+        if job_details:
+            upload_mode = job_details[0] + job_details[1][:-1]
+            upload_file = job_details[2] + job_details[3][:-1]
+            res += '%s %s' % (upload_mode, upload_file)
     return res
 
 def revision_format_valid_p(revid):
