@@ -423,10 +423,10 @@ def record_locked_by_queue(recid):
     if CFG_BIBEDIT_LOCKLEVEL == 2:
         return _get_bibupload_task_ids()
 
-    filenames = _get_bibupload_filenames()
     # Check for match between name of XML-files and record.
     # Assumes that filename ends with _<recid>.xml.
-    if CFG_BIBEDIT_LOCKLEVEL == 1:
+    elif CFG_BIBEDIT_LOCKLEVEL == 1:
+        filenames = _get_bibupload_filenames()
         recids = []
         for filename in filenames:
             filename_suffix = re_xmlfilename_suffix.search(filename)
@@ -435,7 +435,8 @@ def record_locked_by_queue(recid):
         return recid in recids
 
     # Check for match between content of files and record.
-    if CFG_BIBEDIT_LOCKLEVEL == 3:
+    elif CFG_BIBEDIT_LOCKLEVEL == 3:
+        filenames = _get_bibupload_filenames()
         while True:
             lock = _record_in_files_p(recid, filenames)
             # Check if any new files were added while we were searching
