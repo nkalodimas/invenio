@@ -56,7 +56,7 @@ pylib_DATA = \
 
 jsdir=$(localstatedir)/www/js
 
-js_DATA = bibauthorid.js
+js_DATA = bibauthorid.js bootstrap.min.js
 
 EXTRA_DIST = $(pylib_DATA) \
              $(js_DATA)

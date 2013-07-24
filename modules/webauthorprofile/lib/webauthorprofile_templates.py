@@ -43,9 +43,9 @@ from invenio.intbitset import intbitset
 from invenio.search_engine import perform_request_search
 from invenio.search_engine_summarizer import render_citation_summary
 from invenio.urlutils import create_html_link
-from invenio.bibauthorid_templates import tmpl_navigation_bar
 from invenio.bibauthorid_webapi import get_person_info_by_pid
 
+import invenio.bibauthorid_templates
 import invenio.template
 websearch_templates = invenio.template.load('websearch')
 
@@ -687,7 +687,8 @@ class Template:
                           % (display_name, headernumpapers))
 
             if person_link or person_link == 'None':
-               html_header += "<div id=\"authorid_wrapper\">%s</div>" % tmpl_navigation_bar(get_person_info_by_pid(bibauthorid_data['pid']), ln)
+                menu = invenio.bibauthorid_templates.Template.tmpl_profile_navigation_bar(get_person_info_by_pid(bibauthorid_data['pid']), ln)
+                html_header += "<div id=\"authorid_wrapper\">%s</div>" % menu
 
         return html_header
 

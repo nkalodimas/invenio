@@ -34,7 +34,8 @@ from invenio.bibformat import format_record
 from invenio.session import get_session
 from invenio.search_engine_utils import get_fieldvalues
 from invenio.bibauthorid_config import PERSONID_EXTERNAL_IDENTIFIER_MAP, CREATE_NEW_PERSON
-from invenio.bibauthorid_webapi import get_person_redirect_link, get_canonical_id_from_person_id, get_person_names_from_id
+from invenio.bibauthorid_webapi import get_person_redirect_link, get_canonical_id_from_person_id, \
+    get_person_names_from_id, get_person_info_by_pid
 from invenio.bibauthorid_frontinterface import get_uid_of_author
 from invenio.bibauthorid_frontinterface import get_bibrefrec_name_string
 from invenio.bibauthorid_frontinterface import get_canonical_name_of_author
@@ -43,33 +44,17 @@ from invenio.webuser import get_email
 from invenio.htmlutils import escape_html
 # from invenio.textutils import encode_for_xml
 
-BI
-
-def tmpl_navigation_bar(person_info, ln, menu_items=None):
-
-    # Default navigation bar content
-    if menu_items is None:
-        menu_items = [
-            ("/author/profile/","View Profile",False),
-            ("/author/manage_profile/","Manage Profile",False),
-            ("/author/claim/","Attribute Papers",False),
-            ("/author/profile/","Help",True)
-        ]
-    _ = gettext_set_language(ln)
-    navigation_bar = "<ul id=\"authorid_menu\">"
-
-    for item in menu_items:
-        (rel_url, link_text, static) = item
-        if not static:
-            rel_url += person_info['canonical_name']
-        link_text = _(link_text)
-
-        navigation_bar += "<li><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
-
-    return navigation_bar + "</ul>"
 
 class Template:
     """Templating functions used by aid"""
+
+    # Class level variable for profile menu bar
+    DEFAULT_PROFILE_MENU_ITEMS = [
+                ("/author/profile/","View Profile",False),
+                ("/author/manage_profile/","Manage Profile",False),
+                ("/author/claim/","Attribute Papers",False),
+                ("/author/profile/","Help",True)
+    ]
 
     def __init__(self, language=CFG_SITE_LANG):
         """Set defaults for all aid template output"""
@@ -410,7 +395,8 @@ class Template:
         scripts = ["jquery-ui.min.js",
                    "jquery.form.js",
                    "jquery.dataTables.min.js",
-                   "bibauthorid.js"]
+                   "bibauthorid.js",
+                   "bootstrap.min.js"]
 
         result.append('<link rel="stylesheet" type="text/css" href='
                       '"%s/jquery-ui/themes/smoothness/jquery-ui.css" />'
@@ -420,6 +406,10 @@ class Template:
                       % (imgcss_path))
         result.append('<link rel="stylesheet" type="text/css" href='
                       '"%s/bibauthorid.css" />'
+                      % (imgcss_path))
+
+        result.append('<link rel="stylesheet" type="text/css" href='
+                      '"%s/bootstrap.min.css" />'
                       % (imgcss_path))
 
         for script in scripts:
@@ -853,21 +843,26 @@ class Template:
         if not ln:
             pass
 
-        # class="ui-tabs ui-widget ui-widget-content ui-corner-all">
-        h('<div id="aid_person_names"')
-        h('<p><strong>' + self._('Names variants') + ':</strong></p>')
-        h("<p>")
-        h('<!--<span class="aid_lowlight_text">Person ID: <span id="pid%s">%s</span></span><br />!-->'
-                      % (person_id, person_id))
+        h('<div class="accordion" id="accordion1">')
+        h('<div class="accordion-group">')
 
+        # Define accordion heading
+        h('<div class="accordion-heading">')
+        h('<a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#collapseVariants">')
+        h('%s</a>' % self._('View name variants'))
+        h('</div>')
+
+        h('<div id="collapseVariants" class="accordion-body collapse">')  # Start variants accordion body
+
+        # Populate accordion with name variants
+        h('<div class="accordion-inner">')
         for name in names:
-#            h(("%s "+self._('as appeared on')+" %s"+self._(' records')+"<br />")
-#                             % (name[0], name[1]))
-            h(("%s (%s); ")
-                             % (name[0], name[1]))
+            h("%s (%s)<br>" % (name[0], name[1]))
+        h('</div>')
 
-        h("</p>")
-        h("</div>")
+        h('</div>')  # Close variants accordion body
+        h('</div>')  # Close accordion group
+        h('</div>')  # Close accordion
 
         return "\n".join(html)
 
@@ -1235,40 +1230,62 @@ class Template:
 
         return "\n".join(html)
 
+    @staticmethod
+    def tmpl_profile_navigation_bar(person_info, ln, menu_items=None):
+        """
+        Generates a profile specific navigation bar.
 
-    def tmpl_person_menu(self):
+        The menu_items parameter is a list of tuples with three components.
+
+        The third component is a boolean that represents whether the content is static, i.e. It is not specific to
+        a particular profile. Set it to False if the canonical name of the profile should be appended after the route.
+        True indicates that the content is static and remains the same regardless of the profile and thus will not append
+        the canonical name of the profile to the route.
+
+        @param person_info: A dict describing a person, must contain key 'canonical_name'
+        @param ln: Localisation
+        @param menu_items: List of 3-tuples e.g. ("/path/of/route/","Menu Item Name",False)
+        @return: HTML markup wrapped in 'ul' tags
+        @rtype: string
+        """
+        # Default navigation bar content
+        if menu_items is None:
+            menu_items = Template.DEFAULT_PROFILE_MENU_ITEMS
+        _ = gettext_set_language(ln)
+        navigation_bar = "<ul id=\"authorid_menu\" class=\"nav nav-pills\">"
+
+        for item in menu_items:
+            (rel_url, link_text, static) = item
+            if not static:
+                rel_url += person_info['canonical_name']
+            link_text = _(link_text)
+
+            if static:
+                navigation_bar += "<li class=\"active\"><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
+            else:
+                navigation_bar += "<li><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
+
+        return navigation_bar + "</ul>"
+
+    def tmpl_person_menu(self, pid, ln):
         '''
         Generate the menu bar
         '''
-        html = []
-        h = html.append
-        h('<div id="aid_menu">')
-        h('  <ul>')
-        h('    <li>' + self._('Navigation:') + '</li>')
-        h(('    <li><a rel="nofollow" href="%s/author/search">' + self._('Run paper attribution for another author') + '</a></li>') % CFG_SITE_URL)
-        h('    <!--<li><a rel="nofollow" href="#">' + self._('Person Interface FAQ') + '</a></li>!-->')
-        h('  </ul>')
-        h('</div>')
 
-        return "\n".join(html)
+        person_info = get_person_info_by_pid(pid)
+        profile_menu = Template.tmpl_profile_navigation_bar(person_info, ln)
+        return "\n" + profile_menu
 
-    def tmpl_person_menu_admin(self, pid):
+    def tmpl_person_menu_admin(self, pid, ln):
         '''
         Generate the menu bar
         '''
-        html = []
-        h = html.append
-        h('<div id="aid_menu">')
-        h('  <ul>')
-        h('    <li>' + self._('Navigation:') + '</li>')
-        h(('    <li><a rel="nofollow" href="%s/author/search">' + self._('Person Search') + '</a></li>') % CFG_SITE_URL)
-        h(('    <li><a rel="nofollow" href="%s/author/manage_profile/%s">' + self._('Manage Profile') + '</a></li>') % (CFG_SITE_URL, pid))
-        h(('    <li><a rel="nofollow" href="%s/author/claim/tickets_admin">' + self._('Open tickets') + '</a></li>') % CFG_SITE_URL)
-        h('    <!--<li><a rel="nofollow" href="#">' + self._('Person Interface FAQ') + '</a></li>!-->')
-        h('  </ul>')
-        h('</div>')
+        person_info = get_person_info_by_pid(pid)
+        menu_items = list(Template.DEFAULT_PROFILE_MENU_ITEMS)
+        menu_items.insert(len(menu_items) - 1, ("/author/claim/tickets_admin", "Open Tickets", True))
+        profile_menu = Template.tmpl_profile_navigation_bar(person_info, ln, menu_items)
 
-        return "\n".join(html)
+        return "\n" + profile_menu
 
     def tmpl_ticket_final_review(self, req, mark_yours=[], mark_not_yours=[],
                                  mark_theirs=[], mark_not_theirs=[], autoclaim=False):
@@ -2615,7 +2632,7 @@ class Template:
             html_header += ('<h1><span id="personnametitle">%s</span></h1>'
                           % (display_name))
 
-            html_header += tmpl_navigation_bar(person_info, ln)
+            html_header += Template.tmpl_profile_navigation_bar(person_info, ln)
 
         return html_header + "</div>"
 

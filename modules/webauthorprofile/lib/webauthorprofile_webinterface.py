@@ -261,6 +261,8 @@ class WebAuthorPages(WebInterfaceDirectory):
 
         metaheaderadd = '<link rel="stylesheet" type="text/css" href="%s/js/jquery-lightbox/css/jquery.lightbox-0.5.css" media="screen" />' % (CFG_SITE_URL)
         metaheaderadd += '<link rel="stylesheet" type="text/css" href="%s/img/bibauthorid.css" media="screen" />' % (CFG_SITE_URL)
+        metaheaderadd += '<link rel="stylesheet" type="text/css" href="%s/img/bootstrap.min.css" media="screen" />' % (CFG_SITE_URL)
+        metaheaderadd += '<script type="text/javascript" src="%s/js/bootstrap.min.js"> </script>' % (CFG_SITE_URL)
         metaheaderadd += '<script type="text/javascript" src="%s/js/webauthorprofile.js"> </script>' % (CFG_SITE_URL)
         metaheaderadd += '<script type="text/javascript" src="%s/js/jquery-lightbox/js/jquery.lightbox-0.5.js"></script>' % (CFG_SITE_URL)
         metaheaderadd += '''
