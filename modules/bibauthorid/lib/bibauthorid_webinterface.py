@@ -212,15 +212,14 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         session.dirty = True
 
-        content = self._generate_optional_menu(ulevel, req, form)
-        content += self._generate_ticket_box(ulevel, req)
+        content = self._generate_ticket_box(ulevel, req)
         content += self._generate_person_info_box(ulevel, ln)
         content += self._generate_tabs(ulevel, req)
         content += self._generate_footer(ulevel)
 
         title = self._generate_title(ulevel)
         metaheaderadd = self._scripts() + '\n <meta name="robots" content="nofollow" />'
-        body = TEMPLATE.tmpl_person_detail_layout(content)
+        body = self._generate_optional_menu(ulevel, req, form) + TEMPLATE.tmpl_person_detail_layout(content)
         webapi.clean_ticket(req)
         
         webapi.history_log_visit(req, 'claim', pid=self.person_id)
@@ -396,7 +395,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         def generate_optional_menu_guest(req, form):
             argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
                                        'verbose': (int, 0)})
-            menu = TEMPLATE.tmpl_person_menu()
+            menu = TEMPLATE.tmpl_person_menu(self.person_id, argd['ln'])
 
             if "verbose" in argd and argd["verbose"] > 0:
                 session = get_session(req)
@@ -408,7 +407,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         def generate_optional_menu_user(req, form):
             argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
                                        'verbose': (int, 0)})
-            menu = TEMPLATE.tmpl_person_menu()
+            menu = TEMPLATE.tmpl_person_menu(self.person_id, argd['ln'])
 
             if "verbose" in argd and argd["verbose"] > 0:
                 session = get_session(req)
@@ -420,7 +419,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         def generate_optional_menu_admin(req, form):
             argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
                                        'verbose': (int, 0)})
-            menu = TEMPLATE.tmpl_person_menu_admin(self.person_id)
+            menu = TEMPLATE.tmpl_person_menu_admin(self.person_id, argd['ln'])
 
             if "verbose" in argd and argd["verbose"] > 0:
                 session = get_session(req)
@@ -434,7 +433,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                                   'user': generate_optional_menu_user,
                                   'admin': generate_optional_menu_admin}
 
-        return generate_optional_menu[ulevel](req, form)
+        return "<div class=\"clearfix\">" + generate_optional_menu[ulevel](req, form) + "</div>"
 
 
     def _generate_ticket_box(self, ulevel, req):
