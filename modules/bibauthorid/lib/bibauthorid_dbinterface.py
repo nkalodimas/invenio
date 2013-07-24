@@ -1244,6 +1244,25 @@ def get_name_to_authors_mapping():   ### get_name_string_to_pid_dictionary
     return mapping
 
 
+def get_confirmed_name_to_authors_mapping():
+    '''
+    Gets a mapping which associates confirmed names with the set of authors who
+    carry each name.
+
+    @return: mapping
+    @rtype: dict {str: set(int,)}
+    '''
+    mapping = dict()
+    authors = run_sql("""select personid, name
+                         from aidPERSONIDPAPERS
+                         where flag > -2""")
+
+    for pid, name in authors:
+        mapping.setdefault(name, set()).add(pid)
+
+    return mapping
+
+
 def get_author_paper_associations(table_name='aidPERSONIDPAPERS'):   ### get_full_personid_papers
     '''
     Gets all author-paper associations (from aidPERSONIDPAPERS table or any
