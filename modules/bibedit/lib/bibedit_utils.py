@@ -146,11 +146,11 @@ def user_can_edit_record_collection(req, recid):
 
 def assert_undo_redo_lists_correctness(undo_list, redo_list):
     for undoItem in undo_list:
-        assert undoItem != None;
+        assert undoItem is not None
     for redoItem in redo_list:
-        assert redoItem != None;
+        assert redoItem is not None
 
-def record_find_matching_fields(key, rec, tag="", ind1=" ", ind2=" ", \
+def record_find_matching_fields(key, rec, tag="", ind1=" ", ind2=" ",
                                 exact_match=False):
     """
     This utility function will look for any fieldvalues containing or equal
@@ -223,7 +223,7 @@ def cache_expired(recid, uid):
     """
     return get_cache_mtime(recid, uid) < int(time.time()) - CFG_BIBEDIT_TIMEOUT
 
-def create_cache_file(recid, uid, record='', cache_dirty=False, pending_changes=[], disabled_hp_changes = {}, undo_list = [], redo_list=[]):
+def create_cache_file(recid, uid, record='', cache_dirty=False, pending_changes=[], disabled_hp_changes={}, undo_list=[], redo_list=[]):
     """Create a BibEdit cache file, and return revision and record. This will
     overwrite any existing cache the user has for this record.
     datetime.
@@ -236,7 +236,7 @@ def create_cache_file(recid, uid, record='', cache_dirty=False, pending_changes=
 
     file_path = '%s.tmp' % _get_file_path(recid, uid)
     record_revision = get_record_last_modification_date(recid)
-    if record_revision == None:
+    if record_revision is None:
         record_revision = datetime.now().timetuple()
 
     cache_file = open(file_path, 'w')
@@ -360,7 +360,7 @@ def latest_record_revision(recid, revision_time):
     """Check if timetuple REVISION_TIME matches latest modification date."""
     latest = get_record_last_modification_date(recid)
     # this can be none if the record is new
-    return (latest == None) or (revision_time == latest)
+    return latest is None or revision_time == latest
 
 def record_locked_by_other_user(recid, uid):
     """Return true if any other user than UID has active caches for record
@@ -455,7 +455,7 @@ def revision_to_timestamp(td):
     """
     Converts the revision date to the timestamp
     """
-    return "%04i%02i%02i%02i%02i%02i" % (td.tm_year, td.tm_mon, td.tm_mday, \
+    return "%04i%02i%02i%02i%02i%02i" % (td.tm_year, td.tm_mon, td.tm_mday,
                                          td.tm_hour, td.tm_min, td.tm_sec)
 
 def timestamp_to_revision(timestamp):
@@ -483,7 +483,7 @@ def get_record_revision_ids(recid):
     Return revision IDs in chronologically decreasing order (latest first).
     """
     res = []
-    tmp_res =  get_record_revisions(recid)
+    tmp_res = get_record_revisions(recid)
     for row in tmp_res:
         res.append('%s.%s' % (row[0], row[1]))
     return res
@@ -497,14 +497,14 @@ def get_marcxml_of_revision(recid, revid):
     if tmp_res:
         for row in tmp_res:
             res += zlib.decompress(row[0]) + '\n'
-    return res;
+    return res
 
 def get_marcxml_of_revision_id(revid):
     """Return MARCXML string of revision.
     Return empty string if revision does not exist. REVID should be a string.
     """
     recid, job_date = split_revid(revid, 'datetext')
-    return get_marcxml_of_revision(recid, job_date);
+    return get_marcxml_of_revision(recid, job_date)
 
 def get_info_of_revision_id(revid):
     """Return info string regarding revision.
@@ -560,7 +560,7 @@ def get_xml_comparison(header1, header2, xml1, xml2):
         xml2.splitlines(1), header1, header2))
 
 #Templates
-def get_templates(templatesDir, tmpl_name, tmpl_description, extractContent = False):
+def get_templates(templatesDir, tmpl_name, tmpl_description, extractContent=False):
     """Return list of templates [filename, name, description, content*]
        the extractContent variable indicated if the parsed content should
        be included"""
@@ -570,7 +570,7 @@ def get_templates(templatesDir, tmpl_name, tmpl_description, extractContent = Fa
     templates = []
     for fname in template_fnames:
         filepath = '%s%s%s' % (templatesDir, os.sep, fname)
-        template_file = open(filepath,'r')
+        template_file = open(filepath, 'r')
         template = template_file.read()
         template_file.close()
         fname_stripped = os.path.splitext(fname)[0]
@@ -587,7 +587,7 @@ def get_templates(templatesDir, tmpl_name, tmpl_description, extractContent = Fa
             description = ''
         if (extractContent):
             parsedTemplate = create_record(template)[0]
-            if parsedTemplate != None:
+            if parsedTemplate is not None:
                 # If the template was correct
                 templates.append([fname_stripped, name, description, parsedTemplate])
             else:
@@ -693,8 +693,8 @@ def _record_in_files_p(recid, filenames):
             if CFG_BIBEDIT_QUEUE_CHECK_METHOD == 'regexp':
                 # check via regexp: this is fast, but may not be precise
                 re_match_001 = re.compile('<controlfield tag="001">%s</controlfield>' % (recid))
-                re_match_oaiid = re.compile('<datafield tag="%s" ind1=" " ind2=" ">(\s*<subfield code="a">\s*|\s*<subfield code="9">\s*.*\s*</subfield>\s*<subfield code="a">\s*)%s' % (OAIID_TAG[0:3],rec_oaiid))
-                re_match_sysno = re.compile('<datafield tag="%s" ind1=" " ind2=" ">(\s*<subfield code="a">\s*|\s*<subfield code="9">\s*.*\s*</subfield>\s*<subfield code="a">\s*)%s' % (SYSNO_TAG[0:3],rec_sysno))
+                re_match_oaiid = re.compile('<datafield tag="%s" ind1=" " ind2=" ">(\s*<subfield code="a">\s*|\s*<subfield code="9">\s*.*\s*</subfield>\s*<subfield code="a">\s*)%s' % (OAIID_TAG[0:3], rec_oaiid))
+                re_match_sysno = re.compile('<datafield tag="%s" ind1=" " ind2=" ">(\s*<subfield code="a">\s*|\s*<subfield code="9">\s*.*\s*</subfield>\s*<subfield code="a">\s*)%s' % (SYSNO_TAG[0:3], rec_sysno))
                 file_content = open(filename).read()
                 if re_match_001.search(file_content):
                     return True
@@ -721,8 +721,7 @@ def _record_in_files_p(recid, filenames):
 def _record_has_id_p(record, recid, rec_oaiid, rec_sysno):
     """Check if record matches any of the given IDs."""
     if record_has_field(record, '001'):
-        if (record_get_field_value(record, '001', '%', '%')
-            == str(recid)):
+        if record_get_field_value(record, '001', '%', '%') == str(recid):
             return True
     if record_has_field(record, OAIID_TAG[0:3]):
         if (record_get_field_value(
@@ -744,17 +743,17 @@ def can_record_have_physical_copies(recid):
     Only records already saved within the collection may have the physical copies
     @return: True or False
     """
-    if get_record(recid) == None:
+    if get_record(recid) is None:
         return False
 
     col_id = get_colID(guess_primary_collection_of_a_record(recid))
     collections = get_detailed_page_tabs(col_id, recid)
 
-    if (not collections.has_key("holdings")) or \
-        (not collections["holdings"].has_key("visible")):
+    if ("holdings" not in collections or
+            "visible" not in collections["holdings"]):
         return False
 
-    return collections["holdings"]["visible"] == True
+    return collections["holdings"]["visible"] is True
 
 
 def get_record_collections(recid=0, recstruct=None):
@@ -911,9 +910,9 @@ def add_record_cnum(recid, uid):
             return None
         field_add_subfield(record['111'][0], 'g', new_cnum)
         update_cache_file_contents(recid, uid, record_revision,
-                                   record, \
-                                   pending_changes, \
-                                   deactivated_hp_changes, \
+                                   record,
+                                   pending_changes,
+                                   deactivated_hp_changes,
                                    undo_list, redo_list)
         return new_cnum
 
@@ -1005,8 +1004,9 @@ def crossref_translate_title(record):
             # returned value is a list, and we need only the first value
             new_title = new_title[0][0]
             position = field[4]
-            record_modify_subfield(rec=record, tag='773', subfield_code='p', \
-            value=new_title, subfield_position=0, field_position_global=position)
+            record_modify_subfield(rec=record, tag='773', subfield_code='p',
+                                   value=new_title, subfield_position=0,
+                                   field_position_global=position)
 
 
 def crossref_normalize_name(record):
@@ -1026,7 +1026,7 @@ def crossref_normalize_name(record):
         for _ in range(2):
             new_author = re.sub(pattern_initials, '\g<1>\g<2>', new_author)
         position = field[4]
-        record_modify_subfield(rec=record, tag='100', subfield_code='a', \
+        record_modify_subfield(rec=record, tag='100', subfield_code='a',
         value=new_author, subfield_position=0, field_position_global=position)
 
     # then, change additional authors
@@ -1034,7 +1034,7 @@ def crossref_normalize_name(record):
         author = field[0][0][1]
         new_author = create_normalized_name(split_name_parts(author))
         for _ in range(2):
-            new_author = re.sub(pattern_initials, '\g<1>\g<2>',new_author)
+            new_author = re.sub(pattern_initials, '\g<1>\g<2>', new_author)
         position = field[4]
-        record_modify_subfield(rec=record, tag='700', subfield_code='a', \
+        record_modify_subfield(rec=record, tag='700', subfield_code='a',
             value=new_author, subfield_position=0, field_position_global=position)
