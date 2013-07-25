@@ -1812,17 +1812,17 @@ def get_author_by_uid(uid):   ### get_personid_from_uid
     returns an invalid identifier.
 
     @param uid: user identifier
-    @type uid: tuple ((int),)
+    @type uid: int
 
     @return: author identifier ((pid), uid_owner_exists)
-    @rtype: tuple ((int), bool)
+    @rtype: tuple (int, bool)
     '''
-    pid = _select_from_aidpersoniddata_where(select=['personid'], tag='uid', data=str(uid[0][0]))
+    pid = _select_from_aidpersoniddata_where(select=['personid'], tag='uid', data=str(uid))
 
     if pid:
-        return (pid[0], True)
+        return (pid[0][0], True)
 
-    return  ((-1), False)
+    return  (-1, False)
 
 
 def get_author_by_external_id(ext_id, ext_sys=None):   ### get_person_with_extid
