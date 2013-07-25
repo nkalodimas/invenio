@@ -687,7 +687,7 @@ class Template:
                           % (display_name, headernumpapers))
 
             if person_link or person_link == 'None':
-                menu = invenio.bibauthorid_templates.Template.tmpl_profile_navigation_bar(get_person_info_by_pid(bibauthorid_data['pid']), ln)
+                menu = invenio.bibauthorid_templates.Template.tmpl_profile_navigation_bar(get_person_info_by_pid(bibauthorid_data['pid']), ln, "View Profile")
                 html_header += "<div id=\"authorid_wrapper\">%s</div>" % menu
 
         return html_header

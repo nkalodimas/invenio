@@ -1231,7 +1231,7 @@ class Template:
         return "\n".join(html)
 
     @staticmethod
-    def tmpl_profile_navigation_bar(person_info, ln, menu_items=None):
+    def tmpl_profile_navigation_bar(person_info, ln, active, menu_items=None):
         """
         Generates a profile specific navigation bar.
 
@@ -1244,6 +1244,7 @@ class Template:
 
         @param person_info: A dict describing a person, must contain key 'canonical_name'
         @param ln: Localisation
+        @param active: Sets a menu item to active if it contains the passed substring.
         @param menu_items: List of 3-tuples e.g. ("/path/of/route/","Menu Item Name",False)
         @return: HTML markup wrapped in 'ul' tags
         @rtype: string
@@ -1260,7 +1261,7 @@ class Template:
                 rel_url += person_info['canonical_name']
             link_text = _(link_text)
 
-            if static:
+            if active.lower() in link_text.lower():
                 navigation_bar += "<li class=\"active\"><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
             else:
                 navigation_bar += "<li><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
@@ -1273,7 +1274,7 @@ class Template:
         '''
 
         person_info = get_person_info_by_pid(pid)
-        profile_menu = Template.tmpl_profile_navigation_bar(person_info, ln)
+        profile_menu = Template.tmpl_profile_navigation_bar(person_info, ln, "Attribute Papers")
         return "\n" + profile_menu
 
     def tmpl_person_menu_admin(self, pid, ln):
@@ -1282,8 +1283,8 @@ class Template:
         '''
         person_info = get_person_info_by_pid(pid)
         menu_items = list(Template.DEFAULT_PROFILE_MENU_ITEMS)
-        menu_items.insert(len(menu_items) - 1, ("/author/claim/tickets_admin", "Open Tickets", True))
-        profile_menu = Template.tmpl_profile_navigation_bar(person_info, ln, menu_items)
+        menu_items.append(("/author/claim/tickets_admin", "Open Tickets", True))
+        profile_menu = Template.tmpl_profile_navigation_bar(person_info, ln, "Attribute Papers", menu_items)
 
         return "\n" + profile_menu
 
@@ -2620,21 +2621,18 @@ class Template:
 
     def tmpl_personnametitle(self, person_info, ln, loading=False):
         _ = gettext_set_language(ln)
-        html_header = "<div id=\"authorid_wrapper\">"
         if loading:
-            html_header += '<span id="personnametitle">' + self.loading_html() + '</span>'
+            html_header = '<span id="personnametitle">' + self.loading_html() + '</span>'
         else:
             if not person_info['name']:
                 display_name = " Name not available"
             else:
                 display_name = str(person_info['name']) + ' (' + str(person_info['canonical_name']) + ')'
 
-            html_header += ('<h1><span id="personnametitle">%s</span></h1>'
+            html_header = ('<h1><span id="personnametitle">%s</span></h1>'
                           % (display_name))
 
-            html_header += Template.tmpl_profile_navigation_bar(person_info, ln)
-
-        return html_header + "</div>"
+        return html_header
 
 
     def tmpl_profile_managment(self, ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data, merge_data):
@@ -2646,6 +2644,7 @@ class Template:
 
         html_header = self.tmpl_personnametitle(person_data, ln, loading=False)
         html.append(html_header)
+        html.append(Template.tmpl_profile_navigation_bar(person_data, ln, "Manage Profile"))
 
         html_arxiv = self.tmpl_arxiv_box(arxiv_data, ln, loading=False)
         html_orcid = self.tmpl_orcid_box(orcid_data, ln, loading=False)
