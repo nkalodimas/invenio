@@ -64,11 +64,11 @@ from invenio.bibedit_dblayer import get_name_tags_all, reserve_record_id, \
     get_record_revisions, get_info_of_record_revision
 
 from invenio.bibedit_utils import cache_exists, cache_expired, \
-    create_cache_file, delete_cache_file, get_bibrecord, \
-    get_cache_file_contents, get_cache_mtime, get_record_templates, \
+    create_cache, delete_cache, get_bibrecord, \
+    get_cache_contents, get_cache_mtime, get_record_templates, \
     get_record_template, latest_record_revision, record_locked_by_other_user, \
-    record_locked_by_queue, save_xml_record, touch_cache_file, \
-    update_cache_file_contents, get_field_templates, get_marcxml_of_revision, \
+    record_locked_by_queue, save_xml_record, touch_cache, \
+    update_cache_contents, get_field_templates, get_marcxml_of_revision, \
     revision_to_timestamp, timestamp_to_revision, \
     get_record_revision_timestamps, record_revision_exists, \
     can_record_have_physical_copies, extend_record_with_template, \
@@ -559,7 +559,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
         new_type = data['newType']
         if new_type == 'empty':
             # Create a new empty record.
-            create_cache_file(recid, uid)
+            create_cache(recid, uid)
             response['resultCode'], response['newRecID'] = 6, new_recid
 
         elif new_type == 'template':
@@ -575,7 +575,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 else:
                     record_add_field(record, '001',
                                      controlfield_value=str(new_recid))
-                    create_cache_file(new_recid, uid, record, True)
+                    create_cache(new_recid, uid, record, True)
                     response['resultCode'], response['newRecID'] = 7, new_recid
 
         elif new_type == 'import':
@@ -604,7 +604,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                             if merged_record:
                                 record = merged_record
 
-                        create_cache_file(new_recid, uid, record, True)
+                        create_cache(new_recid, uid, record, True)
                         mtime = get_cache_mtime(recid, uid)
                         response['resultCode'], response['newRecID'] = 7, new_recid
         elif new_type == 'clone':
@@ -612,7 +612,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             existing_cache = cache_exists(recid, uid)
             if existing_cache:
                 try:
-                    record = get_cache_file_contents(recid, uid)[2]
+                    record = get_cache_contents(recid, uid)[2]
                 except:
                     # if, for example, the cache format was wrong (outdated)
                     record = get_bibrecord(recid)
@@ -622,7 +622,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             record_delete_field(record, '001')
             record_delete_field(record, '005')
             record_add_field(record, '001', controlfield_value=str(new_recid))
-            create_cache_file(new_recid, uid, record, True)
+            create_cache(new_recid, uid, record, True)
             response['resultCode'], response['newRecID'] = 8, new_recid
     elif request_type == 'getRecord':
         # Fetch the record. Possible error situations:
@@ -657,7 +657,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             response['resultCode'] = 105
         else:
             if data.get('deleteRecordCache'):
-                delete_cache_file(recid, uid)
+                delete_cache(recid, uid)
                 existing_cache = False
                 pending_changes = []
                 disabled_hp_changes = {}
@@ -683,7 +683,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 undo_list = []
                 redo_list = []
             elif not existing_cache:
-                record_revision, record = create_cache_file(recid, uid)
+                record_revision, record = create_cache(recid, uid)
                 mtime = get_cache_mtime(recid, uid)
                 pending_changes = []
                 disabled_hp_changes = {}
@@ -697,8 +697,8 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 try:
                     cache_dirty, record_revision, record, pending_changes, \
                         disabled_hp_changes, undo_list, redo_list = \
-                        get_cache_file_contents(recid, uid)
-                    touch_cache_file(recid, uid)
+                        get_cache_contents(recid, uid)
+                    touch_cache(recid, uid)
                     mtime = get_cache_mtime(recid, uid)
                     if not latest_record_revision(recid, record_revision) and \
                             get_record_revisions(recid) != ():
@@ -709,7 +709,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                         response['cacheOutdated'] = True
 
                 except:
-                    record_revision, record = create_cache_file(recid, uid)
+                    record_revision, record = create_cache(recid, uid)
                     mtime = get_cache_mtime(recid, uid)
                     pending_changes = []
                     disabled_hp_changes = {}
@@ -737,7 +737,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 merged_record = merge_record_with_template(record, template_to_merge)
                 if merged_record:
                     record = merged_record
-                    create_cache_file(recid, uid, record, True)
+                    create_cache(recid, uid, record, True)
                     mtime = get_cache_mtime(recid, uid)
 
             if record_status == -1:
@@ -791,7 +791,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             response['resultCode'] = 105
         else:
             try:
-                tmp_result = get_cache_file_contents(recid, uid)
+                tmp_result = get_cache_contents(recid, uid)
                 record_revision = tmp_result[1]
                 record = tmp_result[2]
                 pending_changes = tmp_result[3]
@@ -830,7 +830,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
         revision_xml = get_marcxml_of_revision(recid, job_date)
         save_xml_record(recid, uid, revision_xml)
         if (cache_exists(recid, uid)):
-            delete_cache_file(recid, uid)
+            delete_cache(recid, uid)
         response['resultCode'] = 4
 
     elif request_type == 'cancel':
@@ -838,7 +838,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
         # - Cache file modified in other editor
         if cache_exists(recid, uid):
             if get_cache_mtime(recid, uid) == data['cacheMTime']:
-                delete_cache_file(recid, uid)
+                delete_cache(recid, uid)
                 response['resultCode'] = 5
             else:
                 response['resultCode'] = 107
@@ -869,22 +869,21 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             if not existing_cache:
                 record_revision, record, pending_changes, \
                     deactivated_hp_changes, undo_list, redo_list = \
-                    create_cache_file(recid, uid)
+                    create_cache(recid, uid)
             else:
                 try:
                     record_revision, record, pending_changes, \
                         deactivated_hp_changes, undo_list, redo_list = \
-                        get_cache_file_contents(recid, uid)[1:]
+                        get_cache_contents(recid, uid)[1:]
                 except:
                     record_revision, record, pending_changes, \
-                        deactivated_hp_changes = create_cache_file(recid, uid)
+                        deactivated_hp_changes = create_cache(recid, uid)
             record_add_field(record, '980', ' ', ' ', '', [('c', 'DELETED')])
             undo_list = []
             redo_list = []
-            update_cache_file_contents(recid, uid, record_revision, record,
-                                       pending_changes,
-                                       deactivated_hp_changes, undo_list,
-                                       redo_list)
+            update_cache_contents(recid, uid, record_revision, record,
+                                  pending_changes, deactivated_hp_changes,
+                                  undo_list, redo_list)
             save_xml_record(recid, uid)
             delete_related_holdingpen_changes(recid) # we don't need any changes
                                                    # related to a deleted record
@@ -896,21 +895,26 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
         if 'cacheMTime' in data:
             if cache_exists(recid, uid) and get_cache_mtime(recid, uid) == \
                 data['cacheMTime']:
-                    delete_cache_file(recid, uid)
+                    delete_cache(recid, uid)
         response['resultCode'] = 11
     elif request_type == 'updateCacheRef':
         # Update cache with the contents coming from BibEdit JS interface
         # Used when updating references using ref extractor
         record_revision, record, pending_changes, \
                         deactivated_hp_changes, undo_list, redo_list = \
-                        get_cache_file_contents(recid, uid)[1:]
+                        get_cache_contents(recid, uid)[1:]
 
         record = create_record(data['recXML'])[0]
 
-        response['cacheMTime'], response['cacheDirty'] = update_cache_file_contents(recid, uid, record_revision, record,
-                                   pending_changes,
-                                   deactivated_hp_changes, undo_list,
-                                   redo_list), True
+        response['cacheMTime'] = update_cache_contents(recid,
+                                                       uid,
+                                                       record_revision,
+                                                       record,
+                                                       pending_changes,
+                                                       deactivated_hp_changes,
+                                                       undo_list,
+                                                       redo_list)
+        response['cacheDirty'] = True
         response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['cache_updated_with_references']
 
     elif request_type == 'prepareRecordMerge':
@@ -951,7 +955,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
 
         response.update(xml_conversion_status)
         if xml_conversion_status['resultMsg'] == 'textmarc_parsing_success':
-            create_cache_file(recid, uid,
+            create_cache(recid, uid,
                 create_record(response['resultXML'])[0])
             save_xml_record(recid, uid)
             response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV["record_submitted"]
@@ -980,7 +984,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data,
     else:
         try:
             record_revision, record, pending_changes, deactivated_hp_changes, \
-                undo_list, redo_list = get_cache_file_contents(recid, uid)[1:]
+                undo_list, redo_list = get_cache_contents(recid, uid)[1:]
         except:
             response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV[
                 'error_wrong_cache_file_format']
@@ -1208,12 +1212,13 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data,
             else:
                 response['resultCode'] = 30
 
-        response['cacheMTime'] = update_cache_file_contents(
-                                        recid, uid, record_revision,
-                                        record,
-                                        pending_changes,
-                                        deactivated_hp_changes,
-                                        undo_list, redo_list)
+        response['cacheMTime'] = update_cache_contents(recid,
+                                                       uid,
+                                                       record_revision,
+                                                       record,
+                                                       pending_changes,
+                                                       deactivated_hp_changes,
+                                                       undo_list, redo_list)
         response['cacheDirty'] = True
 
     return response
@@ -1284,9 +1289,9 @@ def perform_request_autocomplete(request_type, recid, uid, data):
                 kbrvals = get_kbr_values(kbname, item, '', 'e')  # we want an exact match
                 if kbrvals and kbrvals[0]:  # add the found val into vals
                     vals.append(kbrvals[0])
-            # check that the values are not already contained in other
-            # instances of this field
-            record = get_cache_file_contents(recid, uid)[2]
+            #check that the values are not already contained in other
+            #instances of this field
+            record = get_cache_contents(recid, uid)[2]
             xml_rec = wash_for_xml(print_rec(record))
             record, status_code, dummy_errors = create_record(xml_rec)
             existing_values = []
@@ -1411,7 +1416,7 @@ def _add_curated_references_to_record(recid, uid, bibrec):
     @param uid: id of the current user, used to retrieve cache
     @param bibrec: bibrecord object to add references to
     """
-    dummy1, dummy2, record, dummy3, dummy4, dummy5, dummy6 = get_cache_file_contents(recid, uid)
+    dummy1, dummy2, record, dummy3, dummy4, dummy5, dummy6 = get_cache_contents(recid, uid)
     for field_instance in record_get_field_instances(record, "999", "C", "5"):
         for subfield_instance in field_instance[0]:
             if subfield_instance[0] == '9' and subfield_instance[1] == 'CURATOR':
@@ -1566,7 +1571,7 @@ def perform_request_preview_record(request_type, recid, uid, data):
                 return response
             record = create_record(xml_conversion_status["resultXML"])[0]
         elif cache_exists(recid, uid):
-            dummy1, dummy2, record, dummy3, dummy4, dummy5, dummy6 = get_cache_file_contents(recid, uid)
+            dummy1, dummy2, record, dummy3, dummy4, dummy5, dummy6 = get_cache_contents(recid, uid)
         else:
             record = get_bibrecord(recid)
 
@@ -1602,7 +1607,7 @@ def perform_request_get_textmarc(recid, uid):
                         "delete-mode": 0, "insert-mode": 0, "replace-mode": 0,
                         "text-marc": 1}
 
-    bibrecord = get_cache_file_contents(recid, uid)[2]
+    bibrecord = get_cache_contents(recid, uid)[2]
     record_strip_empty_fields(bibrecord)
     record_strip_controlfields(bibrecord)
 
@@ -1624,7 +1629,7 @@ def perform_request_get_tableview(recid, uid, data):
     if xml_conversion_status['resultMsg'] == 'textmarc_parsing_error':
         response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['textmarc_parsing_error']
     else:
-        create_cache_file(recid, uid,
+        create_cache(recid, uid,
             create_record(xml_conversion_status['resultXML'])[0], data['recordDirty'])
         response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['tableview_change_success']
     return response
