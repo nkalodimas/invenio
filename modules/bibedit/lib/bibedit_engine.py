@@ -127,16 +127,16 @@ def get_empty_fields_templates():
     """
     return [{
                 "name": "Empty field",
-                "description": "The data field not containing any " + \
+                "description": "The data field not containing any " +
                                "information filled in",
                 "tag" : "",
                 "ind1" : "",
                 "ind2" : "",
-                "subfields" : [("","")],
+                "subfields" : [("", "")],
                 "isControlfield" : False
-            },{
+            }, {
                 "name" : "Empty control field",
-                "description" : "The controlfield not containing any " + \
+                "description" : "The controlfield not containing any " +
                                 "data or tag description",
                 "isControlfield" : True,
                 "tag" : "",
@@ -378,7 +378,7 @@ def perform_request_ajax(req, recid, uid, data, isBulk = False):
     response = {}
     request_type = data['requestType']
     undo_redo = None
-    if data.has_key("undoRedo"):
+    if "undoRedo" in data:
         undo_redo = data["undoRedo"]
     # Call function based on request type.
     if request_type == 'searchForRecord':
@@ -393,25 +393,25 @@ def perform_request_ajax(req, recid, uid, data, isBulk = False):
         # 'Major' record related requests.
         response.update(perform_request_record(req, request_type, recid, uid,
                                                data))
-    elif request_type in ('addField', 'addSubfields', \
-                          'addFieldsSubfieldsOnPositions', 'modifyContent', \
-                          'modifySubfieldTag', 'modifyFieldTag', \
-                          'moveSubfield', 'deleteFields', 'moveField', \
-                          'modifyField', 'otherUpdateRequest', \
+    elif request_type in ('addField', 'addSubfields',
+                          'addFieldsSubfieldsOnPositions', 'modifyContent',
+                          'modifySubfieldTag', 'modifyFieldTag',
+                          'moveSubfield', 'deleteFields', 'moveField',
+                          'modifyField', 'otherUpdateRequest',
                           'disableHpChange', 'deactivateHoldingPenChangeset'):
         # Record updates.
         cacheMTime = data['cacheMTime']
-        if data.has_key('hpChanges'):
+        if 'hpChanges' in data:
             hpChanges = data['hpChanges']
         else:
             hpChanges = {}
 
-        response.update(perform_request_update_record(request_type, recid, \
-                                                      uid, cacheMTime, data, \
-                                                      hpChanges, undo_redo, \
+        response.update(perform_request_update_record(request_type, recid,
+                                                      uid, cacheMTime, data,
+                                                      hpChanges, undo_redo,
                                                       isBulk))
     elif request_type in ('autosuggest', 'autocomplete', 'autokeyword'):
-        response.update(perform_request_autocomplete(request_type, recid, uid, \
+        response.update(perform_request_autocomplete(request_type, recid, uid,
                                                      data))
 
     elif request_type in ('getTickets', 'closeTicket', 'openTicket'):
@@ -420,16 +420,16 @@ def perform_request_ajax(req, recid, uid, data, isBulk = False):
     elif request_type in ('getHoldingPenUpdates', ):
         response.update(perform_request_holdingpen(request_type, recid))
 
-    elif request_type in ('getHoldingPenUpdateDetails', \
+    elif request_type in ('getHoldingPenUpdateDetails',
                           'deleteHoldingPenChangeset'):
         updateId = data['changesetNumber']
-        response.update(perform_request_holdingpen(request_type, recid, \
+        response.update(perform_request_holdingpen(request_type, recid,
                                                    updateId))
     elif request_type in ('applyBulkUpdates', ):
         # a general version of a bulk request
         changes = data['requestsData']
         cacheMTime = data['cacheMTime']
-        response.update(perform_bulk_request_ajax(req, recid, uid, changes, \
+        response.update(perform_bulk_request_ajax(req, recid, uid, changes,
                                                   undo_redo, cacheMTime))
     elif request_type in ('preview', ):
         response.update(perform_request_preview_record(request_type, recid, uid, data))
@@ -437,7 +437,7 @@ def perform_request_ajax(req, recid, uid, data, isBulk = False):
         response.update(perform_request_get_pdf_url(recid))
     elif request_type in ('refextract', ):
         txt = None
-        if data.has_key('txt'):
+        if 'txt' in data:
             txt = data["txt"]
         response.update(perform_request_ref_extract(recid, uid, txt))
     elif request_type in ('refextracturl', ):
@@ -457,9 +457,9 @@ def perform_bulk_request_ajax(req, recid, uid, reqsData, undoRedo, cacheMTime):
     lastTime = cacheMTime
     isFirst = True
     for data in reqsData:
-        assert data != None
+        assert data is not None
         data['cacheMTime'] = lastTime
-        if isFirst and undoRedo != None:
+        if isFirst and undoRedo is not None:
             # we add the undo/redo handler to the first operation in order to
             # save the handler on the server side !
             data['undoRedo'] = undoRedo
@@ -526,7 +526,7 @@ def perform_request_holdingpen(request_type, recId, changeId=None):
         # returning the list of changes related to the holding pen update
         # the format based on what the record difference xtool returns
 
-        assert(changeId != None)
+        assert(changeId is not None)
         hpContent = get_hp_update_xml(changeId)
         holdingPenRecord = create_record(hpContent[0], "xm")[0]
         template_to_merge = extend_record_with_template(recId)
@@ -541,7 +541,7 @@ def perform_request_holdingpen(request_type, recId, changeId=None):
         response['record'] = holdingPenRecord
         response['changeset_number'] = changeId
     elif request_type == 'deleteHoldingPenChangeset':
-        assert(changeId != None)
+        assert(changeId is not None)
         delete_hp_change(changeId)
     return response
 
@@ -637,7 +637,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
         existing_cache = cache_exists(recid, uid)
         read_only_mode = False
 
-        if data.has_key("inReadOnlyMode"):
+        if "inReadOnlyMode" in data:
             read_only_mode = data['inReadOnlyMode']
 
         if record_status == 0:
@@ -662,9 +662,9 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 pending_changes = []
                 disabled_hp_changes = {}
             if read_only_mode:
-                if data.has_key('recordRevision') and data['recordRevision'] != 'sampleValue':
+                if 'recordRevision' in data and data['recordRevision'] != 'sampleValue':
                     record_revision_ts = data['recordRevision']
-                    record_xml = get_marcxml_of_revision(recid, \
+                    record_xml = get_marcxml_of_revision(recid,
                                                          record_revision_ts)
                     record = create_record(record_xml)[0]
                     record_revision = timestamp_to_revision(record_revision_ts)
@@ -674,7 +674,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                     # a normal cacheless retrieval of a record
                     record = get_bibrecord(recid)
                     record_revision = get_record_last_modification_date(recid)
-                    if record_revision == None:
+                    if record_revision is None:
                         record_revision = datetime.now().timetuple()
                     pending_changes = []
                     disabled_hp_changes = {}
@@ -716,13 +716,13 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                     cache_dirty = False
                     undo_list = []
                     redo_list = []
-            if data.get('clonedRecord',''):
+            if data.get('clonedRecord', ''):
                 response['resultCode'] = 9
             else:
                 response['resultCode'] = 3
             revision_author = get_record_revision_author(recid, record_revision)
             latest_revision = get_record_last_modification_date(recid)
-            if latest_revision == None:
+            if latest_revision is None:
                 latest_revision = datetime.now().timetuple()
             last_revision_ts = revision_to_timestamp(latest_revision)
 
@@ -820,7 +820,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                     save_xml_record(recid, uid)
                     response['resultCode'] = 4
             except Exception, e:
-                response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV[ \
+                response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV[
                     'error_wrong_cache_file_format']
                 if CFG_DEVEL_SITE: # return debug information in the request
                     response['exception_message'] = e.__str__()
@@ -881,9 +881,9 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             record_add_field(record, '980', ' ', ' ', '', [('c', 'DELETED')])
             undo_list = []
             redo_list = []
-            update_cache_file_contents(recid, uid, record_revision, record, \
-                                       pending_changes, \
-                                       deactivated_hp_changes, undo_list, \
+            update_cache_file_contents(recid, uid, record_revision, record,
+                                       pending_changes,
+                                       deactivated_hp_changes, undo_list,
                                        redo_list)
             save_xml_record(recid, uid)
             delete_related_holdingpen_changes(recid) # we don't need any changes
@@ -893,7 +893,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
     elif request_type == 'deleteRecordCache':
         # Delete the cache file. Ignore the request if the cache has been
         # modified in another editor.
-        if data.has_key('cacheMTime'):
+        if 'cacheMTime' in data:
             if cache_exists(recid, uid) and get_cache_mtime(recid, uid) == \
                 data['cacheMTime']:
                     delete_cache_file(recid, uid)
@@ -907,9 +907,9 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
 
         record = create_record(data['recXML'])[0]
 
-        response['cacheMTime'], response['cacheDirty'] = update_cache_file_contents(recid, uid, record_revision, record, \
-                                   pending_changes, \
-                                   deactivated_hp_changes, undo_list, \
+        response['cacheMTime'], response['cacheDirty'] = update_cache_file_contents(recid, uid, record_revision, record,
+                                   pending_changes,
+                                   deactivated_hp_changes, undo_list,
                                    redo_list), True
         response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['cache_updated_with_references']
 
@@ -959,7 +959,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
     return response
 
 
-def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
+def perform_request_update_record(request_type, recid, uid, cacheMTime, data,
                                   hpChanges, undoRedoOp, isBulk=False):
     """
     Handle record update requests like adding, modifying, moving or deleting
@@ -973,7 +973,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
     response = {}
     if not cache_exists(recid, uid):
         response['resultCode'] = 106
-    elif not get_cache_mtime(recid, uid) == cacheMTime and isBulk == False:
+    elif not get_cache_mtime(recid, uid) == cacheMTime and isBulk is False:
         # In case of a bulk request, the changes are deliberately performed
         # immediately one after another
         response['resultCode'] = 107
@@ -982,7 +982,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
             record_revision, record, pending_changes, deactivated_hp_changes, \
                 undo_list, redo_list = get_cache_file_contents(recid, uid)[1:]
         except:
-            response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV[ \
+            response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV[
                 'error_wrong_cache_file_format']
             return response
 
@@ -990,22 +990,22 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
         # request type
 #        import rpdb2;
 #        rpdb2.start_embedded_debugger('password', fAllowRemote=True)
-        if hpChanges.has_key("toDisable"):
+        if "toDisable" in hpChanges:
             for changeId in hpChanges["toDisable"]:
                 pending_changes[changeId]["applied_change"] = True
 
-        if hpChanges.has_key("toEnable"):
+        if "toEnable" in hpChanges:
             for changeId in hpChanges["toEnable"]:
                 pending_changes[changeId]["applied_change"] = False
 
-        if hpChanges.has_key("toOverride"):
+        if "toOverride" in hpChanges:
             pending_changes = hpChanges["toOverride"]
 
-        if hpChanges.has_key("changesetsToDeactivate"):
+        if "changesetsToDeactivate" in hpChanges:
             for changesetId in hpChanges["changesetsToDeactivate"]:
                 deactivated_hp_changes[changesetId] = True
 
-        if hpChanges.has_key("changesetsToActivate"):
+        if "changesetsToActivate" in hpChanges:
             for changesetId in hpChanges["changesetsToActivate"]:
                 deactivated_hp_changes[changesetId] = False
 
@@ -1015,26 +1015,26 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
                 redo_list = [undo_list[-1]] + redo_list
                 undo_list = undo_list[:-1]
             except:
-                raise Exception("An exception occured when undoing previous" + \
-                                " operation. Undo list: " + str(undo_list) + \
+                raise Exception("An exception occured when undoing previous" +
+                                " operation. Undo list: " + str(undo_list) +
                                 " Redo list " + str(redo_list))
         elif undoRedoOp == "redo":
             try:
                 undo_list = undo_list + [redo_list[0]]
                 redo_list = redo_list[1:]
             except:
-                raise Exception("An exception occured when redoing previous" + \
-                                " operation. Undo list: " + str(undo_list) + \
+                raise Exception("An exception occured when redoing previous" +
+                                " operation. Undo list: " + str(undo_list) +
                                 " Redo list " + str(redo_list))
         else:
             # This is a genuine operation - we have to add a new descriptor
             # to the undo list and cancel the redo unless the operation is
             # a bulk operation
-            if undoRedoOp != None:
+            if undoRedoOp is not None:
                 undo_list = undo_list + [undoRedoOp]
                 redo_list = []
             else:
-                assert isBulk == True
+                assert isBulk is True
 
         field_position_local = data.get('fieldPosition')
         if field_position_local is not None:
@@ -1043,7 +1043,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
             # An empty request. Might be useful if we want to perform
             # operations that require only the actions performed globally,
             # like modifying the holdingPen changes list
-            response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV[ \
+            response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV[
                 'editor_modifications_changed']
         elif request_type == 'deactivateHoldingPenChangeset':
             # the changeset has been marked as processed ( user applied it in
@@ -1054,7 +1054,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
             #          changesets are related to the cache because we want to
             #          cancel the removal every time the cache disappears for
             #          any reason
-            response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV[ \
+            response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV[
                 'disabled_hp_changeset']
         elif request_type == 'addField':
             if data['controlfield']:
@@ -1091,33 +1091,28 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
                     # if there are n subfields, this is a control field
                     if isControlfield:
                         controlfieldValue = fieldsToAdd[tag][position][3]
-                        record_add_field(record, tag, field_position_local = \
-                                             int(position), \
-                                             controlfield_value = \
-                                                 controlfieldValue)
+                        record_add_field(record, tag,
+                                         field_position_local=int(position),
+                                         controlfield_value=controlfieldValue)
                     else:
                         subfields = fieldsToAdd[tag][position][0]
                         ind1 = fieldsToAdd[tag][position][1]
                         ind2 = fieldsToAdd[tag][position][2]
-                        record_add_field(record, tag, ind1, ind2, subfields = \
-                                             subfields, field_position_local = \
-                                                int(position))
+                        record_add_field(record, tag, ind1, ind2,
+                                         subfields=subfields,
+                                         field_position_local=int(position))
             # now adding the subfields
             for tag in subfieldsToAdd.keys():
-                for fieldPosition in subfieldsToAdd[tag].keys(): #now the fields
-                                                          #order not important !
+                for fieldPosition in subfieldsToAdd[tag].keys():  # now the fields
+                                                                  # order not important !
                     subfieldsPositions = subfieldsToAdd[tag][fieldPosition]. \
                                            keys()
                     subfieldsPositions.sort()
                     for subfieldPosition in subfieldsPositions:
-                        subfield = subfieldsToAdd[tag][fieldPosition]\
-                            [subfieldPosition]
-                        record_add_subfield_into(record, tag, subfield[0], \
-                                                 subfield[1], \
-                                                 subfield_position = \
-                                                     int(subfieldPosition), \
-                                                 field_position_local = \
-                                                     int(fieldPosition))
+                        subfield = subfieldsToAdd[tag][fieldPosition][subfieldPosition]
+                        record_add_subfield_into(record, tag, subfield[0], subfield[1],
+                                                 subfield_position=int(subfieldPosition),
+                                                 field_position_local=int(fieldPosition))
 
             response['resultCode'] = \
                 CFG_BIBEDIT_AJAX_RESULT_CODES_REV['added_positioned_subfields']
@@ -1128,12 +1123,12 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
                                           # the subfields here
 
             new_field = create_field(subfields, data['ind1'], data['ind2'])
-            record_replace_field(record, data['tag'], new_field, \
-                field_position_local = data['fieldPosition'])
+            record_replace_field(record, data['tag'], new_field,
+                field_position_local=data['fieldPosition'])
             response['resultCode'] = 26
 
         elif request_type == 'modifyContent':
-            if data['subfieldIndex'] != None:
+            if data['subfieldIndex'] is not None:
                 record_modify_subfield(record, data['tag'],
                     data['subfieldCode'], data['value'],
                     int(data['subfieldIndex']),
@@ -1160,7 +1155,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
             record_add_field(record, data['newTag'], data['ind1'],
                              data['ind2'] , subfields=subfields)
 
-            record_delete_field(record, data['oldTag'], ind1=data['oldInd1'], \
+            record_delete_field(record, data['oldTag'], ind1=data['oldInd1'],
                                 ind2=data['oldInd2'], field_position_local=field_position_local)
             response['resultCode'] = 32
 
@@ -1213,13 +1208,13 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data, \
             else:
                 response['resultCode'] = 30
 
-        response['cacheMTime'], response['cacheDirty'] = \
-            update_cache_file_contents(recid, uid, record_revision, \
-                                       record, \
-                                       pending_changes, \
-                                       deactivated_hp_changes, \
-                                       undo_list, redo_list), \
-            True
+        response['cacheMTime'] = update_cache_file_contents(
+                                        recid, uid, record_revision,
+                                        record,
+                                        pending_changes,
+                                        deactivated_hp_changes,
+                                        undo_list, redo_list)
+        response['cacheDirty'] = True
 
     return response
 
@@ -1238,10 +1233,10 @@ def perform_request_autocomplete(request_type, recid, uid, data):
     response = {}
     # get the values based on which one needs to search
     searchby = data['value']
-        #we check if the data is properly defined
+        # we check if the data is properly defined
     fulltag = ''
-    if data.has_key('maintag') and data.has_key('subtag1') and \
-            data.has_key('subtag2') and data.has_key('subfieldcode'):
+    if 'maintag' in data and 'subtag1' in data and \
+            'subtag2' in data and 'subfieldcode' in data:
         maintag = data['maintag']
         subtag1 = data['subtag1']
         subtag2 = data['subtag2']
@@ -1254,29 +1249,29 @@ def perform_request_autocomplete(request_type, recid, uid, data):
         subfieldcode = data['subfieldcode']
         fulltag = maintag+u_subtag1+u_subtag2+subfieldcode
     if (request_type == 'autokeyword'):
-        #call the keyword-form-ontology function
+        # call the keyword-form-ontology function
         if fulltag and searchby:
-            items = get_kbt_items_for_bibedit(CFG_BIBEDIT_KEYWORD_TAXONOMY, \
-                                              CFG_BIBEDIT_KEYWORD_RDFLABEL, \
+            items = get_kbt_items_for_bibedit(CFG_BIBEDIT_KEYWORD_TAXONOMY,
+                                              CFG_BIBEDIT_KEYWORD_RDFLABEL,
                                               searchby)
             response['autokeyword'] = items
     if (request_type == 'autosuggest'):
-        #call knowledge base function to put the suggestions in an array..
+        # call knowledge base function to put the suggestions in an array..
         if fulltag and searchby and len(searchby) > 3:
-            #add trailing '*' wildcard for 'search_unit_in_bibxxx()' if not already present
+            # add trailing '*' wildcard for 'search_unit_in_bibxxx()' if not already present
             suggest_values = get_kbd_values_for_bibedit(fulltag, "", searchby+"*")
-            #remove ..
+            # remove ..
             new_suggest_vals = []
             for sugg in suggest_values:
                 if sugg.startswith(searchby):
                     new_suggest_vals.append(sugg)
             response['autosuggest'] = new_suggest_vals
     if (request_type == 'autocomplete'):
-        #call the values function with the correct kb_name
-        if CFG_BIBEDIT_AUTOCOMPLETE_TAGS_KBS.has_key(fulltag):
+        # call the values function with the correct kb_name
+        if fulltag in CFG_BIBEDIT_AUTOCOMPLETE_TAGS_KBS:
             kbname = CFG_BIBEDIT_AUTOCOMPLETE_TAGS_KBS[fulltag]
-            #check if the seachby field has semicolons. Take all
-            #the semicolon-separated items..
+            # check if the seachby field has semicolons. Take all
+            # the semicolon-separated items..
             items = []
             vals = []
             if searchby:
@@ -1286,11 +1281,11 @@ def perform_request_autocomplete(request_type, recid, uid, data):
                     items = [searchby.strip()]
             for item in items:
                 item = item.strip()
-                kbrvals = get_kbr_values(kbname, item, '', 'e') #we want an exact match
-                if kbrvals and kbrvals[0]: #add the found val into vals
+                kbrvals = get_kbr_values(kbname, item, '', 'e')  # we want an exact match
+                if kbrvals and kbrvals[0]:  # add the found val into vals
                     vals.append(kbrvals[0])
-            #check that the values are not already contained in other
-            #instances of this field
+            # check that the values are not already contained in other
+            # instances of this field
             record = get_cache_file_contents(recid, uid)[2]
             xml_rec = wash_for_xml(print_rec(record))
             record, status_code, dummy_errors = create_record(xml_rec)
@@ -1323,11 +1318,11 @@ def perform_request_bibcatalog(request_type, uid, data):
         elif bibcatalog_system and uid:
             bibcat_resp = bibcatalog_system.check_system(uid)
             if bibcat_resp == "":
-                tickets_found = bibcatalog_system.ticket_search(uid, \
+                tickets_found = bibcatalog_system.ticket_search(uid,
                     status=['new', 'open'], recordid=data['recID'])
                 tickets = []
-                for i,t_id in enumerate(tickets_found):
-                    ticket_info = bibcatalog_system.ticket_get_info( \
+                for i, t_id in enumerate(tickets_found):
+                    ticket_info = bibcatalog_system.ticket_get_info(
                         uid, t_id, ['url_display', 'url_close', 'subject', 'text', 'queue', 'created'])
                     t_url = ticket_info['url_display']
                     t_close_url = ticket_info['url_close']
@@ -1343,8 +1338,8 @@ def perform_request_bibcatalog(request_type, uid, data):
                     except IndexError:
                         t_date = date_string
 
-                    ticket = { "id": str(t_id), "queue": t_queue, "date": t_date, "url": t_url,
-                               "close_url": t_close_url, "subject": t_subject, "text": t_text }
+                    ticket = {"id": str(t_id), "queue": t_queue, "date": t_date, "url": t_url,
+                              "close_url": t_close_url, "subject": t_subject, "text": t_text}
                     tickets.append(ticket)
                 response['tickets'] = tickets
                 # add available queues
@@ -1440,15 +1435,15 @@ def _xml_to_textmarc_references(bibrec):
     """
     sysno = ""
 
-    options = {"aleph-marc":0, "correct-mode":1, "append-mode":0,
-               "delete-mode":0, "insert-mode":0, "replace-mode":0,
-               "text-marc":1}
+    options = {"aleph-marc": 0, "correct-mode": 1, "append-mode": 0,
+               "delete-mode": 0, "insert-mode": 0, "replace-mode": 0,
+               "text-marc": 1}
 
     # Using deepcopy as function create_marc_record() modifies the record passed
-    textmarc_references = [ line.strip() for line
+    textmarc_references = [line.strip() for line
         in xmlmarc2textmarc.create_marc_record(copy.deepcopy(bibrec),
             sysno, options).split('\n')
-        if '999C5' in line ]
+        if '999C5' in line]
 
     return textmarc_references
 
@@ -1603,9 +1598,9 @@ def perform_request_get_pdf_url(recid):
 def perform_request_get_textmarc(recid, uid):
     """ Get record content from cache, convert it to textmarc and return it
     """
-    textmarc_options = {"aleph-marc":0, "correct-mode":1, "append-mode":0,
-               "delete-mode":0, "insert-mode":0, "replace-mode":0,
-               "text-marc":1}
+    textmarc_options = {"aleph-marc": 0, "correct-mode": 1, "append-mode": 0,
+                        "delete-mode": 0, "insert-mode": 0, "replace-mode": 0,
+                        "text-marc": 1}
 
     bibrecord = get_cache_file_contents(recid, uid)[2]
     record_strip_empty_fields(bibrecord)
@@ -1648,17 +1643,17 @@ def _get_formated_record(record, new_window):
 
     result = ''
     if new_window:
-        result =  """ <html><head><title>Record preview</title>
+        result = """ <html><head><title>Record preview</title>
                       <script type="text/javascript" src="%(site_url)s/js/jquery.min.js"></script>
                       <link rel="stylesheet" href="%(site_url)s/img/invenio%(cssskin)s.css" type="text/css"></head>
-                   """%{'site_url': CFG_SITE_URL,
+                   """ % {'site_url': CFG_SITE_URL,
                          'cssskin': CFG_WEBSTYLE_TEMPLATE_SKIN != 'default' and '_' + CFG_WEBSTYLE_TEMPLATE_SKIN or ''
-                        }
+                         }
         result += get_mathjax_header(True) + '<body>'
         result += "<h2> Brief format preview </h2><br />"
         result += bibformat.format_record(recID=None,
-                                         of="hb",
-                                         xml_record=xml_record) + "<br />"
+                                          of="hb",
+                                          xml_record=xml_record) + "<br />"
 
     result += "<br /><h2> Detailed format preview </h2><br />"
     result += bibformat.format_record(recID=None,
@@ -1668,8 +1663,8 @@ def _get_formated_record(record, new_window):
     result += "<br /><h2> References </h2><br />"
 
     result += bibformat.format_record(0,
-                                    'hdref',
-                                    xml_record=xml_record)
+                                     'hdref',
+                                      xml_record=xml_record)
 
     result += """<script>
                     $('#referenceinp_link').hide();
