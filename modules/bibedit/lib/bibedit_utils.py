@@ -208,6 +208,8 @@ def get_cache_mtime(recid, uid):
 
     """
     post_date = get_cache_post_date(recid, uid)
+    if not post_date:
+        return
     # In python 3.3 we can call .timestamp() on datetimes
     # In python 2.7 we can call .total_seconds() on timedeltas
     # In python 2.4 we have this
@@ -381,15 +383,12 @@ def record_locked_by_other_user(recid, uid):
 def get_record_locked_since(recid, uid):
     """ Get modification time for the given recid and uid
     """
-    filename = "%s_%s_%s.tmp" % (CFG_BIBEDIT_FILENAME,
-                                recid,
-                                uid)
-    locked_since  = ""
-    try:
-        locked_since = time.ctime(os.path.getmtime('%s%s%s' % (
-                        CFG_BIBEDIT_CACHEDIR, os.sep, filename)))
-    except OSError:
-        pass
+    mtime = get_cache_post_date(recid, uid)
+    if mtime:
+        locked_since = mtime.strftime('%b %d, %H:%M')
+    else:
+        locked_since = ""
+
     return locked_since
 
 

@@ -867,9 +867,10 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 CFG_BIBEDIT_AJAX_RESULT_CODES_REV['error_rec_locked_by_queue']
         else:
             if not existing_cache:
+                create_cache(recid, uid)
                 record_revision, record, pending_changes, \
                     deactivated_hp_changes, undo_list, redo_list = \
-                    create_cache(recid, uid)
+                        get_cache_contents(recid, uid)[1:]
             else:
                 try:
                     record_revision, record, pending_changes, \
