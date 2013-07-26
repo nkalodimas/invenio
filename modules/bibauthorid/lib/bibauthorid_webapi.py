@@ -46,10 +46,9 @@ from invenio.config import CFG_SITE_URL
 from invenio.mailutils import send_email
 from invenio.bibauthorid_name_utils import most_relevant_name
 
-from operator import add
 from itertools import chain
 
-from invenio.bibauthorid_dbinterface import get_external_ids_of_author  # pylint: disable-msg=W0614
+from invenio.bibauthorid_dbinterface import get_external_ids_of_author  #pylint: disable-msg=W0614
 
 
 
@@ -431,7 +430,7 @@ def get_pid_from_uid(uid):
     '''
     if isinstance(uid, tuple):
         uid = uid[0][0]
-        assert False, ("AAAAARGH problem in get_pid_from_uid webapi. Got uid as a tuple instead of int.Uid = %" % str(uid))
+        assert False, ("AAAAARGH problem in get_pid_from_uid webapi. Got uid as a tuple instead of int.Uid = %s" % str(uid))
     pid, exists = dbapi.get_author_by_uid(uid)
     if exists:
         return pid
@@ -1919,26 +1918,33 @@ def manage_tickets(req, autoclaim_show_review, autoclaim):
     reviews_to_handle = is_ticket_review_handling_required(req)
 
     if not reviews_to_handle:
-        is_required, needs_review = is_ticket_review_required(req)
+        is_required, incomplete_tickets = is_ticket_review_required(req)
 
         if is_required:
             if not autoclaim or autoclaim_show_review:
-                bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, needs_review)
+                bibrefs_auto_assigned, bibrefs_to_confirm = ticket_review(req, incomplete_tickets)
                 page_info['type'] = 'Submit Attribution'
                 page_info['title'] = 'Submit Attribution Information'
                 page_info['body_params'] = [bibrefs_auto_assigned, bibrefs_to_confirm]
                 return page_info
             else:
-                guess_signature(incomplete_tickets)
+                guess_signature(req, incomplete_tickets)
                 failed_to_autoclaim_tickets = []
-                for t in ticket:
-                     if 'incomplete' in ticket:
-                         failed_to_autoclaim_tickets = ticket.pop(t)
-                
-                store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets)
-    else:
-        handle_ticket_review_results(req, autoclaim)
+                for t in list(ticket):
+                    if 'incomplete' in t:
+                        failed_to_autoclaim_tickets.append(t)
+                        ticket.remove(t)
 
+                store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets)
+                session.dirty = True
+    else:
+        handle_ticket_review_results(req, autoclaim_show_review)
+
+    for t in ticket:
+        if 'incomplete' in t:
+            assert False, "Wtf one ticket is incomplete " + str(pinfo)
+        if ',' not in str(t['bibref']) or  ':' not in str(t['bibref']):
+            assert False, "Wtf one ticket is invalid " + str(pinfo)
     uid = getUid(req)
     for t in ticket:
         t['status'] = check_transaction_permissions(uid,
@@ -2017,107 +2023,108 @@ def guess_signature(req, incomplete_tickets):
         
         if recid < 0:
             # this doesn't look like a recid--discard!
-                tickets.remove(incomplete_ticket)
+            tickets.remove(incomplete_ticket)
         else:
             pid = incomplete_ticket['pid']
-            possible_signatures = get_possible_bibrefs_from_pid_bibrec(pid, [recid], additional_names=arxiv_name)
+            possible_signatures_per_rec = get_possible_bibrefs_from_pid_bibrec(pid, [recid], additional_names=arxiv_name)
 
             for [rec, possible_signatures] in possible_signatures_per_rec:
                 # if there is only one bibreceref candidate for the given recid
                 if len(possible_signatures) == 1:
                     # fix the incomplete ticket with the retrieved bibrecref
-                    for ticket in tickets:
+                    for ticket in list(tickets):
                         if incomplete_ticket['bibref'] == ticket['bibref'] and incomplete_ticket['pid'] == ticket['pid']:
-                            ticket['bibref'] = possible_signatures[0]
+                            ticket['bibref'] = possible_signatures[0][0]+','+str(rec)
                             ticket.pop('incomplete', True)
                             break
+    session.dirty = True
 
 def ticket_review(req, needs_review):
-session = get_session(req)
-pinfo = session["personinfo"]
-tickets = pinfo["ticket"]
-
-if 'arxiv_name' in pinfo:
-    arxiv_name = [pinfo['arxiv_name']]
-else:
-    arxiv_name = None
-
-
-bibrefs_auto_assigned = {}
-bibrefs_to_confirm = {}
-
-guess_signature(req, needs_review)
-
-for ticket in tickets:
-    person_name = get_most_frequent_name_from_pid(pid, allow_none=True)
-
-    if not person_name:
-        if arxiv_name:
-            person_name = ''.join(arxiv_name)
-        else:
-            person_name = " "
-
-    pid = ticket['pid']
-    if 'incomplete' not in ticket:
-        recid = get_bibrec_from_bibrefrec(ticket['bibref'])
-
-        if recid == -1:
-            # No bibrefs on record--discard
-            tickets.remove(ticket)
-            continue     
-        bibrefs_per_recid = get_bibrefs_from_bibrecs([recid])
-        for bibref in bibrefs_per_recid[0]:
-            if bibref[0] == ticket['bibref'].split(",")[0]:
-                more_possible_bibref = bibrefs_per_recid[0].pop(bibref)
-
-        sorted_bibrefs = more_possible_bibref + sorted(bibrefs_per_recid[0][1], key=lambda x: x[1])
-        if not pid in bibrefs_to_confirm:
-            bibrefs_to_confirm[pid] = {
-                'person_name': person_name,
-                'canonical_id': "TBA",
-                'bibrecs': {recid: sorted_bibrefs}}
-        else:
-            bibrefs_to_confirm[pid]['bibrecs'][recid] = sorted_bibrefs
-
+    session = get_session(req)
+    pinfo = session["personinfo"]
+    tickets = pinfo["ticket"]
+    
+    if 'arxiv_name' in pinfo:
+        arxiv_name = [pinfo['arxiv_name']]
     else:
-        # convert recid from string to int
-        recid = wash_integer_id(ticket['bibref'])
-        bibrefs_per_recid = get_bibrefs_from_bibrecs([recid])
+        arxiv_name = None
+    
+    
+    bibrefs_auto_assigned = {}
+    bibrefs_to_confirm = {}
+    
+    guess_signature(req, needs_review)
 
-        try:
-            name = bibrefs_per_recid[0][1]
-            sorted_bibrefs = sorted(name, key=lambda x: x[1])
-        except IndexError:
-            # No bibrefs on record--discard
-            tickets.remove(ticket)
-            continue
-        # and add it to bibrefs_to_confirm list
-        if not pid in bibrefs_to_confirm:
-            bibrefs_to_confirm[pid] = {
-                'person_name': person_name,
-                'canonical_id': "TBA",
-                'bibrecs': {recid: sorted_bibrefs}}
+    for ticket in list(tickets):
+        pid = ticket['pid']
+        person_name = get_most_frequent_name_from_pid(pid, allow_none=True)
+    
+        if not person_name:
+            if arxiv_name:
+                person_name = ''.join(arxiv_name)
+            else:
+                person_name = " "
+
+        if 'incomplete' not in ticket:
+            recid = get_bibrec_from_bibrefrec(ticket['bibref'])
+    
+            if recid == -1:
+                # No bibrefs on record--discard
+                tickets.remove(ticket)
+                continue     
+            bibrefs_per_recid = get_bibrefs_from_bibrecs([recid])
+            for bibref in bibrefs_per_recid[0]:
+                if bibref[0] == ticket['bibref'].split(",")[0]:
+                    more_possible_bibref = bibrefs_per_recid[0].pop(bibref)
+
+            sorted_bibrefs = more_possible_bibref + sorted(bibrefs_per_recid[0][1], key=lambda x: x[1])
+            if not pid in bibrefs_to_confirm:
+                bibrefs_to_confirm[pid] = {
+                    'person_name': person_name,
+                    'canonical_id': "TBA",
+                    'bibrecs': {recid: sorted_bibrefs}}
+            else:
+                bibrefs_to_confirm[pid]['bibrecs'][recid] = sorted_bibrefs
         else:
-            bibrefs_to_confirm[pid]['bibrecs'][recid] = sorted_bibrefs
+            # convert recid from string to int
+            recid = wash_integer_id(ticket['bibref'])
+            bibrefs_per_recid = get_bibrefs_from_bibrecs([recid])
+    
+            try:
+                name = bibrefs_per_recid[0][1]
+                sorted_bibrefs = sorted(name, key=lambda x: x[1])
+            except IndexError:
+                # No bibrefs on record--discard
+                tickets.remove(ticket)
+                continue
 
-    if bibrefs_to_confirm or bibrefs_auto_assigned:
-        pinfo["bibref_check_required"] = True
-        baa = deepcopy(bibrefs_auto_assigned)
-        btc = deepcopy(bibrefs_to_confirm)
-
-        for pid in baa:
-            for rid in baa[pid]['bibrecs']:
-                baa[pid]['bibrecs'][rid] = []
-
-        for pid in btc:
-            for rid in btc[pid]['bibrecs']:
-                btc[pid]['bibrecs'][rid] = []
-
-        pinfo["bibrefs_auto_assigned"] = baa
-        pinfo["bibrefs_to_confirm"] = btc
-    else:
-        pinfo["bibref_check_required"] = False
-
+            # and add it to bibrefs_to_confirm list
+            if not pid in bibrefs_to_confirm:
+                bibrefs_to_confirm[pid] = {
+                    'person_name': person_name,
+                    'canonical_id': "TBA",
+                    'bibrecs': {recid: sorted_bibrefs}}
+            else:
+                bibrefs_to_confirm[pid]['bibrecs'][recid] = sorted_bibrefs
+    
+        if bibrefs_to_confirm or bibrefs_auto_assigned:
+            pinfo["bibref_check_required"] = True
+            baa = deepcopy(bibrefs_auto_assigned)
+            btc = deepcopy(bibrefs_to_confirm)
+    
+            for pid in baa:
+                for rid in baa[pid]['bibrecs']:
+                    baa[pid]['bibrecs'][rid] = []
+    
+            for pid in btc:
+                for rid in btc[pid]['bibrecs']:
+                    btc[pid]['bibrecs'][rid] = []
+    
+            pinfo["bibrefs_auto_assigned"] = baa
+            pinfo["bibrefs_to_confirm"] = btc
+        else:
+            pinfo["bibref_check_required"] = False
+    
     session.dirty = True
     return bibrefs_auto_assigned, bibrefs_to_confirm
 
@@ -2465,7 +2472,7 @@ def handle_ticket_review_results(req, autoclaim):
     session = get_session(req)
     pinfo = session["personinfo"]
     ticket = pinfo["ticket"]
-
+    print "xooo" + str(pinfo["bibref_check_reviewed_bibrefs"])
     # for every bibref in need of review
     for rbibreft in pinfo["bibref_check_reviewed_bibrefs"]:
         # if it's not in proper form skip it ( || delimiter is being added in bibauthorid_templates:tmpl_bibref_check function, coma delimiter
@@ -2480,15 +2487,16 @@ def handle_ticket_review_results(req, autoclaim):
         rrecid = rbibref.split(",")[1]
         # convert string pid to int
         rpid = wash_integer_id(rpid)
-
         # updating ticket status with fixed bibrefs
         # and removing them from incomplete
         for ticket_update in [row for row in ticket
-                              if (row['bibref'] == str(rrecid) and
-                                  row['pid'] == rpid)]:
+                              if (str(row['bibref']) == str(rrecid) and
+                                  str(row['pid']) == str(rpid))]:
             ticket_update["bibref"] = rbibref
+            
             if "incomplete" in ticket_update:
                 del(ticket_update["incomplete"])
+        session.dirty = True
     # tickets that could't be fixed will be removed or if they were to be autoclaimed they will be stored elsewhere
     if autoclaim:
         failed_to_autoclaim_tickets = []
@@ -2497,7 +2505,8 @@ def handle_ticket_review_results(req, autoclaim):
                               if ('incomplete' in row)]:
             failed_to_autoclaim_tickets.append(ticket_remove)
             ticket.remove(ticket_remove)
-        store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets)
+        if failed_to_autoclaim_tickets:
+            store_incomplete_autoclaim_tickets(req, failed_to_autoclaim_tickets)
     else:
         for ticket_remove in [row for row in ticket
                               if ('incomplete' in row)]:
@@ -2531,7 +2540,7 @@ def is_ticket_review_required(req):
         if not is_valid_bibref(transaction['bibref']):
             transaction['incomplete'] = True
             needs_review.append(transaction)
-
+    session.dirty = True
     if not needs_review:
         return (False, [])
     return (True, needs_review)

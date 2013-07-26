@@ -890,8 +890,8 @@ class Template:
                 rec_info = rec_info.replace("person/search?q=", "author/")
 
             h("    <td>%s</td>" % (rec_info))
-            h('    <td><a rel="nofollow" href="%s/author/claim/batchprocess?selected_bibrecs=%s&mfind_bibref=claim">' + self._('Review Transaction') + '</a></td>'
-                           % (CFG_SITE_URL, paper))
+            h('    <td><a rel="nofollow" href="%s/author/claim/batchprocess?selected_bibrecs=%s&mfind_bibref=claim">'% (CFG_SITE_URL, paper) + 
+                self._('Review Transaction') + '</a></td>')
             h("  </tr>")
 
         h("  </tbody>")
@@ -1549,8 +1549,9 @@ class Template:
         h(('  <input type="submit" name="checkout_submit" class="aid_btn_green" value="%s" />')
           % self._("Confirm these changes**"))
         h('<span style="margin-left:150px;">')
-        h(('  <input type="submit" name="cancel" class="aid_btn_red" value="%s" />')
-          % self._("!Delete the entire request!"))
+        if not autoclaim:
+            h(('  <input type="submit" name="cancel" class="aid_btn_red" value="%s" />')
+              % self._("!Delete the entire request!"))
         h('</span>')
         h('</div>')
         h("</form>")
@@ -3118,7 +3119,7 @@ buttons_verbiage_dict = {'guest': {'mass_buttons': {'no_doc_string': 'Sorry, the
                                                                  'alt_forget': 'Forget decision!',
                                                                  'forget_text': 'Forget assignment decision',
                                                                  'alt_repeal': 'Not Mine!',
-                                                                 'repeal_text': 'But this is mine!',
+                                                                 'repeal_text': 'But this is not mine!',
                                                                  'to_other_text': 'Assign to another person',
                                                                  'alt_to_other': 'To other person!'},
                                             'record_repealed': {'alt_confirm': 'Mine!',

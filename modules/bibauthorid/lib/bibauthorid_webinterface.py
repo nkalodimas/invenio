@@ -703,9 +703,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         @rtype: str
         '''
         def ticket_dispatch_guest(req, autoclaim_show_review = False, autoclaim = False):
-            if autoclaim_show_review:
-                webapi.store_users_open_tickets(req)
-                webapi.restore_incomplete_autoclaim_tickets(req)
 
             page_info = webapi.manage_tickets(req, autoclaim_show_review, autoclaim)
 
@@ -763,7 +760,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         else:
             ln = CFG_SITE_LANG
 
-
         pinfo['autoclaim']['review_failed'] = autoclaim_show_review
         pinfo['autoclaim']['begin_autoclaim'] = autoclaim
         session.dirty = True
@@ -806,26 +802,26 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             pinfo['autoclaim']['begin_autoclaim'] = False
             session.dirty = True
         else:
-            page = webapi.history_get_last_visited_url(req, limit_to_page=['manage_profile', 'claim'])
+            redirect_page = webapi.history_get_last_visited_url(req, limit_to_page=['manage_profile', 'claim'])
 
-            if not page:
-                webapi.get_fallback_redirect_link(req)
+            if not redirect_page:
+                redirect_page = webapi.get_fallback_redirect_link(req)
             if 'autoclaim' in pinfo and pinfo['autoclaim']['review_failed'] == True and pinfo['autoclaim']['checkout'] == True:
-                page = '%s/author/claim/action?checkout=True'  % (CFG_SITE_URL,)
+                redirect_page = '%s/author/claim/action?checkout=True'  % (CFG_SITE_URL,)
                 pinfo['autoclaim']['checkout'] = False
                 session.dirty = True
-            elif not 'manage_profile' in page:
+            elif not 'manage_profile' in redirect_page:
                 pinfo['autoclaim']['review_failed'] = False
                 pinfo['autoclaim']['begin_autoclaim'] == False
                 pinfo['autoclaim']['checkout'] = True
                 session.dirty = True
-                page = '%s/author/claim/%s?open_claim=True'  % (CFG_SITE_URL, webapi.get_person_redirect_link(pinfo["claimpaper_admin_last_viewed_pid"]))
+                redirect_page = '%s/author/claim/%s?open_claim=True'  % (CFG_SITE_URL, webapi.get_person_redirect_link(pinfo["claimpaper_admin_last_viewed_pid"]))
             else:
                 pinfo['autoclaim']['review_failed'] = False
                 pinfo['autoclaim']['begin_autoclaim'] == False
                 pinfo['autoclaim']['checkout'] = True
                 session.dirty = True
-            return redirect_to_url(req, page)
+            return redirect_to_url(req, redirect_page)
 
 #            redirect_link = diary('get_redirect_link', caller='_ticket_dispatch_end', parameters=[('open_claim','True')])
 #            return redirect_to_url(req, redirect_link)
@@ -1211,14 +1207,14 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             pinfo["merge_primary_profile"] = None
             pinfo["merge_profiles"] = []
             session.dirty = True
-            page = webapi.get_marked_visit_link(req)
+            redirect_page = webapi.get_marked_visit_link(req)
             webapi.reset_marked_visit_link(req)
-            if not page:
-                page = history_get_last_visited_url(req, limit_to_page=['manage_profile'])
+            if not redirect_page:
+                redirect_page = webapi.history_get_last_visited_url(req, limit_to_page=['manage_profile'])
 
-            if not page:
-                page = get_fallback_redirect_link(req)
-            return redirect_to_url(req, page)
+            if not redirect_page:
+                redirect_page = webapi.get_fallback_redirect_link(req)
+            return redirect_to_url(req, redirect_page)
 
         def cancel_rt_ticket():
             if argd['selection'] is not None:
@@ -1384,6 +1380,9 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             pinfo['autoclaim']['begin_autoclaim'] = autoclaim
             session.dirty = True
             
+            if autoclaim_show_review :
+                webapi.store_users_open_tickets(req)
+                webapi.restore_incomplete_autoclaim_tickets(req)
             return self._ticket_dispatch(ulevel, req, autoclaim_show_review, autoclaim)
             # return self.perform(req, form)
 
@@ -1432,7 +1431,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
             uid = getUid(req)
             user_pid = webapi.get_pid_from_uid(uid)
-            error_message = ''
             is_admin = False
 
             if "ulevel" in pinfo and pinfo["ulevel"] and pinfo['ulevel'] == 'admin':
@@ -1462,30 +1460,30 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 webapi.create_request_message(userinfo, subj = 'Merge profiles request')
                 pinfo["merge_primary_profile"] = None
                 pinfo["merge_profiles"] = []
-                page = webapi.get_marked_visit_link(req)
+                redirect_page = webapi.get_marked_visit_link(req)
                 webapi.reset_marked_visit_link(req)
                 # TO DO show message send error
-                if not page:
-                    page = webapi.history_get_last_visited_url(req, limit_to_page=['manage_profile'])
+                if not redirect_page:
+                    redirect_page = webapi.history_get_last_visited_url(req, limit_to_page=['manage_profile'])
     
-                if not page:
-                    page = webapi.get_fallback_redirect_link(req)
+                if not redirect_page:
+                    redirect_page = webapi.get_fallback_redirect_link(req)
 
                 pinfo["merge_info_message"] = "confirm_ticket"
                 
             elif is_admin and not can_perform_merge:
                 pinfo["merge_info_message"] = "confirm_failure"
-                page = '%s/author/merge_profiles?primary_profile=%s&selection=%s' % (CFG_SITE_URL, argd['primary_profile'], '&selection'.join(argd['selection']))
+                redirect_page = '%s/author/merge_profiles?primary_profile=%s&selection=%s' % (CFG_SITE_URL, argd['primary_profile'], '&selection'.join(argd['selection']))
             else:
                 pinfo["merge_info_message"] = "confirm_success"
                 webapi.merge_profiles(primary_profile, profiles_to_merge)
                 pinfo["merge_primary_profile"] = None
                 pinfo["merge_profiles"] = []
                 webapi.reset_marked_visit_link(req)
-                page = '%s/author/manage_profile/%s' % (CFG_SITE_URL, webapi.get_canonical_id_from_person_id(primary_profile))
+                redirect_page = '%s/author/manage_profile/%s' % (CFG_SITE_URL, webapi.get_canonical_id_from_person_id(primary_profile))
 
             session.dirty = True
-            return redirect_to_url(req, page)
+            return redirect_to_url(req, redirect_page)
 
         def send_message():
             self._session_bareinit(req)
@@ -2481,14 +2479,14 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 autoclaim_data["link"] = "%s/author/claim/action?confirm=True&pid=%s&autoclaim_show_review=True" % (CFG_SITE_URL, person_id)
                 autoclaim_data['text'] = "Review autoclaiming"
 
-                recids_to_autoclaim = [69]
+                recids_to_autoclaim = [69,70]
                 if recids_to_autoclaim:
                     webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
                     self._ticket_dispatch(ulevel, req, False, True)
                 unsuccessfull_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
-                unsuccessfull_recids = [69]
+                unsuccessfull_recids = [69,70]
                 autoclaim_data["num_of_unsuccessfull_recids"] = len(unsuccessfull_recids)
-                inverted_association = {69:'arXiv:0901.4101'}
+                inverted_association = {69:'arXiv:0901.4101', 70:'arXiv:0901.4102'}
                 autoclaim_data['recids_to_external_ids'] = inverted_association
                 autoclaim_data['unsuccessfull_recids'] = []
 

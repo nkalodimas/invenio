@@ -2560,8 +2560,9 @@ def get_papers_info_of_author(pid, flag,   ### get_person_papers
             rt_count = run_sql("""select count(personid)
                                   from aidPERSONIDDATA where
                                   tag like 'rt_%%'
-                                  and data=%s""",
-                                  (sig_str,) )
+                                  and data=%s
+                                  and personid=%s""",
+                                  (sig_str,str(pid)) )
             record_info['rt_status'] = (rt_count[0][0] > 0)
 
         if show_affiliations:
