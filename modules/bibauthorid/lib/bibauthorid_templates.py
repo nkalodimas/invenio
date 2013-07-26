@@ -100,6 +100,7 @@ class Template:
                                     'failure': 'Failure!' }
         transaction_message_dict = { 'confirm_success': '%s transaction%s successfully executed.',
                                      'confirm_failure': '%s transaction%s failed. The system may have been updating during your operation. Please try again or contact %s to obtain help.',
+                                     'confirm_ticket': '%s transaction%s successfully ticketized.',
                                      'reject_success': '%s transaction%s successfully executed.',
                                      'reject_failure': '%s transaction%s failed. The system may have been updating during your operation. Please try again or contact %s to obtain help.',
                                      'reset_success': '%s transaction%s successfully executed.',
@@ -138,6 +139,108 @@ class Template:
             h('</div>')
 
         return "\n".join(html)
+
+
+    def tmpl_merge_transaction_box(self, teaser_key, messages, show_close_btn=True):
+        '''
+        Creates a notification box based on the jQuery UI style
+
+        @param teaser_key: key to a dict which returns the teaser
+        @type teaser_key: string
+        @param messages: list of keys to a dict which return the message to display in the box
+        @type messages: list of strings
+        @param show_close_btn: display close button [x]
+        @type show_close_btn: boolean
+
+        @return: HTML code
+        @rtype: string
+        '''
+        transaction_teaser_dict = { 'success': 'Success!',
+                                    'failure': 'Failure!' }
+        transaction_message_dict = { 'confirm_success': '%s merge transaction%s successfully executed.',
+                                     'confirm_failure': '%s merge transaction%s failed. This happened because more than one profile in the merging list is connected to a user.'
+                                     ' Please edit the list accordingly',
+                                     'confirm_ticket': '%s merge transaction%s successfully ticketized.'}
+
+        teaser = self._(transaction_teaser_dict[teaser_key])
+
+        html = []
+        h = html.append
+        for key in transaction_message_dict.keys():
+            same_kind = [mes for mes in messages if mes == key]
+            trans_no = len(same_kind)
+            if trans_no == 0:
+                continue
+            elif trans_no == 1:
+                args = [trans_no, '']
+            else:
+                args = [trans_no, 's']
+
+            color = ''
+            if teaser_key == 'failure':
+                color = 'background: #FC2626;'
+
+            message = self._(transaction_message_dict[key] % tuple(args))
+
+            h('<div id="aid_notification_' + key + '" class="ui-widget ui-alert">')
+            h('  <div style="%s margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">' % (color))
+            h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
+            h('    <strong>%s</strong> %s' % (teaser, message))
+
+            if show_close_btn:
+                h('    <span style="float:right; margin-right: 0.3em;"><a rel="nofollow" href="#" class="aid_close-notify" style="border-style: none;">X</a></span></p>')
+
+            h(' </div>')
+            h('</div>')
+
+        return "\n".join(html)
+
+    def tmpl_login_transaction_box(self, teaser_key, messages, show_close_btn=True):
+        '''
+        Creates a notification box based on the jQuery UI style
+
+        @param teaser_key: key to a dict which returns the teaser
+        @type teaser_key: string
+        @param messages: list of keys to a dict which return the message to display in the box
+        @type messages: list of strings
+        @param show_close_btn: display close button [x]
+        @type show_close_btn: boolean
+
+        @return: HTML code
+        @rtype: string
+        '''
+        transaction_teaser_dict = { 'success': 'Success!',
+                                    'failure': 'Failure!' }
+        transaction_message_dict = { 'confirm_success': 'You are now connected to Inspire through arXiv.'}
+
+        teaser = self._(transaction_teaser_dict[teaser_key])
+
+        html = []
+        h = html.append
+        for key in transaction_message_dict.keys():
+            same_kind = [mes for mes in messages if mes == key]
+            trans_no = len(same_kind)
+            
+            color = ''
+            if teaser_key == 'failure':
+                color = 'background: #FC2626;'
+
+            message = self._(transaction_message_dict[key])
+
+            h('<div id="aid_notification_' + key + '" class="ui-widget ui-alert">')
+            h('  <div style="%s margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">' % (color))
+            h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
+            h('    <strong>%s</strong> %s' % (teaser, message))
+
+            if show_close_btn:
+                h('    <span style="float:right; margin-right: 0.3em;"><a rel="nofollow" href="#" class="aid_close-notify" style="border-style: none;">X</a></span></p>')
+
+            h(' </div>')
+            h('</div>')
+
+        return "\n".join(html)
+
+
 
     def tmpl_notification_box(self, teaser_key, message_key, bibrefs, show_close_btn=True):
         '''
@@ -264,7 +367,7 @@ class Template:
         h('  <div style="margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">')
         h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
         h('    <strong>%s</strong> %s ' % (teaser, message))
-        h('<a rel="nofollow" id="checkout" href="action?checkout=True">' + self._('Click here to review the transactions.') + '</a>')
+        h('<a rel="nofollow" id="checkout" href="%s/author/claim/action?checkout=True">' % (CFG_SITE_URL,) + self._('Click here to review the transactions.') + '</a>')
         h('<br>')
 
         if show_close_btn:
@@ -316,7 +419,7 @@ class Template:
             h("<li>%s</li>"
                    % (format_record(int(pbibrec), "ha")))
         h("</ul>")
-        h('<a rel="nofollow" id="checkout" href="action?cancel_search_ticket=True">' + self._('Quit searching.') + '</a>')
+        h('<a rel="nofollow" id="checkout" href="%s/author/claim/action?cancel_search_ticket=True">' % (CFG_SITE_URL,) + self._('Quit searching.') + '</a>')
 
         if show_close_btn:
             h('    <span style="float:right; margin-right: 0.3em;"><a rel="nofollow" href="#" class="aid_close-notify">X</a></span></p>')
@@ -356,10 +459,10 @@ class Template:
         #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
         #            % (profile, profile))
         h("</ul>")
-        h('<a rel="nofollow" id="checkout" href="%s/author/claim/action?cancel_merging=True">' % (CFG_SITE_URL,) + self._('Cancel merging.') + '</a>' )
-        if len(profiles):
-            h('<a rel="nofollow" id="merge" href="%s/author/claim/action?merge=True&pid=%s">' % (CFG_SITE_URL, str(primary_profile),) + self._('Merge profiles.') + '</a>' )
-
+        h('<form action="%s/author/claim/action" method="get"><input type="hidden" name="cancel_merging" value="True" /><input type="submit" id="checkout" class="aid_btn_blue" value="%s" /></form>' %
+                    (CFG_SITE_URL, self._('Cancel merging.')))
+        h('<form action="%s/author/claim/action" method="get"><input type="hidden" name="merge" value="True" /><input type="submit" id="mergeButton" class="aid_btn_blue" value="%s" style="display:none"/></form>' %
+                    (CFG_SITE_URL, self._('Merge profiles.')))
         h(' </div>')
         h('</div>')
         h('<p>&nbsp;</p>')
@@ -802,8 +905,8 @@ class Template:
                 rec_info = rec_info.replace("person/search?q=", "author/")
 
             h("    <td>%s</td>" % (rec_info))
-            h('    <td><a rel="nofollow" href="%s/author/claim/batchprocess?selected_bibrecs=%s&mfind_bibref=claim">' + self._('Review Transaction') + '</a></td>'
-                           % (CFG_SITE_URL, paper))
+            h('    <td><a rel="nofollow" href="%s/author/claim/batchprocess?selected_bibrecs=%s&mfind_bibref=claim">'% (CFG_SITE_URL, paper) + 
+                self._('Review Transaction') + '</a></td>')
             h("  </tr>")
 
         h("  </tbody>")
@@ -1489,8 +1592,9 @@ class Template:
         h(('  <input type="submit" name="checkout_submit" class="aid_btn_green" value="%s" />')
           % self._("Confirm these changes**"))
         h('<span style="margin-left:150px;">')
-        h(('  <input type="submit" name="cancel" class="aid_btn_red" value="%s" />')
-          % self._("!Delete the entire request!"))
+        if not autoclaim:
+            h(('  <input type="submit" name="cancel" class="aid_btn_red" value="%s" />')
+              % self._("!Delete the entire request!"))
         h('</span>')
         h('</div>')
         h("</form>")
@@ -1610,12 +1714,12 @@ class Template:
         def stub(pid, search_param):
             text = self._("Attribute paper")
             parameters = [('confirm', True), ('pid', str(pid)), ('search_param', search_param)]
+            for r in bibrefs:
+                parameters.append(('selection', str(r)))
+
             link = "%s/author/claim/action" % (CFG_SITE_URL)
             css_class = ""
             to_disable = False
-
-            for r in bibrefs:
-                link = link + '&selection=%s' % str(r)
 
             return text, link, parameters, css_class, to_disable
 
@@ -2347,7 +2451,7 @@ class Template:
                                                                            probable_profile_suggestion_info['canonical_name_string']))
             h('</td>')
             h('<td>')
-            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+            h('<a rel="nofollow" href="%s/author/claim/action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % ( CFG_SITE_URL,
                                                                                 str(probable_profile_suggestion_info['pid']), param, 'This is my profile'))
             h('</td>')
             h('</tr>')
@@ -2363,7 +2467,7 @@ class Template:
                                                                            last_viewed_profile_suggestion_info['canonical_name_string']))
             h('</td>')
             h('<td>')
-            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+            h('<a rel="nofollow" href="%s/author/claim/action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % ( CFG_SITE_URL,
                                                                                 str(last_viewed_profile_suggestion_info['pid']), param, 'This is my profile'))
             h('</td>')
             h('</tr>')
@@ -3057,7 +3161,7 @@ buttons_verbiage_dict = {'guest': {'mass_buttons': {'no_doc_string': 'Sorry, the
                                                                  'alt_forget': 'Forget decision!',
                                                                  'forget_text': 'Forget assignment decision',
                                                                  'alt_repeal': 'Not Mine!',
-                                                                 'repeal_text': 'But this is mine!',
+                                                                 'repeal_text': 'But this is not mine!',
                                                                  'to_other_text': 'Assign to another person',
                                                                  'alt_to_other': 'To other person!'},
                                             'record_repealed': {'alt_confirm': 'Mine!',
