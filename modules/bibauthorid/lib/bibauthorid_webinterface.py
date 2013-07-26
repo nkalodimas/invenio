@@ -212,7 +212,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         session.dirty = True
 
-        content += self._generate_ticket_box(ulevel, req)
+        content = self._generate_ticket_box(ulevel, req)
         content += self._generate_person_info_box(ulevel, ln)
         content += self._generate_tabs(ulevel, req)
         content += self._generate_footer(ulevel)
