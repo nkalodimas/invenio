@@ -212,7 +212,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         session.dirty = True
 
-        content = self._generate_optional_menu(ulevel, req, form)
         content += self._generate_ticket_box(ulevel, req)
         content += self._generate_person_info_box(ulevel, ln)
         content += self._generate_tabs(ulevel, req)
