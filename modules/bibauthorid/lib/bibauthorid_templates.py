@@ -847,7 +847,7 @@ class Template:
         h('<div class="accordion-group">')
 
         # Define accordion heading
-        h('<div class="accordion-heading">')
+        h('<span class=\"bsw\"><div class="accordion-heading">')
         h('<a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#collapseVariants">')
         h('%s</a>' % self._('View name variants'))
         h('</div>')
@@ -862,7 +862,7 @@ class Template:
 
         h('</div>')  # Close variants accordion body
         h('</div>')  # Close accordion group
-        h('</div>')  # Close accordion
+        h('</div></span>')  # Close accordion
 
         return "\n".join(html)
 
@@ -1253,7 +1253,7 @@ class Template:
         if menu_items is None:
             menu_items = Template.DEFAULT_PROFILE_MENU_ITEMS
         _ = gettext_set_language(ln)
-        navigation_bar = "<ul id=\"authorid_menu\" class=\"nav nav-pills\">"
+        navigation_bar = "<span class=\"bsw\"><ul id=\"authorid_menu\" class=\"nav nav-pills\">"
 
         for item in menu_items:
             (rel_url, link_text, static) = item
@@ -1262,11 +1262,11 @@ class Template:
             link_text = _(link_text)
 
             if active.lower() in link_text.lower():
-                navigation_bar += "<li class=\"active\"><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
+                navigation_bar += "<li class=\"bsw active\"><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
             else:
                 navigation_bar += "<li><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
 
-        return navigation_bar + "</ul>"
+        return navigation_bar + "</ul></span>"
 
     def tmpl_person_menu(self, pid, ln):
         '''
@@ -2696,7 +2696,7 @@ class Template:
                 html_arxiv = _("You have succesfully logged in via arXiv. You can now manage your profile accordingly.</br>")
             else:
                 html_arxiv = _("You have succesfully logged in via arXiv.</br><div><font color='red'>However the profile you are currently viewing is not your profile.</br></br></font>")
-                html_arxiv += '<a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['own_profile_link'], _(arxiv_data['own_profile_text']) )
+                html_arxiv += '<span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (arxiv_data['own_profile_link'], _(arxiv_data['own_profile_text']))
 
             #html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['logout_link'], _(arxiv_data['logout_text']))
         else:
@@ -2704,7 +2704,7 @@ class Template:
                             " profile and update your paper list automatically. You may also proceed"
                             " as a guest user, then your input will be processed by our staff and "
                             "thus might take longer to display.</br>")
-            html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['login_link'], _(arxiv_data['login_text']) )
+            html_arxiv += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (arxiv_data['login_link'], _(arxiv_data['login_text']))
         if loading:
             html_arxiv = self.loading_html()
         if add_box:
@@ -2724,14 +2724,14 @@ class Template:
         if orcid_data['orcids']:
             html_orcid += _('This profile is already connected to the following ORCID iD: <strong>%s</strong></br>' % (",".join(orcid_data['orcids']),))
             if orcid_data['arxiv_login'] and orcid_data['own_profile']:
-                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Autoclaim publications from ORCID") )
-                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Visit your profile in ORCID") )
+                html_orcid += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % ("mpla.com", _("Autoclaim publications from ORCID") )
+                html_orcid += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % ("mpla.com", _("Visit your profile in ORCID") )
         else:
             if orcid_data['arxiv_login'] and (orcid_data['own_profile'] or orcid_data['add_power']):
-                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['add_link'],
+                html_orcid += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn"><%s</a></span>' % (orcid_data['add_link'],
                                                                                                                              _(orcid_data['add_text']) )
             else:
-                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['suggest_link'],
+                html_orcid += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (orcid_data['suggest_link'],
                                                                                                                          _(orcid_data['suggest_text']) )
         if loading:
             html_orcid = self.loading_html()
@@ -2750,7 +2750,7 @@ class Template:
                        "authors and colleagues - that way you can also help us providing more accurate publication"
                        " and citations statistics on INSPIRE.</br>")
 
-        html_claim_paper += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (claim_paper_data['link'],
+        html_claim_paper += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (claim_paper_data['link'],
                                                                                                                                 _(claim_paper_data['text']))
 
         if loading:
@@ -2766,12 +2766,12 @@ class Template:
 
         html_head = _("<strong> External Ids </strong>")
 
-        html_ext_ids = '<div>'
+        html_ext_ids = '<span class=\"bsw\"><div>'
 
         html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
         html_ext_ids += '<input type="hidden" name="%s" value="True">' % (ext_ids_data['add_missing_parameter'],)
         html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-        html_ext_ids += '<br> <input type="submit" value="%s"> </form>'  % (ext_ids_data['add_missing_text'],)
+        html_ext_ids += '<br> <input type="submit" class="btn" value="%s"> </form>' % (ext_ids_data['add_missing_text'],)
 
         if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
             html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
@@ -2784,7 +2784,7 @@ class Template:
                     sys = ''
                 for id_value in ext_ids_data['ext_ids'][key]:
                     html_ext_ids += '<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (key, id_value, sys, id_value)
-            html_ext_ids += '        <br> <br> <input type="submit" value="%s"> <br> </form>' % (ext_ids_data['remove_text'],)
+            html_ext_ids += '        <br> <br> <input type="submit" class="btn" value="%s"> <br> </form>' % (ext_ids_data['remove_text'],)
         else:
             html_ext_ids += 'UserID: There are no external users associated to this profile!'
 
@@ -2798,9 +2798,9 @@ class Template:
             html_ext_ids += '  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el)
         html_ext_ids += '   </select>'
         html_ext_ids += '   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">'
-        html_ext_ids += '   <input type="submit" value="%s" >' % (ext_ids_data['add_text'],)
+        html_ext_ids += '   <input type="submit" class="btn" value="%s" >' % (ext_ids_data['add_text'],)
         # html_ext_ids += '<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
-        html_ext_ids += '<br> </form> </div>'
+        html_ext_ids += '<br> </form> </div></span>'
 
         if loading:
             html_ext_ids += self.loading_html()
@@ -2809,6 +2809,7 @@ class Template:
             return ext_ids_box
         else:
             return html_ext_ids
+
     # for ajax requests add_box and loading are false
     def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
@@ -2850,7 +2851,7 @@ class Template:
                 for rec in autoclaim_data['unsuccessfull_recids'][:5]:
                     html_autoclaim += '<tr><td>' + str(autoclaim_data['recids_to_external_ids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>' # 2nd rec is probably the index
                 html_autoclaim += '</table>'
-                html_autoclaim += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</button></a></div>'  % (autoclaim_data["link"],
+                html_autoclaim += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (autoclaim_data["link"],
                                                                                                                                 _(autoclaim_data['text']))
 
         if add_box:
@@ -2866,7 +2867,7 @@ class Template:
         html_support = _("Please, contact our support if you need any kind of help or if you want to suggest"
                        " us  new ideas. We will get back to you quickly.</br>")
 
-        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['help_link'],
+        html_support += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (support_data['help_link'],
                                                                                                                        _(support_data['help_text']))
         if loading:
             html_support = self.loading_html()
@@ -2883,7 +2884,7 @@ class Template:
         html_merge = _("When you merge a set of profiles, all the information stored will be assigned to the primary profile. This includes papers, ids or citations."
                        " After merging, only the primary profile will remain in the system, all other profiles will be automatically deleted.</br>")
 
-        html_merge += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (merge_data['merge_link'],
+        html_merge += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (merge_data['merge_link'],
                                                                                                                                   _(merge_data['merge_text']))
 
         if loading:
