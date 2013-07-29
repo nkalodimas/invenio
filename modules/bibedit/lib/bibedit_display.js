@@ -979,9 +979,10 @@ function displayMessage(msgCode, keepContent, args) {
     case 107:
         msg = 'It appears that you have opened this record in another editor, ' +
             'perhaps in a different window or on a different computer. ' +
-            'A record can only be edited in one place at the time.<br />' +
+            'A record can only be edited in one place at the time.<br /><br />' +
             'Do you want to ' +
-            '<b><a href="#"id="lnkGetRecord">reopen the record</a></b> here?';
+            '<b><a href="#"id="lnkGetRecord">reopen the record</a></b> here? ' +
+            '<br/>(<i>warning: changes performed in the other window will be lost</i>)';
         break;
     case 108:
         msg = 'Could not find record template file. Please notify your ' +

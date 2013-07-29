@@ -455,6 +455,8 @@ def perform_bulk_request_ajax(req, recid, uid, reqsData, undoRedo, cacheMTime):
     """ An AJAX handler used when treating bulk updates """
     lastResult = {}
     lastTime = cacheMTime
+    if get_cache_mtime(recid, uid) != cacheMTime:
+        return {"resultCode": 107}
     isFirst = True
     for data in reqsData:
         assert data is not None
@@ -465,8 +467,6 @@ def perform_bulk_request_ajax(req, recid, uid, reqsData, undoRedo, cacheMTime):
             data['undoRedo'] = undoRedo
             isFirst = False
         lastResult = perform_request_ajax(req, recid, uid, data, isBulk=True)
-        # now we have to update the cacheMtime in next request !
-#        if lastResult.has_key('cacheMTime'):
         try:
             lastTime = lastResult['cacheMTime']
         except:
@@ -640,6 +640,12 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
         if "inReadOnlyMode" in data:
             read_only_mode = data['inReadOnlyMode']
 
+        if data.get('deleteRecordCache'):
+            delete_cache(recid, uid)
+            existing_cache = False
+            pending_changes = []
+            disabled_hp_changes = {}
+
         if record_status == 0:
             response['resultCode'] = 102
         elif not read_only_mode and not existing_cache and \
@@ -655,12 +661,10 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             response['resultCode'] = 104
         elif not read_only_mode and record_locked_by_queue(recid):
             response['resultCode'] = 105
+        elif 'cacheMTime' not in data and cache_exists(recid, uid):
+            # First request to get record and it is already open in other window
+            response['resultCode'] = 107
         else:
-            if data.get('deleteRecordCache'):
-                delete_cache(recid, uid)
-                existing_cache = False
-                pending_changes = []
-                disabled_hp_changes = {}
             if read_only_mode:
                 if 'recordRevision' in data and data['recordRevision'] != 'sampleValue':
                     record_revision_ts = data['recordRevision']
@@ -978,7 +982,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data,
     response = {}
     if not cache_exists(recid, uid):
         response['resultCode'] = 106
-    elif not get_cache_mtime(recid, uid) == cacheMTime and isBulk is False:
+    elif get_cache_mtime(recid, uid) != cacheMTime and isBulk is False:
         # In case of a bulk request, the changes are deliberately performed
         # immediately one after another
         response['resultCode'] = 107

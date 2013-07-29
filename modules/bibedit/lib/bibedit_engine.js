@@ -548,8 +548,8 @@ function onAjaxSuccess(json, onSuccess){
     }
     displayMessage(resCode, false, args);
     if (resCode == 107) {
-      //return;
       $('#lnkGetRecord').bind('click', function(event){
+        getRecord.deleteRecordCache = true;
         getRecord(recID);
         event.preventDefault();
       });
