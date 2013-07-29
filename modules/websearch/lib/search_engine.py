@@ -5545,6 +5545,10 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
                     # searching in case we know we only have actual or potential hosted collections results
                     if not only_hosted_colls_actual_or_potential_results_p:
                         results_in_any_collection = search_pattern_parenthesised(req, p, f, ap=ap, of=of, verbose=verbose, ln=ln, display_nearest_terms_box=not hosted_colls_actual_or_potential_results_p, wl=wl)
+                except KeyboardInterrupt:
+                    # This happens usually from the command line
+                    # The error handling we want is different
+                    raise
                 except:
                     register_exception(req=req, alert_admin=True)
                     if of.startswith("h"):
