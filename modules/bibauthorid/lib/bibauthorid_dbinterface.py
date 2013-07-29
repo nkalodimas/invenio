@@ -1244,6 +1244,25 @@ def get_name_to_authors_mapping():   ### get_name_string_to_pid_dictionary
     return mapping
 
 
+def get_confirmed_name_to_authors_mapping():
+    '''
+    Gets a mapping which associates confirmed names with the set of authors who
+    carry each name.
+
+    @return: mapping
+    @rtype: dict {str: set(int,)}
+    '''
+    mapping = dict()
+    authors = run_sql("""select personid, name
+                         from aidPERSONIDPAPERS
+                         where flag > -2""")
+
+    for pid, name in authors:
+        mapping.setdefault(name, set()).add(pid)
+
+    return mapping
+
+
 def get_author_paper_associations(table_name='aidPERSONIDPAPERS'):   ### get_full_personid_papers
     '''
     Gets all author-paper associations (from aidPERSONIDPAPERS table or any
@@ -1812,17 +1831,17 @@ def get_author_by_uid(uid):   ### get_personid_from_uid
     returns an invalid identifier.
 
     @param uid: user identifier
-    @type uid: tuple ((int),)
+    @type uid: int
 
     @return: author identifier ((pid), uid_owner_exists)
-    @rtype: tuple ((int), bool)
+    @rtype: tuple (int, bool)
     '''
-    pid = _select_from_aidpersoniddata_where(select=['personid'], tag='uid', data=str(uid[0][0]))
+    pid = _select_from_aidpersoniddata_where(select=['personid'], tag='uid', data=str(uid))
 
     if pid:
-        return (pid[0], True)
+        return (pid[0][0], True)
 
-    return  ((-1), False)
+    return  (-1, False)
 
 
 def get_author_by_external_id(ext_id, ext_sys=None):   ### get_person_with_extid
@@ -2172,7 +2191,7 @@ def get_free_author_id():   ### get_new_personid
 
     max_pids = tuple(int(pid[0][0]) for pid in max_pids if pid and pid[0][0])
 
-    free_pid = 0
+    free_pid = 1
     if len(max_pids) == 2:
         free_pid = max(*max_pids) + 1
     elif len(max_pids) == 1:
@@ -2560,8 +2579,9 @@ def get_papers_info_of_author(pid, flag,   ### get_person_papers
             rt_count = run_sql("""select count(personid)
                                   from aidPERSONIDDATA where
                                   tag like 'rt_%%'
-                                  and data=%s""",
-                                  (sig_str,) )
+                                  and data=%s
+                                  and personid=%s""",
+                                  (sig_str,str(pid)) )
             record_info['rt_status'] = (rt_count[0][0] > 0)
 
         if show_affiliations:

@@ -18,7 +18,7 @@
 
 imgdir=$(localstatedir)/www/img
 
-img_DATA = bibauthorid.css
+img_DATA = bibauthorid.css bootstrap.min.css glyphicons-halflings.png glyphicons-halflings-white.png
 
 EXTRA_DIST = $(img_DATA)
 

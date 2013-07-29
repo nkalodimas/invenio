@@ -34,7 +34,8 @@ from invenio.bibformat import format_record
 from invenio.session import get_session
 from invenio.search_engine_utils import get_fieldvalues
 from invenio.bibauthorid_config import PERSONID_EXTERNAL_IDENTIFIER_MAP, CREATE_NEW_PERSON
-from invenio.bibauthorid_webapi import get_person_redirect_link, get_canonical_id_from_person_id, get_person_names_from_id
+from invenio.bibauthorid_webapi import get_person_redirect_link, get_canonical_id_from_person_id, \
+    get_person_names_from_id, get_person_info_by_pid
 from invenio.bibauthorid_frontinterface import get_uid_of_author
 from invenio.bibauthorid_frontinterface import get_bibrefrec_name_string
 from invenio.bibauthorid_frontinterface import get_canonical_name_of_author
@@ -43,8 +44,17 @@ from invenio.webuser import get_email
 from invenio.htmlutils import escape_html
 # from invenio.textutils import encode_for_xml
 
+
 class Template:
     """Templating functions used by aid"""
+
+    # Class level variable for profile menu bar
+    DEFAULT_PROFILE_MENU_ITEMS = [
+                ("/author/profile/","View Profile",False),
+                ("/author/manage_profile/","Manage Profile",False),
+                ("/author/claim/","Attribute Papers",False),
+                ("/author/profile/","Help",True)
+    ]
 
     def __init__(self, language=CFG_SITE_LANG):
         """Set defaults for all aid template output"""
@@ -90,6 +100,7 @@ class Template:
                                     'failure': 'Failure!' }
         transaction_message_dict = { 'confirm_success': '%s transaction%s successfully executed.',
                                      'confirm_failure': '%s transaction%s failed. The system may have been updating during your operation. Please try again or contact %s to obtain help.',
+                                     'confirm_ticket': '%s transaction%s successfully ticketized.',
                                      'reject_success': '%s transaction%s successfully executed.',
                                      'reject_failure': '%s transaction%s failed. The system may have been updating during your operation. Please try again or contact %s to obtain help.',
                                      'reset_success': '%s transaction%s successfully executed.',
@@ -128,6 +139,108 @@ class Template:
             h('</div>')
 
         return "\n".join(html)
+
+
+    def tmpl_merge_transaction_box(self, teaser_key, messages, show_close_btn=True):
+        '''
+        Creates a notification box based on the jQuery UI style
+
+        @param teaser_key: key to a dict which returns the teaser
+        @type teaser_key: string
+        @param messages: list of keys to a dict which return the message to display in the box
+        @type messages: list of strings
+        @param show_close_btn: display close button [x]
+        @type show_close_btn: boolean
+
+        @return: HTML code
+        @rtype: string
+        '''
+        transaction_teaser_dict = { 'success': 'Success!',
+                                    'failure': 'Failure!' }
+        transaction_message_dict = { 'confirm_success': '%s merge transaction%s successfully executed.',
+                                     'confirm_failure': '%s merge transaction%s failed. This happened because more than one profile in the merging list is connected to a user.'
+                                     ' Please edit the list accordingly',
+                                     'confirm_ticket': '%s merge transaction%s successfully ticketized.'}
+
+        teaser = self._(transaction_teaser_dict[teaser_key])
+
+        html = []
+        h = html.append
+        for key in transaction_message_dict.keys():
+            same_kind = [mes for mes in messages if mes == key]
+            trans_no = len(same_kind)
+            if trans_no == 0:
+                continue
+            elif trans_no == 1:
+                args = [trans_no, '']
+            else:
+                args = [trans_no, 's']
+
+            color = ''
+            if teaser_key == 'failure':
+                color = 'background: #FC2626;'
+
+            message = self._(transaction_message_dict[key] % tuple(args))
+
+            h('<div id="aid_notification_' + key + '" class="ui-widget ui-alert">')
+            h('  <div style="%s margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">' % (color))
+            h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
+            h('    <strong>%s</strong> %s' % (teaser, message))
+
+            if show_close_btn:
+                h('    <span style="float:right; margin-right: 0.3em;"><a rel="nofollow" href="#" class="aid_close-notify" style="border-style: none;">X</a></span></p>')
+
+            h(' </div>')
+            h('</div>')
+
+        return "\n".join(html)
+
+    def tmpl_login_transaction_box(self, teaser_key, messages, show_close_btn=True):
+        '''
+        Creates a notification box based on the jQuery UI style
+
+        @param teaser_key: key to a dict which returns the teaser
+        @type teaser_key: string
+        @param messages: list of keys to a dict which return the message to display in the box
+        @type messages: list of strings
+        @param show_close_btn: display close button [x]
+        @type show_close_btn: boolean
+
+        @return: HTML code
+        @rtype: string
+        '''
+        transaction_teaser_dict = { 'success': 'Success!',
+                                    'failure': 'Failure!' }
+        transaction_message_dict = { 'confirm_success': 'You are now connected to Inspire through arXiv.'}
+
+        teaser = self._(transaction_teaser_dict[teaser_key])
+
+        html = []
+        h = html.append
+        for key in transaction_message_dict.keys():
+            same_kind = [mes for mes in messages if mes == key]
+            trans_no = len(same_kind)
+            
+            color = ''
+            if teaser_key == 'failure':
+                color = 'background: #FC2626;'
+
+            message = self._(transaction_message_dict[key])
+
+            h('<div id="aid_notification_' + key + '" class="ui-widget ui-alert">')
+            h('  <div style="%s margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">' % (color))
+            h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
+            h('    <strong>%s</strong> %s' % (teaser, message))
+
+            if show_close_btn:
+                h('    <span style="float:right; margin-right: 0.3em;"><a rel="nofollow" href="#" class="aid_close-notify" style="border-style: none;">X</a></span></p>')
+
+            h(' </div>')
+            h('</div>')
+
+        return "\n".join(html)
+
+
 
     def tmpl_notification_box(self, teaser_key, message_key, bibrefs, show_close_btn=True):
         '''
@@ -254,7 +367,7 @@ class Template:
         h('  <div style="margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">')
         h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
         h('    <strong>%s</strong> %s ' % (teaser, message))
-        h('<a rel="nofollow" id="checkout" href="action?checkout=True">' + self._('Click here to review the transactions.') + '</a>')
+        h('<a rel="nofollow" id="checkout" href="%s/author/claim/action?checkout=True">' % (CFG_SITE_URL,) + self._('Click here to review the transactions.') + '</a>')
         h('<br>')
 
         if show_close_btn:
@@ -306,7 +419,7 @@ class Template:
             h("<li>%s</li>"
                    % (format_record(int(pbibrec), "ha")))
         h("</ul>")
-        h('<a rel="nofollow" id="checkout" href="action?cancel_search_ticket=True">' + self._('Quit searching.') + '</a>')
+        h('<a rel="nofollow" id="checkout" href="%s/author/claim/action?cancel_search_ticket=True">' % (CFG_SITE_URL,) + self._('Quit searching.') + '</a>')
 
         if show_close_btn:
             h('    <span style="float:right; margin-right: 0.3em;"><a rel="nofollow" href="#" class="aid_close-notify">X</a></span></p>')
@@ -387,7 +500,8 @@ class Template:
         scripts = ["jquery-ui.min.js",
                    "jquery.form.js",
                    "jquery.dataTables.min.js",
-                   "bibauthorid.js"]
+                   "bibauthorid.js",
+                   "bootstrap.min.js"]
 
         result.append('<link rel="stylesheet" type="text/css" href='
                       '"%s/jquery-ui/themes/smoothness/jquery-ui.css" />'
@@ -397,6 +511,10 @@ class Template:
                       % (imgcss_path))
         result.append('<link rel="stylesheet" type="text/css" href='
                       '"%s/bibauthorid.css" />'
+                      % (imgcss_path))
+
+        result.append('<link rel="stylesheet" type="text/css" href='
+                      '"%s/bootstrap.min.css" />'
                       % (imgcss_path))
 
         for script in scripts:
@@ -789,8 +907,8 @@ class Template:
                 rec_info = rec_info.replace("person/search?q=", "author/")
 
             h("    <td>%s</td>" % (rec_info))
-            h('    <td><a rel="nofollow" href="%s/author/claim/batchprocess?selected_bibrecs=%s&mfind_bibref=claim">' + self._('Review Transaction') + '</a></td>'
-                           % (CFG_SITE_URL, paper))
+            h('    <td><a rel="nofollow" href="%s/author/claim/batchprocess?selected_bibrecs=%s&mfind_bibref=claim">'% (CFG_SITE_URL, paper) + 
+                self._('Review Transaction') + '</a></td>')
             h("  </tr>")
 
         h("  </tbody>")
@@ -830,21 +948,26 @@ class Template:
         if not ln:
             pass
 
-        # class="ui-tabs ui-widget ui-widget-content ui-corner-all">
-        h('<div id="aid_person_names"')
-        h('<p><strong>' + self._('Names variants') + ':</strong></p>')
-        h("<p>")
-        h('<!--<span class="aid_lowlight_text">Person ID: <span id="pid%s">%s</span></span><br />!-->'
-                      % (person_id, person_id))
+        h('<div class="accordion" id="accordion1">')
+        h('<div class="accordion-group">')
 
+        # Define accordion heading
+        h('<span class=\"bsw\"><div class="accordion-heading">')
+        h('<a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#collapseVariants">')
+        h('%s</a>' % self._('View name variants'))
+        h('</div>')
+
+        h('<div id="collapseVariants" class="accordion-body collapse">')  # Start variants accordion body
+
+        # Populate accordion with name variants
+        h('<div class="accordion-inner">')
         for name in names:
-#            h(("%s "+self._('as appeared on')+" %s"+self._(' records')+"<br />")
-#                             % (name[0], name[1]))
-            h(("%s (%s); ")
-                             % (name[0], name[1]))
+            h("%s (%s)<br>" % (name[0], name[1]))
+        h('</div>')
 
-        h("</p>")
-        h("</div>")
+        h('</div>')  # Close variants accordion body
+        h('</div>')  # Close accordion group
+        h('</div></span>')  # Close accordion
 
         return "\n".join(html)
 
@@ -1064,8 +1187,11 @@ class Template:
             r = verbiage_dict['data_ns']
             h('<noscript><h5>%s</h5></noscript>' % r)
             full_canonical_name = str(get_canonical_id_from_person_id(person_id))
+
             if '.' in str(full_canonical_name) and not isinstance(full_canonical_name, int):
                 canonical_name = full_canonical_name[0:full_canonical_name.rindex('.')]
+            else:
+                canonical_name = str(person_id)
 
             h('<div> <strong> Person id </strong> <br> %s <br>' % person_id)
             h('<strong> <br> Canonical name setup </strong>')
@@ -1212,40 +1338,64 @@ class Template:
 
         return "\n".join(html)
 
+    @staticmethod
+    def tmpl_profile_navigation_bar(person_info, ln, active, menu_items=None):
+        """
+        Generates a profile specific navigation bar.
 
-    def tmpl_person_menu(self):
+        The menu_items parameter is a list of tuples with three components.
+
+        The third component is a boolean that represents whether the content is static, i.e. It is not specific to
+        a particular profile. Set it to False if the canonical name of the profile should be appended after the route.
+        True indicates that the content is static and remains the same regardless of the profile and thus will not append
+        the canonical name of the profile to the route.
+
+        @param person_info: A dict describing a person, must contain key 'canonical_name'
+        @param ln: Localisation
+        @param active: Sets a menu item to active if it contains the passed substring.
+        @param menu_items: List of 3-tuples e.g. ("/path/of/route/","Menu Item Name",False)
+        @return: HTML markup wrapped in 'ul' tags
+        @rtype: string
+        """
+        # Default navigation bar content
+        if menu_items is None:
+            menu_items = Template.DEFAULT_PROFILE_MENU_ITEMS
+        _ = gettext_set_language(ln)
+        navigation_bar = "<span class=\"bsw\"><ul id=\"authorid_menu\" class=\"nav nav-pills\">"
+
+        for item in menu_items:
+            (rel_url, link_text, static) = item
+            if not static:
+                if person_info['canonical_name']:
+                    rel_url += person_info['canonical_name']
+            link_text = _(link_text)
+
+            if active.lower() in link_text.lower():
+                navigation_bar += "<li class=\"bsw active\"><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
+            else:
+                navigation_bar += "<li><a href=\"%s%s\">%s</a></li>" % (CFG_SITE_URL, rel_url, link_text)
+
+        return navigation_bar + "</ul></span>"
+
+    def tmpl_person_menu(self, pid, ln):
         '''
         Generate the menu bar
         '''
-        html = []
-        h = html.append
-        h('<div id="aid_menu">')
-        h('  <ul>')
-        h('    <li>' + self._('Navigation:') + '</li>')
-        h(('    <li><a rel="nofollow" href="%s/author/search">' + self._('Run paper attribution for another author') + '</a></li>') % CFG_SITE_URL)
-        h('    <!--<li><a rel="nofollow" href="#">' + self._('Person Interface FAQ') + '</a></li>!-->')
-        h('  </ul>')
-        h('</div>')
 
-        return "\n".join(html)
+        person_info = get_person_info_by_pid(pid)
+        profile_menu = Template.tmpl_profile_navigation_bar(person_info, ln, "Attribute Papers")
+        return "\n" + profile_menu
 
-    def tmpl_person_menu_admin(self, pid):
+    def tmpl_person_menu_admin(self, pid, ln):
         '''
         Generate the menu bar
         '''
-        html = []
-        h = html.append
-        h('<div id="aid_menu">')
-        h('  <ul>')
-        h('    <li>' + self._('Navigation:') + '</li>')
-        h(('    <li><a rel="nofollow" href="%s/author/search">' + self._('Person Search') + '</a></li>') % CFG_SITE_URL)
-        h(('    <li><a rel="nofollow" href="%s/author/manage_profile/%s">' + self._('Manage Profile') + '</a></li>') % (CFG_SITE_URL, pid))
-        h(('    <li><a rel="nofollow" href="%s/author/claim/tickets_admin">' + self._('Open tickets') + '</a></li>') % CFG_SITE_URL)
-        h('    <!--<li><a rel="nofollow" href="#">' + self._('Person Interface FAQ') + '</a></li>!-->')
-        h('  </ul>')
-        h('</div>')
+        person_info = get_person_info_by_pid(pid)
+        menu_items = list(Template.DEFAULT_PROFILE_MENU_ITEMS)
+        menu_items.append(("/author/claim/tickets_admin", "Open Tickets", True))
+        profile_menu = Template.tmpl_profile_navigation_bar(person_info, ln, "Attribute Papers", menu_items)
 
-        return "\n".join(html)
+        return "\n" + profile_menu
 
     def tmpl_ticket_final_review(self, req, mark_yours=[], mark_not_yours=[],
                                  mark_theirs=[], mark_not_theirs=[], autoclaim=False):
@@ -1448,8 +1598,9 @@ class Template:
         h(('  <input type="submit" name="checkout_submit" class="aid_btn_green" value="%s" />')
           % self._("Confirm these changes**"))
         h('<span style="margin-left:150px;">')
-        h(('  <input type="submit" name="cancel" class="aid_btn_red" value="%s" />')
-          % self._("!Delete the entire request!"))
+        if not autoclaim:
+            h(('  <input type="submit" name="cancel" class="aid_btn_red" value="%s" />')
+              % self._("!Delete the entire request!"))
         h('</span>')
         h('</div>')
         h("</form>")
@@ -1569,12 +1720,12 @@ class Template:
         def stub(pid, search_param):
             text = self._("Attribute paper")
             parameters = [('confirm', True), ('pid', str(pid)), ('search_param', search_param)]
+            for r in bibrefs:
+                parameters.append(('selection', str(r)))
+
             link = "%s/author/claim/action" % (CFG_SITE_URL)
             css_class = ""
             to_disable = False
-
-            for r in bibrefs:
-                link = link + '&selection=%s' % str(r)
 
             return text, link, parameters, css_class, to_disable
 
@@ -2306,7 +2457,7 @@ class Template:
                                                                            probable_profile_suggestion_info['canonical_name_string']))
             h('</td>')
             h('<td>')
-            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+            h('<a rel="nofollow" href="%s/author/claim/action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % ( CFG_SITE_URL,
                                                                                 str(probable_profile_suggestion_info['pid']), param, 'This is my profile'))
             h('</td>')
             h('</tr>')
@@ -2322,7 +2473,7 @@ class Template:
                                                                            last_viewed_profile_suggestion_info['canonical_name_string']))
             h('</td>')
             h('<td>')
-            h('<a rel="nofollow" href="action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % (
+            h('<a rel="nofollow" href="%s/author/claim/action?associate_profile=True&pid=%s%s" class="confirmlink"><button type="button">%s' % ( CFG_SITE_URL,
                                                                                 str(last_viewed_profile_suggestion_info['pid']), param, 'This is my profile'))
             h('</td>')
             h('</tr>')
@@ -2580,7 +2731,6 @@ class Template:
 
     def tmpl_personnametitle(self, person_info, ln, loading=False):
         _ = gettext_set_language(ln)
-
         if loading:
             html_header = '<span id="personnametitle">' + self.loading_html() + '</span>'
         else:
@@ -2591,8 +2741,6 @@ class Template:
 
             html_header = ('<h1><span id="personnametitle">%s</span></h1>'
                           % (display_name))
-            #html_header += ('<span id="personnametitle">%s</span>'
-            #                % (_("Author Managment Page")))
 
         return html_header
 
@@ -2606,6 +2754,7 @@ class Template:
 
         html_header = self.tmpl_personnametitle(person_data, ln, loading=False)
         html.append(html_header)
+        html.append(Template.tmpl_profile_navigation_bar(person_data, ln, "Manage Profile"))
 
         html_arxiv = self.tmpl_arxiv_box(arxiv_data, ln, loading=False)
         html_orcid = self.tmpl_orcid_box(orcid_data, ln, loading=False)
@@ -2657,7 +2806,7 @@ class Template:
                 html_arxiv = _("You have succesfully logged in via arXiv. You can now manage your profile accordingly.</br>")
             else:
                 html_arxiv = _("You have succesfully logged in via arXiv.</br><div><font color='red'>However the profile you are currently viewing is not your profile.</br></br></font>")
-                html_arxiv += '<a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['own_profile_link'], _(arxiv_data['own_profile_text']) )
+                html_arxiv += '<span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (arxiv_data['own_profile_link'], _(arxiv_data['own_profile_text']))
 
             #html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['logout_link'], _(arxiv_data['logout_text']))
         else:
@@ -2665,7 +2814,7 @@ class Template:
                             " profile and update your paper list automatically. You may also proceed"
                             " as a guest user, then your input will be processed by our staff and "
                             "thus might take longer to display.</br>")
-            html_arxiv += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (arxiv_data['login_link'], _(arxiv_data['login_text']) )
+            html_arxiv += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (arxiv_data['login_link'], _(arxiv_data['login_text']))
         if loading:
             html_arxiv = self.loading_html()
         if add_box:
@@ -2685,14 +2834,14 @@ class Template:
         if orcid_data['orcids']:
             html_orcid += _('This profile is already connected to the following ORCID iD: <strong>%s</strong></br>' % (",".join(orcid_data['orcids']),))
             if orcid_data['arxiv_login'] and orcid_data['own_profile']:
-                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Autoclaim publications from ORCID") )
-                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % ("mpla.com", _("Visit your profile in ORCID") )
+                html_orcid += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % ("mpla.com", _("Autoclaim publications from ORCID") )
+                html_orcid += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % ("mpla.com", _("Visit your profile in ORCID") )
         else:
             if orcid_data['arxiv_login'] and (orcid_data['own_profile'] or orcid_data['add_power']):
-                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['add_link'],
+                html_orcid += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn"><%s</a></span>' % (orcid_data['add_link'],
                                                                                                                              _(orcid_data['add_text']) )
             else:
-                html_orcid += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>' % (orcid_data['suggest_link'],
+                html_orcid += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (orcid_data['suggest_link'],
                                                                                                                          _(orcid_data['suggest_text']) )
         if loading:
             html_orcid = self.loading_html()
@@ -2711,7 +2860,7 @@ class Template:
                        "authors and colleagues - that way you can also help us providing more accurate publication"
                        " and citations statistics on INSPIRE.</br>")
 
-        html_claim_paper += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (claim_paper_data['link'],
+        html_claim_paper += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (claim_paper_data['link'],
                                                                                                                                 _(claim_paper_data['text']))
 
         if loading:
@@ -2727,12 +2876,12 @@ class Template:
 
         html_head = _("<strong> External Ids </strong>")
 
-        html_ext_ids = '<div>'
+        html_ext_ids = '<span class=\"bsw\"><div>'
 
         html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
         html_ext_ids += '<input type="hidden" name="%s" value="True">' % (ext_ids_data['add_missing_parameter'],)
         html_ext_ids += '<input type="hidden" name="pid" value="%s">' % ext_ids_data['person_id']
-        html_ext_ids += '<br> <input type="submit" value="%s"> </form>'  % (ext_ids_data['add_missing_text'],)
+        html_ext_ids += '<br> <input type="submit" class="btn" value="%s"> </form>' % (ext_ids_data['add_missing_text'],)
 
         if 'ext_ids' in ext_ids_data and ext_ids_data['ext_ids']:
             html_ext_ids += '<form method="GET" action="%s/author/claim/action" rel="nofollow">' % (CFG_SITE_URL)
@@ -2745,7 +2894,7 @@ class Template:
                     sys = ''
                 for id_value in ext_ids_data['ext_ids'][key]:
                     html_ext_ids += '<br> <input type="checkbox" name="existing_ext_ids" value="%s||%s"> <strong> %s: </strong> %s' % (key, id_value, sys, id_value)
-            html_ext_ids += '        <br> <br> <input type="submit" value="%s"> <br> </form>' % (ext_ids_data['remove_text'],)
+            html_ext_ids += '        <br> <br> <input type="submit" class="btn" value="%s"> <br> </form>' % (ext_ids_data['remove_text'],)
         else:
             html_ext_ids += 'UserID: There are no external users associated to this profile!'
 
@@ -2759,9 +2908,9 @@ class Template:
             html_ext_ids += '  <option value="%s"> %s </option>' % (PERSONID_EXTERNAL_IDENTIFIER_MAP[el], el)
         html_ext_ids += '   </select>'
         html_ext_ids += '   <input type="text" name="ext_id" id="ext_id" style="border:1px solid #333; width:350px;">'
-        html_ext_ids += '   <input type="submit" value="%s" >' % (ext_ids_data['add_text'],)
+        html_ext_ids += '   <input type="submit" class="btn" value="%s" >' % (ext_ids_data['add_text'],)
         # html_ext_ids += '<br>NOTE: please note that if you add an external id it will replace the previous one (if any).')
-        html_ext_ids += '<br> </form> </div>'
+        html_ext_ids += '<br> </form> </div></span>'
 
         if loading:
             html_ext_ids += self.loading_html()
@@ -2770,6 +2919,7 @@ class Template:
             return ext_ids_box
         else:
             return html_ext_ids
+
     # for ajax requests add_box and loading are false
     def tmpl_autoclaim_box(self, autoclaim_data, ln, add_box=True, loading=True):
         _ = gettext_set_language(ln)
@@ -2779,8 +2929,8 @@ class Template:
         if autoclaim_data['hidden']:
             return None
         if loading:
-            html_head = _("<strong> Autoclaim Papers </strong>")
-            html_autoclaim = _("<span id=\"autoClaimMessage\">Please wait as we are claiming %s papers from external systems to your"
+            html_head = _("<strong> Autoassinged Papers </strong>")
+            html_autoclaim = _("<span id=\"autoClaimMessage\">Please wait as we are assigning %s papers from external systems to your"
                                " Inspire profile</span></br>"% (str(autoclaim_data["num_of_claims"])))
 
             html_autoclaim += self.loading_html();
@@ -2790,7 +2940,7 @@ class Template:
                 suffix = ''
                 if autoclaim_data["num_of_successfull_recids"] > 1:
                     suffix = 's'
-                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\"> %s new paper%s were automatically claimed."
+                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\"> %s new paper%s were automatically assigned."
                                    ".</span></br>"% (str(autoclaim_data["num_of_successfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<td><strong>External System id</strong></td><td><strong>Record id</strong></td></tr>'
@@ -2803,7 +2953,7 @@ class Template:
                 suffix = ''
                 if autoclaim_data["num_of_unsuccessfull_recids"] > 1:
                     suffix = 's'
-                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s paper%s could not be claimed automatically. Please review"
+                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s paper%s could not be assigned automatically. Please review"
                                    " and claim it manually here:</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<td><strong>External System id</strong></td><td><strong>Record id</strong></td></tr>'
@@ -2811,7 +2961,7 @@ class Template:
                 for rec in autoclaim_data['unsuccessfull_recids'][:5]:
                     html_autoclaim += '<tr><td>' + str(autoclaim_data['recids_to_external_ids'][rec]) +'</td>' + '<td>' + str(rec) +'</td></tr>' # 2nd rec is probably the index
                 html_autoclaim += '</table>'
-                html_autoclaim += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</button></a></div>'  % (autoclaim_data["link"],
+                html_autoclaim += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (autoclaim_data["link"],
                                                                                                                                 _(autoclaim_data['text']))
 
         if add_box:
@@ -2827,7 +2977,7 @@ class Template:
         html_support = _("Please, contact our support if you need any kind of help or if you want to suggest"
                        " us  new ideas. We will get back to you quickly.</br>")
 
-        html_support += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (support_data['help_link'],
+        html_support += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (support_data['help_link'],
                                                                                                                        _(support_data['help_text']))
         if loading:
             html_support = self.loading_html()
@@ -2844,7 +2994,7 @@ class Template:
         html_merge = _("When you merge a set of profiles, all the information stored will be assigned to the primary profile. This includes papers, ids or citations."
                        " After merging, only the primary profile will remain in the system, all other profiles will be automatically deleted.</br>")
 
-        html_merge += '</br><div><a rel="nofollow" href="%s" class="confirmlink"><button type="button">%s</div>'  % (merge_data['merge_link'],
+        html_merge += '<br><span class=\"bsw\"><a rel="nofollow" href="%s" class="btn">%s</a></span>' % (merge_data['merge_link'],
                                                                                                                                   _(merge_data['merge_text']))
 
         if loading:
@@ -3017,7 +3167,7 @@ buttons_verbiage_dict = {'guest': {'mass_buttons': {'no_doc_string': 'Sorry, the
                                                                  'alt_forget': 'Forget decision!',
                                                                  'forget_text': 'Forget assignment decision',
                                                                  'alt_repeal': 'Not Mine!',
-                                                                 'repeal_text': 'But this is mine!',
+                                                                 'repeal_text': 'But this is not mine!',
                                                                  'to_other_text': 'Assign to another person',
                                                                  'alt_to_other': 'To other person!'},
                                             'record_repealed': {'alt_confirm': 'Mine!',

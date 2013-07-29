@@ -183,7 +183,7 @@ $(document).ready(function() {
         }
         updateMergeButton();
         $('#mergeButton').on('click', function(event){
-            $(this).before('<input type="hidden" name="pid" value="' + gMergeProfile + '" />');
+            $(this).before('<input type="hidden" name="primary_profile" value="' + gMergeProfile + '" />');
             for(var profile in gMergeList) {
                 $(this).before('<input type="hidden" name="selection" value="' + gMergeList[profile] + '" />');
             }

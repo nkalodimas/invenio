@@ -463,9 +463,21 @@
     right: 0px;
 }
 
+#authorid_menu {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+#authorid_menu li a {
+    font-size: 11pt;
+    text-decoration: none;
+    font-weight: bold;
+}
+/*
 .addToMergeButton {
 /*    font-size: 11px;
-*/}
+}
 /*.new_person_link {
     background-color: lightgreen!important;
     color: blue;

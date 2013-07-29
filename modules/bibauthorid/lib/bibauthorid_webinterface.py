@@ -212,17 +212,15 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         session.dirty = True
 
-        content = self._generate_optional_menu(ulevel, req, form)
-        content += self._generate_ticket_box(ulevel, req)
+        content = self._generate_ticket_box(ulevel, req)
         content += self._generate_person_info_box(ulevel, ln)
         content += self._generate_tabs(ulevel, req)
         content += self._generate_footer(ulevel)
-
         title = self._generate_title(ulevel)
         metaheaderadd = self._scripts() + '\n <meta name="robots" content="nofollow" />'
-        body = TEMPLATE.tmpl_person_detail_layout(content)
+        body = self._generate_optional_menu(ulevel, req, form) + TEMPLATE.tmpl_person_detail_layout(content)
         webapi.clean_ticket(req)
-        
+
         webapi.history_log_visit(req, 'claim', pid=self.person_id)
         return page(title=title,
                     metaheaderadd=metaheaderadd,
@@ -284,11 +282,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             user_pid = webapi.get_pid_from_uid(uid)
 
             if not uinfo['precached_usepaperattribution']:
-                if user_pid[1]:
-                    user_pid = user_pid[0][0]
-                else:
-                    user_pid = -1
-
                 if (not user_pid in pids_to_check
                     and 'ulevel' in pinfo
                     and not pinfo["ulevel"] == "admin"):
@@ -326,6 +319,12 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         if 'ulevel' not in pinfo:
             pinfo['ulevel'] = ulevel
+        if 'should_check_to_autoclaim' not in pinfo:
+            pinfo['should_check_to_autoclaim'] = False
+        if 'login_info_message' not in pinfo:
+            pinfo["login_info_message"] =None
+        if 'merge_info_message' not in pinfo:
+            pinfo["merge_info_message"] = None
         if "claimpaper_admin_last_viewed_pid" not in pinfo:
             pinfo["claimpaper_admin_last_viewed_pid"] = -2
         if 'ln' not in pinfo:
@@ -340,7 +339,11 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         if not 'autoclaim' in pinfo:
             # first variable shows if we want to review the failed ones in the profile management page while the other
             # shows if we are creating and try to claim tickets that come from external systems
-            pinfo['autoclaim'] = (False, False)
+            # the third shows if we want to checkout the failed
+            pinfo['autoclaim'] = dict()
+            pinfo['autoclaim']['review_failed']= False
+            pinfo['autoclaim']['begin_autoclaim'] = False
+            pinfo['autoclaim']['checkout'] =  True
 
 
     def _generate_title(self, ulevel):
@@ -396,7 +399,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         def generate_optional_menu_guest(req, form):
             argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
                                        'verbose': (int, 0)})
-            menu = TEMPLATE.tmpl_person_menu()
+            menu = TEMPLATE.tmpl_person_menu(self.person_id, argd['ln'])
 
             if "verbose" in argd and argd["verbose"] > 0:
                 session = get_session(req)
@@ -408,7 +411,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         def generate_optional_menu_user(req, form):
             argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
                                        'verbose': (int, 0)})
-            menu = TEMPLATE.tmpl_person_menu()
+            menu = TEMPLATE.tmpl_person_menu(self.person_id, argd['ln'])
 
             if "verbose" in argd and argd["verbose"] > 0:
                 session = get_session(req)
@@ -420,7 +423,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         def generate_optional_menu_admin(req, form):
             argd = wash_urlargd(form, {'ln': (str, CFG_SITE_LANG),
                                        'verbose': (int, 0)})
-            menu = TEMPLATE.tmpl_person_menu_admin(self.person_id)
+            menu = TEMPLATE.tmpl_person_menu_admin(self.person_id, argd['ln'])
 
             if "verbose" in argd and argd["verbose"] > 0:
                 session = get_session(req)
@@ -434,7 +437,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                                   'user': generate_optional_menu_user,
                                   'admin': generate_optional_menu_admin}
 
-        return generate_optional_menu[ulevel](req, form)
+        return "<div class=\"clearfix\">" + generate_optional_menu[ulevel](req, form) + "</div>"
 
 
     def _generate_ticket_box(self, ulevel, req):
@@ -557,7 +560,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             pinfo = session['personinfo']
             uid = getUid(req)
             user_is_owner = 'not_owner'
-            if pinfo["claimpaper_admin_last_viewed_pid"] == webapi.get_pid_from_uid(uid)[0][0]:
+            if pinfo["claimpaper_admin_last_viewed_pid"] == webapi.get_pid_from_uid(uid):
                 user_is_owner = 'owner'
 
             open_tickets = webapi.get_person_request_ticket(self.person_id)
@@ -700,10 +703,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         @rtype: str
         '''
         def ticket_dispatch_guest(req, autoclaim_show_review = False, autoclaim = False):
+
             page_info = webapi.manage_tickets(req, autoclaim_show_review, autoclaim)
-            if autoclaim_show_review:
-                webapi.store_users_open_tickets(req)
-                webapi.restore_incomplete_autoclaim_tickets(req)
 
             if page_info['type'] == 'Submit Attribution':
 
@@ -739,6 +740,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 if autoclaim or autoclaim_show_review:
                     # restoring the user opened tickets and leave autoclaim mode
                     webapi.restore_users_open_tickets(req)
+
                 return self._ticket_dispatch_end(req)
 
         def ticket_dispatch_user(req, autoclaim_show_review = False, autoclaim = False):
@@ -758,7 +760,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         else:
             ln = CFG_SITE_LANG
 
-        pinfo['autoclaim'] = (autoclaim_show_review, autoclaim)
+        pinfo['autoclaim']['review_failed'] = autoclaim_show_review
+        pinfo['autoclaim']['begin_autoclaim'] = autoclaim
         session.dirty = True
 
         if autoclaim_show_review and not autoclaim:
@@ -775,7 +778,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         '''
         session = get_session(req)
         pinfo = session["personinfo"]
-
+        self._session_bareinit(req)
         if 'claim_in_process' in pinfo:
             pinfo['claim_in_process'] = False
 
@@ -793,19 +796,31 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             session.dirty = True
             return redirect_to_url(req, referer)
 
-        should_redirect = True
-
         # if we are coming fromt he autoclaim box we should not redirect and just return to the caller function
-        if 'autoclaim' in pinfo and pinfo['autoclaim'][0] == False and pinfo['autoclaim'][1] == True:
-            should_redirect = False
-
-        pinfo['autoclaim'] = (False,False)
-        session.dirty = True
-
-        if should_redirect:
-#            check with sam
-            return redirect_to_url(req, "%s/author/claim/%s?open_claim=True" % (CFG_SITE_URL,
-                                     webapi.get_person_redirect_link(pinfo["claimpaper_admin_last_viewed_pid"])))
+        if 'autoclaim' in pinfo and pinfo['autoclaim']['review_failed'] == False and pinfo['autoclaim']['begin_autoclaim'] == True:
+            pinfo['autoclaim']['review_failed'] = False
+            pinfo['autoclaim']['begin_autoclaim'] = False
+            session.dirty = True
+        else:
+            redirect_page = webapi.history_get_last_visited_url(req, limit_to_page=['manage_profile', 'claim'])
+            if not redirect_page:
+                redirect_page = webapi.get_fallback_redirect_link(req)
+            if 'autoclaim' in pinfo and pinfo['autoclaim']['review_failed'] == True and pinfo['autoclaim']['checkout'] == True:
+                redirect_page = '%s/author/claim/action?checkout=True'  % (CFG_SITE_URL,)
+                pinfo['autoclaim']['checkout'] = False
+                session.dirty = True
+            elif not 'manage_profile' in redirect_page:
+                pinfo['autoclaim']['review_failed'] = False
+                pinfo['autoclaim']['begin_autoclaim'] == False
+                pinfo['autoclaim']['checkout'] = True
+                session.dirty = True
+                redirect_page = '%s/author/claim/%s?open_claim=True'  % (CFG_SITE_URL, webapi.get_person_redirect_link(pinfo["claimpaper_admin_last_viewed_pid"]))
+            else:
+                pinfo['autoclaim']['review_failed'] = False
+                pinfo['autoclaim']['begin_autoclaim'] == False
+                pinfo['autoclaim']['checkout'] = True
+                session.dirty = True
+            return redirect_to_url(req, redirect_page)
 
 #            redirect_link = diary('get_redirect_link', caller='_ticket_dispatch_end', parameters=[('open_claim','True')])
 #            return redirect_to_url(req, redirect_link)
@@ -979,7 +994,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         self._session_bareinit(req)
         session = get_session(req)
         pinfo = session["personinfo"]
-
         argd = wash_urlargd(form,
                             {'autoclaim_show_review':(str, None),
                              'canonical_name': (str, None),
@@ -988,6 +1002,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                              'ext_system': (str, None),
                              'ln': (str, CFG_SITE_LANG),
                              'pid': (int, None),
+                             'primary_profile':(str, None),
                              'search_param': (str, None),
                              'rt_action': (str, None),
                              'rt_id': (int, None),
@@ -1023,7 +1038,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         uid = getUid(req)
         ln = argd['ln']
         action = None
-        print argd
+
         permitted_actions = ['add_external_id',
                              'add_missing_external_ids',
                              'associate_profile',
@@ -1067,7 +1082,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 del(pinfo["bibref_check_reviewed_bibrefs"])
                 session.dirty = True
 
-            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
+            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim']['review_failed'], pinfo['autoclaim']['begin_autoclaim'])
 
         def add_external_id():
             if argd['pid'] > -1:
@@ -1107,6 +1122,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         def associate_profile():
             ### TO DOOOO
             pid_in_cookie = 10
+            print repr(argd)
             if 'pid' in argd:
                 try:
                     pid = int(argd['pid'])
@@ -1125,6 +1141,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             redirect_pid = pid
 
             if profile_claimed:
+                pinfo["login_info_message"] = "confirm_success"
+                session.dirty = True
                 redirect_to_url(req, '%s/author/manage_profile/%s' % (CFG_SITE_URL, redirect_pid))
             else:
                 param=''
@@ -1174,7 +1192,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                                             add_rev(element + "," + str(bibrec))
             session.dirty = True
 
-            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
+            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim']['review_failed'], pinfo['autoclaim']['begin_autoclaim'])
 
         def cancel():
             self.__session_cleanup(req)
@@ -1188,14 +1206,14 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             pinfo["merge_primary_profile"] = None
             pinfo["merge_profiles"] = []
             session.dirty = True
-            page = webapi.get_marked_visit_link(req)
+            redirect_page = webapi.get_marked_visit_link(req)
             webapi.reset_marked_visit_link(req)
-            if not page:
-                page = history_get_last_visited_url(req, limit_to_page='manage_profile')
+            if not redirect_page:
+                redirect_page = webapi.history_get_last_visited_url(req, limit_to_page=['manage_profile'])
 
-            if not page:
-                page = get_fallback_redirect_link(req)
-            return redirect_to_url(req, page)
+            if not redirect_page:
+                redirect_page = webapi.get_fallback_redirect_link(req)
+            return redirect_to_url(req, redirect_page)
 
         def cancel_rt_ticket():
             if argd['selection'] is not None:
@@ -1255,7 +1273,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             return self._ticket_dispatch_end(req)
 
         def checkout():
-            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
+            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim']['review_failed'], pinfo['autoclaim']['begin_autoclaim'])
             # return self._ticket_final_review(req)
 
         def checkout_continue_claiming():
@@ -1273,8 +1291,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
             pinfo["checkout_confirmed"] = False
             session.dirty = True
-
-            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
+            return self._ticket_dispatch(ulevel, req,pinfo['autoclaim']['review_failed'], pinfo['autoclaim']['begin_autoclaim'])
             # return self._ticket_final_review(req)
 
         def checkout_submit():
@@ -1290,7 +1307,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
             session.dirty = True
 
-            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
+            return self._ticket_dispatch(ulevel, req, pinfo['autoclaim']['review_failed'], pinfo['autoclaim']['begin_autoclaim'])
             # return self._ticket_final_review(req)
 
         def claim():
@@ -1321,17 +1338,18 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             return self._commit_rt_ticket(req, bibref[0], pid)
 
         def confirm_repeal_reset():
-            if 'pid' in argd:
+            if 'pid' in argd and argd['pid']:
                 pid = argd['pid']
             else:
                 return self._error_page(req, ln,
                                         "Fatal: cannot create ticket without a person id!")
             bibrefs = None
             autoclaim_show_review = False
+            #assert False, ('%s %s') % ('autoclaim_show_review' in argd, argd['autoclaim_show_review'])
             autoclaim = False
             if ('selection' in argd and argd['selection'] and len(argd['selection']) > 0):
                 bibrefs = argd['selection']
-            elif 'autoclaim_show_review' in argd:
+            elif 'autoclaim_show_review' in argd and argd['autoclaim_show_review']:
                 autoclaim_show_review = True
                 autoclaim = True
             else:
@@ -1357,8 +1375,13 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 #            # start ticket processing chain
 #            pinfo["claimpaper_admin_last_viewed_pid"] = pid
 
-            pinfo['autoclaim'] = (autoclaim_show_review, autoclaim)
+            pinfo['autoclaim']['review_failed'] = autoclaim_show_review
+            pinfo['autoclaim']['begin_autoclaim'] = autoclaim
             session.dirty = True
+
+            if autoclaim_show_review :
+                webapi.store_users_open_tickets(req)
+                webapi.restore_incomplete_autoclaim_tickets(req)
             return self._ticket_dispatch(ulevel, req, autoclaim_show_review, autoclaim)
             # return self.perform(req, form)
 
@@ -1389,8 +1412,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             session = get_session(req)
             pinfo = session['personinfo']
 
-            if 'pid' in argd:
-                primary_profile = argd['pid']
+            if 'primary_profile' in argd and argd['primary_profile']:
+                primary_profile = argd['primary_profile']
             else:
                 return self._error_page(req, ln,
                                         "Fatal: cannot create ticket without a person id!")
@@ -1402,25 +1425,21 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 return self._error_page(req, ln,
                                     "Fatal: cannot create ticket without any profiles selected!")
 
-            primary_profile = get_person_id_from_canonical_id(pid)
-            profiles = [get_person_id_from_canonical_id(profile) for profile in profiles_to_merge]
+            primary_profile = webapi.get_person_id_from_canonical_id(primary_profile)
+            profiles_to_merge = [webapi.get_person_id_from_canonical_id(profile) for profile in profiles_to_merge]
 
             uid = getUid(req)
             user_pid = webapi.get_pid_from_uid(uid)
-            error_message = ''
             is_admin = False
+
+            if "ulevel" in pinfo and pinfo["ulevel"] and pinfo['ulevel'] == 'admin':
+                is_admin = True
+
+            can_perform_merge = False
             if uid > 0:
-                if "ulevel" in pinfo and pinfo["ulevel"]:
-                    is_admin = True
-                if not is_merge_allowed([primary_profile] + profiles_to_merge, user_pid, is_admin):
-                    if is_admin:
-                        error_message = 'There are multiple more than one user ids in the profiles you want to merge'
-                    else:
-                        error_message = 'Either there is not your profile in the merge or there are multiple uids or you try to merge more than one profiles with claimed papers'
-                        'an admin will look into it'
-            else:
-                error_message = 'As a guest you cannot mergee blah blah blah'
-            if error_message and not is_admin:
+                can_perform_merge = webapi.is_merge_allowed([primary_profile] + profiles_to_merge, user_pid, is_admin)
+
+            if not is_admin and not can_perform_merge:
                 name = ''
                 if "user_last_name" in pinfo:
                     name = pinfo["user_last_name"]
@@ -1432,22 +1451,38 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 if "user_email" in pinfo:
                     email = pinfo["user_email"]
 
-                selection_string = "&selection=".join(profiles_to_merge)
+                selection_string = "&selection=".join(argd['selection'])
                 userinfo = {'uid-ip': "userid: %s (from %s)" % (uid, req.remote_ip),
                             'name': name,
                             'email': email,
-                            'merge link': '%s/author/merge_profiles?primary_profile=%s&selection=%s' %(CFG_SITE_URL, pid, selection_string)}
+                            'merge link': '%s/author/merge_profiles?primary_profile=%s&selection=%s' %(CFG_SITE_URL, argd['primary_profile'], selection_string)}
                 webapi.create_request_message(userinfo, subj = 'Merge profiles request')
+                pinfo["merge_primary_profile"] = None
+                pinfo["merge_profiles"] = []
+                redirect_page = webapi.get_marked_visit_link(req)
+                webapi.reset_marked_visit_link(req)
+                # TO DO show message send error
+                if not redirect_page:
+                    redirect_page = webapi.history_get_last_visited_url(req, limit_to_page=['manage_profile'])
 
-            webapi.merge_profiles(primary_profile, profiles_to_merge)
+                if not redirect_page:
+                    redirect_page = webapi.get_fallback_redirect_link(req)
 
-            pinfo["merge_primary_profile"] = None
-            pinfo["merge_profiles"] = []
+                pinfo["merge_info_message"] = "confirm_ticket"
+
+            elif is_admin and not can_perform_merge:
+                pinfo["merge_info_message"] = "confirm_failure"
+                redirect_page = '%s/author/merge_profiles?primary_profile=%s&selection=%s' % (CFG_SITE_URL, argd['primary_profile'], '&selection'.join(argd['selection']))
+            else:
+                pinfo["merge_info_message"] = "confirm_success"
+                webapi.merge_profiles(primary_profile, profiles_to_merge)
+                pinfo["merge_primary_profile"] = None
+                pinfo["merge_profiles"] = []
+                webapi.reset_marked_visit_link(req)
+                redirect_page = '%s/author/manage_profile/%s' % (CFG_SITE_URL, webapi.get_canonical_id_from_person_id(primary_profile))
+
             session.dirty = True
-            webapi.reset_marked_visit_link(req)
-            page = '%s/author/manage_profile/%s' % (CFG_SITE_URL, webapi.get_canonical_id_from_person_id(primary_profile))
-
-            return redirect_to_url(req, page)
+            return redirect_to_url(req, redirect_page)
 
         def send_message():
             self._session_bareinit(req)
@@ -1595,8 +1630,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         if not no_access and uinfo["precached_usepaperclaim"]:
             tpid = webapi.get_pid_from_uid(uid)
 
-            if tpid and tpid[0] and tpid[1] and tpid[0][0]:
-                pid = tpid[0][0]
+            if tpid > -1:
+                pid = tpid
 
         last_viewed_pid = False
         if (not no_access
@@ -1691,7 +1726,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         session.dirty = True
         # start ticket processing chain
         webapi.delete_request_ticket(pid, bibref)
-        return self._ticket_dispatch(ulevel, req, pinfo['autoclaim'][0], pinfo['autoclaim'][1])
+
+        return self._ticket_dispatch(ulevel, req, pinfo['autoclaim']['review_failed'], pinfo['autoclaim']['begin_autoclaim'])
 
 
     def _error_page(self, req, ln=CFG_SITE_LANG, message=None, intro=True):
@@ -1860,7 +1896,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 query = escape(argd['q'])
 
         body = body + self.search_box(query, shown_element_functions)
-        
+
         parameter = None
         if query:
             parameter = '?search_param=%s' + query
@@ -1932,6 +1968,12 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         webapi.set_marked_visit_link(req, 'manage_profile', pid = webapi.get_person_id_from_canonical_id(primary_profile))
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
         body = ''
+
+        if pinfo["merge_info_message"]:
+            message = [pinfo["merge_info_message"]]
+            body += TEMPLATE.tmpl_merge_transaction_box('failure', message)
+            pinfo["merge_info_message"] = None
+            session.dirty = True
         body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, profiles_to_merge)
 
         # this is a function generating search's bar link and if it should be activated or not
@@ -1941,6 +1983,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         # show if profile is bound to a user or not
         shown_element_functions['show_status'] = 'True'
         body  = body + self.search_box(search_param, shown_element_functions)
+
 
         req.write('<script type="text/javascript">var gMergeProfile = "%s";var gMergeList = %s </script>' % (primary_profile, profiles_to_merge))
 
@@ -2312,9 +2355,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             person_id = webapi.get_person_id_from_canonical_id(argd['pid'])
 
         if person_id < 0:
-            return page_not_authorized(req, text=_("This page in not accessible directly."))            
-
-
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
 
         # login_status checks if the user is logged in and returns a dictionary contain if he is logged in
         # his uid and the external systems that he is logged in through.
@@ -2339,7 +2380,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         user_pid = webapi.get_user_pid(login_info['uid'])
         person_data = webapi.get_person_info_by_pid(person_id)
-        arxiv_data = self._arxiv_box(login_info, person_id, user_pid)
+        arxiv_data = self._arxiv_box(req, login_info, person_id, user_pid)
         orcid_data = self._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
         claim_paper_data = self._claim_paper_box(person_id)
         support_data = self._support_box()
@@ -2352,7 +2393,9 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         req.write(TEMPLATE.tmpl_profile_managment(ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data, merge_data))
         req.write(pagefooteronly(req=req,language=ln))
 
-    def _arxiv_box(self, login_info, person_id, user_pid):
+    def _arxiv_box(self, req, login_info, person_id, user_pid):
+        session = get_session(req)
+        pinfo = session["personinfo"]
         arxiv_data = dict()
         arxiv_data['login'] = False
         arxiv_data['view_own_profile'] = False
@@ -2369,8 +2412,10 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             if user_pid == person_id:
                 arxiv_data['view_own_profile'] = True
             else:
-                arxiv_data['own_profile_link'] =  "%s/manage_profile/%s" % (CFG_SITE_LANG, user_pid)
+                arxiv_data['own_profile_link'] =  "%s/author/manage_profile/%s" % (CFG_SITE_URL, user_pid)
                 arxiv_data['own_profile_text'] = "Manage your profile"
+        else:
+            pinfo['should_check_to_autoclaim'] = True
         return arxiv_data
 
 
@@ -2433,16 +2478,19 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
                 # external ids and recids should hava a 1 to 1 relation so the dicionary can be inverted and search by recid as a key
                 inverted_association = dict((value,key) for key, value in cached_ids_association.items())
-                print person_id
-                autoclaim_data["link"] = "%s/author/claim/action?confirm=True&pid=%s&autoclaim_show_review = True" % (CFG_SITE_URL, person_id)
-                autoclaim_data['text'] = "Review autoclaiming"
 
-                webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
-                self._ticket_dispatch(ulevel, req, False, True)
+                autoclaim_data["link"] = "%s/author/claim/action?confirm=True&pid=%s&autoclaim_show_review=True" % (CFG_SITE_URL, person_id)
+                autoclaim_data['text'] = "Review assigning"
+
+                #recids_to_autoclaim = [69,70]
+                if pinfo['should_check_to_autoclaim'] and recids_to_autoclaim:
+                    webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
+                    self._ticket_dispatch(ulevel, req, False, True)
+                    pinfo['should_check_to_autoclaim'] = False
                 unsuccessfull_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
-                unsuccessfull_recids = [69]
+                #unsuccessfull_recids = [69,70]
                 autoclaim_data["num_of_unsuccessfull_recids"] = len(unsuccessfull_recids)
-                inverted_association = {69:'arXiv:0901.4101'}
+                #inverted_association = {69:'arXiv:0901.4101', 70:'arXiv:0901.4102'}
                 autoclaim_data['recids_to_external_ids'] = inverted_association
                 autoclaim_data['unsuccessfull_recids'] = []
 
@@ -2470,9 +2518,9 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         autoclaim_data['hidden'] = True
         recids_to_autoclaim = []
 
-        if person_id == user_pid or True:
+        if person_id == user_pid:
             recids_to_autoclaim = webapi.get_remote_login_systems_recids(req, remote_logged_in_systems)
-            if recids_to_autoclaim or True:
+            if recids_to_autoclaim:
                 autoclaim_data['hidden'] = False
                 autoclaim_data['num_of_claims'] = len(recids_to_autoclaim)
 
@@ -2781,7 +2829,7 @@ class WebInterfaceBibAuthorIDManageProfilePages(WebInterfaceDirectory):
             person_id = webapi.get_person_id_from_canonical_id(self.person_id)
 
         if person_id < 0:
-            return page_not_authorized(req, text=_("This page in not accessible directly.")) 
+            return page_not_authorized(req, text=_("This page in not accessible directly."))
 
         # login_status checks if the user is logged in and returns a dictionary contain if he is logged in
         # his uid and the external systems that he is logged in through.
@@ -2804,9 +2852,21 @@ class WebInterfaceBibAuthorIDManageProfilePages(WebInterfaceDirectory):
 
         req.write(TEMPLATE.tmpl_welcome_start())
 
+        if pinfo["merge_info_message"]:
+            message = [pinfo["merge_info_message"]]
+            req.write(TEMPLATE.tmpl_merge_transaction_box('success', message))
+            pinfo["merge_info_message"] = None
+            session.dirty = True
+
+        if pinfo["login_info_message"]:
+            message = [pinfo["login_info_message"]]
+            req.write(TEMPLATE.tmpl_login_transaction_box('success', message))
+            pinfo["login_info_message"] = None
+            session.dirty = True
+
         user_pid = webapi.get_user_pid(login_info['uid'])
         person_data = webapi.get_person_info_by_pid(person_id)
-        arxiv_data = temp._arxiv_box(login_info, person_id, user_pid)
+        arxiv_data = temp._arxiv_box(req, login_info, person_id, user_pid)
         orcid_data = temp._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
         claim_paper_data = temp._claim_paper_box(person_id)
         support_data = temp._support_box()

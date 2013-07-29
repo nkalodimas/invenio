@@ -256,9 +256,15 @@ class WebAuthorPages(WebInterfaceDirectory):
         assert not form.has_key('jsondata'), "Content type should be only text/html."
 
         req.send_http_header()
-        metaheaderadd = '<script type="text/javascript" src="%s/js/webauthorprofile.js"> </script>' % (CFG_SITE_URL)
+
+        #TODO(Refactor. High coupling to bibauthorid functions/css/js prior to merge)
+
+        metaheaderadd = '<link rel="stylesheet" type="text/css" href="%s/js/jquery-lightbox/css/jquery.lightbox-0.5.css" media="screen" />' % (CFG_SITE_URL)
+        metaheaderadd += '<link rel="stylesheet" type="text/css" href="%s/img/bibauthorid.css" media="screen" />' % (CFG_SITE_URL)
+        metaheaderadd += '<link rel="stylesheet" type="text/css" href="%s/img/bootstrap.min.css" media="screen" />' % (CFG_SITE_URL)
+        metaheaderadd += '<script type="text/javascript" src="%s/js/bootstrap.min.js"> </script>' % (CFG_SITE_URL)
+        metaheaderadd += '<script type="text/javascript" src="%s/js/webauthorprofile.js"> </script>' % (CFG_SITE_URL)
         metaheaderadd += '<script type="text/javascript" src="%s/js/jquery-lightbox/js/jquery.lightbox-0.5.js"></script>' % (CFG_SITE_URL)
-        metaheaderadd += '<link rel="stylesheet" type="text/css" href="%s/js/jquery-lightbox/css/jquery.lightbox-0.5.css" media="screen" />' % (CFG_SITE_URL)
         metaheaderadd += '''
         <style>
         .hidden {

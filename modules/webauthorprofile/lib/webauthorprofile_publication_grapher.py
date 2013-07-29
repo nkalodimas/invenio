@@ -97,7 +97,7 @@ def create_temporary_gnuplot_image(data_file, image_size, x_label, y_label, orig
 
     g('%s' % plot_text)
 
-def create_graph_image(graph_file_name, graph_data, image_size=[]):
+def create_graph_image(graph_file_name, graph_data, image_size=None):
     """
     Creates a new graph image with the given data.
     @param graph_file_name: str (graph image name)
@@ -141,7 +141,7 @@ def get_graph_code(graph_file_name, graph_data):
     @param graph_data: list (data for the graph plot)
     @return: str (html code)
     """
-    def get_graph_path(graph_file_name, graph_data, image_size=[]):
+    def get_graph_path(graph_file_name, graph_data, image_size=None):
         graph_path = 'tmp/%s/%s.png' % (graph_file_name[0], graph_file_name)
         if os.path.exists('%s/img/%s' % (CFG_WEBDIR, graph_path)):
             return graph_path
