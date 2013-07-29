@@ -993,11 +993,12 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data,
 
         # process all the Holding Pen changes operations ... regardles the
         # request type
-#        import rpdb2;
-#        rpdb2.start_embedded_debugger('password', fAllowRemote=True)
         if "toDisable" in hpChanges:
             for changeId in hpChanges["toDisable"]:
-                pending_changes[changeId]["applied_change"] = True
+                try:
+                    pending_changes[changeId]["applied_change"] = True
+                except IndexError:
+                    pass
 
         if "toEnable" in hpChanges:
             for changeId in hpChanges["toEnable"]:
