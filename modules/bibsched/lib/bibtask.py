@@ -65,7 +65,8 @@ from invenio.config import CFG_PREFIX, \
                            CFG_BIBSCHED_PROCESS_USER, \
                            CFG_TMPDIR, \
                            CFG_SITE_SUPPORT_EMAIL, \
-                           CFG_VERSION
+                           CFG_VERSION, \
+                           CFG_BIBSCHED_FLUSH_LOGS
 from invenio.errorlib import register_exception
 
 from invenio.access_control_config import CFG_EXTERNAL_AUTH_USING_SSO, \
@@ -706,6 +707,10 @@ def write_message(msg, stream=None, verbose=1):
             sys.stderr.write("Unknown stream %s.  [must be sys.stdout or sys.stderr]\n" % stream)
     else:
         logging.debug(msg)
+
+    if CFG_BIBSCHED_FLUSH_LOGS:
+        for handler in logging.root.handlers:
+            handler.flush()
 
 _RE_SHIFT = re.compile("([-\+]{0,1})([\d]+)([dhms])")
 def get_datetime(var, format_string="%Y-%m-%d %H:%M:%S", now=None):
