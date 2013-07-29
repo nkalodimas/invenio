@@ -2191,7 +2191,7 @@ def get_free_author_id():   ### get_new_personid
 
     max_pids = tuple(int(pid[0][0]) for pid in max_pids if pid and pid[0][0])
 
-    free_pid = 0
+    free_pid = 1
     if len(max_pids) == 2:
         free_pid = max(*max_pids) + 1
     elif len(max_pids) == 1:

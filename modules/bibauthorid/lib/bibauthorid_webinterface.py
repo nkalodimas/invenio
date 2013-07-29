@@ -319,6 +319,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         if 'ulevel' not in pinfo:
             pinfo['ulevel'] = ulevel
+        if 'should_check_to_autoclaim' not in pinfo:
+            pinfo['should_check_to_autoclaim'] = False
         if 'login_info_message' not in pinfo:
             pinfo["login_info_message"] =None
         if 'merge_info_message' not in pinfo:
@@ -2378,7 +2380,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         user_pid = webapi.get_user_pid(login_info['uid'])
         person_data = webapi.get_person_info_by_pid(person_id)
-        arxiv_data = self._arxiv_box(login_info, person_id, user_pid)
+        arxiv_data = self._arxiv_box(req, login_info, person_id, user_pid)
         orcid_data = self._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
         claim_paper_data = self._claim_paper_box(person_id)
         support_data = self._support_box()
@@ -2391,7 +2393,9 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         req.write(TEMPLATE.tmpl_profile_managment(ln, person_data, arxiv_data, orcid_data, claim_paper_data, ext_ids_data, autoclaim_data, support_data, merge_data))
         req.write(pagefooteronly(req=req,language=ln))
 
-    def _arxiv_box(self, login_info, person_id, user_pid):
+    def _arxiv_box(self, req, login_info, person_id, user_pid):
+        session = get_session(req)
+        pinfo = session["personinfo"]
         arxiv_data = dict()
         arxiv_data['login'] = False
         arxiv_data['view_own_profile'] = False
@@ -2410,6 +2414,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             else:
                 arxiv_data['own_profile_link'] =  "%s/author/manage_profile/%s" % (CFG_SITE_URL, user_pid)
                 arxiv_data['own_profile_text'] = "Manage your profile"
+        else:
+            pinfo['should_check_to_autoclaim'] = True
         return arxiv_data
 
 
@@ -2474,16 +2480,17 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 inverted_association = dict((value,key) for key, value in cached_ids_association.items())
 
                 autoclaim_data["link"] = "%s/author/claim/action?confirm=True&pid=%s&autoclaim_show_review=True" % (CFG_SITE_URL, person_id)
-                autoclaim_data['text'] = "Review autoclaiming"
+                autoclaim_data['text'] = "Review assigning"
 
-                recids_to_autoclaim = [69,70]
-                if recids_to_autoclaim:
+                #recids_to_autoclaim = [69,70]
+                if pinfo['should_check_to_autoclaim'] and recids_to_autoclaim:
                     webapi.auto_claim_papers(req, person_id, recids_to_autoclaim)
                     self._ticket_dispatch(ulevel, req, False, True)
+                    pinfo['should_check_to_autoclaim'] = False
                 unsuccessfull_recids = webapi.get_stored_incomplete_autoclaim_tickets(req)
-                unsuccessfull_recids = [69,70]
+                #unsuccessfull_recids = [69,70]
                 autoclaim_data["num_of_unsuccessfull_recids"] = len(unsuccessfull_recids)
-                inverted_association = {69:'arXiv:0901.4101', 70:'arXiv:0901.4102'}
+                #inverted_association = {69:'arXiv:0901.4101', 70:'arXiv:0901.4102'}
                 autoclaim_data['recids_to_external_ids'] = inverted_association
                 autoclaim_data['unsuccessfull_recids'] = []
 
@@ -2511,9 +2518,9 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         autoclaim_data['hidden'] = True
         recids_to_autoclaim = []
 
-        if person_id == user_pid or True:
+        if person_id == user_pid:
             recids_to_autoclaim = webapi.get_remote_login_systems_recids(req, remote_logged_in_systems)
-            if recids_to_autoclaim or True:
+            if recids_to_autoclaim:
                 autoclaim_data['hidden'] = False
                 autoclaim_data['num_of_claims'] = len(recids_to_autoclaim)
 
@@ -2859,7 +2866,7 @@ class WebInterfaceBibAuthorIDManageProfilePages(WebInterfaceDirectory):
 
         user_pid = webapi.get_user_pid(login_info['uid'])
         person_data = webapi.get_person_info_by_pid(person_id)
-        arxiv_data = temp._arxiv_box(login_info, person_id, user_pid)
+        arxiv_data = temp._arxiv_box(req, login_info, person_id, user_pid)
         orcid_data = temp._orcid_box(arxiv_data['login'], person_id, user_pid, ulevel)
         claim_paper_data = temp._claim_paper_box(person_id)
         support_data = temp._support_box()

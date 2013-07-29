@@ -1185,8 +1185,11 @@ class Template:
             r = verbiage_dict['data_ns']
             h('<noscript><h5>%s</h5></noscript>' % r)
             full_canonical_name = str(get_canonical_id_from_person_id(person_id))
+
             if '.' in str(full_canonical_name) and not isinstance(full_canonical_name, int):
                 canonical_name = full_canonical_name[0:full_canonical_name.rindex('.')]
+            else:
+                canonical_name = str(person_id)
 
             h('<div> <strong> Person id </strong> <br> %s <br>' % person_id)
             h('<strong> <br> Canonical name setup </strong>')
@@ -1361,7 +1364,8 @@ class Template:
         for item in menu_items:
             (rel_url, link_text, static) = item
             if not static:
-                rel_url += person_info['canonical_name']
+                if person_info['canonical_name']:
+                    rel_url += person_info['canonical_name']
             link_text = _(link_text)
 
             if active.lower() in link_text.lower():
@@ -2923,8 +2927,8 @@ class Template:
         if autoclaim_data['hidden']:
             return None
         if loading:
-            html_head = _("<strong> Autoclaim Papers </strong>")
-            html_autoclaim = _("<span id=\"autoClaimMessage\">Please wait as we are claiming %s papers from external systems to your"
+            html_head = _("<strong> Autoassinged Papers </strong>")
+            html_autoclaim = _("<span id=\"autoClaimMessage\">Please wait as we are assigning %s papers from external systems to your"
                                " Inspire profile</span></br>"% (str(autoclaim_data["num_of_claims"])))
 
             html_autoclaim += self.loading_html();
@@ -2934,7 +2938,7 @@ class Template:
                 suffix = ''
                 if autoclaim_data["num_of_successfull_recids"] > 1:
                     suffix = 's'
-                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\"> %s new paper%s were automatically claimed."
+                html_autoclaim += _("<span id=\"autoClaimSuccessMessage\"> %s new paper%s were automatically assigned."
                                    ".</span></br>"% (str(autoclaim_data["num_of_successfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<td><strong>External System id</strong></td><td><strong>Record id</strong></td></tr>'
@@ -2947,7 +2951,7 @@ class Template:
                 suffix = ''
                 if autoclaim_data["num_of_unsuccessfull_recids"] > 1:
                     suffix = 's'
-                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s paper%s could not be claimed automatically. Please review"
+                html_autoclaim += _("<span id=\"autoClaimUnSuccessMessage\">The following %s paper%s could not be assigned automatically. Please review"
                                    " and claim it manually here:</span></br>"% (str(autoclaim_data["num_of_unsuccessfull_recids"]), suffix))
                 html_autoclaim += '<table border="0" cellpadding="5" cellspacing="5" width="30%"><tr>'
                 html_autoclaim += '<td><strong>External System id</strong></td><td><strong>Record id</strong></td></tr>'
