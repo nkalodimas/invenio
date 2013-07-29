@@ -1031,7 +1031,7 @@ def session_bareinit(req):
     pinfo = session['personinfo']
     if 'marked_visit' not in pinfo:
         pinfo['marked_visit'] = None
-    if 'visit diary' not in pinfo:
+    if 'visit_diary' not in pinfo:
         pinfo['visit_diary'] = defaultdict(list)
         changed = True
     if 'diary_size_per_category' not in pinfo:
@@ -2614,13 +2614,13 @@ def history_log_visit(req, page, pid=None, params=None):
 
     if len(my_diary[page]) >  pinfo['diary_size_per_category']:
         my_diary[page].pop(0)
+    session.dirty = True
 
 def _get_sorted_history(req, limit_to_page=None):
     session_bareinit(req)
     session = get_session(req)
     pinfo = session['personinfo']
     my_diary = pinfo['visit_diary']
-
     history = list()
 
     if not limit_to_page:
@@ -2636,7 +2636,6 @@ def _get_sorted_history(req, limit_to_page=None):
     return history
 
 def history_get_last_visited_url(req, limit_to_page=None):
-
     history = _get_sorted_history(req, limit_to_page)
     try:
         history = history[0]

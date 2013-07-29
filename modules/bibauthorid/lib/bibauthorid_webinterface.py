@@ -801,7 +801,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             session.dirty = True
         else:
             redirect_page = webapi.history_get_last_visited_url(req, limit_to_page=['manage_profile', 'claim'])
-
             if not redirect_page:
                 redirect_page = webapi.get_fallback_redirect_link(req)
             if 'autoclaim' in pinfo and pinfo['autoclaim']['review_failed'] == True and pinfo['autoclaim']['checkout'] == True:
