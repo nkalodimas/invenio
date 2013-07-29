@@ -684,11 +684,12 @@ def insert_record_into_holding_pen(record, oai_id, pretend=False):
             bibrec_id = 0
 
     if not pretend:
-        run_sql(query, (oai_id, xml_record, bibrec_id))
+        hp_id=run_sql(query, (oai_id, xml_record, bibrec_id))
 
     # record_id is logged as 0! ( We are not inserting into the main database)
     log_record_uploading(oai_id, task_get_task_param('task_id', 0), 0, 'H', pretend=pretend)
     stat['nb_holdingpen'] += 1
+    return hp_id
 
 def print_out_bibupload_statistics():
     """Print the statistics of the process"""
@@ -2415,10 +2416,12 @@ def task_run_core():
             for record in recs:
                 record_id = record_extract_oai_id(record)
                 task_sleep_now_if_required(can_stop_too=True)
-                if task_get_option("mode") == "holdingpen":
+                if task_get_option('mode') == "holdingpen":
                     #inserting into the holding pen
                     write_message("Inserting into holding pen", verbose=3)
-                    insert_record_into_holding_pen(record, record_id)
+                    hp_id = insert_record_into_holding_pen(record, record_id)
+                    write_message("Created holding pen record with id: " + str(hp_id), verbose=9)
+                    task_set_option('hp_id', hp_id)
                 else:
                     write_message("Inserting into main database", verbose=3)
                     error = bibupload(
