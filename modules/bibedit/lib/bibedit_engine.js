@@ -2238,7 +2238,7 @@ function bindNewRecordHandlers(){
       var templateNo = this.id.split('_')[1];
       createReq({requestType: 'newRecord', newType: 'template',
 	templateFilename: gRECORD_TEMPLATES[templateNo][0]}, function(json){
-	  getRecord(json['newRecID'], 0, onGetTemplateSuccess); // recRev = 0 -> current revision
+	     getRecord(json['newRecID'], 0, onGetTemplateSuccess); // recRev = 0 -> current revision
       }, false);
       event.preventDefault();
     });

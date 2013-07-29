@@ -576,6 +576,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                     record_add_field(record, '001',
                                      controlfield_value=str(new_recid))
                     create_cache(new_recid, uid, record, True)
+                    response['cacheMTime'] = get_cache_mtime(new_recid, uid)
                     response['resultCode'], response['newRecID'] = 7, new_recid
 
         elif new_type == 'import':
@@ -605,7 +606,7 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                                 record = merged_record
 
                         create_cache(new_recid, uid, record, True)
-                        mtime = get_cache_mtime(recid, uid)
+                        response['cacheMTime'] = get_cache_mtime(new_recid, uid)
                         response['resultCode'], response['newRecID'] = 7, new_recid
         elif new_type == 'clone':
             # Clone an existing record (from the users cache).
@@ -1662,12 +1663,12 @@ def _get_formated_record(record, new_window):
                          }
         result += get_mathjax_header(True) + '<body>'
         result += "<h2> Brief format preview </h2><br />"
-        result += bibformat.format_record(recID=None,
+        result += bibformat.format_record(0,
                                           of="hb",
                                           xml_record=xml_record) + "<br />"
 
     result += "<br /><h2> Detailed format preview </h2><br />"
-    result += bibformat.format_record(recID=None,
+    result += bibformat.format_record(0,
                                       of="hd",
                                       xml_record=xml_record)
     #Preview references
