@@ -61,7 +61,8 @@ from invenio.bibedit_dblayer import get_name_tags_all, reserve_record_id, \
     get_related_hp_changesets, get_hp_update_xml, delete_hp_change, \
     get_record_last_modification_date, get_record_revision_author, \
     get_marcxml_of_record_revision, delete_related_holdingpen_changes, \
-    get_record_revisions, get_info_of_record_revision
+    get_record_revisions, get_info_of_record_revision, cache_active, \
+    deactivate_cache
 
 from invenio.bibedit_utils import cache_exists, cache_expired, \
     create_cache, delete_cache, get_bibrecord, \
@@ -448,7 +449,9 @@ def perform_request_ajax(req, recid, uid, data, isBulk = False):
         response.update(perform_request_get_tableview(recid, uid, data))
     elif request_type == "DOISearch":
         response.update(perform_doi_search(data['doi']))
-
+    elif request_type == "deactivateRecordCache":
+        deactivate_cache(recid, uid)
+        response.update({"cacheMTime": data['cacheMTime']})
     return response
 
 def perform_bulk_request_ajax(req, recid, uid, reqsData, undoRedo, cacheMTime):
@@ -469,7 +472,7 @@ def perform_bulk_request_ajax(req, recid, uid, reqsData, undoRedo, cacheMTime):
         lastResult = perform_request_ajax(req, recid, uid, data, isBulk=True)
         try:
             lastTime = lastResult['cacheMTime']
-        except:
+        except KeyError:
             raise Exception(str(lastResult))
     return lastResult
 
@@ -662,9 +665,6 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
             response['resultCode'] = 104
         elif not read_only_mode and record_locked_by_queue(recid):
             response['resultCode'] = 105
-        elif 'cacheMTime' not in data and cache_exists(recid, uid):
-            # First request to get record and it is already open in other window
-            response['resultCode'] = 107
         else:
             if read_only_mode:
                 if 'recordRevision' in data and data['recordRevision'] != 'sampleValue':
@@ -687,24 +687,21 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 mtime = 0
                 undo_list = []
                 redo_list = []
-            elif not existing_cache:
-                record_revision, record = create_cache(recid, uid)
-                mtime = get_cache_mtime(recid, uid)
-                pending_changes = []
-                disabled_hp_changes = {}
-                undo_list = []
-                redo_list = []
-                cache_dirty = False
             else:
-                #TODO: This try except should be replaced with something nicer,
-                #      like an argument indicating if a new cache file is to
-                #      be created
                 try:
                     cache_dirty, record_revision, record, pending_changes, \
                         disabled_hp_changes, undo_list, redo_list = \
                         get_cache_contents(recid, uid)
+                except TypeError:
+                    # No cache found in the DB
+                    record_revision, record = create_cache(recid, uid)
+                    pending_changes = []
+                    disabled_hp_changes = {}
+                    cache_dirty = False
+                    undo_list = []
+                    redo_list = []
+                else:
                     touch_cache(recid, uid)
-                    mtime = get_cache_mtime(recid, uid)
                     if not latest_record_revision(recid, record_revision) and \
                             get_record_revisions(recid) != ():
                         # This sould prevent from using old cache in case of
@@ -713,14 +710,8 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                         # is a new record
                         response['cacheOutdated'] = True
 
-                except:
-                    record_revision, record = create_cache(recid, uid)
-                    mtime = get_cache_mtime(recid, uid)
-                    pending_changes = []
-                    disabled_hp_changes = {}
-                    cache_dirty = False
-                    undo_list = []
-                    redo_list = []
+                mtime = get_cache_mtime(recid, uid)
+
             if data.get('clonedRecord', ''):
                 response['resultCode'] = 9
             else:
@@ -738,12 +729,14 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
 
             # For some collections, merge template with record
             template_to_merge = extend_record_with_template(recid)
-            if template_to_merge:
+            if template_to_merge and not read_only_mode:
                 merged_record = merge_record_with_template(record, template_to_merge)
                 if merged_record:
                     record = merged_record
-                    create_cache(recid, uid, record, True)
-                    mtime = get_cache_mtime(recid, uid)
+                    mtime = update_cache_contents(recid, uid, record_revision,
+                                                  record, pending_changes,
+                                                  disabled_hp_changes,
+                                                  undo_list, redo_list)
 
             if record_status == -1:
                 # The record was deleted
@@ -1000,10 +993,7 @@ def perform_request_update_record(request_type, recid, uid, cacheMTime, data,
         # request type
         if "toDisable" in hpChanges:
             for changeId in hpChanges["toDisable"]:
-                try:
-                    pending_changes[changeId]["applied_change"] = True
-                except IndexError:
-                    pass
+                pending_changes[changeId]["applied_change"] = True
 
         if "toEnable" in hpChanges:
             for changeId in hpChanges["toEnable"]:
@@ -1630,6 +1620,8 @@ def perform_request_get_tableview(recid, uid, data):
     """
     response = {}
     textmarc_record = data['textmarc']
+    if not textmarc_record:
+        response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['tableview_change_success']
     xml_conversion_status = get_xml_from_textmarc(recid, textmarc_record, uid)
     response.update(xml_conversion_status)
 
@@ -1639,6 +1631,7 @@ def perform_request_get_tableview(recid, uid, data):
         create_cache(recid, uid,
             create_record(xml_conversion_status['resultXML'])[0], data['recordDirty'])
         response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['tableview_change_success']
+        response['cacheMTime'] = get_cache_mtime(recid, uid)
     return response
 
 
