@@ -99,6 +99,10 @@ CFG_TASK_IS_NOT_A_DEAMON = ("bibupload", )
 class RecoverableError(StandardError):
     pass
 
+class InvalidParams(StandardError):
+    def __init__(self, err=None):
+        self.err = err
+        StandardError.__init__(self)
 
 def fix_argv_paths(paths, argv=None):
     """Given the argv vector of cli parameters, and a list of path that
@@ -113,6 +117,31 @@ def fix_argv_paths(paths, argv=None):
             if path == argv[count]:
                 argv[count] = os.path.abspath(path)
     return argv
+
+
+def get_sleeptime(argv):
+    """Try to get the runtime by analysing the arguments."""
+    sleeptime = ""
+    argv = list(argv)
+    while True:
+        try:
+            opts, args = getopt.gnu_getopt(argv, 's:', ['sleeptime='])
+        except getopt.GetoptError, err:
+            ## We remove one by one all the non recognized parameters
+            if len(err.opt) > 1:
+                argv = [arg for arg in argv if arg != '--%s' % err.opt and not arg.startswith('--%s=' % err.opt)]
+            else:
+                argv = [arg for arg in argv if not arg.startswith('-%s' % err.opt)]
+        else:
+            break
+    for opt in opts:
+        if opt[0] in ('-s', '--sleeptime'):
+            try:
+                sleeptime = opt[1]
+            except ValueError:
+                pass
+    return sleeptime
+
 
 def task_low_level_submission(name, user, *argv):
     """Let special lowlevel enqueuing of a task on the bibsche queue.
@@ -198,29 +227,6 @@ def task_low_level_submission(name, user, *argv):
                 except ValueError:
                     pass
         return runtime
-
-    def get_sleeptime(argv):
-        """Try to get the runtime by analysing the arguments."""
-        sleeptime = ""
-        argv = list(argv)
-        while True:
-            try:
-                opts, args = getopt.gnu_getopt(argv, 's:', ['sleeptime='])
-            except getopt.GetoptError, err:
-                ## We remove one by one all the non recognized parameters
-                if len(err.opt) > 1:
-                    argv = [arg for arg in argv if arg != '--%s' % err.opt and not arg.startswith('--%s=' % err.opt)]
-                else:
-                    argv = [arg for arg in argv if not arg.startswith('-%s' % err.opt)]
-            else:
-                break
-        for opt in opts:
-            if opt[0] in ('-s', '--sleeptime'):
-                try:
-                    sleeptime = opt[1]
-                except ValueError:
-                    pass
-        return sleeptime
 
     def get_sequenceid(argv):
         """Try to get the sequenceid by analysing the arguments."""
@@ -413,7 +419,7 @@ def task_init(authorization_action="",
     to_be_submitted = True
     if len(sys.argv) == 2 and sys.argv[1].isdigit():
         _TASK_PARAMS['task_id'] = int(sys.argv[1])
-        argv = _task_get_options(_TASK_PARAMS['task_id'], _TASK_PARAMS['task_name'])
+        argv = task_get_options(_TASK_PARAMS['task_id'], _TASK_PARAMS['task_name'])
         to_be_submitted = False
     else:
         argv = sys.argv
@@ -433,11 +439,23 @@ def task_init(authorization_action="",
         # where stored in DB and _OPTIONS dictionary was stored instead.
         _OPTIONS = argv
     else:
+        _OPTIONS = {}
+        if task_name in CFG_BIBTASK_DEFAULT_TASK_SETTINGS:
+            _OPTIONS.update(CFG_BIBTASK_DEFAULT_TASK_SETTINGS[task_name])
+
         try:
-            _task_build_params(_TASK_PARAMS['task_name'], argv, description,
-                help_specific_usage, version, specific_params,
-                task_submit_elaborate_specific_parameter_fnc,
-                task_submit_check_options_fnc)
+            params = _task_build_params(_TASK_PARAMS['task_name'],
+                                argv, specific_params,
+                                task_submit_elaborate_specific_parameter_fnc,
+                                task_submit_check_options_fnc)
+        except InvalidParams, e:
+            if e.err:
+                err_msg = str(e.err)
+            else:
+                err_msg = ""
+            _usage(1, err_msg,
+                   help_specific_usage=help_specific_usage,
+                   description=description)
         except (SystemExit, Exception), err:
             if not to_be_submitted:
                 register_exception(alert_admin=True)
@@ -446,9 +464,19 @@ def task_init(authorization_action="",
                 task_update_status("ERROR")
             raise
 
+        _TASK_PARAMS.update(params)
+
     write_message('argv=%s' % (argv, ), verbose=9)
     write_message('_OPTIONS=%s' % (_OPTIONS, ), verbose=9)
     write_message('_TASK_PARAMS=%s' % (_TASK_PARAMS, ), verbose=9)
+
+    if params.get('display_help'):
+        _usage(0, help_specific_usage=help_specific_usage, description=description)
+
+    if params.get('display_version'):
+        print _TASK_PARAMS["version"]
+        sys.exit(0)
+
 
     if to_be_submitted:
         _task_submit(argv, authorization_action, authorization_msg)
@@ -522,9 +550,6 @@ def task_init(authorization_action="",
 
 def _task_build_params(task_name,
                        argv,
-                       description="",
-                       help_specific_usage="",
-                       version=CFG_VERSION,
                        specific_params=("", []),
                        task_submit_elaborate_specific_parameter_fnc=None,
                        task_submit_check_options_fnc=None):
@@ -539,11 +564,7 @@ def _task_build_params(task_name,
     @param task_submit_check_options: must check the validity of options (via
     bibtask_get_option) once all the options where parsed;
     """
-    global _OPTIONS
-    _OPTIONS = {}
-
-    if task_name in CFG_BIBTASK_DEFAULT_TASK_SETTINGS:
-        _OPTIONS.update(CFG_BIBTASK_DEFAULT_TASK_SETTINGS[task_name])
+    params = {}
 
     # set user-defined options:
     try:
@@ -569,55 +590,61 @@ def _task_build_params(task_name,
                 "host=",
             ] + long_params)
     except getopt.GetoptError, err:
-        _usage(1, err, help_specific_usage=help_specific_usage, description=description)
+        raise InvalidParams(err)
     try:
         for opt in opts:
             if opt[0] in ("-h", "--help"):
-                _usage(0, help_specific_usage=help_specific_usage, description=description)
+                params["display_help"] = True
+                break
             elif opt[0] in ("-V", "--version"):
-                print _TASK_PARAMS["version"]
-                sys.exit(0)
+                params["display_version"] = True
+                break
             elif opt[0] in ("-u", "--user"):
-                _TASK_PARAMS["user"] = opt[1]
+                params["user"] = opt[1]
             elif opt[0] in ("-v", "--verbose"):
-                _TASK_PARAMS["verbose"] = int(opt[1])
+                params["verbose"] = int(opt[1])
             elif opt[0] in ("-s", "--sleeptime"):
                 if task_name not in CFG_TASK_IS_NOT_A_DEAMON:
                     get_datetime(opt[1]) # see if it is a valid shift
-                    _TASK_PARAMS["sleeptime"] = opt[1]
+                    params["sleeptime"] = opt[1]
             elif opt[0] in ("-t", "--runtime"):
-                _TASK_PARAMS["runtime"] = get_datetime(opt[1])
+                params["runtime"] = get_datetime(opt[1])
             elif opt[0] in ("-P", "--priority"):
-                _TASK_PARAMS["priority"] = int(opt[1])
+                params["priority"] = int(opt[1])
             elif opt[0] in ("-N", "--name"):
-                _TASK_PARAMS["task_specific_name"] = opt[1]
+                params["task_specific_name"] = opt[1]
             elif opt[0] in ("-L", "--limit"):
-                _TASK_PARAMS["runtime_limit"] = parse_runtime_limit(opt[1])
+                params["runtime_limit"] = parse_runtime_limit(opt[1])
             elif opt[0] in ("--profile", ):
-                _TASK_PARAMS["profile"] += opt[1].split(',')
+                params["profile"] += opt[1].split(',')
             elif opt[0] in ("--post-process", ):
-                _TASK_PARAMS["post-process"] += [opt[1]]
+                params["post-process"] += [opt[1]]
             elif opt[0] in ("-I", "--sequence-id"):
-                _TASK_PARAMS["sequence-id"] = opt[1]
+                params["sequence-id"] = opt[1]
             elif opt[0] in ("--stop-on-error", ):
-                _TASK_PARAMS["stop_queue_on_error"] = True
+                params["stop_queue_on_error"] = True
             elif opt[0] in ("--continue-on-error", ):
-                _TASK_PARAMS["stop_queue_on_error"] = False
+                params["stop_queue_on_error"] = False
             elif opt[0] in ("--fixed-time", ):
-                _TASK_PARAMS["fixed_time"] = True
+                params["fixed_time"] = True
             elif opt[0] in ("--email-logs-to",):
-                _TASK_PARAMS["email_logs_to"] = opt[1].split(',')
+                params["email_logs_to"] = opt[1].split(',')
             elif opt[0] in ("--host",):
-                _TASK_PARAMS["host"] = opt[1]
+                params["host"] = opt[1]
             elif not callable(task_submit_elaborate_specific_parameter_fnc) or \
                 not task_submit_elaborate_specific_parameter_fnc(opt[0],
-                    opt[1], opts, args):
-                _usage(1, help_specific_usage=help_specific_usage, description=description)
+                                                                 opt[1],
+                                                                 opts,
+                                                                 args):
+                raise InvalidParams()
     except StandardError, e:
-        _usage(e, help_specific_usage=help_specific_usage, description=description)
+        raise InvalidParams(e)
+
     if callable(task_submit_check_options_fnc):
         if not task_submit_check_options_fnc():
-            _usage(1, help_specific_usage=help_specific_usage, description=description)
+            raise InvalidParams()
+
+    return params
 
 def task_set_option(key, value):
     """Set an value to key in the option dictionary of the task"""
@@ -877,7 +904,7 @@ def _task_submit(argv, authorization_action, authorization_msg):
     return _TASK_PARAMS['task_id']
 
 
-def _task_get_options(task_id, task_name):
+def task_get_options(task_id, task_name):
     """Returns options for the task 'id' read from the BibSched task
     queue table."""
     out = {}
@@ -1011,7 +1038,7 @@ def _task_run(task_run_fnc):
     finally:
         task_status = task_read_status()
         if sleeptime:
-            argv = _task_get_options(_TASK_PARAMS['task_id'], _TASK_PARAMS['task_name'])
+            argv = task_get_options(_TASK_PARAMS['task_id'], _TASK_PARAMS['task_name'])
             verbose_argv = 'Will execute: %s' % ' '.join([escape_shell_arg(str(arg)) for arg in argv])
 
             # Here we check if the task can shift away of has to be run at

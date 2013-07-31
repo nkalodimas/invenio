@@ -59,6 +59,7 @@ from invenio.bibsched import bibsched_get_status, \
                              restore_stdout_and_stderr, \
                              get_task_pid, \
                              fetch_debug_mode
+from invenio.bibtask import get_sleeptime, task_get_options
 
 
 CFG_MOTD_PATH = os.path.join(CFG_TMPSHAREDDIR, "bibsched.motd")
@@ -705,12 +706,16 @@ order to let this task run. The current priority is %s. New value:"
 
     def acknowledge(self):
         task_id = self.currentrow[0]
+        task_name = self.currentrow[1]
         status = self.currentrow[5]
         if status in ('ERROR', 'DONE WITH ERRORS', 'ERRORS REPORTED'):
-            bibsched_set_status(task_id, 'ACK ' + status, status)
-            self.update_rows()
-            self.repaint()
-            self.display_in_footer("Acknowledged error")
+            argv = task_get_options(task_id, task_name)
+            sleeptime = get_sleeptime(argv)
+            if not sleeptime or self._display_YN_box("WARNING! This is a periodic task.\n\nAre you sure you want to acknowledge the %s process %s?" % (task_name, task_id)):
+                bibsched_set_status(task_id, 'ACK ' + status, status)
+                self.update_rows()
+                self.repaint()
+                self.display_in_footer("Acknowledged error")
 
     def sleep(self):
         task_id = self.currentrow[0]
