@@ -1831,7 +1831,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             result['canonical_id'] = webapi.get_canonical_id_from_person_id(pid)
             result['name_variants'] = webapi.get_person_names_from_id(pid)
             result['external_ids'] = webapi.get_external_ids_from_person_id(pid)
-            if 'show_status' in shown_element_functions:
+            if 'pass_status' in shown_element_functions and shown_element_functions['pass_status']:
                 result['status'] = webapi.is_profile_available(pid)
             search_results.append(result)
 
@@ -1944,9 +1944,14 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 # convert pid if exist to canonical ids
                 try:
                     primary_profile = int(primary_profile)
-                    primary_profile = webapi.get_canonical_id_from_person_id(primary_profile)
                 except ValueError:
-                    pass
+                    primary_profile = webapi.get_person_id_from_canonical_id(primary_profile)
+                profile_availability = webapi.is_profile_available(primary_profile)
+                if profile_availability:
+                    profile_availability = "1"
+                else:
+                    profile_availability = "0"
+                primary_profile = [webapi.get_canonical_id_from_person_id(primary_profile), profile_availability]
                 pinfo["merge_primary_profile"] = primary_profile
                 # collect profiles to be merged in primary profile
                 profiles = argd['selection']
@@ -1956,16 +1961,26 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                     try:
                         profile_id = int(profile)
                         profiles_to_merge.remove(profile)
+                        profile_availability = webapi.is_profile_available(profile_id)
+                        if profile_availability:
+                            profile_availability = "1"
+                        else:
+                            profile_availability = "0"
                         profile = webapi.get_canonical_id_from_person_id(profile_id)
-                        profiles_to_merge.append(profile)
+                        profiles_to_merge.append([profile, profile_availability])
                     except ValueError:
                         # if canonical id is not valid then skip it
                         if webapi.get_person_id_from_canonical_id(profile) != -1:
-                            profiles_to_merge.append(profile)
+                            profile_availability = webapi.is_profile_available(webapi.get_person_id_from_canonical_id(profile))
+                            if profile_availability:
+                                profile_availability = "1"
+                            else:
+                                profile_availability = "0"
+                            profiles_to_merge.append([profile, profile_availability])
                 pinfo["merge_profiles"] = profiles_to_merge
                 session.dirty = True
 
-        webapi.set_marked_visit_link(req, 'manage_profile', pid = webapi.get_person_id_from_canonical_id(primary_profile))
+        webapi.set_marked_visit_link(req, 'manage_profile', pid = webapi.get_person_id_from_canonical_id(primary_profile[0]))
         #shown_element_functions['button_gen'] = TEMPLATE.tmpl_merge_profiles_button_generator(profiles)
         body = ''
 
@@ -1977,15 +1992,15 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
         body = body + TEMPLATE.tmpl_merge_ticket_box('person_search', 'merge_profiles', primary_profile, profiles_to_merge)
 
         # this is a function generating search's bar link and if it should be activated or not
-        shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile)
+        shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_merge_profiles_search_bar(primary_profile[0])
 
         shown_element_functions['button_gen'] = TEMPLATE.merge_profiles_button_generator()
         # show if profile is bound to a user or not
-        shown_element_functions['show_status'] = 'True'
+        shown_element_functions['pass_status'] = 'True'
         body  = body + self.search_box(search_param, shown_element_functions)
 
 
-        req.write('<script type="text/javascript">var gMergeProfile = "%s";var gMergeList = %s </script>' % (primary_profile, profiles_to_merge))
+        req.write('<script type="text/javascript">var gMergeProfile = %s;var gMergeList = %s </script>' % (primary_profile, profiles_to_merge))
 
         return page(title=title,
                     metaheaderadd=self._scripts(kill_browser_cache=True),
@@ -2051,16 +2066,23 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             if req_type == 'addProfile':
                 if json_data.has_key('profile'):
                     profile = json_data['profile']
-                    if webapi.get_person_id_from_canonical_id(profile) != -1:
+                    person_id = webapi.get_person_id_from_canonical_id(profile)
+                    if person_id != -1:
                         self._session_bareinit(req)
                         session = get_session(req)
                         profiles_to_merge = session["personinfo"]["merge_profiles"]
-                        if profile not in profiles_to_merge:
-                            profiles_to_merge.append(profile)
+                        profile_availability = webapi.is_profile_available(person_id)
+                        if profile_availability:
+                            profile_availability = "1"
+                        else:
+                            profile_availability = "0"
+                        if profile not in [el[0] for el in profiles_to_merge]:
+                            profiles_to_merge.append([profile, profile_availability])
                             session.dirty = True
                             # TODO check access rights and get profile from db
                             json_response.update({'resultCode': 1})
                             json_response.update({'addedPofile': profile})
+                            json_response.update({'addedPofileAvailability': profile_availability})
                         else:
                             json_response.update({'result': 'Error: Profile does not exist'})
                     else:
@@ -2074,8 +2096,11 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                         self._session_bareinit(req)
                         session = get_session(req)
                         profiles_to_merge = session["personinfo"]["merge_profiles"]
-                        if profile in profiles_to_merge:
-                            profiles_to_merge.remove(profile)
+                        print (str(profiles_to_merge))
+                        if profile in [el[0] for el in profiles_to_merge]:
+                            for prof in list(profiles_to_merge):
+                                if prof[0] == profile:
+                                    profiles_to_merge.remove(prof)
                             session.dirty = True
                             # TODO check access rights and get profile from db
                             json_response.update({'resultCode': 1})
@@ -2089,19 +2114,28 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             elif req_type == 'setPrimaryProfile':
                 if json_data.has_key('profile'):
                     profile = json_data['profile']
-                    if webapi.get_person_id_from_canonical_id(profile) != -1:
+                    profile_id = webapi.get_person_id_from_canonical_id(profile)
+                    if profile_id != -1:
                         self._session_bareinit(req)
                         session = get_session(req)
+                        profile_availability = webapi.is_profile_available(profile_id)
+                        if profile_availability:
+                            profile_availability = "1"
+                        else:
+                            profile_availability = "0"
                         profiles_to_merge = session["personinfo"]["merge_profiles"]
-                        if profile in profiles_to_merge:
-                            profiles_to_merge.remove(profile)
+                        if profile in [el[0] for el in profiles_to_merge]:
+                            for prof in list(profiles_to_merge):
+                                if prof[0] == profile:
+                                    profiles_to_merge.remove(prof)
                         primary_profile = session["personinfo"]["merge_primary_profile"]
                         if primary_profile not in profiles_to_merge:
                             profiles_to_merge.append(primary_profile)
-                        session["personinfo"]["merge_primary_profile"] = profile
+                        session["personinfo"]["merge_primary_profile"] = [profile, profile_availability]
                         session.dirty = True
                         json_response.update({'resultCode': 1})
                         json_response.update({'primaryProfile': profile})
+                        json_response.update({'primaryPofileAvailability': profile_availability})
                     else:
                         json_response.update({'result': 'Error: Profile was already in the list'})
                 else:
@@ -2143,7 +2177,6 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                 if json_data.has_key('personId'):
                     pId = json_data['personId']
                     papers = sorted([[p[0]] for p in webapi.get_papers_by_person_id(int(pId), -1)],
-
                                           key=itemgetter(0))
                     papers_html = TEMPLATE.tmpl_gen_papers(papers[0:MAX_NUM_SHOW_PAPERS])
                     json_response.update({'result': "\n".join(papers_html)})
@@ -2160,7 +2193,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
                     json_response.update({'result': "\n".join(names_html)})
                     json_response.update({'resultCode': 1})
                     json_response.update({'pid': str(pId)})
-            elif req_type =='getIDs':
+            elif req_type == 'getIDs':
                 if json_data.has_key('personId'):
                     pId = json_data['personId']
                     ids = webapi.get_external_ids_from_person_id(int(pId))
@@ -2309,6 +2342,7 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
             shown_element_functions['show_search_bar'] = TEMPLATE.tmpl_choose_profile_search_bar()
             # show if profile is bound to a user or not
             shown_element_functions['show_status'] = 'True'
+            shown_element_functions['pass_status'] = 'True'
             # show search results to the user
             body = body + self.search_box(search_param, shown_element_functions)
 

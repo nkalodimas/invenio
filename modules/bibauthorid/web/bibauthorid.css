@@ -436,6 +436,10 @@
     text-align: left;
 }
 
+#mergeList td {
+    padding: 0 10 0 0;
+}
+
 #mergeList a {
     padding-right: 5px;
     text-decoration: none
@@ -443,6 +447,14 @@
 
 #mergeList a:hover {
     text-decoration: underline;
+}
+
+.profileAvailable {
+    color: green!important;
+}
+
+.profileNotAvailable {
+    color: orange!important;
 }
 
 #mergeListButtonWrapper {
@@ -461,6 +473,11 @@
     position: absolute;
     top: 0px;
     right: 0px;
+}
+
+.setPrimaryProfile, .removeProfile{
+    color: #3b5998!important;
+    font-size: 14px!important;
 }
 
 #authorid_menu {

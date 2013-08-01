@@ -451,18 +451,24 @@ class Template:
         h('  <div style="margin-top: 20px; padding: 0pt 0.7em;" class="ui-state-highlight ui-corner-all">')
         h('    <p><span style="float: left; margin-right: 0.3em;" class="ui-icon ui-icon-info"></span>')
         h('    <strong>%s</strong> </br>%s ' % (teaser, message))
-        h("<ul id=\"mergeList\">")
+        h("<table id=\"mergeList\" >\
+            <tr></tr>\
+              <th></th>\
+              <th></th>\
+              <th></th>\
+              <th></th>\
+            <tr></tr>")
 
-        h("<li><a id=\"primaryProfile\" href='%s'target='_blank'>%s</a> <strong>(primary profile)</strong></li>"
-          % (primary_profile, primary_profile))
+        h("<tr><td><td><a id=\"primaryProfile\" href='%s/author/profile/%s'target='_blank'>%s</a></td><td><strong>(primary profile)</strong></td><td></td></tr>"
+          % (CFG_SITE_URL, primary_profile[0], primary_profile[0]))
         # for profile in profiles:
         #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"
         #            % (profile, profile))
-        h("</ul>")
+        h("</table>")
         h('<div id="mergeListButtonWrapper">')
         h('<form action="%s/author/claim/action" method="get"><input type="hidden" name="cancel_merging" value="True" /><input type="submit" id="cancelMergeButton" class="aid_btn_red" value="%s" /></form>' %
                     (CFG_SITE_URL, self._('Cancel merging')))
-        h('<form action="%s/author/claim/action" method="get"><input type="hidden" name="merge" value="True" /><input type="submit" id="mergeButton" class="aid_btn_green" value="%s" style="display:none"/></form>' %
+        h('<form action="%s/author/claim/action" method="get"><input type="hidden" name="merge" value="True" /><input type="submit" id="mergeButton" class="aid_btn_green" value="%s" /></form>' %
                     (CFG_SITE_URL, self._('Merge profiles')))
         h(' </div>')
         h(' </div>')
@@ -1832,6 +1838,9 @@ class Template:
         show_status = False
         if 'show_status' in shown_element_functions.keys():
             show_status = True
+        pass_status = False
+        if 'pass_status' in shown_element_functions.keys():
+            pass_status = True
         # base_color = 100
         # row_color = 0
         # html table
@@ -1846,7 +1855,7 @@ class Template:
                         <th scope="col" id="Papers" style="width:350px">Papers</th>\
                         <th scope="col" id="Link">Link</th>')
         if show_status:
-            h('         <th scope="col" id="Status" style="width:150px;">Status</th>')
+            h('         <th scope="col" id="Status" style="width:150px;display:none;">Status</th>')
         if show_action_button:
             h('         <th scope="col" id="Action">Action</th>')
         h('         </tr>\
@@ -1907,12 +1916,15 @@ class Template:
                        get_person_redirect_link(pid)))
             h('</td>')
 
-            if show_status:
+            hidden_status = ""
+            if pass_status:
                 if result["status"]:
                     status = "Available";
                 else:
-                    status = "Claimed";
-                h('<td>%s</td>' % (status))
+                    status = "Not available";
+                hidden_status = '<input type="hidden" name="profile_availability" value="%s"/>' % status
+                if show_status:
+                    h('<td>%s</td>' % (status))
             if show_action_button:
                 action_button_text, action_button_link, action_button_parameters, action_button_class, action_button_to_disable = shown_element_functions['button_gen'](pid, query)#class
                 #Action link
@@ -1929,8 +1941,8 @@ class Template:
                 if show_status:
                     if not result["status"] and action_button_to_disable:
                         disabled = "disabled"
-                h('<form action="%s" method="get">%s<input type="submit" name="%s" class="%s aid_btn_blue" value="%s" %s/></form>' %
-                    (action_button_link, parameters_sublink, canonical_id, action_button_class, action_button_text, disabled))  #confirmlink check if canonical id
+                h('<form action="%s" method="get">%s%s<input type="submit" name="%s" class="%s aid_btn_blue" value="%s" %s/></form>' %
+                    (action_button_link, parameters_sublink, hidden_status, canonical_id, action_button_class, action_button_text, disabled))  #confirmlink check if canonical id
                 h('</td>')
             h('</tr>')
         h('</tbody>')

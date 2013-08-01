@@ -174,18 +174,19 @@ $(document).ready(function() {
 
     if (typeof gMergeProfile !== 'undefined' ) {
         // initiate merge list's html from javascript/session
-        $('#primaryProfile').parent().replaceWith('<li><a id=\"primaryProfile\" href=\"' + gMergeProfile +
-        '\" target=\"_blank\">' + gMergeProfile + '</a> <strong>(primary profile)</strong></li>');
-        $('.addToMergeButton[name="' + gMergeProfile + '"]').prop('disabled','disabled');
+        $('#primaryProfile').parent().parent().replaceWith('<tr><td></td><td><a id=\"primaryProfile\" href=\"profile/' + gMergeProfile[0] +
+        '\" target=\"_blank\" title=\"' + isProfileAvailable(gMergeProfile[1]).message + '\" class=\"' +
+          isProfileAvailable(gMergeProfile[1]).css_class + '\" >' + gMergeProfile[0] + '</a></td><td>primary profile</td><td></td><tr>');
+        $('.addToMergeButton[name="' + gMergeProfile[0] + '"]').prop('disabled','disabled');
         for(var profile in gMergeList) {
             createProfilesHtml(gMergeList[profile]);
-            $('.addToMergeButton[name="' + gMergeList[profile] + '"]').prop('disabled','disabled');
+            $('.addToMergeButton[name="' + gMergeList[profile][0] + '"]').prop('disabled','disabled');
         }
         updateMergeButton();
         $('#mergeButton').on('click', function(event){
-            $(this).before('<input type="hidden" name="primary_profile" value="' + gMergeProfile + '" />');
+            $(this).before('<input type="hidden" name="primary_profile" value="' + gMergeProfile[0] + '" />');
             for(var profile in gMergeList) {
-                $(this).before('<input type="hidden" name="selection" value="' + gMergeList[profile] + '" />');
+                $(this).before('<input type="hidden" name="selection" value="' + gMergeList[profile][0] + '" />');
             }
         //event.preventDefault();
         });
@@ -301,16 +302,21 @@ function onPageChange() {
 
 function updateMergeButton() {
     if (gMergeList.length)
-            $('#mergeButton').show();
+            $('#mergeButton').removeAttr('disabled');
     else
-        $('#mergeButton').hide();
+        $('#mergeButton').attr('disabled','disabled');
 }
 
 function onAddToMergeClick(event, button) {
     var profile = button.attr('name').toString();
-    if (jQuery.inArray(profile, gMergeList) !== -1){
-        return false;
+    var profile_availability = button.siblings('[name="profile_availability"]').val();
+    for (var ind in gMergeList) {
+        if ( profile == gMergeList[ind][0] ) { //&& profile_availability == gMergeList[ind][1]
+            event.preventDefault();
+            return false;
+        }
     }
+
     var data = { 'requestType': "addProfile", 'profile': profile};
             // var errorCallback = onIsProfileClaimedError(pid);
     $.ajax({
@@ -328,9 +334,16 @@ function onAddToMergeClick(event, button) {
 function addToMergeList(json) {
     if(json['resultCode'] == 1) {
         var profile = json['addedPofile'];
-        if ( jQuery.inArray(profile, gMergeList) == -1 && gMergeProfile !== profile) {
-            gMergeList.push(profile);
-            createProfilesHtml(profile);
+        var profile_availability = json['addedPofileAvailability'];
+        var inArray = -1;
+        for ( var index in gMergeList ){
+            if (profile == gMergeList[index][0] ) {
+                inArray = index;
+            }
+        }
+        if ( inArray == -1 && gMergeProfile[0] !== profile) {
+            gMergeList.push([profile, profile_availability]);
+            createProfilesHtml([profile, profile_availability]);
             $('.addToMergeButton[name="' + profile + '"]').prop('disabled','disabled');
             updateMergeButton();
         }
@@ -340,7 +353,12 @@ function addToMergeList(json) {
 function removeFromMergeList(json) {
     if(json['resultCode'] == 1) {
         var profile = json['removedProfile'];
-        var ind = jQuery.inArray(profile, gMergeList);
+        var ind = -1;
+        for ( var index in gMergeList ){
+            if (profile == gMergeList[index][0] ) {
+                ind = index;
+            }
+        }
         if( ind !== -1) {
             gMergeList.splice(ind,1);
         }
@@ -353,22 +371,25 @@ function removeFromMergeList(json) {
 function setAsPrimary(json) {
     if(json['resultCode'] == 1) {
         var profile = json['primaryProfile'];
+        var profile_availability = json['primaryPofileAvailability'];
         removeFromMergeList({'resultCode' : 1, 'removedProfile' : profile});
         var primary = gMergeProfile;
-        gMergeProfile = profile;
+        gMergeProfile = [profile, profile_availability];
         $('.addToMergeButton[name="' + profile + '"]').prop('disabled','disabled');
-        addToMergeList({'resultCode' : 1, 'addedPofile' : primary});
-        $('#primaryProfile').parent().replaceWith('<li><a id=\"primaryProfile\" href=\"' + profile +
-         '\" target=\"_blank\">' + profile + '</a> <strong>(primary profile)</strong></li>');
+        addToMergeList({'resultCode' : 1, 'addedPofile' : primary[0], 'addedPofileAvailability': primary[1]});
+        $('#primaryProfile').parent().parent().replaceWith('<tr><td></td><td><a id=\"primaryProfile\" href=\"profile/' + profile +
+         '\" target=\"_blank\" title=\"' + isProfileAvailable(profile_availability).message + '\" class=\"' +
+          isProfileAvailable(profile_availability).css_class + '\" >' + profile + '</a></td><td>' +
+          'primary profile</td><td></td></tr>');
     }
 }
 
 function createProfilesHtml(profile) {
-    var $profileHtml = $('<li><a href=\"' + profile + '\" target=\"_blank\" class=\"profile\">' + profile + '</a>' +
-         '<a class=\"setPrimaryProfile\" href=\"\" >Set as primary</a> <a class=\"removeProfile\" href=\"\" >Remove</a></li>');
+    var $profileHtml = $('<tr><td></td><td><a href=\"profile/' + profile[0] + '\" target=\"_blank\" class=\"' + isProfileAvailable(profile[1]).css_class +
+     '\" title=\"' + isProfileAvailable(profile[1]).message + '\">' + profile[0] +
+     '</a></td><td><a class=\"setPrimaryProfile\" href=\"\" >Set as primary</a></td><td><a class=\"removeProfile\" href=\"\" >Remove</a></td></tr>');
         $('#mergeList').append($profileHtml);
-        $profileHtml.find('.setPrimaryProfile').on('click', { pProfile: profile}, function(event){
-            console.log('bind primary profile: ' + event.data.pProfile);
+        $profileHtml.find('.setPrimaryProfile').on('click', { pProfile: profile[0]}, function(event){
             var data = { 'requestType': "setPrimaryProfile", 'profile': event.data.pProfile};
             // var errorCallback = onIsProfileClaimedError(pid);
             $.ajax({
@@ -382,7 +403,7 @@ function createProfilesHtml(profile) {
             });
             event.preventDefault();
         });
-        $profileHtml.find('.removeProfile').on('click', { pProfile: profile}, function(event){
+        $profileHtml.find('.removeProfile').on('click', { pProfile: profile[0]}, function(event){
             var data = { 'requestType': "removeProfile", 'profile': event.data.pProfile};
             // var errorCallback = onIsProfileClaimedError(pid);
             $.ajax({
@@ -398,8 +419,21 @@ function createProfilesHtml(profile) {
         });
 }
 
+function isProfileAvailable(availability){
+    if( availability === "0"){
+        return { css_class : 'profileNotAvailable',
+                 message : 'This profile is claimed'
+               };
+    }
+    else{
+        return { css_class : 'profileAvailable',
+                 message : 'This profile is free'
+               };
+    }
+}
+
 function removeProfilesHtml(profile) {
-    $('#mergeList').find('a[href="' + profile + '"][id!="primaryProfile"]').parent().remove();
+    $('#mergeList').find('a[href="profile/' + profile + '"][id!="primaryProfile"]').parent().parent().remove();
 }
 
 function onGetIDsSuccess(json){
