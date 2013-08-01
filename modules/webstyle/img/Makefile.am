@@ -67,6 +67,7 @@ img_DATA = add-small.png \
            bullet_toggle_minus.png \
            bullet_toggle_plus.png \
            circle_green.png \
+           circle_orange.png \
            circle_red.png \
            cross_red.gif \
            delete-big.png \

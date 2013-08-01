@@ -459,7 +459,7 @@ class Template:
               <th></th>\
             <tr></tr>")
 
-        h("<tr><td><td><a id=\"primaryProfile\" href='%s/author/profile/%s'target='_blank'>%s</a></td><td><strong>(primary profile)</strong></td><td></td></tr>"
+        h("<tr><td></td><td><a id=\"primaryProfile\" href='%s/author/profile/%s'target='_blank'>%s</a></td><td id=\"primaryProfileTd\">primary profile</td><td></td></tr>"
           % (CFG_SITE_URL, primary_profile[0], primary_profile[0]))
         # for profile in profiles:
         #     h("<li><a href='%s'target='_blank' class=\"profile\" >%s</a><a class=\"setPrimaryProfile\">Set as primary</a> <a class=\"removeProfile\">Remove</a></li>"

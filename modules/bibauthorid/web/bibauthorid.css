@@ -449,6 +449,12 @@
     text-decoration: underline;
 }
 
+#primaryProfileTd {
+    font-size: 14px!important;
+    font-style: italic!important;
+    color: #646465!important;
+}
+
 .profileAvailable {
     color: green!important;
 }

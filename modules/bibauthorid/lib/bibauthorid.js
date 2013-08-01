@@ -174,9 +174,10 @@ $(document).ready(function() {
 
     if (typeof gMergeProfile !== 'undefined' ) {
         // initiate merge list's html from javascript/session
-        $('#primaryProfile').parent().parent().replaceWith('<tr><td></td><td><a id=\"primaryProfile\" href=\"profile/' + gMergeProfile[0] +
-        '\" target=\"_blank\" title=\"' + isProfileAvailable(gMergeProfile[1]).message + '\" class=\"' +
-          isProfileAvailable(gMergeProfile[1]).css_class + '\" >' + gMergeProfile[0] + '</a></td><td>primary profile</td><td></td><tr>');
+        $('#primaryProfile').parent().parent().replaceWith('<tr><td><img src=\"' + isProfileAvailable(gMergeProfile[1]).img_src +
+         '\" title=\"' + isProfileAvailable(gMergeProfile[1]).message + '\"></td><td><a id=\"primaryProfile\" href=\"profile/' +
+        gMergeProfile[0] + '\" target=\"_blank\" title=\"' + isProfileAvailable(gMergeProfile[1]).message + '\" >' +
+         gMergeProfile[0] + '</a></td><td id="primaryProfileTd">primary profile</td><td></td><tr>');
         $('.addToMergeButton[name="' + gMergeProfile[0] + '"]').prop('disabled','disabled');
         for(var profile in gMergeList) {
             createProfilesHtml(gMergeList[profile]);
@@ -311,14 +312,13 @@ function onAddToMergeClick(event, button) {
     var profile = button.attr('name').toString();
     var profile_availability = button.siblings('[name="profile_availability"]').val();
     for (var ind in gMergeList) {
-        if ( profile == gMergeList[ind][0] ) { //&& profile_availability == gMergeList[ind][1]
+        if ( profile == gMergeList[ind][0] ) {
             event.preventDefault();
             return false;
         }
     }
 
     var data = { 'requestType': "addProfile", 'profile': profile};
-            // var errorCallback = onIsProfileClaimedError(pid);
     $.ajax({
         dataType: 'json',
         type: 'POST',
@@ -377,17 +377,20 @@ function setAsPrimary(json) {
         gMergeProfile = [profile, profile_availability];
         $('.addToMergeButton[name="' + profile + '"]').prop('disabled','disabled');
         addToMergeList({'resultCode' : 1, 'addedPofile' : primary[0], 'addedPofileAvailability': primary[1]});
-        $('#primaryProfile').parent().parent().replaceWith('<tr><td></td><td><a id=\"primaryProfile\" href=\"profile/' + profile +
-         '\" target=\"_blank\" title=\"' + isProfileAvailable(profile_availability).message + '\" class=\"' +
-          isProfileAvailable(profile_availability).css_class + '\" >' + profile + '</a></td><td>' +
+        $('#primaryProfile').parent().parent().replaceWith('<tr><td><img src=\"' + isProfileAvailable(profile_availability).img_src +
+         '\" title=\"' + isProfileAvailable(profile_availability).message + '\"></td><td><a id=\"primaryProfile\" href=\"profile/' +
+         profile + '\" target=\"_blank\" title=\"' + isProfileAvailable(profile_availability).message + '\"  >' +
+          profile + '</a></td><td id="primaryProfileTd" >' +
           'primary profile</td><td></td></tr>');
     }
 }
 
 function createProfilesHtml(profile) {
-    var $profileHtml = $('<tr><td></td><td><a href=\"profile/' + profile[0] + '\" target=\"_blank\" class=\"' + isProfileAvailable(profile[1]).css_class +
-     '\" title=\"' + isProfileAvailable(profile[1]).message + '\">' + profile[0] +
-     '</a></td><td><a class=\"setPrimaryProfile\" href=\"\" >Set as primary</a></td><td><a class=\"removeProfile\" href=\"\" >Remove</a></td></tr>');
+    var $profileHtml = $('<tr><td><img src=\"' + isProfileAvailable(profile[1]).img_src + '\" title=\"' +
+     isProfileAvailable(profile[1]).message + '\"></td><td><a href=\"profile/' + profile[0] + '\" target=\"_blank\"  title=\"' +
+     isProfileAvailable(profile[1]).message + '\">' + profile[0] +
+     '</a></td><td><a class=\"setPrimaryProfile\" href=\"\" >Set as primary</a></td><td><a class=\"removeProfile\" href=\"\" >'+
+     '<img src="/img/wb-delete-item.png" title="Remove profile"></a></td></tr>');
         $('#mergeList').append($profileHtml);
         $profileHtml.find('.setPrimaryProfile').on('click', { pProfile: profile[0]}, function(event){
             var data = { 'requestType': "setPrimaryProfile", 'profile': event.data.pProfile};
@@ -421,13 +424,13 @@ function createProfilesHtml(profile) {
 
 function isProfileAvailable(availability){
     if( availability === "0"){
-        return { css_class : 'profileNotAvailable',
-                 message : 'This profile is claimed'
+        return { img_src : "/img/circle_orange.png",
+                 message : 'This profile is associated to a user'
                };
     }
     else{
-        return { css_class : 'profileAvailable',
-                 message : 'This profile is free'
+        return { img_src : "/img/circle_green.png",
+                 message : 'This profile is not associated to a user'
                };
     }
 }
