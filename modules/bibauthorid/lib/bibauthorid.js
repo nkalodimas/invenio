@@ -285,6 +285,17 @@ function onPageChange() {
                     async: true
                 });
     });
+    $('.addToMergeButton').on('click', function(event) {
+            onAddToMergeClick(event, $(this));
+        });
+    // $('.addToMergeButton').each( function(){
+    //     if (-1 !== $.inArray('a', $(this).data('events').click )) {
+    //         $(this).on('click', function(event) {
+    //             onAddToMergeClick(event, $(this));
+    //         });
+    //     }
+    // });
+
     // $('[class^=uncheckedProfile]').each( function(index){
     //             var pid = $(this).closest('tr').attr('id').substring(3); // e.g pid323
     //             var data = { 'requestType': "isProfileClaimed", 'personId': pid.toString()};
