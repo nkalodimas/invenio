@@ -179,6 +179,9 @@ var gReqQueue = [];
 // last checkbox checked
 var gLastChecked = null;
 
+// last time a bulk request completed
+var gLastRequestCompleted = new Date();
+
 /*
  * **************************** 2. Initialization ******************************
  */
@@ -494,6 +497,7 @@ function createReqAjaxDone(data){
  */
 function onBulkReqError(data) {
   return function (XHR, textStatus, errorThrown) {
+            gLastRequestCompleted = new Date();
             console.log("Error while processing:");
             console.log(data);
             updateStatus("ready");
@@ -623,7 +627,11 @@ function queue_request(data) {
   by other requests */
   gReqQueue.push(jQuery.extend(true, {}, data));
 
-  if (gReqQueue.length === gREQUESTS_UNTIL_SAVE) {
+  var currentDate = new Date();
+  var dateDiff = (currentDate - gLastRequestCompleted) / 1000;
+
+  /* Only save the changes if the last request completed more than 5 sec ago */
+  if ( gLastRequestCompleted && dateDiff > 5 ) {
     save_changes();
   }
 }
@@ -637,7 +645,9 @@ function save_changes() {
 
   if (gReqQueue.length > 0) {
     updateStatus('saving');
-    createBulkReq(gReqQueue, function(json){
+    gLastRequestCompleted = null;
+    createBulkReq(gReqQueue, function(json) {
+      gLastRequestCompleted = new Date();
       updateStatus('report', gRESULT_CODES[json['resultCode']]);
       updateStatus('ready');
       saveChangesPromise.resolve();
