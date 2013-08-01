@@ -396,11 +396,11 @@ $("#overview%(graph)s").bind("plotselected", function (event, ranges) {
     open(CFG_WEBDIR + "/img/" + graphe_name, 'w').write(out)
     data.close()
 
-def remove_old_img(prefix_file_name):
+def remove_old_img(prefix_file_name, directory="%s/img/" % CFG_WEBDIR):
     """Detele all the images older than 10 minutes to prevent to much storage
     Takes 0.0 seconds for 50 files to delete"""
 
-    command = "find %s/img/ -name tmp_%s*.png -amin +10 -exec rm -f {} \;" % (CFG_WEBDIR, prefix_file_name)
+    command = "find %s -name tmp_%s*.png -amin +10 -exec rm -f {} \;" % (directory, prefix_file_name)
     return os.system(command)
 
 
