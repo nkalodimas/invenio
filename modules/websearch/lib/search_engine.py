@@ -4190,7 +4190,7 @@ def print_records(req, recIDs, jrec=1, rg=CFG_WEBSEARCH_DEF_RECORDS_IN_GROUPS, f
                 display_add_to_basket = True
                 if user_info:
                     if user_info['email'] == 'guest':
-                        if CFG_ACCESS_CONTROL_LEVEL_ACCOUNTS > 4:
+                        if CFG_INSPIRE_SITE or CFG_ACCESS_CONTROL_LEVEL_ACCOUNTS > 4:
                             display_add_to_basket = False
                     else:
                         if not user_info['precached_usebaskets']:
@@ -5897,7 +5897,7 @@ def perform_request_search(req=None, cc=CFG_SITE_NAME, c=None, p="", f="", rg=CF
                         display_email_alert_part = True
                         if user_info:
                             if user_info['email'] == 'guest':
-                                if CFG_ACCESS_CONTROL_LEVEL_ACCOUNTS > 4:
+                                if CFG_INSPIRE_SITE or CFG_ACCESS_CONTROL_LEVEL_ACCOUNTS > 4:
                                     display_email_alert_part = False
                             else:
                                 if not user_info['precached_usealerts']:

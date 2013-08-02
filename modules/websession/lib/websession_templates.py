@@ -22,6 +22,7 @@ import cgi
 
 from invenio.config import \
      CFG_CERN_SITE, \
+     CFG_INSPIRE_SITE, \
      CFG_SITE_LANG, \
      CFG_SITE_NAME, \
      CFG_SITE_NAME_INTL, \
@@ -940,7 +941,7 @@ class Template:
                     # users cannot register accounts, so advise them
                     # how to get one, or be silent about register
                     # facility if account level is more than 4:
-                    if CFG_ACCESS_CONTROL_LEVEL_ACCOUNTS < 5:
+                    if not CFG_INSPIRE_SITE and CFG_ACCESS_CONTROL_LEVEL_ACCOUNTS < 5:
                         out += "<p>" + _("If you don't own an account yet, please contact %s.") % ('<a href="mailto:%s">%s</a>' % (cgi.escape(CFG_SITE_SUPPORT_EMAIL, True), cgi.escape(CFG_SITE_SUPPORT_EMAIL))) + "</p>"
 
         else:

@@ -680,7 +680,7 @@ def loginUser(req, p_un, p_pw, login_method):
             user_prefs = get_user_preferences(id_user)
             if not CFG_EXTERNAL_AUTHENTICATION[login_method]:
                 ## I.e. if the login method is not of robot type:
-                if CFG_ACCESS_CONTROL_LEVEL_ACCOUNTS >= 4:
+                if CFG_INSPIRE_SITE or CFG_ACCESS_CONTROL_LEVEL_ACCOUNTS >= 4:
                     # Let's prevent the user to switch login_method
                     if user_prefs.has_key("login_method") and \
                             user_prefs["login_method"] != login_method:
