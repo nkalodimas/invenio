@@ -57,7 +57,7 @@ def calculate_citation_graphe_x_coordinates(recid):
 
     recordyear = None
     if record_date:
-        recordyear = find_year(recordyear[0])
+        recordyear = find_year(record_date[0])
     if not recordyear:
         recordyear = currentyear
 
