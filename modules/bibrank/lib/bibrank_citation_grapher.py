@@ -22,6 +22,7 @@ __revision__ = "$Id$"
 import os
 import time
 import shutil
+from tempfile import NamedTemporaryFile
 
 from invenio.config import (CFG_SITE_URL,
                             CFG_SITE_LANG,
@@ -125,7 +126,12 @@ def remove_old_graph_if_needed(filename):
 
     time_diff = time.time() - os.stat(filename).st_mtime
     if time_diff > 3600*24:
-        os.unlink(filename)
+        try:
+            os.unlink(filename)
+        except OSError, e:
+            # File does not exist is ok
+            if e.errno != 2:
+                raise
         return True
     return False
 
@@ -168,16 +174,19 @@ def create_citation_history_graph_and_box(recid, ln=CFG_SITE_LANG):
         if remove_old_graph_if_needed(graph_file):
             graph_source_file = create_citation_graph(recid)
             if graph_source_file and os.path.exists(graph_source_file):
+                dest_dir = os.path.dirname(graph_file)
                 try:
-                    os.makedirs(os.path.dirname(graph_file))
+                    os.makedirs(dest_dir)
                 except OSError, e:
                     if e.errno != 17:
                         raise
                 # Move graph to its destination
+                graph_tmp_file_obj = NamedTemporaryFile(dir=dest_dir)
                 try:
-                    shutil.copy(graph_source_file, graph_file)
+                    shutil.copy(graph_source_file, graph_tmp_file_obj.name)
                 finally:
                     os.unlink(graph_source_file)
+                    os.rename(graph_tmp_file_obj.name, graph_file)
 
         if os.path.exists(graph_file):
             html_head = '<br /><table><tr><td class="blocknote">%s</td></tr></table>' % _("Citation history:")
