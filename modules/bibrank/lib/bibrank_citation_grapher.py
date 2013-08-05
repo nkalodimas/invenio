@@ -185,7 +185,11 @@ def create_citation_history_graph_and_box(recid, ln=CFG_SITE_LANG):
                 try:
                     shutil.copy(graph_source_file, graph_tmp_file_obj.name)
                 finally:
-                    os.unlink(graph_source_file)
+                    try:
+                        os.unlink(graph_source_file)
+                    except OSError, e:
+                        if e.errno != 2:
+                            raise
                     os.rename(graph_tmp_file_obj.name, graph_file)
 
         if os.path.exists(graph_file):
