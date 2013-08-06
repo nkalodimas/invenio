@@ -118,8 +118,9 @@ from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, \
     CFG_SITE_RECORD, \
     CFG_BIBUPLOAD_FFT_ALLOWED_EXTERNAL_URLS, \
     CFG_BIBDOCFILE_ENABLE_BIBDOCFSINFO_CACHE, \
-    CFG_BIBDOCFILE_ADDITIONAL_KNOWN_MIMETYPES
-
+    CFG_BIBDOCFILE_ADDITIONAL_KNOWN_MIMETYPES, \
+    CFG_BIBCATALOG_SYSTEM
+from invenio.bibcatalog import bibcatalog_system
 from invenio.bibdocfile_config import CFG_BIBDOCFILE_ICON_SUBFORMAT_RE, \
     CFG_BIBDOCFILE_DEFAULT_ICON_SUBFORMAT
 import invenio.template
@@ -1672,11 +1673,17 @@ class BibDoc:
                 return
         try:
             convert_file(filename, os.path.join(self.basedir, '.text;%i' % version), '.txt', perform_ocr=perform_ocr, ln=ln)
+        except InvenioWebSubmitFileConverterError, e:
+            subject = "Error in extracting text from bibdoc %i, version %i" % (self.id, version)
+            if CFG_BIBCATALOG_SYSTEM:
+                bibcatalog_system.ticket_submit(subject=subject,
+                                                queue='Broken_files')
+            else:
+                register_exception(alert_admin=True, prefix=subject)
+            raise InvenioBibDocFileError(str(e))
+        else:
             if version == self.get_latest_version():
                 run_sql("UPDATE bibdoc SET text_extraction_date=NOW() WHERE id=%s", (self.id, ))
-        except InvenioWebSubmitFileConverterError, e:
-            register_exception(alert_admin=True, prefix="Error in extracting text from bibdoc %i, version %i" % (self.id, version))
-            raise InvenioBibDocFileError, str(e)
 
     def touch(self):
         """
@@ -2382,7 +2389,7 @@ class BibDoc:
         for docfile in docfiles:
             if get_superformat_from_format(docfile.get_format()) == superformat:
                 return docfile
-        raise InvenioBibDocFileError, "No file called '%s' of format '%s', version '%s'" % (self.docname, format, version)
+        raise InvenioBibDocFileError("No file called '%s' of format '%s', version '%s'" % (self.docname, format, version))
 
     def list_versions(self):
         """

@@ -192,10 +192,6 @@ class WebInterfaceFilesPages(WebInterfaceDirectory):
                                 docfile = doc.get_file(format, version)
                             except InvenioBibDocFileError, msg:
                                 req.status = apache.HTTP_NOT_FOUND
-                                if req.headers_in.get('referer'):
-                                    ## There must be a broken link somewhere.
-                                    ## Maybe it's good to alert the admin
-                                    register_exception(req=req, alert_admin=True)
                                 warn += write_warning(_("The format %s does not exist for the given version: %s") % (cgi.escape(format), cgi.escape(str(msg))))
                                 break
                             (auth_code, auth_message) = docfile.is_restricted(user_info)
@@ -381,17 +377,24 @@ class WebInterfaceManageDocFilesPages(WebInterfaceDirectory):
             working_dir = os.path.join(CFG_TMPSHAREDDIR,
                                        'websubmit_upload_interface_config_' + str(uid),
                                        argd['access'])
-            move_uploaded_files_to_storage(working_dir=working_dir,
-                                           recid=argd['recid'],
-                                           icon_sizes=['180>','700>'],
-                                           create_icon_doctypes=['*'],
-                                           force_file_revision=False)
-            # Clean temporary directory
-            shutil.rmtree(working_dir)
+            if not os.path.isdir(working_dir):
+                # We accessed the url without preliminary steps
+                # (we did not upload a file)
+                # Our working dir does not exist
+                # Display the file manager
+                argd['do'] = 0
+            else:
+                move_uploaded_files_to_storage(working_dir=working_dir,
+                                               recid=argd['recid'],
+                                               icon_sizes=['180>', '700>'],
+                                               create_icon_doctypes=['*'],
+                                               force_file_revision=False)
+                # Clean temporary directory
+                shutil.rmtree(working_dir)
 
-            # Confirm modifications
-            body += '<p style="color:#0f0">%s</p>' % \
-                    (_('Your modifications to record #%i have been submitted') % argd['recid'])
+                # Confirm modifications
+                body += '<p style="color:#0f0">%s</p>' % \
+                        (_('Your modifications to record #%i have been submitted') % argd['recid'])
         elif argd['cancel']:
             # Clean temporary directory
             working_dir = os.path.join(CFG_TMPSHAREDDIR,
