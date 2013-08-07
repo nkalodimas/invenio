@@ -137,7 +137,7 @@ RABBIT_USE_EXTERNAL_ID_INSPIREID = CFG_INSPIRE_SITE
 #Force rabbit to cache entire marc tables instead of querying db if dealing with more
 #then threshold papers
 RABBIT_USE_CACHED_GET_GROUPED_RECORDS = True
-RABBIT_USE_CACHED_GET_GROUPED_RECORDS_THRESHOLD = 2500
+RABBIT_USE_CACHED_GET_GROUPED_RECORDS_THRESHOLD = 100
 
 
 #Cache the personid table for performing exact name searches?
