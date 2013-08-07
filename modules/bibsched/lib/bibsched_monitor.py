@@ -413,7 +413,7 @@ w - Wake up task
         else:
             msg += 'executable : %s\n\n' % arguments[0]
             args_str = ' '.join(arguments[1:])
-            if args_str > 500:
+            if len(args_str) > 500:
                 args_str = args_str[:500] + '...'
             msg += ' arguments : %s\n\n' % args_str
         msg += '\n\nPress q to quit this panel...'
