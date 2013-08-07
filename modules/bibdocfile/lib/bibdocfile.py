@@ -120,7 +120,7 @@ from invenio.config import CFG_SITE_LANG, CFG_SITE_URL, \
     CFG_BIBDOCFILE_ENABLE_BIBDOCFSINFO_CACHE, \
     CFG_BIBDOCFILE_ADDITIONAL_KNOWN_MIMETYPES, \
     CFG_BIBCATALOG_SYSTEM
-from invenio.bibcatalog import bibcatalog_system
+from invenio.bibcatalog import BIBCATALOG_SYSTEM
 from invenio.bibdocfile_config import CFG_BIBDOCFILE_ICON_SUBFORMAT_RE, \
     CFG_BIBDOCFILE_DEFAULT_ICON_SUBFORMAT
 import invenio.template
@@ -1676,7 +1676,7 @@ class BibDoc:
         except InvenioWebSubmitFileConverterError, e:
             subject = "Error in extracting text from bibdoc %i, version %i" % (self.id, version)
             if CFG_BIBCATALOG_SYSTEM:
-                bibcatalog_system.ticket_submit(subject=subject,
+                BIBCATALOG_SYSTEM.ticket_submit(subject=subject,
                                                 queue='Broken_files')
             else:
                 register_exception(alert_admin=True, prefix=subject)

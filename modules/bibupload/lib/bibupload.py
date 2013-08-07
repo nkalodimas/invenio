@@ -82,7 +82,7 @@ from invenio.bibrecord import create_records, \
 from invenio.search_engine import get_record, record_exists, search_pattern
 from invenio.dateutils import convert_datestruct_to_datetext
 from invenio.errorlib import register_exception
-from invenio.bibcatalog import bibcatalog_system
+from invenio.bibcatalog import BIBCATALOG_SYSTEM
 from invenio.intbitset import intbitset
 from invenio.urlutils import make_user_agent_string
 from invenio.config import CFG_BIBDOCFILE_FILEDIR
@@ -123,8 +123,8 @@ def check_bibcatalog():
     if CFG_HAS_BIBCATALOG != "UNKNOWN":
         return CFG_HAS_BIBCATALOG
     CFG_HAS_BIBCATALOG = True
-    if bibcatalog_system is not None:
-        bibcatalog_response = bibcatalog_system.check_system()
+    if BIBCATALOG_SYSTEM is not None:
+        bibcatalog_response = BIBCATALOG_SYSTEM.check_system()
     else:
         bibcatalog_response = "No ticket system configured"
     if bibcatalog_response != "":
@@ -668,7 +668,7 @@ BibUpload task information:
             "user": task_get_task_param("user"),
             "task_params": bibtask._TASK_PARAMS,
             "task_options": bibtask._OPTIONS}
-        bibcatalog_system.ticket_submit("%s: %s" % (msg, rec_id), recordid=rec_id, text=text, queue=CFG_BIBCATALOG_CONFLICTING_REVISIONS_DEFAULT_QUEUE)
+        BIBCATALOG_SYSTEM.ticket_submit("%s: %s" % (msg, rec_id), recordid=rec_id, text=text, queue=CFG_BIBCATALOG_CONFLICTING_REVISIONS_DEFAULT_QUEUE)
 
 def insert_record_into_holding_pen(record, oai_id, pretend=False):
     query = "INSERT INTO bibHOLDINGPEN (oai_id, changeset_date, changeset_xml, id_bibrec) VALUES (%s, NOW(), %s, %s)"
