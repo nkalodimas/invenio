@@ -244,17 +244,15 @@ class BibCatalogSystemRT(BibCatalogSystem):
         command_out = self._run_rt_command(command, uid)
         if command_out is None:
             return None
-        inum = -1
+
+        ticket_id = None
+        ticket_created_re = re.compile(r'Ticket (\d+) created')
         for line in command_out.split("\n"):
-            if line.count(' ') > 0:
-                stuff = line.split(' ')
-                try:
-                    inum = int(stuff[2])
-                except ValueError:
-                    pass
-        if inum > 0:
-            return inum
-        return None
+            matches = ticket_created_re.search(line)
+            if matches:
+                ticket_id = int(matches.groups()[0])
+
+        return ticket_id
 
     def ticket_comment(self, uid, ticketid, comment):
         """comment on a given ticket. Returns 1 on success, 0 on failure"""
