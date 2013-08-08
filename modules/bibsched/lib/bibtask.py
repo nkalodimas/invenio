@@ -618,7 +618,7 @@ def _task_build_params(task_name,
             elif opt[0] in ("--profile", ):
                 params["profile"] += opt[1].split(',')
             elif opt[0] in ("--post-process", ):
-                params["post-process"] += [opt[1]]
+                params.setdefault("post-process", []).append(opt[1])
             elif opt[0] in ("-I", "--sequence-id"):
                 params["sequence-id"] = opt[1]
             elif opt[0] in ("--stop-on-error", ):
