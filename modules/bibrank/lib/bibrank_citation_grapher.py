@@ -135,16 +135,35 @@ def remove_old_graph_if_needed(filename):
     return False
 
 
-def create_citation_graph(recid):
+def safe_create_citation_graph(recid, dest):
+    # Create destination dir
+    dest_dir = os.path.dirname(dest)
+    try:
+        os.makedirs(dest_dir)
+    except OSError, e:
+        # If directory already exists, ignore error
+        if e.errno != 17:
+            raise
+
+    graph_source_file = create_citation_graph(recid, dest_dir)
+
+    if graph_source_file:
+        try:
+            os.rename(graph_source_file, dest)
+        except OSError:
+            os.unlink(graph_source_file)
+
+
+def create_citation_graph(recid, dest_dir):
     coordinates = calculate_citation_history_coordinates(recid)
     if coordinates:
         years = calculate_citation_graphe_x_coordinates(recid)
 
         coordinates_file, max_y = write_coordinates_in_tmp_file([coordinates])
         try:
-            graph_file, dummy = create_temporary_image(recid,
+            graph_file = create_temporary_image(recid,
                     'citation', coordinates_file, 'Year', 'Times cited',
-                    [0, 0], max_y, [], ' ', years)
+                    [0, 0], max_y, [], ' ', years, dest_dir=dest_dir)
         finally:
             # Always delete the coordinates file
             if coordinates_file:
@@ -166,27 +185,13 @@ def create_citation_history_graph_and_box(recid, ln=CFG_SITE_LANG):
 
     if CFG_BIBRANK_PRINT_CITATION_HISTORY:
         graph_file_name = 'citation_%s_stats.png' % recid
+        # We need to store graphs in subdirectories because
+        # of max files per directory limit on AFS
         sub_dir = str(recid / 10000)
         graph_file = os.path.join(BASE_DIR, sub_dir, graph_file_name)
+
         if remove_old_graph_if_needed(graph_file):
-            graph_source_file = create_citation_graph(recid)
-            if graph_source_file:
-                dest_dir = os.path.dirname(graph_file)
-                try:
-                    os.makedirs(dest_dir)
-                except OSError, e:
-                    # If directory already exists, ignore error
-                    if e.errno != 17:
-                        raise
-                # Move graph to its destination
-                # We move to a temporary file to avoid race conditions
-                # then use rename because it is an atomic operation
-                graph_tmp_file_obj = NamedTemporaryFile(dir=dest_dir)
-                try:
-                    shutil.copy(graph_source_file, graph_tmp_file_obj.name)
-                finally:
-                    os.unlink(graph_source_file)
-                os.rename(graph_tmp_file_obj.name, graph_file)
+            safe_create_citation_graph(recid, graph_file)
 
         if os.path.exists(graph_file):
             html_head = '<br /><table><tr><td class="blocknote">%s</td></tr></table>' % _("Citation history:")

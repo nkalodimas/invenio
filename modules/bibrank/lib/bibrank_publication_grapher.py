@@ -41,21 +41,21 @@ def create_graph_image(graph_file_name, graph_data):
     @param graph_data: list (data for the graph plot)
     @return: str (full name of the graph image)
     """
-    res = ''
     if not os.path.exists("%s/img/tmp" % (CFG_WEBDIR)):
         os.mkdir("%s/img/tmp" % (CFG_WEBDIR))
     if not os.path.exists("%s/img/tmp/%s" % (CFG_WEBDIR, graph_file_name[0])):
         os.mkdir("%s/img/tmp/%s" % (CFG_WEBDIR, graph_file_name[0]))
-    datas_info = write_coordinates_in_tmp_file([graph_data])
+    graph_source_file, max_y = write_coordinates_in_tmp_file([graph_data])
     years = [tup[0] for tup in graph_data]
-    graph = create_temporary_image(graph_file_name, 'pubs_per_year', datas_info[0], 'Year',
-                                            'Times published', [0, 0], datas_info[1], [], ' ', years)
-    graph_image = graph[0]
-    graph_source_file = graph[1]
-    if graph_image and graph_source_file and os.path.exists(graph_source_file):
-        os.unlink(datas_info[0])
-        res = graph_image
-    return res
+    try:
+        graph_image = create_temporary_image(graph_file_name, 'pubs_per_year',
+                                             graph_source_file, 'Year',
+                                             'Times published', [0, 0],
+                                             max_y, [], ' ', years)
+    finally:
+        if os.path.exists(graph_source_file):
+            os.unlink(graph_source_file)
+    return graph_image
 
 def get_graph_code(graph_file_name, graph_data):
     """
