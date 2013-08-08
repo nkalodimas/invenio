@@ -52,7 +52,6 @@ from invenio.config import CFG_VERSION, \
                            CFG_TMPDIR, \
                            ARXIV_URL_PATTERN
 # Help message is the usage() print out of how to use Refextract
-from invenio.refextract_cli import HELP_MESSAGE, DESCRIPTION
 from invenio.docextract_record import get_record
 from invenio.bibdocfile import BibRecDocs, \
                                InvenioWebSubmitFileError, \
@@ -513,8 +512,8 @@ def fetch_updated_arxiv_records(date):
 
     def check_arxiv(recid):
         """Returns True for arxiv papers"""
-        for report_number in get_fieldvalues(recid, '037__a'):
-            if report_number.startswith('arXiv'):
+        for report_number in get_fieldvalues(recid, '037__9'):
+            if report_number == 'arXiv':
                 return True
         return False
 
@@ -601,9 +600,9 @@ def main():
     # Build and submit the task
     task_init(authorization_action='runarxivpdfchecker',
         authorization_msg="Arxiv Pdf Checker Task Submission",
-        description=DESCRIPTION,
+        description="""Daemon that checks if we have the latest version of arxiv PDFs""",
         # get the global help_message variable imported from refextract.py
-        help_specific_usage=HELP_MESSAGE + """
+        help_specific_usage="""
   Scheduled (daemon) options:
   -i, --id       Record id to check.
 
