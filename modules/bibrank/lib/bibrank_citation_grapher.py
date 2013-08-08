@@ -28,10 +28,9 @@ from invenio.config import (CFG_SITE_URL,
                             CFG_SITE_LANG,
                             CFG_WEBDIR,
                             CFG_BIBRANK_SHOW_CITATION_GRAPHS)
-from invenio.dbquery import run_sql
 from invenio.messages import gettext_set_language
-from invenio.bibrank_grapher import create_temporary_image, write_coordinates_in_tmp_file, remove_old_img
-from invenio.bibrank_citation_searcher import calculate_cited_by_list
+from invenio.bibrank_grapher import (create_temporary_image,
+                                     write_coordinates_in_tmp_file)
 from invenio.bibrank_citation_searcher import get_cited_by
 from invenio.search_engine_utils import get_fieldvalues
 from invenio.dateutils import strptime
@@ -143,15 +142,13 @@ def create_citation_graph(recid):
 
         coordinates_file, max_y = write_coordinates_in_tmp_file([coordinates])
         try:
-            graph_filename, dummy = create_temporary_image(recid,
+            graph_file, dummy = create_temporary_image(recid,
                     'citation', coordinates_file, 'Year', 'Times cited',
                     [0, 0], max_y, [], ' ', years)
         finally:
             # Always delete the coordinates file
             if coordinates_file:
                 os.unlink(coordinates_file)
-
-        graph_file = os.path.join(CFG_WEBDIR, 'img', graph_filename)
 
         if graph_file and os.path.exists(graph_file):
             return graph_file
@@ -173,24 +170,23 @@ def create_citation_history_graph_and_box(recid, ln=CFG_SITE_LANG):
         graph_file = os.path.join(BASE_DIR, sub_dir, graph_file_name)
         if remove_old_graph_if_needed(graph_file):
             graph_source_file = create_citation_graph(recid)
-            if graph_source_file and os.path.exists(graph_source_file):
+            if graph_source_file:
                 dest_dir = os.path.dirname(graph_file)
                 try:
                     os.makedirs(dest_dir)
                 except OSError, e:
+                    # If directory already exists, ignore error
                     if e.errno != 17:
                         raise
                 # Move graph to its destination
+                # We move to a temporary file to avoid race conditions
+                # then use rename because it is an atomic operation
                 graph_tmp_file_obj = NamedTemporaryFile(dir=dest_dir)
                 try:
                     shutil.copy(graph_source_file, graph_tmp_file_obj.name)
                 finally:
-                    try:
-                        os.unlink(graph_source_file)
-                    except OSError, e:
-                        if e.errno != 2:
-                            raise
-                    os.rename(graph_tmp_file_obj.name, graph_file)
+                    os.unlink(graph_source_file)
+                os.rename(graph_tmp_file_obj.name, graph_file)
 
         if os.path.exists(graph_file):
             html_head = '<br /><table><tr><td class="blocknote">%s</td></tr></table>' % _("Citation history:")

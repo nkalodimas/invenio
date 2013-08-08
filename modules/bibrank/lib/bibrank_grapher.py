@@ -22,18 +22,18 @@ __revision__ = "$Id$"
 import os
 import tempfile
 
-from invenio.config import CFG_WEBDIR, CFG_SITE_URL, CFG_BIBRANK_SHOW_CITATION_GRAPHS,\
-    CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS,\
-    CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS_CLIENT_IP_DISTRIBUTION
+from invenio.config import (CFG_WEBDIR, CFG_SITE_URL, CFG_TMPDIR,
+    CFG_BIBRANK_SHOW_CITATION_GRAPHS, CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS,
+    CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS_CLIENT_IP_DISTRIBUTION)
 
 ## test gnuplot presence:
-cfg_gnuplot_available = 1
+CFG_GNUPLOT_AVAILABLE = 1
 try:
     import Gnuplot
 except ImportError, e:
-    cfg_gnuplot_available = 0
+    CFG_GNUPLOT_AVAILABLE = 0
 
-GRAPH_TYPES = ((1, 'GNU plot'),(2, 'Flot'))
+GRAPH_TYPES = ((1, 'GNU plot'), (2, 'Flot'))
 
 def write_coordinates_in_tmp_file(lists_coordinates):
     """write the graph coordinates in a temporary file for reading it later
@@ -50,13 +50,14 @@ def write_coordinates_in_tmp_file(lists_coordinates):
     """
     max_y_datas = 0
     tempfile.tempdir = CFG_WEBDIR + "/img"
-    fname = tempfile.mktemp()
+    fd, fname = tempfile.mkstemp()
+    os.close(fd)
     file_dest = open(fname, 'a')
     for list_elem in lists_coordinates:
         y_axe = []
         #prepare data and store them in a file
         for key_value in list_elem:
-            file_dest.write("%s %s\n"%(key_value[0], key_value[1]))
+            file_dest.write("%s %s\n" % (key_value[0], key_value[1]))
             y_axe.append(key_value[1])
         max_tmp = 0
         if y_axe:
@@ -90,14 +91,22 @@ def create_temporary_image(recid, kind_of_graph, data_file, x_label, y_label, or
         (kind_of_graph == "download_history" and CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS == 1) or \
         (kind_of_graph == "download_users" and CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS_CLIENT_IP_DISTRIBUTION == 1) or \
         (kind_of_graph == "pubs_per_year"):
-        if cfg_gnuplot_available == 0:
+        if CFG_GNUPLOT_AVAILABLE == 0:
             return (None, None)
-        #Graphe name: file to store graph
-        graphe_name = "tmp_%s_%s_stats.png" % (kind_of_graph, recid)
-        if kind_of_graph == "pubs_per_year":   # the 'pubs_per_year' graph is the same as 'citation' except that is saved in a different location
+        # Graphe name: file to store graph
+        dest_dir = None
+        if kind_of_graph == "citation":
+            fd, graphe_name = tempfile.mkstemp(prefix='tmp_%s_%s_stats_' % (kind_of_graph, recid),
+                                               suffix='.png',
+                                               dir=CFG_TMPDIR)
+            os.close(fd)
+            dest_dir = ''
+        elif kind_of_graph == "pubs_per_year":   # the 'pubs_per_year' graph is the same as 'citation' except that is saved in a different location
             kind_of_graph = "citation"
             graphe_name = "tmp/%s/%s.png" % (recid[0], recid)
-        create_temporary_gnuplot_image(recid, kind_of_graph, data_file, x_label, y_label, origin_tuple, y_max, docid_list, graphe_titles, intervals, graphe_name)
+        else:
+            graphe_name = "tmp_%s_%s_stats.png" % (kind_of_graph, recid)
+        create_temporary_gnuplot_image(kind_of_graph, data_file, x_label, y_label, origin_tuple, y_max, docid_list, graphe_titles, intervals, graphe_name, dest_dir=dest_dir)
     elif (kind_of_graph == "citation" and CFG_BIBRANK_SHOW_CITATION_GRAPHS == 2) or \
         (kind_of_graph == "download_history" and CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS == 2) or \
         (kind_of_graph == "download_users" and CFG_BIBRANK_SHOW_DOWNLOAD_GRAPHS_CLIENT_IP_DISTRIBUTION == 2):
@@ -108,13 +117,15 @@ def create_temporary_image(recid, kind_of_graph, data_file, x_label, y_label, or
         open(CFG_WEBDIR + "/img/" + graphe_name, 'w').write("Error, select a correct format")
     return (graphe_name, data_file)
 
-def create_temporary_gnuplot_image(recid, kind_of_graph, data_file, x_label, y_label, origin_tuple, y_max, docid_list, graphe_titles, intervals, graphe_name):
+def create_temporary_gnuplot_image(kind_of_graph, data_file, x_label, y_label, origin_tuple, y_max, docid_list, graphe_titles, intervals, graphe_name, dest_dir=None):
     #For different curves
     color_line_list = ['4', '3', '2', '9', '6']
     #Gnuplot graphe object
     g = Gnuplot.Gnuplot()
     g('set terminal png small')
-    g('set output "%s/img/%s"' % (CFG_WEBDIR, graphe_name))
+    if dest_dir is None:
+        dest_dir = os.path.join(CFG_WEBDIR, 'img')
+    g('set output "%s"' % os.path.join(dest_dir, graphe_name))
     len_intervals = len(intervals)
     len_docid_list = len(docid_list)
     # Standard options
@@ -311,7 +322,7 @@ def create_temporary_flot_image(recid, kind_of_graph, data_file, x_label, y_labe
     options += """grid: { hoverable: true, clickable: true },
             selection: { mode: "xy" } };"""
     # Generate also the gnuplot image in case javascript is disabled
-    create_temporary_gnuplot_image(recid, kind_of_graph, data_file, x_label, y_label, origin_tuple, y_max, docid_list, graphe_titles, intervals, graphe_name[:-4] + "png")
+    create_temporary_gnuplot_image(kind_of_graph, data_file, x_label, y_label, origin_tuple, y_max, docid_list, graphe_titles, intervals, graphe_name[:-4] + "png")
     # Write the plot method in javascript
     out += """%(options)s
     var startData%(graph)s = getData%(graph)s();
