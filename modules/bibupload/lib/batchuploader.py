@@ -78,16 +78,21 @@ def task_run_core():
             os.makedirs(parent_dir)
         except OSError:
             pass
-        for folder in ["insert/", "append/", "correct/", "replace/", "holdingpen/"]:
-            files_dir = parent_dir + folder
-            files_done_dir = files_dir + "DONE/"
+        list_of_folders = ["insert",
+                           "append",
+                           "correct",
+                           "replace",
+                           "holdingpen"]
+        for folder in list_of_folders:
+            files_dir = os.path.join(parent_dir, folder)
+            files_done_dir = os.path.join(files_dir, "DONE")
             try:
                 files = os.listdir(files_dir)
             except OSError, e:
                 os.mkdir(files_dir)
                 files = []
                 write_message(e, sys.stderr)
-                write_message("Created %s" % (files_dir,))
+                write_message("Created new folder %s" % (files_dir,))
             # Create directory DONE/ if doesn't exist
             try:
                 os.mkdir(files_done_dir)
@@ -100,14 +105,14 @@ def task_run_core():
                     filename = tempfile.mktemp(prefix=metafile + "_" + time.strftime("%Y%m%d%H%M%S", time.localtime()) + "_")
                     shutil.copy(os.path.join(files_dir, metafile), filename)
                     # Send bibsched task
-                    mode = "-" + folder[0]
+                    mode = "--" + folder
                     jobid = str(task_low_level_submission('bibupload', 'batchupload', mode, filename))
                     # Move file to done folder
                     filename = metafile + "_" + time.strftime("%Y%m%d%H%M%S", time.localtime()) + "_" + jobid
                     os.rename(os.path.join(files_dir, metafile), os.path.join(files_done_dir, filename))
                     task_sleep_now_if_required(can_stop_too=True)
             progress += 1
-            task_update_progress("Done %d out of 4." % progress)
+            task_update_progress("Done %d out of %d." % (progress, len(list_of_folders)))
     else:
         # Documents upload
         parent_dir = daemon_dir + "/documents/"
