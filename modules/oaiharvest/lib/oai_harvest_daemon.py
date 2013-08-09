@@ -1373,12 +1373,15 @@ def get_identifier_names(identifier):
         # Let's see if the user had a comma-separated list of OAI ids.
         stripped_idents = []
         for ident in identifier.split(","):
-            if "arXiv" in ident:
-                # New style arXiv ID
-                ident = ident.replace("arXiv", "oai:arXiv.org")
-            elif "/" in ident:
-                # Old style arXiv ID?
-                ident = "%s%s" % ("oai:arXiv.org:", ident)
+            if not ident.startswith("oai:arXiv.org"):
+                if "oai:arxiv.org" in ident.lower():
+                    ident = ident.replace("oai:arxiv.org", "oai:arXiv.org")
+                elif "arXiv" in ident:
+                    # New style arXiv ID
+                    ident = ident.replace("arXiv", "oai:arXiv.org")
+                elif "/" in ident:
+                    # Old style arXiv ID?
+                    ident = "%s%s" % ("oai:arXiv.org:", ident)
             stripped_idents.append(ident.strip())
         return stripped_idents
 
