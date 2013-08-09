@@ -33,14 +33,19 @@ import os
 import time
 import tempfile
 import shutil
-from invenio.config import CFG_TMPSHAREDDIR, \
-                           CFG_BATCHUPLOADER_DAEMON_DIR, \
-                           CFG_BATCHUPLOADER_FILENAME_MATCHING_POLICY, \
-                           CFG_PREFIX
-from invenio.bibtask import task_init, task_set_option, \
-     task_get_option, task_update_progress, task_low_level_submission, \
-     write_message, task_sleep_now_if_required
+from invenio.config import (CFG_TMPSHAREDDIR,
+                            CFG_BATCHUPLOADER_DAEMON_DIR,
+                            CFG_BATCHUPLOADER_FILENAME_MATCHING_POLICY,
+                            CFG_PREFIX)
+from invenio.bibtask import (task_init,
+                             task_set_option,
+                             task_get_option,
+                             task_update_progress,
+                             task_low_level_submission,
+                             write_message,
+                             task_sleep_now_if_required)
 from invenio.batchuploader_engine import document_upload
+
 
 def task_submit_elaborate_specific_parameter(key, value, opts, args):
     """ Given the string key, checks its meaning and returns True if
@@ -54,6 +59,7 @@ def task_submit_elaborate_specific_parameter(key, value, opts, args):
         task_set_option('metadata', "metadata")
         return True
     return False
+
 
 def task_run_core():
     """ Walks through all directories where metadata files are located
@@ -72,7 +78,7 @@ def task_run_core():
             os.makedirs(parent_dir)
         except OSError:
             pass
-        for folder in ["insert/", "append/", "correct/", "replace/"]:
+        for folder in ["insert/", "append/", "correct/", "replace/", "holdingpen/"]:
             files_dir = parent_dir + folder
             files_done_dir = files_dir + "DONE/"
             try:
@@ -81,6 +87,7 @@ def task_run_core():
                 os.mkdir(files_dir)
                 files = []
                 write_message(e, sys.stderr)
+                write_message("Created %s" % (files_dir,))
             # Create directory DONE/ if doesn't exist
             try:
                 os.mkdir(files_done_dir)
@@ -117,17 +124,18 @@ def task_run_core():
             for matching in matching_order:
                 errors = document_upload(folder=parent_dir + folder, matching=matching, mode=folder[:-1])[0]
                 if not errors:
-                    break # All documents succedeed with that matching
+                    break  # All documents succedeed with that matching
                 for error in errors:
                     write_message("File: %s - %s with matching %s" % (error[0], error[1], matching), sys.stderr)
             task_sleep_now_if_required(can_stop_too=True)
     return 1
 
+
 def main():
     """ Main that constructs all the bibtask. """
     task_init(authorization_action='runbatchuploader',
-            authorization_msg="Batch Uploader",
-            description="""Description:
+              authorization_msg="Batch Uploader",
+              description="""Description:
     The batch uploader has two different run modes.
     If --metadata is specified (by default) then all files in folders insert,
     append, correct and replace are uploaded using the corresponding mode.
@@ -135,13 +143,13 @@ def main():
     append and revise are uploaded using the corresponding mode.
     Parent directory for batch uploader must be specified in the
     invenio configuration file.\n""",
-            help_specific_usage=""" -m, --metadata\t Batch Uploader will look for metadata files in the corresponding folders
+              help_specific_usage=""" -m, --metadata\t Batch Uploader will look for metadata files in the corresponding folders
  -d, --documents\t Batch Uploader will look for documents in the corresponding folders
                                 """,
-            version=__revision__,
-            specific_params=("md:", ["metadata", "documents"]),
-            task_submit_elaborate_specific_parameter_fnc=task_submit_elaborate_specific_parameter,
-            task_run_fnc=task_run_core)
+              version=__revision__,
+              specific_params=("md:", ["metadata", "documents"]),
+              task_submit_elaborate_specific_parameter_fnc=task_submit_elaborate_specific_parameter,
+              task_run_fnc=task_run_core)
 
 if __name__ == '__main__':
     main()
