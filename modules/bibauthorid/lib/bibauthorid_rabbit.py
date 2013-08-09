@@ -20,8 +20,8 @@
 from itertools import cycle, imap, chain, izip
 from operator import itemgetter
 
-from invenio.bibtask import task_sleep_now_if_required
-import bibauthorid_config as bconfig
+from invenio.bibtask import task_sleep_now_if_required, write_message
+from invenio import bibauthorid_config as bconfig
 
 from invenio.bibauthorid_comparison import cached_sym
 from invenio.bibauthorid_name_utils import compare_names as comp_names
@@ -68,7 +68,12 @@ def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None)
     logfile = open('/tmp/RABBITLOG-%s' % str(now()).replace(" ", "_"), 'w')
     logfile.write("RABBIT %s running on %s \n" % (str(now()), str(bibrecs)))
 
-    logwrite = lambda x, y: log.append((x + '\n', y))
+    def logwrite(msg, is_error):
+        log.append((msg, is_error))
+        verbose = 9
+        if is_error:
+            verbose = 1
+        write_message(msg, verbose=verbose)
 
     if bconfig.RABBIT_USE_CACHED_PID:
         PID_NAMES_CACHE = get_name_string_to_pid_dictionary()
@@ -159,7 +164,7 @@ def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None)
         best_match = [(new_signatures[new], old_signatures[old])
                       for new, old, score in maximized_mapping(matrix) if score > threshold]
 
-        logwrite (" - Best match: %s " % str(best_match), bool(best_match))
+        logwrite(" - Best match: %s " % str(best_match), bool(best_match))
 
         for new, old in best_match:
             logwrite(" - - Moving signature: %s on %s to %s as %s" % (old, rec, new, new_signatures_names[new]), True)
@@ -202,7 +207,7 @@ def rabbit(bibrecs, check_invalid_papers=False, personids_to_update_extids=None)
 
         if any(x[1] for x in log):
             logfile.write("\n--ALERT--\n")
-            logfile.write(''.join(x[0] for x in log))
+            logfile.write('\n'.join(x[0] for x in log))
         else:
             logfile.write("Nothing to be done on %s\n" % str(rec))
 
