@@ -1015,7 +1015,7 @@ def _task_run(task_run_fnc):
         bibsched_set_host(_TASK_PARAMS['task_id'], gethostname())
 
     ## initialize signal handler:
-    signal.signal(signal.SIGUSR2, signal.SIG_IGN)
+    signal.signal(signal.SIGUSR2, _task_sig_debug)
     signal.signal(signal.SIGTSTP, _task_sig_sleep)
     signal.signal(signal.SIGTERM, _task_sig_stop)
     signal.signal(signal.SIGQUIT, _task_sig_stop)
@@ -1153,6 +1153,16 @@ def _task_sig_suicide(sig, frame):
     _db_login(relogin=1)
     task_update_status("SUICIDED")
     sys.exit(1)
+
+def _task_sig_debug(sig, frame):
+    """Signal handler for the 'debug' signal sent by BibSched.
+
+    This spawn a remote console server we can connect to to check
+    the task behavior at runtime."""
+    write_message("task_sig_debug(), got signal %s frame %s"
+            % (sig, frame), verbose=9)
+    from rfoo.utils import rconsole
+    rconsole.spawn_server()
 
 def _task_sig_dumb(sig, frame):
     """Dumb signal handler."""

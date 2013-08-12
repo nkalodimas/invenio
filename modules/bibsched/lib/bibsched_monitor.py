@@ -188,7 +188,7 @@ class Manager(object):
                                            ord("p"), ord("P"), ord("o"), ord("O"),
                                            ord("l"), ord("L"), ord("e"), ord("E"),
                                            ord("z"), ord("Z"), ord("b"), ord("B"),
-                                           ord("h"), ord("H"))):
+                                           ord("h"), ord("H"), ord("D"))):
             self.display_in_footer("in automatic mode")
         else:
             status = self.currentrow and self.currentrow[5] or None
@@ -224,25 +224,27 @@ class Manager(object):
             elif char == ord("L"):
                 self.open_task_log(err=True)
             elif char in (ord("w"), ord("W")):
-                self.wakeup()
+                self.wakeup_task()
             elif char in (ord("n"), ord("N")):
-                self.change_priority()
+                self.change_task_priority()
             elif char in (ord("r"), ord("R")):
                 if status in ('WAITING', 'SCHEDULED'):
-                    self.run()
+                    self.run_task()
             elif char in (ord("s"), ord("S")):
-                self.sleep()
+                self.sleep_task()
             elif char in (ord("k"), ord("K")):
                 if status in ('ERROR', 'DONE WITH ERRORS', 'ERRORS REPORTED'):
-                    self.acknowledge()
+                    self.acknowledge_task()
                 elif status is not None:
-                    self.kill()
+                    self.kill_task()
             elif char in (ord("t"), ord("T")):
-                self.stop()
-            elif char in (ord("d"), ord("D")):
-                self.delete()
+                self.stop_task()
+            elif char == ord("d"):
+                self.delete_task()
+            elif char == ord("D"):
+                self.debug_task()
             elif char in (ord("i"), ord("I")):
-                self.init()
+                self.init_task()
             elif char in (ord("p"), ord("P")):
                 self.purge_done()
             elif char in (ord("o"), ord("O")):
@@ -314,6 +316,7 @@ s - Sleep task
 r - Run task
 n - Change task priority
 w - Wake up task
+D - Debug mode for remote task
 """
         self._display_message_box(msg)
 
@@ -452,7 +455,7 @@ w - Wake up task
             pass
         return out
 
-    def change_priority(self):
+    def change_task_priority(self):
         task_id = self.currentrow[0]
         priority = self.currentrow[8]
         new_priority = self._display_ask_number_box("Insert the desired \
@@ -473,7 +476,7 @@ order to let this task run. The current priority is %s. New value:"
         # We need to update the priority number next to the task
         self.repaint()
 
-    def wakeup(self):
+    def wakeup_task(self):
         if not self.currentrow:
             self.display_in_footer("no task selected")
             return
@@ -679,7 +682,7 @@ order to let this task run. The current priority is %s. New value:"
             self.repaint()
             self.display_in_footer("DONE processes purged")
 
-    def run(self):
+    def run_task(self):
         task_id = self.currentrow[0]
         process = self.currentrow[1].split(':')[0]
         status = self.currentrow[5]
@@ -704,7 +707,7 @@ order to let this task run. The current priority is %s. New value:"
         else:
             self.display_in_footer("Process status should be SCHEDULED or WAITING!")
 
-    def acknowledge(self):
+    def acknowledge_task(self):
         task_id = self.currentrow[0]
         task_name = self.currentrow[1]
         status = self.currentrow[5]
@@ -717,7 +720,12 @@ order to let this task run. The current priority is %s. New value:"
                 self.repaint()
                 self.display_in_footer("Acknowledged error")
 
-    def sleep(self):
+    def debug_task(self):
+        task_id = self.currentrow[0]
+        bibsched_send_signal(task_id, signal.SIGUSR2)
+        self.display_in_footer("Task set in debug mode")
+
+    def sleep_task(self):
         task_id = self.currentrow[0]
         status = self.currentrow[5]
         if status in ('RUNNING', 'CONTINUING'):
@@ -728,7 +736,7 @@ order to let this task run. The current priority is %s. New value:"
         else:
             self.display_in_footer("Cannot put to sleep non-running processes")
 
-    def kill(self):
+    def kill_task(self):
         task_id = self.currentrow[0]
         process = self.currentrow[1]
         status = self.currentrow[5]
@@ -742,7 +750,7 @@ order to let this task run. The current priority is %s. New value:"
         else:
             self.display_in_footer("Cannot kill non-running processes")
 
-    def stop(self):
+    def stop_task(self):
         task_id = self.currentrow[0]
         process = self.currentrow[1]
         status = self.currentrow[5]
@@ -768,7 +776,7 @@ order to let this task run. The current priority is %s. New value:"
         else:
             self.display_in_footer("Cannot stop non-running processes")
 
-    def delete(self):
+    def delete_task(self):
         task_id = self.currentrow[0]
         status = self.currentrow[5]
         if status not in ('RUNNING', 'CONTINUING', 'SLEEPING', 'SCHEDULED',
@@ -782,7 +790,7 @@ order to let this task run. The current priority is %s. New value:"
         else:
             self.display_in_footer("Cannot delete running processes")
 
-    def init(self):
+    def init_task(self):
         task_id = self.currentrow[0]
         status = self.currentrow[5]
         if status not in ('RUNNING', 'CONTINUING', 'SLEEPING'):
