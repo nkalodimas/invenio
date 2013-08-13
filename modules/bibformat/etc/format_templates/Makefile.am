@@ -33,7 +33,8 @@ etc_DATA = Default_HTML_captions.bft Picture_HTML_brief.bft \
 	   Basket_Search_Result.bft Default_HTML_meta.bft \
 	   WebAuthorProfile_affiliations_helper.bft \
 	   Detailed_HEPDATA_dataset.bft \
-       WebAuthorProfile_data_helper.bft
+       WebAuthorProfile_data_helper.bft \
+       Default_HTML_citation_log.bft
 
 tmpdir = $(prefix)/var/tmp
 
