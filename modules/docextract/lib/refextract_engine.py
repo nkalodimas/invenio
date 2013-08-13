@@ -337,7 +337,7 @@ def split_citations(citation_elements):
     for el in citation_elements:
         try:
             el_recid = el['recid']
-        except IndexError:
+        except KeyError:
             el_recid = None
 
         if current_recid and el_recid and current_recid == el_recid:
@@ -355,12 +355,16 @@ def split_citations(citation_elements):
                 new_elements.append({'type': 'MISC',
                                      'misc_txt': misc_txt})
             start_new_citation()
+            # In case el['recid'] is None, we want to reset it
+            # because we are starting a new reference
+            current_recid = el_recid
             while ';' in el['misc_txt']:
                 misc_txt, el['misc_txt'] = el['misc_txt'].split(';', 1)
                 if misc_txt:
                     new_elements.append({'type': 'MISC',
                                          'misc_txt': misc_txt})
                     start_new_citation()
+                    current_recid = None
 
         if el_recid:
             current_recid = el_recid
