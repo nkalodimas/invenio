@@ -247,7 +247,9 @@ def _get_personids_to_update_extids(papers=None):
     if bconfig.LIMIT_EXTERNAL_IDS_COLLECTION_TO_CLAIMED_PAPERS:
         modified_bibrecs = [rec[0] for rec in get_claimed_papers_from_papers(modified_bibrecs)]
     personids_to_update_extids = set()
-    for bibrec in modified_bibrecs:
+    for done, bibrec in enumerate(modified_bibrecs):
+        if done % 5000 == 0:
+            bibtask.task_sleep_now_if_required(can_stop_too=True)
         personids_to_update_extids |= set(get_personids_from_bibrec(bibrec))
     return personids_to_update_extids
 
