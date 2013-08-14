@@ -291,7 +291,7 @@ def bibupload(record, opt_mode=None, opt_notimechange=0, oai_rec_id="", pretend=
                 write_message(msg, verbose=1, stream=sys.stderr)
                 write_message(msg, "     Continuing anyway in case there are FFT or other tags")
             except InvenioBibUploadConflictingRevisionsError, err:
-                msg = "     -ERROR: Conflicting Revisions -  %s" % err
+                msg = "     -ERROR: Conflicting Revisions - %s" % err
                 write_message(msg, verbose=1, stream=sys.stderr)
                 submit_ticket_for_holding_pen(rec_id, err, "Conflicting Revisions. Inserting record into holding pen.")
                 insert_record_into_holding_pen(record, str(rec_id))
@@ -647,6 +647,15 @@ def submit_ticket_for_holding_pen(rec_id, err, msg):
     msg: verbose message
     """
     from invenio import bibtask
+    from invenio.webuser import get_email_from_username, get_uid_from_email
+    user = task_get_task_param("user")
+    uid = None
+    if user:
+        try:
+            uid = get_uid_from_email(get_email_from_username(user))
+        except Exception, err:
+            write_message("WARNING: can't reliably retrieve uid for user %s: %s" % (user, err), stream=sys.stderr)
+
     if check_bibcatalog():
         text = """
 %(msg)s found for record %(rec_id)s: %(err)s
@@ -665,10 +674,10 @@ BibUpload task information:
             "siteurl": CFG_SITE_SECURE_URL,
             "task_id": task_get_task_param("task_id"),
             "task_specific_name": task_get_task_param("task_specific_name"),
-            "user": task_get_task_param("user"),
+            "user": user,
             "task_params": bibtask._TASK_PARAMS,
             "task_options": bibtask._OPTIONS}
-        BIBCATALOG_SYSTEM.ticket_submit("%s: %s" % (msg, rec_id), recordid=rec_id, text=text, queue=CFG_BIBCATALOG_CONFLICTING_REVISIONS_DEFAULT_QUEUE)
+        BIBCATALOG_SYSTEM.ticket_submit(subject="%s: %s by %s" % (msg, rec_id, user), recordid=rec_id, text=text, queue=CFG_BIBCATALOG_CONFLICTING_REVISIONS_DEFAULT_QUEUE, owner=uid)
 
 def insert_record_into_holding_pen(record, oai_id, pretend=False):
     query = "INSERT INTO bibHOLDINGPEN (oai_id, changeset_date, changeset_xml, id_bibrec) VALUES (%s, NOW(), %s, %s)"
@@ -2444,7 +2453,6 @@ def task_run_core():
                         else:
                             write_message("Record could not have been parsed",
                                           stream=sys.stderr)
-                        stat['nb_holdingpen'] += 1
                         if callback_url:
                             results_for_callback['results'].append({'recid': error[1], 'success': False, 'error_message': error[2]})
                     elif error[0] == 0:
