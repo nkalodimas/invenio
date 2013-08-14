@@ -431,8 +431,12 @@ def fetch_arxiv_version(recid):
 
         # We pass one arxiv id, we are assuming a single response file
         tree = minidom.parse(responses[0])
-        version_tag = tree.getElementsByTagName('version')[-1]
-        version = version_tag.getAttribute('version')
+        try:
+            version_tag = tree.getElementsByTagName('version')[-1]
+        except IndexError:
+            version = '1'
+        else:
+            version = version_tag.getAttribute('version')
 
         # We have to remove the responses files manually
         # For some written the response is written to disk instead of
