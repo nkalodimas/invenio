@@ -635,7 +635,7 @@ class BibSched(object):
                     else:
                         Log("Cannot run because we are waiting for #%s to stop" % t.id, debug)
                 for t in tasks_to_sleep:
-                    if t.status not in ('ABOUT TO SLEEP', 'SCHEDULED'):
+                    if t.status not in ('ABOUT TO SLEEP', 'SCHEDULED', 'ABOUT TO STOP'):
                         changes = True
                         sleep_task(t)
                     else:
