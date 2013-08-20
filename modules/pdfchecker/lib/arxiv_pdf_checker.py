@@ -54,7 +54,6 @@ from invenio.config import CFG_VERSION, \
 # Help message is the usage() print out of how to use Refextract
 from invenio.docextract_record import get_record
 from invenio.bibdocfile import BibRecDocs, \
-                               InvenioWebSubmitFileError, \
                                calculate_md5
 from invenio.oai_harvest_dblayer import get_oai_src
 from invenio import oai_harvest_daemon
@@ -552,42 +551,46 @@ def task_run_core(name=NAME):
 
     updated_recids = set()
 
-    for count, (recid, mod_date) in enumerate(recids):
-        if count % 50 == 0:
-            msg = 'Done %s of %s' % (count, len(recids))
-            write_message(msg)
-            task_update_progress(msg)
+    try:
 
-        # BibTask sleep
-        task_sleep_now_if_required(can_stop_too=True)
+        for count, (recid, dummy) in enumerate(recids):
+            if count % 50 == 0:
+                msg = 'Done %s of %s' % (count, len(recids))
+                write_message(msg)
+                task_update_progress(msg)
 
-        write_message('processing %s' % recid, verbose=9)
-        try:
-            if process_one(recid):
-                updated_recids.add(recid)
-            time.sleep(6)
-        except AlreadyHarvested:
-            write_message('already harvested successfully')
-            time.sleep(6)
-        except FoundExistingPdf:
-            write_message('pdf already attached (matching md5)')
-            time.sleep(6)
-        except PdfNotAvailable:
-            write_message("no pdf available")
-            time.sleep(20)
-        except InvenioFileDownloadError, e:
-            write_message("failed to download: %s" % e)
-            time.sleep(20)
+            # BibTask sleep
+            task_sleep_now_if_required(can_stop_too=True)
 
-    msg = 'Updated %s records' % len(updated_recids)
-    write_message(msg)
-    task_update_progress(msg)
+            write_message('processing %s' % recid, verbose=9)
+            try:
+                if process_one(recid):
+                    updated_recids.add(recid)
+                time.sleep(6)
+            except AlreadyHarvested:
+                write_message('already harvested successfully')
+                time.sleep(6)
+            except FoundExistingPdf:
+                write_message('pdf already attached (matching md5)')
+                time.sleep(6)
+            except PdfNotAvailable:
+                write_message("no pdf available")
+                time.sleep(20)
+            except InvenioFileDownloadError, e:
+                write_message("failed to download: %s" % e)
+                time.sleep(20)
 
-    # For all updated records, we want to sync the 8564 tags
-    # and reextract references
-    if updated_recids:
-        submit_fixmarc_task(updated_recids)
-        submit_refextract_task(updated_recids)
+    finally:
+        # We want to process updated records even in case we are interrupted
+        msg = 'Updated %s records' % len(updated_recids)
+        write_message(msg)
+        task_update_progress(msg)
+
+        # For all updated records, we want to sync the 8564 tags
+        # and reextract references
+        if updated_recids:
+            submit_fixmarc_task(updated_recids)
+            submit_refextract_task(updated_recids)
 
     # Store last run date of the daemon
     # not if it ran on specific recids from the command line with --id
