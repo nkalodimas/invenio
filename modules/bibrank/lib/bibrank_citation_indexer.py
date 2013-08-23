@@ -146,12 +146,12 @@ def get_citation_weight(rank_method_code, config, chunk_size=9000):
         # Process fully the updated records
         weights = process_and_store(updated_recids, config, chunk_size)
         end_time = time.time()
-        write_message("Total time of get_citation_weight(): %.2f sec" % \
+        write_message("Total time of get_citation_weight(): %.2f sec" %
                                                       (end_time - begin_time))
         task_update_progress("citation analysis done")
     else:
         weights = None
-        write_message("No new records added since last time this " \
+        write_message("No new records added since last time this "
                       "rank method was executed")
 
     return weights, index_update_time
@@ -638,7 +638,7 @@ def ref_analyzer(citation_informations, updated_recids, tags, config):
             recids = get_recids_matching_query(p=refnumber,
                                                f=field,
                                                config=config)
-            write_message("These match searching %s in %s: %s" % \
+            write_message("These match searching %s in %s: %s" %
                                    (refnumber, field, list(recids)), verbose=9)
 
             if not recids:
@@ -686,7 +686,7 @@ def ref_analyzer(citation_informations, updated_recids, tags, config):
             recids = get_recids_matching_query(p=p,
                                                f=field,
                                                config=config)
-            write_message("These match searching %s in %s: %s" \
+            write_message("These match searching %s in %s: %s"
                                  % (reference, field, list(recids)), verbose=9)
 
             if not recids:
@@ -725,7 +725,7 @@ def ref_analyzer(citation_informations, updated_recids, tags, config):
             recids = get_recids_matching_query(p=p,
                                                f=field,
                                                config=config)
-            write_message("These match searching %s in %s: %s" \
+            write_message("These match searching %s in %s: %s"
                                  % (reference, field, list(recids)), verbose=9)
 
             if not recids:
@@ -834,12 +834,12 @@ def ref_analyzer(citation_informations, updated_recids, tags, config):
         write_message("reference_list (x cites y):")
         write_message(dict(islice(references.iteritems(), 10)))
         write_message("size: %s" % len(references))
-        write_message("selfcitedbydic (x is cited by y and one of the " \
+        write_message("selfcitedbydic (x is cited by y and one of the "
                       "authors of x same as y's):")
 
     t7 = os.times()[4]
 
-    write_message("Execution time for analyzing the citation information " \
+    write_message("Execution time for analyzing the citation information "
                   "generating the dictionary:")
     write_message("... checking ref report numbers: %.2f sec" % (t2-t1))
     write_message("... checking ref journals: %.2f sec" % (t3-t2))
@@ -897,11 +897,15 @@ def replace_cites(recid, new_cites):
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         run_sql("""INSERT INTO rnkCITATIONDICT (citee, citer, last_updated)
                    VALUES (%s, %s, %s)""", (recid, cite, now))
+        run_sql("""INSERT INTO rnkCITATIONLOG (citee, citer, type, action_date)
+                   VALUES (%s, %s, %s, %s)""", (recid, cite, 'added', now))
 
     for cite in cites_to_delete:
         write_message('deleting cite %s %s' % (recid, cite), verbose=1)
         run_sql("""DELETE FROM rnkCITATIONDICT
                    WHERE citee = %s and citer = %s""", (recid, cite))
+        run_sql("""INSERT INTO rnkCITATIONLOG (citee, citer, type, action_date)
+                   VALUES (%s, %s, %s, %s)""", (recid, cite, 'removed', now))
 
 
 def insert_into_missing(recid, report):
