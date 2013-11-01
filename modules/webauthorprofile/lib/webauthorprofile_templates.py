@@ -554,9 +554,7 @@ class Template:
                                     stats=summarize_records,
                                     searchpattern=rec_query,
                                     searchfield="")
-            str_buffer.write(websearch_templates.tmpl_citesummary_footer())
             line2 = str_buffer.getvalue()
-            line2 = '<span style="white-space: nowrap;">' + line2 + "</span>"
         else:
             line2 = self.loading_html()
         if add_box:
@@ -598,11 +596,11 @@ class Template:
         """ Internal and external publications list """
         _ = gettext_set_language(ln)
 
-        html_head = _("<strong> Publications list </strong>")
+        html_head = _("")
         html_pubs_list = ['<div style="border:2px;height:300px;overflow:scroll;overflow-y:auto;overflow-x:hidden;">']
 
         if internal_pubs:
-            html_pubs_list.append( '<strong> Publications in INSPIRE: </strong> <br> <ol style="padding-left:20px">')
+            html_pubs_list.append( '<ol style="padding-left:20px">')
             internal_pubs_list = sorted([(recid, title) for recid, title in internal_pubs.iteritems()], key=lambda x: x[0], reverse=True)
             for recid, title in internal_pubs_list:
                 html_pubs_list.append( '<li> <a href="%s/record/%s"> <b> ' % (CFG_SITE_URL, recid) + title + '</b> </a></li>\n')

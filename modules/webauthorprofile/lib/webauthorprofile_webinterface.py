@@ -323,7 +323,9 @@ class WebAuthorPages(WebInterfaceDirectory):
 
         if isinstance(content, dict):
             meta = profile_page.get_head() + content['head']
-            body = profile_page.get_wrapped_body(content['body'])
+            #body = profile_page.get_wrapped_body(content['body'])
+            last_computed = "Last computed: " + str(self.last_computed())
+            body = profile_page.get_profile_page_body(last_computed)
             return page(title=title_message,
                         metaheaderadd=meta.encode('utf-8'),
                         body=body.encode('utf-8'),
@@ -635,6 +637,8 @@ class WebAuthorPages(WebInterfaceDirectory):
                 req.content_type = 'application/json'
                 return json.dumps(json_response)
 
+    def last_computed(self):
+        return get_person_oldest_date(self.person_id)
 
     def create_authorpage_websearch(self, req, form, ln='en', expire_cache=False):
         if CFG_WEBAUTHORPROFILE_USE_BIBAUTHORID:

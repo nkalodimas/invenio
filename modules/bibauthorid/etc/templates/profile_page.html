@@ -1,0 +1,112 @@
+{% extends "index.html" %}
+{% block content %}
+<div class="row">
+    <div class="span8">
+        <div class="row">
+        <!-- Publications List and Citations Summary -->
+            <div class="span3">
+                <div class="well well-small inspire-well">
+                    <strong>Publications in INSPIRE</strong>
+                    <div id="pubs_list"></div>
+                </div>
+            </div>
+            <div class="span5">
+                <div class="well well-small inspire-well">
+                    <strong>Citations Summary</strong>
+                    <div id="citations"></div>
+                    <p><strong>Warning</strong>: The citation search should be used and interpreted with great care.<a href="{{ citation_fine_print_link }}">Read the fine print</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+        <!-- Papers and Publications per Year -->
+            <div class="span3">
+                <div class="row">
+                    <div class="span1">
+                        <div class="well well-small inspire-well">
+                            <strong>Papers</strong>
+                            <div id="pubs"></div>
+                         </div>
+                    </div>
+                    <div class="span2">
+                        <div class="well well-small inspire-well">
+                            <strong>Publication Graph</strong>
+                            <div id="pubs_graph"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="span5"></div>
+        </div>
+
+        <div class="row">
+        <!-- Subject Categories and Keywords -->
+            <div class="span3">
+                <div class="row">
+                    <div class="span1">
+                        <div class="well well-small inspire-well">
+                            <strong>Subject Categories</strong>
+                            <div id="fieldcodes"></div>
+                        </div>
+                    </div>
+                    <div class="span2">
+                        <div class="well well-small inspire-well">
+                            <strong>Frequent Keywords</strong>
+                            <div id="keywords"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="span5"></div>
+        </div>
+
+    </div>
+    <div class="span4">
+        <div class="row">
+        <!-- HepNames -->
+            <div class="span4">
+                <div class="well well-small inspire-well">
+                    <strong>HepNames</strong>
+                    <div id="hepdata"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+        <!-- Name Variants and Affiliations -->
+            <div class="span2">
+                <div class="well well-small inspire-well">
+                    <strong>Name Variants</strong>
+                    <div id="name_variants"></div>
+                </div>
+            </div>
+            <div class="span2">
+                <div class="well well-small inspire-well">
+                    <strong>Affiliations</strong>
+                    <div id="affiliations"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+        <!-- Co-Authors and Collaborations -->
+            <div class="span2">
+                <div class="well well-small inspire-well">
+                    <strong>Co-Authors</strong>
+                    <div id="coauthors"></div>
+                </div>
+            </div>
+            <div class="span2">
+                <div class="well well-small inspire-well">
+                    <strong>Collaborations</strong>
+                    <div id="collaborations"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock%}

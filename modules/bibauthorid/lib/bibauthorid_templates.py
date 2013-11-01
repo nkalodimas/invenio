@@ -175,8 +175,8 @@ class WebProfilePage():
         self.stylesheets = [
                         "jquery-ui/themes/smoothness/jquery-ui.css",
                         "datatables_jquery-ui.css",
-                        "bibauthorid.css",
-                        "bootstrap.min.css"
+                        "bootstrap.min.css",
+                        "bibauthorid.css"
                         ]
 
         self.template_files = {
@@ -328,6 +328,18 @@ class WebProfilePage():
             'html': content,
             'debug': self.debug,
             'bootstrap': self.bootstrap_data
+        })
+
+    def get_profile_page_body(self, last_computed):
+        return self.environment.get_template("profile_page.html").render({
+            'title': self.heading,
+            'menu': self.menu,
+            'url': self.url,
+            'debug': self.debug,
+            'bootstrap': self.bootstrap_data,
+            'last_computed': last_computed,
+            'citation_fine_print_link': "%s/help/citation-metrics#citesummary_self-cites" % CFG_BASE_URL,
+            'search_form_url': "%s/author/search" % CFG_BASE_URL
         })
 
 
