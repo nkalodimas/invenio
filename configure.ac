@@ -570,6 +570,7 @@ AC_CONFIG_FILES([config.nice  \
      modules/bibauthorid/lib/Makefile \
      modules/bibauthorid/etc/Makefile \
      modules/bibauthorid/etc/name_authority_files/Makefile \
+     modules/bibauthorid/etc/templates/Makefile \
      modules/bibauthorid/web/Makefile \
      modules/bibauthority/Makefile \
      modules/bibauthority/bin/Makefile \

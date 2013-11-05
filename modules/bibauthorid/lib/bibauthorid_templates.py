@@ -27,7 +27,7 @@
 # from urllib import quote
 #
 import invenio.bibauthorid_config as bconfig
-from invenio.config import CFG_SITE_LANG
+from invenio.config import CFG_SITE_LANG, CFG_ETCDIR
 from invenio.config import CFG_SITE_URL, CFG_SITE_SECURE_URL, CFG_BASE_URL
 from invenio.config import CFG_BIBAUTHORID_AUTHOR_TICKET_ADMIN_EMAIL, CFG_WEBAUTHORPROFILE_CFG_HEPNAMES_EMAIL
 from invenio.bibformat import format_record
@@ -42,7 +42,7 @@ from invenio.bibauthorid_frontinterface import get_canonical_name_of_author
 from invenio.messages import gettext_set_language, wash_language
 from invenio.webuser import get_email
 from invenio.htmlutils import escape_html
-from jinja2 import DictLoader, Environment
+from jinja2 import Environment, FileSystemLoader
 
 # from invenio.textutils import encode_for_xml
 
@@ -147,6 +147,7 @@ class WebProfileMenu():
 
 class WebProfilePage():
 
+    TEMPLATES_DIR = "%s/bibauthorid/templates" % CFG_ETCDIR
 
     def __init__(self, page, heading, no_cache=False):
         self.css_dir = CFG_BASE_URL + "/img"
@@ -179,106 +180,13 @@ class WebProfilePage():
                         "bibauthorid.css"
                         ]
 
-        self.template_files = {
-                        'head.html': """\
-                                {% if no_cache %}
-                        <!-- Meta -->
-                        <META HTTP-EQUIV="Pragma" CONTENT="no-cache">
-                        <META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
-                        <META HTTP-EQUIV="Pragma-directive" CONTENT="no-cache">
-                        <META HTTP-EQUIV="Cache-Directive" CONTENT="no-cache">
-                        <META HTTP-EQUIV="Expires" CONTENT="0">
-                        {% endif %}
-
-                {% if scripts %}
-                <!-- Scripts -->
-                {% for item in scripts %}<script type="text/javascript" src="{{ scripts_dir }}/{{ item }}"></script>
-                {% endfor %}
-                {% endif %}
-
-                <script type="text/x-mathjax-config">
-                MathJax.Hub.Config({
-                        tex2jax: {inlineMath: [['$','$']],
-                        processEscapes: true},
-                        showProcessingMessages: false,
-                        messageStyle: "none"
-                        });
-                </script>
-                <script src="/MathJax/MathJax.js?config=TeX-AMS_HTML" type="text/javascript">
-                </script>
-
-                {% if stylesheets %}
-                <!-- Stylesheets -->
-                {% for item in stylesheets %}<link rel="stylesheet" type="text/css" href="{{ css_dir }}/{{ item }}" />
-                {% endfor %}
-                {% endif %}
-                """,
-                'profile_menu.html': """
-                <span class="bsw"><ul id="authorid_menu" class="nav nav-pills">
-                {% for item in menu %}\
-                        <li{{ ' class="active"' if item.active }}{{ ' class="disabled"' if item.disabled }}>
-                <a href="{{ url }}/{{ item.page }}{% if not item.static %}/{{ item.canonical_name }}{% endif %}">{{ item.text }}</a>
-                </li>
-                {% endfor %}
-                </ul></span>
-                """,
-                'index.html': """\
-
-{% if bootstrap %}<div class="hidden" id="jsbootstrap">{{ bootstrap|e }}</div>{% endif %}
-<div class="ow-overlay ow-closed"></div>
-<span class="bsw">
-{% if debug %}{% include 'debug_block.html' %}{% endif %}
-
-
-
-<div id="person_name"><h1 class="authornametitle">{{ title }}</h1></div>
-<div id="person_menu">\
-        {% if menu %}{% include 'profile_menu.html' %}{% endif %}
-</div>
-
-
-
-<div id="bai_content">
-{% block content %}{% endblock %}
-</div>
-</span>
-""",
-'generic_wrapper.html': """
-{% extends "index.html" %}
-{% block content %}
-{{ html|safe }}
-{% endblock%}
-""",
-'debug_block.html': """
-<div id="debug_info"><span class="bsw">
-<table class="table table-striped">
-<caption><h2>Debug Information</h2></caption>
-<thead>
-<tr>
-<th>Key</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-{% for key, value in debug.iteritems() %}
-<tr>
-<td>{{ key|e}}</td>
-<td>{{ value|e }}</td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
-</span></div>
-"""
-}
-
         self._initialise_class_variables()
         self.no_cache = no_cache
         self.heading = heading
         self.page = page
         self.bootstrap_data = None
 
-        self.loader = DictLoader(self.template_files)
+        self.loader = FileSystemLoader(WebProfilePage.TEMPLATES_DIR)
         self.environment = Environment(loader=self.loader)
 
 
