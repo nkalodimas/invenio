@@ -150,14 +150,12 @@ class WebAuthorPages(WebInterfaceDirectory):
 
         # check if it's an author id: e.g. "14"
         try:
-            pid = int(identifier)
-            if author_has_papers(pid):
-                self.person_id = pid
-                cid = get_person_redirect_link(pid)
-                # author may not have a canonical id
-                if is_valid_canonical_id(cid):
-                    self.cid = cid
-                return
+            self.person_id = int(identifier)
+            cid = get_person_redirect_link(pid)
+            # author may not have a canonical id
+            if is_valid_canonical_id(cid):
+                self.cid = cid
+            return
         except ValueError:
             pass
 
@@ -237,6 +235,7 @@ class WebAuthorPages(WebInterfaceDirectory):
         if encoded:
             encoded = '&' + encoded
 
+        assert False, [self.person_id, self.cid, self.original_search_parameter]
         return redirect_to_url(req, '%s/author/search?q=%s%s' %
                                     (CFG_SITE_URL, self.original_search_parameter, encoded))
 

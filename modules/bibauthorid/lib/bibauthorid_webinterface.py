@@ -145,10 +145,8 @@ class WebInterfaceBibAuthorIDClaimPages(WebInterfaceDirectory):
 
         # check if it's an author id: e.g. "14"
         try:
-            pid = int(identifier)
-            if webapi.author_has_papers(pid):
-                self.person_id = pid
-                return
+            self.person_id = int(identifier)
+            return
         except ValueError:
             pass
 
@@ -2944,10 +2942,8 @@ class WebInterfaceBibAuthorIDManageProfilePages(WebInterfaceDirectory):
         # Create Wrapper Page Markup
 
         cname = webapi.get_canonical_id_from_person_id(self.person_id)
-        if cname == self.person_id:
-            return page_not_authorized(req, text=_("This page is not accessible directly."))
 
-        menu = WebProfileMenu(cname, "manage_profile", ln, self._is_profile_owner(pinfo['pid']), self._is_admin(pinfo))
+        menu = WebProfileMenu(str(cname), "manage_profile", ln, self._is_profile_owner(pinfo['pid']), self._is_admin(pinfo))
         profile_page = WebProfilePage("manage_profile", webapi.get_longest_name_from_pid(self.person_id), no_cache=True)
         profile_page.add_profile_menu(menu)
 
