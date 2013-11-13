@@ -36,6 +36,9 @@ from bibauthorid_dbinterface import get_confirmed_name_to_authors_mapping, get_a
                                     set_inverted_lists_ready, set_dense_index_ready, populate_table, search_engine_is_operating
 
 
+# TODO: rename create_indexable_name to create_indexable_string
+
+
 def get_qgrams_from_string(string, q):
     '''
     It decomposes the given string to its qgrams. The qgrams of a string are
@@ -60,7 +63,7 @@ def get_qgrams_from_string(string, q):
 
 #####################################
 ###                               ###
-###         Preprocessing         ###
+###     Preprocessing/Indexing    ###
 ###                               ###
 #####################################
 
@@ -239,17 +242,74 @@ def create_inverted_lists(indexable_strings, queue):
 #####################################
 
 
-def solve_T_occurence_problem(query_string):
+def find_authors_by_name(query_string):
     '''
-    It solves a 'T-occurence problem' which is defined as follows: find the string ids
-    that apper at least T times on the inverted lists of the query string qgrams. If the
-    result dataset is bigger than a threshold it tries to limit it further.
-
-    @param query_string:
+    @param query_string: the query string
     @type query_string: str
 
-    @return: T_occurence_problem answers
+    @return:
     @rtype: list
+    '''
+    query_string_surname = split_name_parts(query_string)[0]
+
+    # TODO: should there be duplicates?
+    string_similarity_scores = get_string_similarity_scores(query_string)
+    string_similarity_scores |= get_string_similarity_scores(query_string_surname)
+    string_ranking = sorted(string_similarity_scores, key=itemgetter(1), reverse=True)
+
+    author_scores = calculate_author_score(string_ranking)
+    author_ranking = sorted(author_scores, key=itemgetter(2), reverse=True)
+    author_ranking = [pid for pid, _, _ in author_ranking]
+
+    return author_ranking
+
+
+def get_string_similarity_scores(string):
+    '''
+    It finds a collection of personids who own a signature that is similar to the given query string.
+    Its approach is by solving a 'T-occurance problem' and then it applies some filters to the candidate
+    answers so it can remove the false positives. In the end it sorts the result set based on the score
+    they obtained.
+
+    @param query_string: the query string
+    @type query_string: str
+
+    @return:
+    @rtype: set
+    '''
+    search_engine_is_functioning = search_engine_is_operating()
+    if not search_engine_is_functioning:
+        return set()
+
+    asciified_string = translate_to_ascii(string)[0]
+    indexable_string = create_indexable_name(asciified_string)
+    if not indexable_string:
+        return set()
+
+    string_ids = solve_T_occurence_problem(indexable_string)
+
+    if not string_ids:
+        return set()
+
+    string_similarity_scores = calculate_string_similarity_scores(indexable_string, string_ids)
+
+    return string_similarity_scores
+
+
+def solve_T_occurence_problem(query_string):
+    '''
+    It solves a 'T-occurence problem' which is defined as follows: find the
+    string ids that appear at least T times in the inverted lists which
+    correspond to each of the query string qgrams. T respresents the amount of
+    qgrams that the query string and the strings in the result dataset must
+    share. If the result dataset is bigger than a threshold it tries to limit
+    it further.
+
+    @param query_string: the query string
+    @type query_string: str
+
+    @return: strings that share T (or more) common qgrams with the query string
+    @rtype: intbitset
     '''
     qgrams = set(get_qgrams_from_string(query_string, QGRAM_LEN))
     if not qgrams:
@@ -260,6 +320,7 @@ def solve_T_occurence_problem(query_string):
         return intbitset()
 
     inverted_lists = sorted(inverted_lists, key=itemgetter(1), reverse=True)
+    # TODO: if a qgram exists more than on time, then the T-occurence problem may not return what we want
     T = int(MATCHING_QGRAMS_PERCENTAGE * len(inverted_lists))
     string_ids = intbitset(deserialize(inverted_lists[0][0]))
 
@@ -280,24 +341,22 @@ def solve_T_occurence_problem(query_string):
     return string_ids
 
 
-def calculate_name_score(query_string, nameids):
+def calculate_string_similarity_scores(string, string_ids):
     '''
-    docstring
-
-    @param query_string:
-    @type query_string:
-    @param nameids:
-    @type nameids:
+    @param string:
+    @type string: str
+    @param string_ids:
+    @type string_ids: intbitset
 
     @return:
-    @rtype:
+    @rtype: set
     '''
-    name_personids_list = get_authors_data_from_indexable_name_ids(nameids)
-    query_last_name = split_name_parts(query_string)[0]
+    string_to_authors_mapping = get_authors_data_from_indexable_name_ids(string_ids)
+    query_last_name = split_name_parts(string)[0]
     query_last_name_len = len(query_last_name)
-    name_score_list = list()
+    name_score_list = set()
 
-    for name, personids in name_personids_list:
+    for name, personids in string_to_authors_mapping:
         current_last_name = split_name_parts(name)[0]
         current_last_name_len = len(current_last_name)
         if abs(query_last_name_len - current_last_name_len) == 0:
@@ -305,25 +364,23 @@ def calculate_name_score(query_string, nameids):
             limit = min([query_last_name_len, current_last_name_len])
             name_score = sum([1/float(2**(i+1)) for i in range(limit) if query_last_name[i] == current_last_name[i]])/(dist + 1)
             if name_score > 0.5:
-                name_score_list.append((name, name_score, deserialize(personids)))
+                name_score_list.add((name, name_score, deserialize(personids)))
 
     return name_score_list
 
 
-def calculate_pid_score(names_score_list):
+def calculate_author_score(string_ranking):
     '''
-    docstring
-
-    @param names_score_list:
-    @type names_score_list:
+    @param string_ranking:
+    @type string_ranking:
 
     @return:
-    @rtype:
+    @rtype: list
     '''
     max_appearances = 1
     pid_metrics_dict = dict()
 
-    for name, name_score, personids in names_score_list:
+    for name, name_score, personids in string_ranking:
         for pid in personids:
             try:
                 appearances = pid_metrics_dict[pid][2]+1
@@ -341,77 +398,3 @@ def calculate_pid_score(names_score_list):
         pids_score_list.append((pid, name, final_score))
 
     return pids_score_list
-
-
-def find_personids_by_name1(query_string):
-    '''
-    It finds a collection of personids who own a signature that is similar to the given query string.
-    Its approach is by solving a 'T-occurance problem' and then it applies some filters to the candidate
-    answers so it can remove the false positives. In the end it sorts the result set based on the score
-    they obtained.
-
-    @param query_string:
-    @type query_string: str
-
-    @return: personids which own a signature similar to the query string
-    @rtype: list
-    '''
-    search_engine_is_functioning = search_engine_is_operating()
-    if not search_engine_is_functioning:
-        return list()
-
-    asciified_query_string = translate_to_ascii(query_string)[0]
-    indexable_query_string = create_indexable_name(asciified_query_string)
-    if not indexable_query_string:
-        return list()
-
-    #query_string_surname = split_name_parts(query_string)[0]
-    #asciified_query_string_surname = translate_to_ascii(query_string_surname)[0]
-    #indexable_query_string_surname = create_indexable_name(asciified_query_string_surname)
-
-    #if not indexable_query_string and not indexable_query_string_surname:
-    #    return list()
-
-    s1 = solve_T_occurence_problem(indexable_query_string)
-
-    if not s1:
-        s1 = intbitset()
-
-    nameids = solve_T_occurence_problem(indexable_query_string)
-
-    #s2 = solve_T_occurence_problem(indexable_query_string_surname)
-    #if not s2:
-    #    s2 = intbitset()
-
-    #nameids = s1 | s2
-    if not nameids:
-        return list()
-
-    name_score_list = calculate_name_score(asciified_query_string, nameids)
-
-    return name_score_list
-    #name_ranking_list = sorted(name_score_list, key=itemgetter(1), reverse=True)
-
-    #pid_score_list = calculate_pid_score(name_ranking_list)
-    #pids_ranking_list = sorted(pid_score_list, key=itemgetter(2), reverse=True)
-
-    #ranked_pid_name_list = [pid for pid, name, final_score in pids_ranking_list]
-
-    #return ranked_pid_name_list
-
-
-def find_personids_by_name(query_string):
-    query_string_surname = split_name_parts(query_string)[0]
-
-    name_score_list = set(find_personids_by_name1(query_string) + find_personids_by_name1(query_string_surname))
-    name_ranking_list = sorted(name_score_list, key=itemgetter(1), reverse=True)
-
-    pid_score_list = calculate_pid_score(name_ranking_list)
-    pids_ranking_list = sorted(pid_score_list, key=itemgetter(2), reverse=True)
-
-    ranked_pid_name_list = [pid for pid, name, final_score in pids_ranking_list]
-
-    return ranked_pid_name_list
-
-
-
