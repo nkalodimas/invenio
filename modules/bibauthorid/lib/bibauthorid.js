@@ -2023,9 +2023,15 @@ function onPageChange() {
 
     if (typeof gMergeProfile != 'undefined') {
         $('.addToMergeButton[name="' + gMergeProfile[0] + '"]').prop('disabled','disabled');
-        $('.addToMergeButton').on('click', function(event) {
-            onAddToMergeClick(event, $(this));
+        $('.addToMergeButton').each( function(){
+            if (-1 == $.inArray(onAddToMergeClicked, jQuery.map( $._data($(this), "events")['click'], function(obj,ind){return obj.handler}) ) ) {
+                $(this).on('click', onAddToMergeClicked);
+            }
         });
+        //if(-1 == $.inArray(myc,jQuery.map($._data($('.addToMergeButton')[2], "events")['click'], function(obj,ind){return obj.handler})))
+        // $('.addToMergeButton').on('click', function(event) {
+        //     onAddToMergeClick(event, $(this));
+        // });
     }
 
     // $('.addToMergeButton').each( function(){
@@ -2057,6 +2063,17 @@ function updateMergeButton() {
             $('#mergeButton').removeAttr('disabled');
     else
         $('#mergeButton').attr('disabled','disabled');
+}
+
+function onAddToMergeClicked(event) {
+    var button = $(this);
+    var profile = button.attr('name').toString();
+    var profile_availability = button.siblings('[name="profile_availability"]').val();
+    for (var ind in gMergeList) {
+        if ( profile == gMergeList[ind][0] ) {
+            event.preventDefault();
+            return false;
+        }
 }
 
 function onAddToMergeClick(event, button) {
