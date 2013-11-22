@@ -17,21 +17,13 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
-""" Bibcheck plugin to enforce mandatory fields """
+""" Bibcheck plugin to ensure that certain pairs of fields exist """
 
-def check_record(record, fields, sets_of_fields=[]):
+def check_record(record, pairs_of_fields):
     """
-    Mark record as invalid if it doesn't contain all the specified fields
-    or if it doesn't contain at least one field of the specified fieldset
+    If key field exists in the record the value field must also exist
+    e.g {'242': '041'}
     """
-    for field in fields:
-        if len(list(record.iterfield(field))) == 0:
-            record.set_invalid("Missing mandatory field %s" % field)
-	for set_of_fields in sets_of_fields:
-		found = False
-		for field in set_of_fields:
-			if len(list(record.iterfield(field))) != 0:
-				found = True
-				break
-		if not found:
-			record.set_invalid("Missing all fields from mandatory set of fields %s" % ' or '.join(set_of_fields))
+    for key_field, value_field in pairs_of_fields.items():
+        if len(list(record.iterfields(key_field))) and not len(list(record.iterfields(key_field))):
+            record.set_invalid("Field %s exists, but field %s doesn't" % (key_field, value_field))

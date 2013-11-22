@@ -31,13 +31,22 @@ from invenio.bibcheck_plugins import mandatory, \
     enum, \
     dates, \
     texkey, \
-    url
+    url, \
+    code_exists, \
+    enrich_reference, \
+    field_in_subset, \
+    if_then, \
+    mutual_existing_fields, \
+    ref_id_consistency, \
+    subfield_in_db, \
+    subfield_in_kb
 from invenio.bibcheck_task import AmendableRecord
 
 MOCK_RECORD = {
     '001': [([], ' ', ' ', '1', 7)],
     '005': [([], ' ', ' ', '20130621172205.0', 7)],
-    '100': [([('a', 'Photolab ')], ' ', ' ', '', 7)], # Trailing spaces
+    '024': [([('a', 'Foo')], '7', ' ', '', 7)], # Code exists(no 0247 without $$2)
+    '100': [([('a', 'Photolab '),('c', '')], ' ', ' ', '', 7)], # Trailing spaces , ([('a', 'mplampla')], ' ', ' ', '', 8)
     '260': [([('c', '2000-06-14')], ' ', ' ', '', 7)],
     '261': [([('c', '14 Jun 2000')], ' ', ' ', '', 7)],
     '262': [([('c', '14 06 00')], ' ', ' ', '', 7)],
@@ -47,6 +56,7 @@ MOCK_RECORD = {
     '340': [([('a', 'FI\xc3\x28LM')], ' ', ' ', '', 7)], # Invalid utf-8
     '595': [([('a', ' Press')], ' ', ' ', '', 7)], # Leading spaces
     '653': [([('a', 'LEP')], '1', ' ', '', 7)],
+    '773': [([('w', 'C13-07-15.8')], ' ', ' ', '', 7)],
     '856': [([('f', 'neil.calder@cern.ch')], '0', ' ', '', 7)],
     '994': [([('u', 'http://httpstat.us/200')], '4', ' ', '', 7)], # Url that works
     '995': [([('u', 'www.google.com/favicon.ico')], '4', ' ', '', 7)],  # url without protocol
@@ -54,6 +64,7 @@ MOCK_RECORD = {
     '997': [([('u', 'http://httpstat.us/404')], '4', ' ', '', 7)], # Error 404
     '998': [([('u', 'http://httpstat.us/500')], '4', ' ', '', 7)], # Error 500
     '999': [([('u', 'http://httpstat.us/301')], '4', ' ', '', 7)], # Permanent redirect
+    '999': [([('a', '5345435'),('i', '52345235'),('r','4243424'),('s','fsdf.gfdfgsdfg.'),('0','2')], 'C', '5', '', 7), ([('a', 'mplampla')], 'C', '5', '', 8)]
 }
 
 RULE_MOCK = {
@@ -152,6 +163,15 @@ class BibCheckPluginsTest(unittest.TestCase):
     def test_texkey(self):
         """ TexKey plugin test """
         self.assertAmends(texkey, {"035__a": None})
+
+    def test_code_exists(self):
+        """ Code exists plugin test """
+        self.assertOk( code_exists, code_in_fields={"0247_" : "a"}) # Code exists
+        self.assertFails( code_exists, code_in_fields={"0247_" : "2"}) # Missing code
+
+    def test_subfield_in_db(self):
+        """ Subfield value exists in db plugin test """
+        self.assertOk( subfield_in_db, field_in_db = { "773__w" : ( "111__g", "Conferences" )} )
 
     # Test skipped by default because it involved making slow http requests
     #def test_url(self):

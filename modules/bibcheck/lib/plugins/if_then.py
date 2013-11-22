@@ -17,21 +17,21 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
-""" Bibcheck plugin to enforce mandatory fields """
+""" Bibcheck plugin which applies plugin functions when the given condition is true"""
 
-def check_record(record, fields, sets_of_fields=[]):
-    """
-    Mark record as invalid if it doesn't contain all the specified fields
-    or if it doesn't contain at least one field of the specified fieldset
-    """
-    for field in fields:
-        if len(list(record.iterfield(field))) == 0:
-            record.set_invalid("Missing mandatory field %s" % field)
-	for set_of_fields in sets_of_fields:
-		found = False
-		for field in set_of_fields:
-			if len(list(record.iterfield(field))) != 0:
-				found = True
-				break
-		if not found:
-			record.set_invalid("Missing all fields from mandatory set of fields %s" % ' or '.join(set_of_fields))
+def check_record(record, if_func, then_func, if_func_args={}, **then_func_args ):
+	""" If if_func returns true then then_func is called """
+
+	import invenio.if_then_plugins
+
+	if_func = getattr(invenio.if_then_plugins,if_func)
+	then_func = getattr(invenio.if_then_plugins,then_func)
+	if if_func_args:
+		result = if_func(record, if_func_args)
+	else:
+		result = if_func(record)
+	if result:
+		if then_func_args:
+			then_func(record, then_func_args)
+		else:
+			then_func(record)

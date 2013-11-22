@@ -17,21 +17,22 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
-""" Bibcheck plugin to enforce mandatory fields """
+""" Bibcheck plugin to enforce mandatory subfields """
 
-def check_record(record, fields, sets_of_fields=[]):
+from invenio.bibrecord import *
+
+def check_record(record, code_in_fields):
     """
-    Mark record as invalid if it doesn't contain all the specified fields
-    or if it doesn't contain at least one field of the specified fieldset
+    Mark record as invalid if a field doesn't contain the specified code
+    e.g {'100__': 'a'}
     """
-    for field in fields:
-        if len(list(record.iterfield(field))) == 0:
-            record.set_invalid("Missing mandatory field %s" % field)
-	for set_of_fields in sets_of_fields:
-		found = False
-		for field in set_of_fields:
-			if len(list(record.iterfield(field))) != 0:
-				found = True
-				break
-		if not found:
-			record.set_invalid("Missing all fields from mandatory set of fields %s" % ' or '.join(set_of_fields))
+    for field, code in code_in_fields.items():
+        for field_instance in record_get_field_instances(record,'100','_','_'):
+            found = False
+            subfields = field_get_subfield_instances(field_instance)
+            for subfield in subfields:
+                if subfield[0] is code and subfield[1]:
+                    found = True
+                    break
+            if not found:
+                record.set_invalid("Field %s must contain a subfield with code %s" % (field, code))

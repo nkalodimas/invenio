@@ -31,7 +31,15 @@ pylib_DATA = __init__.py \
     texkey.py \
     doi.py \
     crossref_checker.py \
-    url.py
+    url.py \
+    code_exists.py \
+    enrich_reference.py \
+    field_in_subset.py \
+    if_then.py \
+    mutual_existing_fields.py \
+    ref_id_consistency.py \
+    subfield_in_db.py \
+    subfield_in_kb.py
 
 EXTRA_DIST = $(pylib_DATA)
 

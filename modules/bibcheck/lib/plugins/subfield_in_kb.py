@@ -17,21 +17,18 @@
 ## along with Invenio; if not, write to the Free Software Foundation, Inc.,
 ## 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
-""" Bibcheck plugin to enforce mandatory fields """
+""" Bibcheck plugin to check the existence of a subfield's value in a Knowledge Base """
 
-def check_record(record, fields, sets_of_fields=[]):
+from invenio.bibknowledge import get_kba_values
+
+def check_record(record, field_in_kb):
     """
-    Mark record as invalid if it doesn't contain all the specified fields
-    or if it doesn't contain at least one field of the specified fieldset
+    Mark record as invalid if a field's value is not contained in the specified KB
+    e.g {'100__a': 'Subjects'}
     """
-    for field in fields:
-        if len(list(record.iterfield(field))) == 0:
-            record.set_invalid("Missing mandatory field %s" % field)
-	for set_of_fields in sets_of_fields:
-		found = False
-		for field in set_of_fields:
-			if len(list(record.iterfield(field))) != 0:
-				found = True
-				break
-		if not found:
-			record.set_invalid("Missing all fields from mandatory set of fields %s" % ' or '.join(set_of_fields))
+    for field, kb in field_in_kb.items():
+        if '%' in field or len(field) is not 6:
+            continue
+        for position, value in record.iterfield(field):
+            if not get_kba_values(kb, searchname=value, searchtype="e"):
+                record.set_invalid("Field %s must exist in Knowledge Base %s" % (field, kb))
