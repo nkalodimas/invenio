@@ -186,7 +186,8 @@ Please, update your invenio-local.conf file accordingly.""" % (option_name, new_
                        'CFG_BIBDOCFILE_PREFERRED_MIMETYPES_MAPPING',
                        'CFG_BIBSCHED_NON_CONCURRENT_TASKS',
                        'CFG_REDIS_HOSTS',
-                       'CFG_BIBSCHED_INCOMPATIBLE_TASKS']:
+                       'CFG_BIBSCHED_INCOMPATIBLE_TASKS',
+                       'CFG_BIBRECORD_SORTING_FIELDS_RULES']:
         try:
             option_value = option_value[1:-1]
             if option_name == "CFG_BIBEDIT_EXTEND_RECORD_WITH_COLLECTION_TEMPLATE" and option_value.strip().startswith("{"):

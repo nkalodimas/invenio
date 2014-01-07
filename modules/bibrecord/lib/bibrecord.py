@@ -39,7 +39,8 @@ from invenio.bibrecord_config import CFG_MARC21_DTD, \
     CFG_BIBRECORD_WARNING_MSGS, CFG_BIBRECORD_DEFAULT_VERBOSE_LEVEL, \
     CFG_BIBRECORD_DEFAULT_CORRECT, CFG_BIBRECORD_PARSERS_AVAILABLE, \
     InvenioBibRecordParserError, InvenioBibRecordFieldError
-from invenio.config import CFG_BIBUPLOAD_EXTERNAL_OAIID_TAG
+from invenio.config import CFG_BIBUPLOAD_EXTERNAL_OAIID_TAG, \
+    CFG_BIBRECORD_SORTING_FIELDS_RULES
 from invenio.textutils import encode_for_xml
 
 # Some values used for the RXP parsing.
@@ -1264,6 +1265,23 @@ def record_order_subfields(rec, tag=None):
             ordered_subfields = sorted(field[0], key=lambda subfield: subfield[0])
             rec[tag][i] = (ordered_subfields, field[1], field[2], field[3], field[4])
 
+def record_order_fields_by_rules(rec):
+    """ Orders the fields of the record according to custom rules.
+    In a configuration file we declare the collection, the fields and the comparing function
+    according to which the fields will be sorted.
+    @param rec: bibrecord
+    @type rec: bibrec
+    """
+    from invenio.bibedit_utils import get_record_collections
+
+    rules = CFG_BIBRECORD_SORTING_FIELDS_RULES
+    record_collections = get_record_collections(recid=0, recstruct=rec)
+    for collection in record_collections:
+        if collection in rules.keys():
+            for rule in rules[collection]:
+                tag, indicator1, indicator2, comparator = rule
+                if tag in rec:
+                    _order_fields_by_comparator(rec,tag,indicator1,indicator2, comparator)
 
 def record_empty(rec):
     for key in rec.iterkeys():
@@ -1835,3 +1853,46 @@ def _compare_lists(list1, list2, custom_cmp):
         if not custom_cmp(element1, element2):
             return False
     return True
+
+def _institution_start_date_comparator(el):
+    """Compares the institution's start dates.
+    Expects the given field to be '371__'.
+    Returns the value of subfield s of the given field if exists.
+    Otherwise returns -1.
+    The order of sorting is ascending.
+
+    @param el: the element to be compared.
+    In this case a field instance of '371__' is expected.
+    """
+    dates = field_get_subfield_values(el, 's')
+    if dates:
+        if dates[0]:
+            return int(dates[0])
+    return -1
+
+def _order_fields_by_comparator(record,tag,indicator1,indicator2,comparator):
+    """Orders the fields which belong to tag+indicator1+indicator2
+    according to the given comparator function.
+
+    @param record: the record data structure
+    @param tag: a 3 characters long string
+    @param indicator1: a 1 character long string
+    @param indicator2: a 1 character long string
+    @param comparator: a string with the name of the function used to sort the fields
+    """
+    _fields_sort_by_indicators(record[tag])
+    tag_fields = record[tag]
+    field_instances = []
+    tag_indexes=[]
+    global_positions=[]
+    for index, field in enumerate(tag_fields):
+        if field[1] == indicator1 and field[2] == indicator2:
+            field_instances.append(field)
+            tag_indexes.append(index)
+            global_positions.append(field[4])
+    if field_instances:
+        field_instances = sorted(field_instances, key=eval(comparator) )
+        tmp_field_instances = []
+        for i,field in enumerate(field_instances):
+            tmp_field_instances.append( field[:4] + (global_positions[i],) )
+        record[tag][tag_indexes[0]:tag_indexes[-1]+1]= tmp_field_instances

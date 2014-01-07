@@ -57,7 +57,8 @@ from invenio.bibrecord import create_record, create_records, \
     record_add_field, field_get_subfield_codes, field_add_subfield, \
     field_get_subfield_values, record_delete_fields, record_add_fields, \
     record_get_field_values, print_rec, record_modify_subfield, \
-    record_modify_controlfield, record_make_all_subfields_volatile
+    record_modify_controlfield, record_make_all_subfields_volatile, \
+    record_order_fields_by_rules
 from invenio.bibtask import task_low_level_submission
 from invenio.config import CFG_BIBEDIT_LOCKLEVEL, \
     CFG_BIBEDIT_TIMEOUT, CFG_BIBUPLOAD_EXTERNAL_OAIID_TAG as OAIID_TAG, \
@@ -248,7 +249,7 @@ def create_cache(recid, uid, record='', cache_dirty=False, pending_changes=[],
 
     # Order subfields alphabetically after loading the record
     record_order_subfields(record)
-
+    record_order_fields_by_rules(record)
     data = [cache_dirty, record_revision, record, pending_changes,
             disabled_hp_changes, undo_list, redo_list]
     update_cache(recid, uid, data)
@@ -276,6 +277,7 @@ def get_cache_contents(recid, uid):
     if cache:
         cache_dirty, record_revision, record, pending_changes, disabled_hp_changes, undo_list, redo_list = cache
         assert_undo_redo_lists_correctness(undo_list, redo_list)
+        record_order_fields_by_rules(record)
 
         return cache_dirty, record_revision, record, pending_changes, disabled_hp_changes, undo_list, redo_list
 

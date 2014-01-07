@@ -88,7 +88,7 @@ from invenio.bibrecord import create_record, print_rec, record_add_field, \
     record_get_subfields, record_get_field_instances, record_add_fields, \
     record_strip_empty_fields, record_strip_empty_volatile_subfields, \
     record_strip_controlfields, record_order_subfields, \
-    field_add_subfield, field_get_subfield_values
+    field_add_subfield, field_get_subfield_values, record_order_fields_by_rules
 
 from invenio.config import CFG_BIBEDIT_PROTECTED_FIELDS, CFG_CERN_SITE, \
     CFG_SITE_URL, CFG_SITE_RECORD, CFG_BIBEDIT_KB_SUBJECTS, \
@@ -750,10 +750,12 @@ def perform_request_record(req, request_type, recid, uid, data, ln=CFG_SITE_LANG
                 merged_record = merge_record_with_template(record, template_to_merge)
                 if merged_record:
                     record = merged_record
+                    record_order_fields_by_rules(record)
                     mtime = update_cache_contents(recid, uid, record_revision,
                                                   record, pending_changes,
                                                   disabled_hp_changes,
                                                   undo_list, redo_list)
+            record_order_fields_by_rules(record)
 
             if record_status == -1:
                 # The record was deleted
