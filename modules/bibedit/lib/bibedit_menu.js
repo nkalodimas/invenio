@@ -611,8 +611,7 @@ function onCreateNewTicket(event) {
             text: "Cancel",
             id: "cancelTicketButton",
             click: function() {
-                          $("#newTicketLink").on('click', onCreateNewTicket);
-                          $(this).remove();
+                          $(this).dialog("close");
                       }
           }]
   });
