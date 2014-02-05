@@ -573,7 +573,7 @@ function onCreateNewTicket(event) {
         title: "Confirm submit",
         close: function() {
             $("#newTicketLink").on('click', onCreateNewTicket);
-            if ( $(this).dialog("option").title != "Ticket was succesfully submitted" ){
+            if ( $('#cancelTicketButton').hasClass("successfulTicket") ) {
                 $("#tickets").children().hide();
                 $("#loadingTickets").show();
                 createReq({recID: gRecID, requestType: 'getTickets'}, onGetTicketsSuccess);
@@ -584,7 +584,7 @@ function onCreateNewTicket(event) {
             text: "Submit ticket",
             id: "submitTicketButton",
             click: function() {
-                if ( $(this).find('#Queue').val() === 0 ) {
+                if ( $(this).find('#Queue').val() == 0 ) {
                   alert('Please select a queue!');
                   return false;
                 }
@@ -617,7 +617,7 @@ function onCreateNewTicket(event) {
   });
 
   createReq({recID: gRecID, requestType: 'getNewTicketRTInfo'}, function(json){
-      if(json['resultCode'] === 0) {
+      if(json['resultCode'] == 0) {
         var title = "Error: New ticket cannot be created";
         var message = "Necessary data cannot be retrieved.";
         displayResponse(dialogPreview, title, message);
@@ -632,7 +632,15 @@ function onCreateNewTicket(event) {
       fillQueues(queues, ticketTemplates);
       fillUsers(users);
       $('#Requestor').val(email);
+      $('.rtInfoLoader').hide();
+      $('#Queue').show();
+      $('#Owner').show();
   },undefined, undefined, errorCallback);
+
+  $('#Queue').hide();
+  $('#Owner').hide();
+  $('.rtInfoLoader').show();
+
   event.preventDefault();
 
   function fillQueues(queues, ticketTemplates) {
@@ -712,7 +720,8 @@ function onCreateTicketSuccess(dialog) {
         message = resultMessage;
       }
       displayResponse(dialog, title, message);
-      $('#cancelTicketButton').text("Close window").show();
+      $('#cancelTicketButton .ui-button-text').text("Close window").show();
+      $('#cancelTicketButton').addClass("successfulTicket").show();
     };
 }
 
@@ -743,8 +752,12 @@ function generateNewTicketHtml() {
                   <td class="label" width="50px">Queue:</td>\
                   <td class="value" width="125px">\
                     <select id="Queue" >\
-                    <option value="0" selected></option>\
+                      <option value="0" selected></option>\
                     </select>\
+                    <div class="rtInfoLoader">\
+                      <img src="/img/indicator.gif">\
+                      <span> loading queues..<span>\
+                    <div>\
                   </td>\
                   <td class="label" width="50px">Status:\
                   </td>\
@@ -765,6 +778,10 @@ function generateNewTicketHtml() {
                     <select id="Owner">\
                       <option selected="" value="10">Nobody</option>\
                     </select>\
+                    <div class="rtInfoLoader">\
+                      <img src="/img/indicator.gif">\
+                      <span> loading users..<span>\
+                    <div>\
                   </td>\
                   <input type="hidden" id="Requestor" value="">\
                 </tr>\
