@@ -604,7 +604,7 @@ function onCreateNewTicket(event) {
                 var successCallback = onCreateTicketSuccess(dialogPreview);
                 var errorCallback = onCreateTicketError(dialogPreview);
                 createReq(reqData, successCallback,
-                undefined, errorCallback);
+                undefined, undefined, errorCallback);
             }
           },
           {
