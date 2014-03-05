@@ -19,11 +19,15 @@
 
 """ Bibcheck plugin to enforce mandatory fields """
 
-def check_record(record, fields, sets_of_fields=[]):
+def check_record(record, fields=None, sets_of_fields=None):
     """
     Mark record as invalid if it doesn't contain all the specified fields
     or if it doesn't contain at least one field of the specified fieldset
     """
+    if fields is None:
+    	fields = list()
+    if sets_of_fields is None:
+    	sets_of_fields = list()
     for field in fields:
         if len(list(record.iterfield(field))) == 0:
             record.set_invalid("Missing mandatory field %s" % field)

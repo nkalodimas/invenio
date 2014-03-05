@@ -36,8 +36,10 @@ pylib_DATA = __init__.py \
     enrich_reference.py \
     field_in_subset.py \
     if_then.py \
+    if_then_plugins.py \
     mutual_existing_fields.py \
     ref_id_consistency.py \
+    add_recid_to_ref.py \
     subfield_in_db.py \
     subfield_in_kb.py
 

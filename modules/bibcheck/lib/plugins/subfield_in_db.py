@@ -45,5 +45,6 @@ def get_values_of_field_in_db( field, collection):
     rec_ids = perform_request_search(p=pattern, of="intbitset", cc=collection)
     if rec_ids:
         # get the value of the field from every found record
-        results = [get_fieldvalues(rec, '711__a') for rec in rec_ids]
+        for rec in rec_ids:
+            results.extend(get_fieldvalues(rec, field))
     return results

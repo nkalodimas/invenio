@@ -19,19 +19,13 @@
 
 """ Bibcheck plugin which applies plugin functions when the given condition is true"""
 
-def check_record(record, if_func, then_func, if_func_args={}, **then_func_args ):
+def check_record(record, if_func, then_func, if_func_args={}, then_func_args={} ):
 	""" If if_func returns true then then_func is called """
 
-	import invenio.if_then_plugins
+	from invenio.bibcheck_plugins import if_then_plugins
 
-	if_func = getattr(invenio.if_then_plugins,if_func)
-	then_func = getattr(invenio.if_then_plugins,then_func)
-	if if_func_args:
-		result = if_func(record, if_func_args)
-	else:
-		result = if_func(record)
+	if_func = getattr(if_then_plugins,if_func)
+	then_func = getattr(if_then_plugins,then_func)
+	result = if_func(record, **if_func_args)
 	if result:
-		if then_func_args:
-			then_func(record, then_func_args)
-		else:
-			then_func(record)
+		then_func(record, **then_func_args)

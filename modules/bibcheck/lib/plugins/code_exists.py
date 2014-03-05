@@ -27,7 +27,7 @@ def check_record(record, code_in_fields):
     e.g {'100__': 'a'}
     """
     for field, code in code_in_fields.items():
-        for field_instance in record_get_field_instances(record,'100','_','_'):
+        for field_instance in record_get_field_instances(record,field[:3],field[3],field[4]):
             found = False
             subfields = field_get_subfield_instances(field_instance)
             for subfield in subfields:

@@ -25,5 +25,5 @@ def check_record(record, pairs_of_fields):
     e.g {'242': '041'}
     """
     for key_field, value_field in pairs_of_fields.items():
-        if len(list(record.iterfields(key_field))) and not len(list(record.iterfields(key_field))):
+        if len(list(record.iterfield(key_field))) and not len(list(record.iterfield(value_field))):
             record.set_invalid("Field %s exists, but field %s doesn't" % (key_field, value_field))

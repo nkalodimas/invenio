@@ -21,7 +21,6 @@
 
 from invenio.bibrecord import record_get_field_instances, field_get_subfield_instances, \
 	field_get_subfield_values, field_get_subfield_codes, record_add_field
-from invenio.search_engine import perform_request_search
 
 def check_record(record):
 	"""
@@ -30,16 +29,11 @@ def check_record(record):
 	"""
 	for field_instance in record_get_field_instances(record,'999','C','5'):
 		codes = field_get_subfield_codes(field_instance)
+		pub_info = record_get_field_instances(record,'773','_','_')
 		if 'r' and 's' in codes and pub_info:
 			referenced_record = retrieve_referenced_record(field_instance)
 			if referenced_record:
-				# TODO add publication info to the record
-				referenced_record.addfield(record.get-pub-info)
-			# subfields = field_get_subfield_instances(field_instance)
-			# for code, value in subfields:
-			# 	if dictionary.haskey(code):
-			# 		if referenced_record.not_contains(dictionary[code]) and record.contains(code):
-			# 			referenced_record.addfield(record[code])
+				pass # TODO add publication info to the record
 
 def retrieve_referenced_record(field_instance):
 	subfields = field_get_subfield_instances(field_instance)

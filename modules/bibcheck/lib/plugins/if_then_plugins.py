@@ -21,7 +21,7 @@
 
 from invenio.bibrecord import *
 
-def core_in_65017(record,*args):
+def core_in_65017(record):
 	""" Checks whether the record contains one of the CORE subjects in 65017a """
 	values = record_get_field_values(record,'650','1','7','a')
 	for value in values:

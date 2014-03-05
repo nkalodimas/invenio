@@ -21,7 +21,6 @@
 
 from invenio.bibrecord import record_get_field_instances, field_get_subfield_instances, field_get_subfield_values
 from invenio.search_engine import perform_request_search
-
 def check_record(record):
 	""" For every reference field, checks whether all subfields refer to the same Inspire Id
 	"""
@@ -51,7 +50,7 @@ def find_inspire_id_from_reference(field_instance):
 			if recid:
 				recid_set.add(recid)
 		if code == '0' and value:
-			recid_set.add(value)
+			recid_set.add(int(value))
 	return recid_set
 
 

@@ -34,30 +34,37 @@ def check_record(record, field_in_source):
     'DB' : (<field>, <collection>)
     'KB' : <KB name>
     """
-    for field, source in field_in_source:
-        if not field_exists_in_source(field, source):
-            record.set_invalid("There should be at least one field %s in the set of %s" % (field, ' or '.join(set_of_fields)))
-
-def field_exists_in_source(field, source):
-    if len(source.items()) < 1:
-        return False
-    source_type, source_value = source.items()[0]
-    if source_type == 'SET':
-        for position, value in record.iterfield(field):
-            if value in source_value:
-                return True
-        return False
-    elif source_type == 'DB':
-        field_to_search , collection = source_value
-        values_in_db = subfield_in_db.get_values_of_field_in_db(field_to_search, collection)
-        for position, value in record.iterfield(field):
-            if value in values_in_db:
-                return True
-        return False
-    elif source_type == 'KB':
-        for position, value in record.iterfield(field):
-            if get_kba_values(source_value, searchname=value, searchtype="e"):
-                return True
-        return False
-    else:
-        return False
+    for field, source in field_in_source.items():
+        if len(source.items()) < 1:
+            continue
+        source_type, source_value = source.items()[0]
+        found = False
+        if source_type == 'SET':
+            for position, value in record.iterfield(field):
+                if value in source_value:
+                    found = True
+                    break
+            if not found:
+                record.set_invalid("There should be at least one field %s in the set of %s" % (field, ' or '.join(source_value)))
+            continue
+        elif source_type == 'DB':
+            field_to_search , collection = source_value
+            values_in_db = subfield_in_db.get_values_of_field_in_db(field_to_search, collection)
+            for position, value in record.iterfield(field):
+                if value in values_in_db:
+                    found = True
+                    break
+            if not found:
+                record.set_invalid("There should be at least one field %s whose value exists in the db in the field %s for collection %s" %
+             (field, field_to_search, collection))
+            continue
+        elif source_type == 'KB':
+            for position, value in record.iterfield(field):
+                if get_kba_values(source_value, searchname=value, searchtype="e"):
+                    found = True
+                    break
+            if not found:
+                record.set_invalid("There should be at least one field %s whose value exists in Knowledge Base %s" % (field, source_value))
+            continue
+        else:
+            continue
