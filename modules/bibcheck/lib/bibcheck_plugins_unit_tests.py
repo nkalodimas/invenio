@@ -42,6 +42,11 @@ from invenio.bibcheck_plugins import mandatory, \
     subfield_in_db, \
     subfield_in_kb
 from invenio.bibcheck_task import AmendableRecord
+try:
+    from mock import patch
+    HAS_MOCK = True
+except ImportError:
+    HAS_MOCK = False
 
 MOCK_RECORD = {
     '001': [([], ' ', ' ', '1', 7)],
@@ -70,14 +75,32 @@ MOCK_RECORD = {
     '997': [([('u', 'http://httpstat.us/404')], '4', ' ', '', 7)], # Error 404
     '998': [([('u', 'http://httpstat.us/500')], '4', ' ', '', 7)], # Error 500
     '999': [([('u', 'http://httpstat.us/301')], '4', ' ', '', 7), # Permanent redirect
-            ([('a', '10.1007/978-3-642-25947-0'),('i', '978-3-642-25946-3'),('s', 'Lect.Notes Phys.'),('0','11153722')], 'C', '5', '', 8), # Reference id consistency
-            ([('a', '10.1007/978-3-642-25947-0'),('i', '978-3-642-25946-3'),('s', 'Lect.Notes Phys.')], 'C', '5', '', 9)] # Add recid to reference
+            ([('a', '111'),('i', '111'),('s', 'Mock-Journal'),('0','2')], 'C', '5', '', 8), # Reference id consistency
+            ([('a', '111'),('i', '111'),('s', 'Mock-Journal')], 'C', '5', '', 9)] # Add recid to reference
 }
 
 RULE_MOCK = {
     "name": "test_rule",
     "holdingpen": True
 }
+
+def perform_request_search_mock(p, of, cc):
+    result = None
+    if of == "intbitset":
+        result = [1]
+    return result
+
+def get_fieldvalues_mock(rec, field):
+    result=[]
+    if field == "111__g":
+        result.append('C13-07-15.8')
+    return result
+
+def get_kba_values_mock(kb, searchname, searchtype):
+    if kb == "SUBJECT":
+        return set(('Mock Result'),)
+    else:
+        return None
 
 class BibCheckPluginsTest(unittest.TestCase):
     """ Bibcheck default plugins test """
@@ -177,17 +200,6 @@ class BibCheckPluginsTest(unittest.TestCase):
         self.assertOk( code_exists, code_in_fields={"0247_" : "a"}) # Code exists
         self.assertFails( code_exists, code_in_fields={"0247_" : "2"}) # Missing code
 
-    def test_subfield_in_db(self):
-        """ Subfield value exists in db plugin test """
-        self.assertOk( subfield_in_db, field_in_db = { "773__w" : ( "111__g", "Conferences" )} )
-        self.assertFails( subfield_in_db, field_in_db = { "774__w" : ( "111__g", "Conferences" )} ) # Value should not exist
-
-    def test_subfield_in_kb(self):
-        """ Subfield value exists in kb plugin test """
-        self.assertOk( subfield_in_kb, field_in_kb = { "65017a" : "SUBJECT" } )
-        self.assertFails( subfield_in_kb, field_in_kb = { "65017a" : "JOURNALS" } ) # Value should not exist
-        self.assertFails( subfield_in_kb, field_in_kb = { "65017a" : "Unknown" } ) # Knowledge Base that does not exist
-
     def test_field_in_subset(self):
         """ Field exists in subset plugin test """
         self.assertOk( field_in_subset, field_in_source = { "980__a" : { 'SET' : ['HEP','Conferences', 'CORE'] } } )
@@ -203,16 +215,38 @@ class BibCheckPluginsTest(unittest.TestCase):
         """ If then plugin test"""
         self.assertFails( if_then, if_func = 'core_in_65017', then_func = 'core_should_exist')
 
-    def test_ref_id_consistency(self):
-        """ Reference Id consistency plugin test"""
-        self.assertFails( ref_id_consistency) # Non-existent Inspire id in 999C50
-
-    def test_add_recid_to_ref(self):
-        """ Add record id to reference plugin test"""
-        self.assertAmends( add_recid_to_ref, {"999C50":"1115372"} )
-
     def test_enrich_reference(self):
         """ Enrich reference plugin test"""
+
+    if HAS_MOCK:
+        @patch('invenio.bibcheck_plugins.ref_id_consistency.perform_request_search',
+            perform_request_search_mock)
+        def test_ref_id_consistency(self):
+            """ Reference Id consistency plugin test"""
+            self.assertFails( ref_id_consistency) # Non-existent Inspire id in 999C50
+
+        @patch('invenio.bibcheck_plugins.subfield_in_db.perform_request_search',
+            perform_request_search_mock)
+        @patch('invenio.bibcheck_plugins.subfield_in_db.get_fieldvalues',
+            get_fieldvalues_mock)
+        def test_subfield_in_db(self):
+            """ Subfield value exists in db plugin test """
+            self.assertOk( subfield_in_db, field_in_db = { "773__w" : ( "111__g", "Conferences" )} )
+            self.assertFails( subfield_in_db, field_in_db = { "774__w" : ( "111__g", "Conferences" )} ) # Value should not exist
+
+        @patch('invenio.bibcheck_plugins.subfield_in_kb.get_kba_values',
+            get_kba_values_mock)
+        def test_subfield_in_kb(self):
+            """ Subfield value exists in kb plugin test """
+            self.assertOk( subfield_in_kb, field_in_kb = { "65017a" : "SUBJECT" } )
+            self.assertFails( subfield_in_kb, field_in_kb = { "65017a" : "JOURNALS" } ) # Value should not exist
+            self.assertFails( subfield_in_kb, field_in_kb = { "65017a" : "Unknown" } ) # Knowledge Base that does not exist
+
+        @patch('invenio.bibcheck_plugins.ref_id_consistency.perform_request_search',
+            perform_request_search_mock)
+        def test_add_recid_to_ref(self):
+            """ Add record id to reference plugin test"""
+            self.assertAmends( add_recid_to_ref, {"999C50":"1"} )
 
     # Test skipped by default because it involved making slow http requests
     #def test_url(self):

@@ -19,7 +19,6 @@
 
 """ Bibcheck plugin to check the existence of a subfield's value in the database """
 
-from invenio.bibrecord import record_get_field_values
 from invenio.search_engine import perform_request_search, get_fieldvalues
 def check_record(record, field_in_db):
     """
@@ -29,11 +28,9 @@ def check_record(record, field_in_db):
     for field, field_in_collection in field_in_db.items():
         if '%' in field or len(field) is not 6:
             continue
-        # values_of_field = record_get_field_values(record,field[:3],field[3],field[4],field[5])
         field_to_search , collection = field_in_collection
         values_in_db = get_values_of_field_in_db(field_to_search, collection)
         for position, value in record.iterfield(field):
-        # for value in values_of_field:
             if value not in values_in_db:
                 record.set_invalid("Field's %s value does not match a %s in the %s database" % (field, field_to_search, collection))
                 break
