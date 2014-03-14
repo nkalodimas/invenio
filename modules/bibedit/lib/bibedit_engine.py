@@ -550,7 +550,6 @@ def perform_request_holdingpen(request_type, recId, changeId=None):
     elif request_type == 'getHoldingPenUpdateDetails':
         # returning the list of changes related to the holding pen update
         # the format based on what the record difference xtool returns
-
         assert(changeId is not None)
         hpContent = get_hp_update_xml(changeId)
         holdingPenRecord = create_record(hpContent[0], "xm")[0]
@@ -1644,7 +1643,8 @@ def perform_request_get_tableview(recid, uid, data):
         response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['textmarc_parsing_error']
     else:
         create_cache(recid, uid,
-            create_record(xml_conversion_status['resultXML'])[0], data['recordDirty'])
+            create_record(xml_conversion_status['resultXML'])[0], data['recordDirty'],
+                            disabled_hp_changes=data['disabled_hp_changes'])
         response['resultCode'] = CFG_BIBEDIT_AJAX_RESULT_CODES_REV['tableview_change_success']
         response['cacheMTime'] = get_cache_mtime(recid, uid)
     return response
