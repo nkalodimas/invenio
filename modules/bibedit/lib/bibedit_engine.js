@@ -2004,6 +2004,19 @@ function onTextMarcClick() {
   * 2) Remove editor table and display content in textbox
   * 3) Activate flag to know we are in text marc mode (for submission)
   */
+  var stop = false;
+  for (changeInd in gHoldingPenChanges){
+    var changeObj = gHoldingPenChanges[changeInd];
+    if ( (!changeObj.hasOwnProperty('applied_change') || changeObj.applied_change !== true ) &&
+        changeObj.change_type !== "subfield_same"){
+      stop = true;
+    }
+  }
+  if (stop) {
+    displayAlert('alertSwitchHoldingPenToMarc');
+    event.preventDefault();
+    return;
+  }
 
   $("#img_textmarc").off("click");
 
@@ -2076,7 +2089,8 @@ function onTableViewClick() {
    * 2) Get the record from the cache and display it in the table
   */
   createReq({recID: gRecID, textmarc: $('#textmarc_textbox').val(),
-      requestType: 'getTableView', recordDirty: gRecordDirty
+      requestType: 'getTableView', recordDirty: gRecordDirty,
+      disabled_hp_changes: gDisabledHpEntries
        }, function(json) {
           var resCode = json['resultCode'];
           if (resCode == 115) {
